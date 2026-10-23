@@ -10,3 +10,4 @@ export * from "./design/tokens";
 export * from "./settings";
 export * from "./csv";
 export * from "./import";
+export * from "./placeholders";

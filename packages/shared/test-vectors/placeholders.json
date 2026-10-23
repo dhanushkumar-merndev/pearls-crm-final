@@ -1,0 +1,75 @@
+{
+  "$comment": "Golden vectors for discharge-summary placeholders. Used by packages/shared tests AND a generated pgTAP test of private.render_placeholders (pnpm vectors). Change only with both sides.",
+  "cases": [
+    {
+      "name": "female patient: she / her",
+      "text": "{{He_She}} underwent {{procedure}} on {{surgery_on}}. {{His_Her}} recovery was smooth.",
+      "vars": { "He_She": "She", "His_Her": "Her", "procedure": "Septoplasty", "surgery_on": "30/03/2026" },
+      "expect": "She underwent Septoplasty on 30/03/2026. Her recovery was smooth.",
+      "leftover": []
+    },
+    {
+      "name": "male patient: he / his",
+      "text": "{{He_She}} was discharged; {{his_her}} sutures come out in 7 days.",
+      "vars": { "He_She": "He", "his_her": "his" },
+      "expect": "He was discharged; his sutures come out in 7 days.",
+      "leftover": []
+    },
+    {
+      "name": "other gender: they / their",
+      "text": "{{He_She}} tolerated the procedure well and {{his_her}} vitals were stable.",
+      "vars": { "He_She": "They", "his_her": "their" },
+      "expect": "They tolerated the procedure well and their vitals were stable.",
+      "leftover": []
+    },
+    {
+      "name": "spaces inside the braces are allowed",
+      "text": "Admitted on {{ admitted_on }}.",
+      "vars": { "admitted_on": "30/03/2026" },
+      "expect": "Admitted on 30/03/2026.",
+      "leftover": []
+    },
+    {
+      "name": "a missing value stays so finalize can refuse it",
+      "text": "Surgery on {{surgery_on}} under {{anaesthesia}}.",
+      "vars": { "anaesthesia": "general anaesthesia" },
+      "expect": "Surgery on {{surgery_on}} under general anaesthesia.",
+      "leftover": ["surgery_on"]
+    },
+    {
+      "name": "an empty value counts as missing",
+      "text": "Diagnosis: {{diagnosis}}",
+      "vars": { "diagnosis": "" },
+      "expect": "Diagnosis: {{diagnosis}}",
+      "leftover": ["diagnosis"]
+    },
+    {
+      "name": "unknown names and odd tokens are left (and reported)",
+      "text": "{{patient_name}} — {{blood group}} {{Unknown_Thing}}",
+      "vars": { "patient_name": "Mrs Asha Rao" },
+      "expect": "Mrs Asha Rao — {{blood group}} {{Unknown_Thing}}",
+      "leftover": ["blood group", "Unknown_Thing"]
+    },
+    {
+      "name": "a value is never filled again (one pass)",
+      "text": "{{patient_name}} / {{age}}",
+      "vars": { "patient_name": "Ravi {{age}}", "age": "41" },
+      "expect": "Ravi {{age}} / 41",
+      "leftover": ["age"]
+    },
+    {
+      "name": "the same placeholder twice, and special characters in values",
+      "text": "{{surgeon}} ({{surgeon}}) — fee \\ 100% & more",
+      "vars": { "surgeon": "Dr K. N. Rao, MS (ENT) \\ $1 & co" },
+      "expect": "Dr K. N. Rao, MS (ENT) \\ $1 & co (Dr K. N. Rao, MS (ENT) \\ $1 & co) — fee \\ 100% & more",
+      "leftover": []
+    },
+    {
+      "name": "no placeholders, Indian text unchanged",
+      "text": "ರೋಗಿ ಸ್ಥಿರವಾಗಿದ್ದಾರೆ — रोगी स्थिर है।",
+      "vars": {},
+      "expect": "ರೋಗಿ ಸ್ಥಿರವಾಗಿದ್ದಾರೆ — रोगी स्थिर है।",
+      "leftover": []
+    }
+  ]
+}

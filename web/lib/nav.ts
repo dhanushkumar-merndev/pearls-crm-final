@@ -1,4 +1,4 @@
-import { CalendarDays, House, ListTodo, Palette, Pill, Plus, ReceiptIndianRupee, Settings, Users, type LucideIcon } from "lucide-react";
+import { BedDouble, CalendarDays, House, ListTodo, Palette, Pill, Plus, ReceiptIndianRupee, Settings, Users, type LucideIcon } from "lucide-react";
 import type { StaffRole } from "@pearl/shared";
 
 export interface NavItem {
@@ -16,6 +16,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/home", labelKey: "nav.home", icon: House, roles: ["receptionist", "sales_manager", "admin"] },
   { href: "/appointments", labelKey: "nav.appointments", icon: CalendarDays, roles: ["receptionist", "admin"] },
   { href: "/patients", labelKey: "nav.patients", icon: Users, roles: ["receptionist", "admin"] },
+  { href: "/admissions", labelKey: "nav.admissions", icon: BedDouble, roles: ["receptionist", "admin"] },
   { href: "/bills", labelKey: "nav.bills", icon: ReceiptIndianRupee, roles: ["receptionist", "admin"] },
   { href: "/pharmacy", labelKey: "nav.pharmacy", icon: Pill, roles: ["receptionist", "admin"], badge: "pharmacy" },
   { href: "/followups", labelKey: "nav.followups", icon: ListTodo, roles: ["receptionist", "admin"] },

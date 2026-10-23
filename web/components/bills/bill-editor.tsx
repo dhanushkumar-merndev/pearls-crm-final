@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { newId, rpc } from "@/lib/rpc";
 import { useMe } from "@/lib/use-me";
 import { useFeedback } from "@/lib/use-feedback";
+import { FinalBillTools, type SuggestedLine } from "./final-bill-tools";
 import { MedicinePicker } from "./medicine-picker";
 import type { Bill, BillItem } from "./types";
 
@@ -174,6 +175,21 @@ export function BillEditor({
     onError: failed,
   });
 
+  // Saves what is on screen (skipping untouched empty lines) plus extra lines; used by the
+  // final-bill tools before they change the bill on the server.
+  async function saveWith(extra: SuggestedLine[] = []): Promise<Bill> {
+    const typed = lines.filter((l) => l.description.trim() || l.rate_paise !== null).map(toPayloadLine);
+    const b = await rpc<Bill>("save_bill", {
+      p_bill_id: bill.id,
+      p_header: { doctor_id: doctor?.id ?? null, referred_by_text: referredBy, tax_inclusive: taxInclusive },
+      p_items: [...typed, ...extra],
+      p_version: bill.version,
+    });
+    void queryClient.invalidateQueries({ queryKey: ["bill", bill.id] });
+    router.refresh();
+    return b;
+  }
+
   async function saveThenFinalize() {
     try {
       const b = await save.mutateAsync();
@@ -202,13 +218,18 @@ export function BillEditor({
         </Card>
       )}
 
+      {bill.bill_type === "final_bill" && !amend && <FinalBillTools bill={bill} saveWith={saveWith} />}
+
       {carried.length > 0 && (
         <Card>
           <h2 className="mb-2 font-semibold">{t("carriedIn")}</h2>
           <ul className="flex flex-col gap-1 text-[0.95rem]">
             {carried.map((c) => (
               <li key={c.id} className="flex justify-between gap-3">
-                <span>{c.description}</span>
+                <span>
+                  {c.description}
+                  {c.carried_from_bill_no && <span className="ml-2 text-[0.85rem] text-text-secondary">{t("carriedFromBill", { no: c.carried_from_bill_no })}</span>}
+                </span>
                 <span className="tabular-nums">{formatINR(c.total_paise)}</span>
               </li>
             ))}

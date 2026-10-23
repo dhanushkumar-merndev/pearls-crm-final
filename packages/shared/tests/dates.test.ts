@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { fromIstDateTimeLocal, istDateTimeLocal } from "../src/dates";
 import {
   financialYear,
   formatDate,
@@ -40,5 +41,14 @@ describe("financialYear (1 April, IST)", () => {
     const fy = financialYear(new Date(iso));
     expect(fy.label).toBe(label);
     expect(fy.short).toBe(short);
+  });
+});
+
+describe("datetime-local inputs in IST", () => {
+  it("shows an instant as IST wall time and reads it back", () => {
+    expect(istDateTimeLocal(new Date("2026-03-30T05:20:00Z"))).toBe("2026-03-30T10:50");
+    expect(fromIstDateTimeLocal("2026-03-30T10:50")).toBe("2026-03-30T05:20:00.000Z");
+    expect(fromIstDateTimeLocal("2026-03-31T00:10")).toBe("2026-03-30T18:40:00.000Z");
+    expect(fromIstDateTimeLocal("30/03/2026")).toBeNull();
   });
 });

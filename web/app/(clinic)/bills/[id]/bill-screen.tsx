@@ -143,6 +143,7 @@ function BillView({ bill: b }: { bill: Bill }) {
               <TD>
                 {i.description}
                 {i.category && <span className="block text-[0.85rem] text-text-secondary">{i.category}</span>}
+                {i.carried_from_bill_no && <span className="block text-[0.85rem] text-text-secondary">{t("carriedFromBill", { no: i.carried_from_bill_no })}</span>}
               </TD>
               <TD className="text-right tabular-nums">{formatINR(i.rate_paise)}</TD>
               <TD className="text-right tabular-nums">{Number(i.qty)}</TD>

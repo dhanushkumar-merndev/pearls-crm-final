@@ -1,3 +1,4 @@
+import { IntlMessageFormat } from "intl-messageformat";
 import { describe, expect, it } from "vitest";
 import { ERROR_CODES, STAFF_ROLES, WEB_ROLES } from "@pearl/shared";
 import messages from "../messages/en.json" with { type: "json" };
@@ -36,6 +37,22 @@ describe("menus per role", () => {
 });
 
 describe("translations", () => {
+  it("every message parses as ICU (a literal { must be quoted, e.g. '{{He_She}}')", () => {
+    const bad: string[] = [];
+    const walk = (o: Record<string, unknown>, path: string) => {
+      for (const [k, v] of Object.entries(o)) {
+        if (typeof v === "string") {
+          try {
+            new IntlMessageFormat(v, "en");
+          } catch {
+            bad.push(`${path}${k}`);
+          }
+        } else if (v && typeof v === "object") walk(v as Record<string, unknown>, `${path}${k}.`);
+      }
+    };
+    walk(messages, "");
+    expect(bad).toEqual([]);
+  });
   it("every error code the server can send has a friendly message", () => {
     for (const code of ERROR_CODES) expect(messages.errors[code], code).toBeTypeOf("string");
     expect(messages.errors.unknown).toBeTypeOf("string");

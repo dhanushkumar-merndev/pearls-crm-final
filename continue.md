@@ -29,14 +29,15 @@ Read `CLAUDE.md` and `dev-docs/PLAN.md` first (PLAN.md section G lists every dec
 | 4 Treatments / sessions | done, live, committed `a2d5f27` |
 | 5 Bills, payments, printing, KPI rollup | done, live, committed (Phase 5) |
 | 6 Pharmacy & inventory | done, live, committed (Phase 6) |
-| **7 IP stay, final bill, discharge** | **NEXT** |
+| 7 IP stay, final bill, discharge | done, live, committed (Phase 7) |
 | 8 Scanning | being built by a parallel agent in a git worktree (migration `20261031100000_phase8_scanning.sql`, test `11_scanning`); review, merge, deploy, run e2e |
-| 9–15 | not started |
+| **9 Leads (web) + Meta Lead Ads** | **NEXT** |
+| 10–15 | not started |
 
-Staging: migrations up to `20261029100000_phase6_pharmacy.sql` are pushed; 328 DB tests pass (`01`–`09`); staging logins exist (usernames admin/reception/manager/sales/bdm, password = STAGING_TEST_PASSWORD in .env).
+Staging: migrations up to `20261030100000_phase7_ip_stay.sql` are pushed; 406 DB tests pass (`01`–`10`, `12`); staging logins exist (usernames admin/reception/manager/sales/bdm, password = STAGING_TEST_PASSWORD in .env).
 
 ## Next
-Phase 7 (IP stay, final bill, discharge summary) per PLAN.md E3. Use migration timestamp `20261030100000` and pgTAP file `10_ip_stay.test.sql` (11 is the scanning agent's). Carried-in lines + `consolidated_into_id` already exist from Phase 5.
+Phase 9 (leads, Meta Lead Ads, sales manager dashboard) per PLAN.md E3. Use migration timestamp `20261101100000` and pgTAP file `13_leads.test.sql`. When the scanning agent reports back: review its branch, merge, deploy `20261031100000_phase8_scanning.sql`, run all tests + its e2e specs.
 
 ## Still open with the owner
 - Push commits to GitHub (VS Code Sync). After pushing, CI annotations (Playwright "github" reporter) are readable without login.

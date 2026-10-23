@@ -27,7 +27,9 @@ export function FinalizeDialog({ bill, onDone }: { bill: Bill; onDone: () => voi
   const t = useTranslations("bill");
   const queryClient = useQueryClient();
   const { saved, failed } = useFeedback();
-  const due = payable(bill);
+  const total = payable(bill);
+  // A final bill: what the carried-in bills already received counts (one episode, one balance).
+  const due = Math.max(total - bill.received_paise, 0);
   const credit = Math.max(bill.patient_credit_paise ?? 0, 0);
   const [useAdvance, setUseAdvance] = useState<number | null>(Math.min(credit, due) || null);
   const [rows, setRows] = useState<PayRow[]>([{ key: newId(), mode: null, amount: Math.max(due - Math.min(credit, due), 0) || null, reference: "" }]);
@@ -61,7 +63,7 @@ export function FinalizeDialog({ bill, onDone }: { bill: Bill; onDone: () => voi
     <DialogContent
       wide
       title={t("finalizeTitle")}
-      description={t("finalizeHint", { total: formatINR(due) })}
+      description={t("finalizeHint", { total: formatINR(total) }) + (bill.received_paise > 0 ? ` ${t("alreadyReceived", { amount: formatINR(bill.received_paise), due: formatINR(due) })}` : "")}
       footer={
         <Button disabled={!valid || finalize.isPending || (needsReason && reason.trim().length < 3)} onClick={() => finalize.mutate()}>
           <CheckCheck aria-hidden />

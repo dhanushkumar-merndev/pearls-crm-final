@@ -33,6 +33,8 @@ export interface BillItem {
   sgst_paise: number;
   total_paise: number;
   carried_from_item_id: string | null;
+  /** Carried-in line: the number of the interim bill it came from. */
+  carried_from_bill_no?: string | null;
 }
 
 export interface Bill {
@@ -48,6 +50,8 @@ export interface Bill {
   referred_by_text: string | null;
   treatment_id: string | null;
   admission_id: string | null;
+  ip_number?: string | null;
+  carried_bills?: { id: string; bill_no: string | null; bill_type: BillType; total_paise: number }[];
   tax_inclusive: boolean;
   gross_paise: number;
   discount_paise: number;

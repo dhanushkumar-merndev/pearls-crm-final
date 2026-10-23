@@ -79,3 +79,17 @@ export function financialYear(instant: Date): FinancialYear {
     short: `${pad(startYear % 100)}-${pad(end)}`,
   };
 }
+
+/** An instant as a datetime-local input value in IST: "2026-10-23T14:05". */
+export function istDateTimeLocal(instant: Date): string {
+  const p = istParts(instant);
+  return `${p.year}-${pad(p.month)}-${pad(p.day)}T${pad(p.hour)}:${pad(p.minute)}`;
+}
+
+/** A datetime-local value typed in IST → ISO instant ("2026-10-23T14:05" → "2026-10-23T08:35:00.000Z"). */
+export function fromIstDateTimeLocal(value: string): string | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value);
+  if (!m) return null;
+  const utc = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5])) - IST_OFFSET_MS;
+  return new Date(utc).toISOString();
+}

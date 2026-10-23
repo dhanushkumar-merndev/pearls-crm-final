@@ -37,6 +37,11 @@ export const ERROR_CODES = [
   "stock_insufficient",
   "expired_batch",
   "batch_required",
+  "already_in_final_bill",
+  "not_discharged",
+  "dates_invalid",
+  "surgeon_required",
+  "placeholders_left",
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

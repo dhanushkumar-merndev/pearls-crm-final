@@ -202,3 +202,43 @@
   margin-top: 28px;
   text-align: right;
 }
+
+/* Discharge summary (Phase 7): the letterhead repeats on every printed page. */
+.print-root table.pages {
+  width: 100%;
+  border-collapse: collapse;
+}
+.print-root table.pages > thead {
+  display: table-header-group;
+}
+.print-root table.pages > tbody > tr > td,
+.print-root table.pages > thead > tr > td {
+  padding: 0;
+}
+.print-root .summary-section {
+  break-inside: avoid-page;
+  margin-bottom: 8px;
+}
+.print-root .summary-section p {
+  margin: 2px 0;
+  white-space: pre-wrap;
+}
+.print-root .meds {
+  width: 100%;
+  border-collapse: collapse;
+}
+.print-root .meds th,
+.print-root .meds td {
+  border: 1px solid #000;
+  padding: 3px 5px;
+  text-align: left;
+  vertical-align: top;
+}
+.print-root .signature {
+  margin-top: 36px;
+  text-align: right;
+  break-inside: avoid-page;
+}
+.print-root .signature .space {
+  height: 42px;
+}

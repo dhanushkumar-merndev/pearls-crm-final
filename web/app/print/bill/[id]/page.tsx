@@ -15,6 +15,7 @@ interface PrintBill extends Bill {
   header: Clinic & { terms: string[] };
   patient_strip: { full_name: string; uhid: string; gender: string; age: number | null; phone: string | null; address: string; doctor: string | null };
   payments: { received_at: string; mode: string; reference: string | null; amount_paise: number }[];
+  stay: { ip_number: string; admitted_at: string; discharged_at: string | null; room_days: number } | null;
 }
 
 const discountText = (i: BillItem) =>
@@ -85,6 +86,17 @@ export default async function PrintBillPage({ params }: { params: Promise<{ id: 
           <div>
             <strong>{t("referredBy")}:</strong> {b.referred_by_text ?? "—"}
           </div>
+          {b.stay && (
+            <>
+              <div>
+                <strong>{t("ipNumber")}:</strong> {b.stay.ip_number}
+              </div>
+              <div>
+                <strong>{t("stay")}:</strong> {formatDateTime(new Date(b.stay.admitted_at))} – {b.stay.discharged_at ? formatDateTime(new Date(b.stay.discharged_at)) : "—"} (
+                {t("nights", { n: b.stay.room_days })})
+              </div>
+            </>
+          )}
         </div>
 
         <table className="lines">
@@ -114,7 +126,7 @@ export default async function PrintBillPage({ params }: { params: Promise<{ id: 
                 pharmacy={pharmacy}
                 hasTax={hasTax}
                 subtotalLabel={t("subtotal", { group })}
-                carriedLabel={t("carriedFrom")}
+                carriedLabel={t.raw("carriedFrom") as string}
               />
             ))}
           </tbody>
@@ -254,7 +266,7 @@ function GroupRows({
           <td className="num">{i.line_no}</td>
           <td>
             {i.description}
-            {i.kind === "carried_in" && <div className="muted">{carriedLabel}</div>}
+            {i.kind === "carried_in" && <div className="muted">{carriedLabel.replace("{no}", i.carried_from_bill_no ?? "")}</div>}
           </td>
           <td>{i.hsn_sac ?? ""}</td>
           {pharmacy && <td>{[i.batch_no, i.expiry_date ? formatDate(new Date(i.expiry_date)).slice(3) : null].filter(Boolean).join(" / ")}</td>}
