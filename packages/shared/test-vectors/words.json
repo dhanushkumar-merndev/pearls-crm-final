@@ -1,0 +1,19 @@
+{
+  "$comment": "Golden vectors for amount in words (Indian lakh/crore system). Shared with SQL tests if words are ever computed in the database.",
+  "cases": [
+    { "paise": 0, "words": "Rupees Zero Only" },
+    { "paise": 5, "words": "Rupees Zero and Five Paise Only" },
+    { "paise": 100, "words": "Rupees One Only" },
+    { "paise": 1900, "words": "Rupees Nineteen Only" },
+    { "paise": 79800, "words": "Rupees Seven Hundred Ninety Eight Only" },
+    { "paise": 100000, "words": "Rupees One Thousand Only" },
+    { "paise": 13000000, "words": "Rupees One Lakh Thirty Thousand Only" },
+    { "paise": 15000000, "words": "Rupees One Lakh Fifty Thousand Only" },
+    { "paise": 15000050, "words": "Rupees One Lakh Fifty Thousand and Fifty Paise Only" },
+    { "paise": 11111111, "words": "Rupees One Lakh Eleven Thousand One Hundred Eleven and Eleven Paise Only" },
+    { "paise": 100101000, "words": "Rupees Ten Lakh One Thousand Ten Only" },
+    { "paise": 1000000000, "words": "Rupees One Crore Only" },
+    { "paise": 2074530100, "words": "Rupees Two Crore Seven Lakh Forty Five Thousand Three Hundred One Only" },
+    { "paise": 100000000000, "words": "Rupees One Hundred Crore Only" }
+  ]
+}

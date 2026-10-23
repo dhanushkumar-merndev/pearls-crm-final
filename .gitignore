@@ -1,0 +1,44 @@
+# PRIVATE — real patient data and clinic photos. Never commit.
+docs/
+
+# Secrets
+.env
+.env.*
+!.env.example
+*.keystore
+*.jks
+local.properties
+google-services.json
+supabase/.temp/
+supabase/.branches/
+
+# Dependencies and builds
+node_modules/
+.pnpm-store/
+.next/
+out/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+
+# Test output
+playwright-report/
+test-results/
+blob-report/
+playwright/.cache/
+
+# Android
+android/.gradle/
+android/**/build/
+android/.idea/
+android/captures/
+*.apk
+*.aab
+
+# Editors / OS
+.DS_Store
+Thumbs.db
+.idea/
+*.log

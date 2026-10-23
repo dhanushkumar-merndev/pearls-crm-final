@@ -1,0 +1,67 @@
+{
+  "$comment": "Golden vectors for bill-line maths (PLAN.md C5). Used by packages/shared tests AND the SQL bill-line function tests (Phase 5). Hand-checked; change only with both sides.",
+  "lines": [
+    {
+      "name": "exclusive 18%, ₹100 × 1",
+      "input": { "ratePaise": 10000, "qtyMilli": 1000, "discountType": "amount", "discountValue": 0, "gstRateBp": 1800, "taxInclusive": false },
+      "expect": { "grossPaise": 10000, "discountPaise": 0, "taxablePaise": 10000, "taxPaise": 1800, "cgstPaise": 900, "sgstPaise": 900, "totalPaise": 11800 }
+    },
+    {
+      "name": "pharmacy sample: inclusive 5%, 100% discount → all zero",
+      "input": { "ratePaise": 19500, "qtyMilli": 1000, "discountType": "percent", "discountValue": 10000, "gstRateBp": 500, "taxInclusive": true },
+      "expect": { "grossPaise": 19500, "discountPaise": 19500, "taxablePaise": 0, "taxPaise": 0, "cgstPaise": 0, "sgstPaise": 0, "totalPaise": 0 }
+    },
+    {
+      "name": "inclusive 5%, ₹195 → odd tax paisa goes to SGST",
+      "input": { "ratePaise": 19500, "qtyMilli": 1000, "discountType": "amount", "discountValue": 0, "gstRateBp": 500, "taxInclusive": true },
+      "expect": { "grossPaise": 19500, "discountPaise": 0, "taxablePaise": 18571, "taxPaise": 929, "cgstPaise": 464, "sgstPaise": 465, "totalPaise": 19500 }
+    },
+    {
+      "name": "exclusive 5%, ₹11 → tax 55 paise split 27/28",
+      "input": { "ratePaise": 1100, "qtyMilli": 1000, "discountType": "amount", "discountValue": 0, "gstRateBp": 500, "taxInclusive": false },
+      "expect": { "grossPaise": 1100, "discountPaise": 0, "taxablePaise": 1100, "taxPaise": 55, "cgstPaise": 27, "sgstPaise": 28, "totalPaise": 1155 }
+    },
+    {
+      "name": "₹500 × 1.5 with 12.5% discount, no GST",
+      "input": { "ratePaise": 50000, "qtyMilli": 1500, "discountType": "percent", "discountValue": 1250, "gstRateBp": 0, "taxInclusive": true },
+      "expect": { "grossPaise": 75000, "discountPaise": 9375, "taxablePaise": 65625, "taxPaise": 0, "cgstPaise": 0, "sgstPaise": 0, "totalPaise": 65625 }
+    },
+    {
+      "name": "half paisa rounds away from zero",
+      "input": { "ratePaise": 1, "qtyMilli": 500, "discountType": "amount", "discountValue": 0, "gstRateBp": 0, "taxInclusive": false },
+      "expect": { "grossPaise": 1, "discountPaise": 0, "taxablePaise": 1, "taxPaise": 0, "cgstPaise": 0, "sgstPaise": 0, "totalPaise": 1 }
+    },
+    {
+      "name": "procedure ₹50,000 with ₹5,000 off, 0% GST",
+      "input": { "ratePaise": 5000000, "qtyMilli": 1000, "discountType": "amount", "discountValue": 500000, "gstRateBp": 0, "taxInclusive": true },
+      "expect": { "grossPaise": 5000000, "discountPaise": 500000, "taxablePaise": 4500000, "taxPaise": 0, "cgstPaise": 0, "sgstPaise": 0, "totalPaise": 4500000 }
+    },
+    {
+      "name": "inclusive 12%, ₹112 × 2",
+      "input": { "ratePaise": 11200, "qtyMilli": 2000, "discountType": "amount", "discountValue": 0, "gstRateBp": 1200, "taxInclusive": true },
+      "expect": { "grossPaise": 22400, "discountPaise": 0, "taxablePaise": 20000, "taxPaise": 2400, "cgstPaise": 1200, "sgstPaise": 1200, "totalPaise": 22400 }
+    },
+    {
+      "name": "inclusive 18% with 10% discount",
+      "input": { "ratePaise": 118000, "qtyMilli": 1000, "discountType": "percent", "discountValue": 1000, "gstRateBp": 1800, "taxInclusive": true },
+      "expect": { "grossPaise": 118000, "discountPaise": 11800, "taxablePaise": 90000, "taxPaise": 16200, "cgstPaise": 8100, "sgstPaise": 8100, "totalPaise": 106200 }
+    }
+  ],
+  "errors": [
+    {
+      "name": "amount discount bigger than gross",
+      "input": { "ratePaise": 10000, "qtyMilli": 1000, "discountType": "amount", "discountValue": 10001, "gstRateBp": 0, "taxInclusive": true },
+      "error": "discount_exceeds_gross"
+    },
+    {
+      "name": "percent discount over 100%",
+      "input": { "ratePaise": 10000, "qtyMilli": 1000, "discountType": "percent", "discountValue": 10001, "gstRateBp": 0, "taxInclusive": true },
+      "error": "discount_exceeds_gross"
+    },
+    {
+      "name": "zero quantity",
+      "input": { "ratePaise": 10000, "qtyMilli": 0, "discountType": "amount", "discountValue": 0, "gstRateBp": 0, "taxInclusive": true },
+      "error": "invalid_quantity"
+    }
+  ]
+}

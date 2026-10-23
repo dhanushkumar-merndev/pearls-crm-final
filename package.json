@@ -1,0 +1,39 @@
+{
+  "name": "pearl-crm",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.28.5",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @pearl/web dev",
+    "build": "pnpm --filter @pearl/web build",
+    "test": "pnpm -r --if-present test && pnpm test:functions",
+    "test:functions": "deno test --quiet --config supabase/functions/deno.json supabase/functions",
+    "typecheck": "pnpm -r --if-present typecheck && pnpm typecheck:functions",
+    "typecheck:functions": "deno check --quiet --config supabase/functions/deno.json supabase/functions",
+    "lint": "pnpm -r --if-present lint && deno lint --config supabase/functions/deno.json supabase/functions",
+    "tokens": "pnpm --filter @pearl/shared tokens",
+    "env:sync": "tsx scripts/env-sync.ts",
+    "env:set": "tsx scripts/env-set.ts",
+    "storage:check": "deno run --quiet --config supabase/functions/deno.json --env-file=supabase/functions/.env --allow-net --allow-env --allow-read scripts/storage-check.ts",
+    "e2e": "pnpm --filter @pearl/web e2e",
+    "db:start": "supabase start",
+    "db:stop": "supabase stop",
+    "db:reset": "supabase db reset",
+    "db:test": "supabase test db",
+    "db:types": "supabase gen types typescript --local > packages/shared/src/db.types.ts",
+    "db:concurrency": "tsx scripts/db-concurrency.ts"
+  },
+  "devDependencies": {
+    "@tigrisdata/cli": "3.16.0",
+    "@types/pg": "8.23.1",
+    "deno": "2.9.6",
+    "pg": "8.23.1",
+    "prettier": "3.9.10",
+    "supabase": "2.121.0",
+    "tsx": "4.23.15",
+    "vercel": "63.1.0"
+  }
+}

@@ -1,0 +1,159 @@
+{
+  "app": {
+    "name": "Clinic CRM",
+    "skipToContent": "Skip to main content"
+  },
+  "roles": {
+    "receptionist": "Receptionist",
+    "sales_executive": "Sales executive",
+    "sales_manager": "Sales manager",
+    "bdm": "BDM",
+    "admin": "Admin"
+  },
+  "nav": {
+    "home": "Home",
+    "design": "Design preview",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "collapse": "Hide side menu",
+    "expand": "Show side menu",
+    "mainMenu": "Main menu"
+  },
+  "actions": {
+    "newPatient": "New patient",
+    "newLead": "New lead",
+    "soon": "Coming soon",
+    "soonShort": "Soon",
+    "tryAgain": "Try again",
+    "logOut": "Log out",
+    "goHome": "Go to Home"
+  },
+  "search": {
+    "placeholder": "Search name, phone or UHID…",
+    "label": "Search",
+    "goTo": "Go to",
+    "appearance": "Appearance",
+    "noResults": "Nothing found.",
+    "patientsSoon": "Patient search arrives with patient registration (Phase 2)."
+  },
+  "theme": {
+    "label": "Theme",
+    "dark": "Dark",
+    "light": "Light",
+    "system": "Same as computer"
+  },
+  "notifications": {
+    "label": "Notifications",
+    "unread": "{count, plural, =0 {No new notifications} one {# new notification} other {# new notifications}}",
+    "empty": "You're all caught up.",
+    "markAllRead": "Mark all as read"
+  },
+  "login": {
+    "title": "Log in",
+    "subtitle": "Use the email or username your admin gave you.",
+    "identifier": "Email or username",
+    "password": "Password",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "submit": "Log in",
+    "submitting": "Logging in…",
+    "forgot": "Forgot password?",
+    "wrong": "That email/username or password is not right. Please try again.",
+    "tooMany": "Too many tries. Please wait a few minutes and try again.",
+    "offline": "Can't reach the server. Check the internet connection.",
+    "reasonIdle": "You were logged out because the screen was left idle.",
+    "reasonNoAccess": "Your account is not active. Please contact the admin.",
+    "reasonPasswordChanged": "Password changed. Please log in with your new password."
+  },
+  "forgot": {
+    "title": "Reset your password",
+    "subtitle": "Enter your email. We'll send you a link to set a new password.",
+    "email": "Email",
+    "submit": "Send reset link",
+    "sent": "If this email belongs to a staff account, a reset link is on its way. Check your inbox.",
+    "noEmail": "Log in with a username? Ask your admin to reset your password.",
+    "back": "Back to log in"
+  },
+  "reset": {
+    "title": "Set a new password",
+    "password": "New password",
+    "confirm": "Type it again",
+    "rules": "At least 8 characters, with letters and numbers.",
+    "mismatch": "The two passwords don't match.",
+    "weak": "Use at least 8 characters with letters and numbers.",
+    "submit": "Save new password",
+    "expired": "This link has expired. Ask for a new one."
+  },
+  "useTheApp": {
+    "title": "Please use the mobile app",
+    "body": "Your work happens in the Android app. Install it from the link your admin shared, then log in there with the same email or username."
+  },
+  "home": {
+    "greeting": {
+      "morning": "Good morning, {name}",
+      "afternoon": "Good afternoon, {name}",
+      "evening": "Good evening, {name}"
+    },
+    "todayIs": "Today is {date}",
+    "emptyTitle": "Your Today board is on its way",
+    "emptyBody": "Appointments, walk-ins and follow-ups will appear here once booking is built (Phase 3).",
+    "designLink": "See the design preview"
+  },
+  "design": {
+    "title": "Design preview",
+    "sample": "Sample numbers only — not real clinic data.",
+    "buttons": "Buttons",
+    "status": "Status labels",
+    "kpis": "KPI tiles",
+    "charts": "Charts",
+    "primary": "Book appointment",
+    "secondary": "Add note",
+    "danger": "Cancel bill",
+    "arrivalsTitle": "Arrivals by hour",
+    "arrivalsToday": "Today",
+    "arrivalsTypical": "Typical day",
+    "revenueTitle": "Revenue, last 14 days",
+    "revenue": "Revenue",
+    "hour": "Hour",
+    "day": "Day",
+    "kpiCollected": "Collected today",
+    "kpiAppointments": "Appointments today",
+    "kpiNoShows": "No-shows",
+    "kpiPending": "Waiting for confirmation"
+  },
+  "status": {
+    "confirmed": "Confirmed",
+    "waiting": "Waiting",
+    "cancelled": "Cancelled",
+    "warning": "Low stock"
+  },
+  "kpi": {
+    "vsPrevious": "vs previous period",
+    "up": "Up {value}",
+    "down": "Down {value}",
+    "noChange": "No change"
+  },
+  "chart": {
+    "viewTable": "View as table",
+    "viewChart": "View as chart",
+    "loading": "Loading chart…"
+  },
+  "errors": {
+    "title": "Something went wrong",
+    "body": "Please try again. If it keeps happening, tell the admin.",
+    "notFound": "This page doesn't exist.",
+    "not_allowed": "You don't have permission to do that.",
+    "not_signed_in": "Please log in again.",
+    "staff_inactive": "Your account is not active. Please contact the admin.",
+    "not_found": "We couldn't find that.",
+    "invalid_input": "Some details are missing or not right.",
+    "stale_version": "Someone else changed this just now. Please reload and try again.",
+    "rate_limited": "Too many tries. Please wait a moment.",
+    "series_below_used": "That number has already been used.",
+    "unknown_settings_section": "Unknown settings section.",
+    "file_too_large": "The file is too large.",
+    "file_type_not_allowed": "This type of file is not allowed.",
+    "upload_incomplete": "The upload didn't finish. Please try again.",
+    "unknown": "Something went wrong. Please try again."
+  }
+}

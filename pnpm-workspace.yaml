@@ -1,0 +1,12 @@
+packages:
+  - web
+  - packages/*
+
+# Install scripts are blocked by default (supply-chain safety). Reviewed list:
+allowBuilds:
+  esbuild: true # downloads its platform binary
+  deno: true # downloads the Deno binary used for Edge Function tests
+  "@parcel/watcher": false # prebuilt binary comes from optional deps
+  "@swc/core": false # prebuilt binary comes from optional deps
+  unrs-resolver: false # prebuilt binary comes from optional deps
+  "@tigrisdata/cli": false # postinstall only prints a banner
