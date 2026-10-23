@@ -2,6 +2,7 @@
 //   put     → permission + type + size checked by RPC files_begin_upload → signed upload link
 //   confirm → object exists, size matches, real type matches → RPC files_mark_uploaded
 //   get     → RPC files_viewable (RLS decides) → signed view links
+//   discard → RPC files_discard (own page files no document uses) → objects removed
 import { z } from "zod";
 import type { StorageAdapter } from "../_shared/storage.ts";
 import { sniffMime } from "../_shared/sniff.ts";
@@ -21,6 +22,7 @@ export const requestSchema = z.discriminatedUnion("op", [
   }),
   z.object({ op: z.literal("confirm"), file_id: uuid }),
   z.object({ op: z.literal("get"), file_ids: z.array(uuid).min(1).max(100) }),
+  z.object({ op: z.literal("discard"), file_ids: z.array(uuid).min(1).max(100) }),
 ]);
 export type FilesSignRequest = z.infer<typeof requestSchema>;
 
@@ -93,6 +95,22 @@ export async function filesSign(input: unknown, deps: Deps): Promise<Result> {
     });
     if (error) return rpcErr(error);
     return { status: 200, body: { file_id: req.file_id, status: "uploaded" } };
+  }
+
+  if (req.op === "discard") {
+    // The database decides what may go (and marks it deleted) before any object is removed.
+    const { data, error } = await deps.rpc<{ id: string; object_key: string }[]>("files_discard", { p_ids: req.file_ids });
+    if (error) return rpcErr(error);
+    const removed: string[] = [];
+    for (const f of data ?? []) {
+      try {
+        await deps.storage.remove(f.object_key);
+        removed.push(f.id);
+      } catch (e) {
+        console.error(e); // the row is already "deleted"; a leftover object only costs storage
+      }
+    }
+    return { status: 200, body: { removed } };
   }
 
   const { data, error } = await deps.rpc<{ id: string; object_key: string }[]>("files_viewable", {
