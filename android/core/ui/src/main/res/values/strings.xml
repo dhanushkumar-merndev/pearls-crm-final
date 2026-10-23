@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="common_offline">Can\'t reach the server. Check the internet connection.</string>
+    <string name="common_close">Close</string>
+    <string name="common_try_again">Try again</string>
+
+    <!-- Roles (web/messages/en.json "roles") -->
+    <string name="role_receptionist">Receptionist</string>
+    <string name="role_sales_executive">Sales executive</string>
+    <string name="role_sales_manager">Sales manager</string>
+    <string name="role_bdm">BDM</string>
+    <string name="role_admin">Admin</string>
+
+    <!-- LibraryPicker (same wording as the web picker, web/messages/en.json "picker") -->
+    <string name="picker_choose">Choose…</string>
+    <string name="picker_search">Type to search…</string>
+    <string name="picker_nothing">Nothing found.</string>
+    <string name="picker_clear">Clear the choice</string>
+    <string name="picker_new">New</string>
+    <string name="picker_loading">Loading…</string>
+    <string name="picker_more">Load 10 more</string>
+    <string name="picker_add">Add “%1$s”</string>
+    <string name="picker_add_offline">Adding a new item needs the internet. Choose from the list for now.</string>
+    <string name="picker_selected">Selected</string>
+</resources>

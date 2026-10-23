@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A simple pearl (ring with a highlight), inside the 66 dp safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#ECECEC"
+        android:pathData="M54,30a24,24 0,1 1,0 48a24,24 0,1 1,0 -48zM54,36a18,18 0,1 0,0 36a18,18 0,1 0,0 -36z" />
+    <path
+        android:fillColor="#ECECEC"
+        android:pathData="M46,44a5,5 0,1 1,0 10a5,5 0,1 1,0 -10z" />
+</vector>

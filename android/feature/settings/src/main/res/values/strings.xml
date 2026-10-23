@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_title">Settings</string>
+    <string name="settings_sync">Sync</string>
+    <string name="settings_syncing">Syncing…</string>
+    <string name="settings_offline">Offline. Your changes are saved on this phone and will be sent when the internet is back.</string>
+    <string name="settings_last_sync">Last synced %1$s</string>
+    <string name="settings_never_synced">Not synced yet.</string>
+    <plurals name="settings_unsent">
+        <item quantity="one">%1$d change not sent yet</item>
+        <item quantity="other">%1$d changes not sent yet</item>
+    </plurals>
+    <string name="settings_sync_now">Sync now</string>
+    <string name="settings_failed_made">Couldn\'t be saved on the server. Made %1$s.</string>
+    <string name="settings_retry">Try again</string>
+    <string name="settings_discard">Discard</string>
+    <string name="settings_discard_title">Discard this change?</string>
+    <string name="settings_discard_body">It was never saved on the server. Discarding it removes it from this phone too.</string>
+    <string name="settings_keep">Keep it</string>
+
+    <string name="settings_theme">Theme</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_system">Same as phone</string>
+
+    <string name="settings_security">PIN and sign out</string>
+    <string name="settings_change_pin">Change PIN</string>
+    <string name="settings_sign_out">Sign out</string>
+    <string name="settings_sign_out_title">Sign out of this phone?</string>
+    <string name="settings_sign_out_body">The app\'s data is removed from this phone. Log in again to get it back.</string>
+    <plurals name="settings_sign_out_unsent">
+        <item quantity="one">%1$d change has not reached the server yet. If you sign out now, it will be lost.</item>
+        <item quantity="other">%1$d changes have not reached the server yet. If you sign out now, they will be lost.</item>
+    </plurals>
+    <string name="settings_sign_out_anyway">Sign out anyway</string>
+    <string name="settings_stay">Stay signed in</string>
+    <string name="settings_version">App version %1$s</string>
+</resources>
