@@ -8,6 +8,7 @@ import { AppointmentActions, type ApptCard } from "@/components/appointments/app
 import { BookDialog } from "@/components/appointments/book-dialog";
 import { ApptStatusBadge } from "@/components/appointments/status";
 import { FollowupDialog } from "@/components/followups/followup-dialog";
+import { TreatmentsTab } from "@/components/treatments/treatments-tab";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -119,7 +120,7 @@ export function PatientFile({ initial }: { initial: PatientHeader }) {
 
       <Tabs.Root defaultValue="overview" className="flex flex-col gap-4">
         <Tabs.List aria-label={t("sections")} className="flex flex-wrap gap-1 border-b border-border">
-          {(["overview", "appointments", "documents", "family", "timeline"] as const).map((tab) => (
+          {(["overview", "appointments", "treatments", "documents", "family", "timeline"] as const).map((tab) => (
             <Tabs.Trigger
               key={tab}
               value={tab}
@@ -136,6 +137,9 @@ export function PatientFile({ initial }: { initial: PatientHeader }) {
         </Tabs.Content>
         <Tabs.Content value="appointments">
           <Appointments patientId={p.id} />
+        </Tabs.Content>
+        <Tabs.Content value="treatments">
+          <TreatmentsTab patient={hit} />
         </Tabs.Content>
         <Tabs.Content value="documents">
           <Documents patientId={p.id} />

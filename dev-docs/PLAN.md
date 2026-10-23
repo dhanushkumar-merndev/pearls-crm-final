@@ -852,3 +852,8 @@ Each phase ends with: tests green → I tell you step by step how to try it on s
   - "Call to confirm" tasks are made every 15 minutes (pg_cron) for bookings not confirmed N hours before (Settings, default 4), once per booking.
   - The appointments table refuses ranges over a year, so its cost can't grow with the range picked.
   - WhatsApp reminders are manual (wa.me links with a ready message) until the Cloud API (Phase 10).
+- 27/10/2026, Phase 4 done: treatments and sessions. Decisions made while building:
+  - Session n is planned at start + gap_days[n]; past the last gap, the last interval repeats ({0,30} → 0, 30, 60, 90).
+  - A session follows its appointment automatically (trigger): booked when linked, done when the visit is done, back to planned on cancel, missed on no-show; a reschedule keeps the link.
+  - Removing a session keeps it as "removed" (skipped) with the reason, never deletes it.
+  - When the last open session is done the treatment becomes Completed and, if the treatment has "follow-up after N days", a follow-up is created once.

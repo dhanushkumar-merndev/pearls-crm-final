@@ -25,6 +25,10 @@ insert into public.clinic_settings (branch_code, name, gstin)
 values ('main', 'T Clinic', '29ABCDE1234F1Z5')
 on conflict (branch_code) do nothing;
 
+-- The number-series tests below start from known values; real series (online)
+-- are removed inside this transaction only — everything rolls back at the end.
+delete from public.number_series;
+
 ------------------------------------------------------------------------------
 -- Login-token hook
 ------------------------------------------------------------------------------

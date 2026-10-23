@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { CalendarPlus, Footprints, Inbox, ListTodo } from "lucide-react";
+import { CalendarPlus, Footprints, Inbox, ListTodo, Repeat } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
@@ -24,6 +24,7 @@ interface TodayData {
   upcoming: ApptCard[];
   followups_due: number;
   pending_registrations: number;
+  sessions_due_week: number;
 }
 interface Dashboard {
   arrivals_by_hour: { hour: number; today: number; typical: number }[];
@@ -90,6 +91,12 @@ export function TodayBoard() {
           <Link href="/followups">
             <ListTodo aria-hidden />
             {t("followups", { n: board.data?.followups_due ?? 0 })}
+          </Link>
+        </Button>
+        <Button asChild variant="secondary">
+          <Link href="/sessions">
+            <Repeat aria-hidden />
+            {t("sessionsDue", { n: board.data?.sessions_due_week ?? 0 })}
           </Link>
         </Button>
         {(board.data?.pending_registrations ?? 0) > 0 && (

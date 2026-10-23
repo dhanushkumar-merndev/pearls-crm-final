@@ -27,6 +27,7 @@ export const ERROR_CODES = [
   "outside_schedule",
   "slot_in_past",
   "invalid_status_change",
+  "reason_required",
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

@@ -142,10 +142,16 @@ select is((public.get_free_slots('66666666-2222-4000-a000-00000000000a', '2030-0
 ------------------------------------------------------------------------------
 -- Walk-ins: no slot running now (it's 2030 in the fixtures) → queue
 ------------------------------------------------------------------------------
-select is((public.book_walk_in('66666666-1111-4000-a000-000000000004', null, null, gen_random_uuid())) ->> 'queue_no', '1',
-  'first walk-in without a free slot gets queue number 1');
-select is((public.book_walk_in('66666666-1111-4000-a000-000000000003', null, null, gen_random_uuid())) ->> 'queue_no', '2',
-  'the next gets 2');
+-- Today's queue may already have people in it (online staging), so compare with what's there.
+select pg_temp.login(null);
+create temp table q0 on commit drop as
+  select coalesce(max(queue_no), 0) as n from public.appointments where appt_date = (private.ist(now()))::date;
+grant select on q0 to authenticated;
+select pg_temp.login('66666666-0000-4000-a000-0000000000b1');
+select is((public.book_walk_in('66666666-1111-4000-a000-000000000004', null, null, gen_random_uuid())) ->> 'queue_no',
+  ((select n from q0) + 1)::text, 'a walk-in without a free slot gets the next queue number');
+select is((public.book_walk_in('66666666-1111-4000-a000-000000000003', null, null, gen_random_uuid())) ->> 'queue_no',
+  ((select n from q0) + 2)::text, 'the next walk-in gets the one after');
 
 ------------------------------------------------------------------------------
 -- Tables, boards, dashboard

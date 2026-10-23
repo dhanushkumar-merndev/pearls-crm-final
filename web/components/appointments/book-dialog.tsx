@@ -24,12 +24,15 @@ export function BookDialog({
   date: initialDate,
   slot: initialSlot = null,
   patient: initialPatient = null,
+  session,
   onDone,
 }: {
   doctor?: LibraryItem | null;
   date?: string;
   slot?: string | null;
   patient?: PatientHit | null;
+  /** Booking a planned treatment session ("Book next session?"). */
+  session?: { treatmentId: string; sessionId: string; label: string };
   onDone: () => void;
 }) {
   const t = useTranslations("appt");
@@ -39,7 +42,7 @@ export function BookDialog({
   const [doctor, setDoctor] = useState<LibraryItem | null>(initialDoctor);
   const [date, setDate] = useState(initialDate ?? istDateString(new Date()));
   const [slot, setSlot] = useState<string | null>(initialSlot);
-  const [type, setType] = useState<(typeof APPT_TYPES)[number]>("consultation");
+  const [type, setType] = useState<(typeof APPT_TYPES)[number]>(session ? "session" : "consultation");
   const [notes, setNotes] = useState("");
   const [confirm, setConfirm] = useState(false);
   const [clientId] = useState(newId);
@@ -47,12 +50,20 @@ export function BookDialog({
   const book = useMutation({
     mutationFn: () =>
       rpc("book_appointment", {
-        p_booking: { patient_id: patient!.id, doctor_id: doctor!.id, slot_start: slot, type, notes, confirm },
+        p_booking: {
+          patient_id: patient!.id,
+          doctor_id: doctor!.id,
+          slot_start: slot,
+          type,
+          notes,
+          confirm,
+          ...(session ? { treatment_id: session.treatmentId, session_id: session.sessionId } : {}),
+        },
         p_client_id: clientId,
       }),
     onSuccess: () => {
       saved(t("booked", { when: formatDateTime(new Date(slot!)) }));
-      for (const key of ["slot_board", "today_board", "appointments_table", "patient_appointments", "free_slots"]) {
+      for (const key of ["slot_board", "today_board", "appointments_table", "patient_appointments", "free_slots", "patient_treatments", "sessions_due"]) {
         void queryClient.invalidateQueries({ queryKey: [key] });
       }
       onDone();
@@ -66,7 +77,7 @@ export function BookDialog({
   return (
     <DialogContent
       wide
-      title={t("bookTitle")}
+      title={session ? t("bookSessionTitle", { what: session.label }) : t("bookTitle")}
       footer={
         <Button disabled={!patient || !doctor || !slot || book.isPending} onClick={() => book.mutate()}>
           <CalendarPlus aria-hidden />

@@ -155,7 +155,8 @@
     "holiday": "The clinic is closed that day (holiday).",
     "outside_schedule": "The doctor doesn't see patients at that time.",
     "slot_in_past": "That time has already passed.",
-    "invalid_status_change": "That step isn't possible from the current status."
+    "invalid_status_change": "That step isn't possible from the current status.",
+    "reason_required": "Please give a reason (it is kept in the change history)."
   },
   "common": {
     "saved": "Saved ✓",
@@ -787,7 +788,8 @@
       "documents": "Documents",
       "family": "Family",
       "timeline": "Timeline",
-      "appointments": "Appointments"
+      "appointments": "Appointments",
+      "treatments": "Treatments"
     },
     "estimated": "{date} (estimated)",
     "given": "Given",
@@ -819,7 +821,9 @@
       "registered": "Registration",
       "document": "Document",
       "merged": "Merge",
-      "appointment": "Appointment"
+      "appointment": "Appointment",
+      "treatment": "Treatment",
+      "session": "Session"
     },
     "mergeTitle": "Merge {name} ({uhid}) into another record",
     "mergeHint": "Use this when the same person was registered twice. Everything on this record moves to the one you pick. This can't be undone.",
@@ -1023,7 +1027,8 @@
     "walkInHint": "If the doctor's current slot is full, the patient joins the queue with a number.",
     "walkInButton": "Add walk-in",
     "queued": "Added to the queue — number {n}",
-    "walkInSlot": "Added to the current slot ✓"
+    "walkInSlot": "Added to the current slot ✓",
+    "bookSessionTitle": "Book {what}"
   },
   "appointments": {
     "title": "Appointments",
@@ -1093,7 +1098,8 @@
     "typical": "Typical day",
     "hour": "Hour",
     "loadTitle": "Doctors' bookings today",
-    "doctor": "Doctor"
+    "doctor": "Doctor",
+    "sessionsDue": "Sessions to book this week ({n})"
   },
   "followups": {
     "title": "Follow-ups",
@@ -1128,5 +1134,87 @@
       "review_recording": "Review recording",
       "other": "Task"
     }
+  },
+  "treatments": {
+    "start": "Start treatment",
+    "none": "No treatments yet.",
+    "startTitle": "Start a treatment for {name}",
+    "template": "Treatment",
+    "templateHint": "Pick from the library — the sessions, gaps and price fill in. You can change them.",
+    "name": "Name on bills",
+    "doctor": "Doctor",
+    "startDate": "Start date",
+    "sessions": "Sessions",
+    "gaps": "Days after start for each session",
+    "gapsHint": "e.g. 0, 30, 60, 90. Past the last one, the last gap repeats.",
+    "replanHint": "Only future sessions that aren't booked yet move. Done and booked sessions keep their dates.",
+    "pricing": "Pricing",
+    "pricingPackage": "One package price",
+    "pricingPerSession": "Price per session",
+    "price": "Price",
+    "agreedPrice": "Agreed price (Amount finalised)",
+    "agreedHint": "What the patient agreed to pay, if known.",
+    "notes": "Notes",
+    "started": "Treatment started ✓",
+    "status": {
+      "active": "Active",
+      "on_hold": "On hold",
+      "completed": "Completed",
+      "closed": "Closed",
+      "cancelled": "Cancelled"
+    },
+    "session": {
+      "planned": "Planned",
+      "booked": "Booked",
+      "done": "Done",
+      "missed": "Missed",
+      "skipped": "Removed"
+    },
+    "sessionMarked": {
+      "done": "Session done ✓",
+      "missed": "Marked missed",
+      "planned": "Back to planned"
+    },
+    "progress": "{done} of {total} done",
+    "packagePrice": "Package {price}",
+    "perSession": "{price} per session",
+    "agreed": "Agreed {price}",
+    "edit": "Edit",
+    "sessionN": "Session {n}",
+    "doneOn": "Done {date}",
+    "bookedFor": "Booked {date} {time}",
+    "plannedFor": "Planned {date}",
+    "book": "Book",
+    "markDone": "Done",
+    "markMissed": "Missed",
+    "backToPlanned": "Back to planned",
+    "remove": "Remove",
+    "removed": "Session removed ✓",
+    "addSession": "Add a session",
+    "doneBookNext": "Session done ✓ — book session {n}?",
+    "bookNext": "Book next",
+    "editTitle": "Edit {name}",
+    "editHint": "Price changes and closing need a reason; they go into the change history.",
+    "save": "Save",
+    "statusLabel": "Status",
+    "reason": "Reason",
+    "reasonNeeded": "A reason is needed for a price change or closing.",
+    "reasonOptional": "Optional.",
+    "removeTitle": "Remove session {n}?"
+  },
+  "sessionsDue": {
+    "title": "Sessions to book",
+    "description": "Planned treatment sessions without a booking yet. Missed ones are shown too.",
+    "from": "From",
+    "to": "To",
+    "planned": "Planned for",
+    "patient": "Patient",
+    "treatment": "Treatment",
+    "missed": "Missed — needs a new date",
+    "sessionOf": "{name} — session {n} of {total}",
+    "call": "Call",
+    "book": "Book",
+    "none": "Nothing to book in these dates. 🎉",
+    "rangeTooWide": "Choose at most one year."
   }
 }
