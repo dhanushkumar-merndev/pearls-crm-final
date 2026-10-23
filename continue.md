@@ -1,6 +1,6 @@
 # Continue here
 
-Last updated 29/10/2026 (session 4). To resume, say: **"Read continue.md and carry on."**
+Last updated 23/10/2026 late (session 5). To resume, say: **"Read continue.md and carry on."**
 Read `CLAUDE.md` and `dev-docs/PLAN.md` first (PLAN.md section G lists every decision made while building).
 
 ## Owner's standing instructions
@@ -22,22 +22,21 @@ Read `CLAUDE.md` and `dev-docs/PLAN.md` first (PLAN.md section G lists every dec
 ## Status
 | Phase | State |
 |---|---|
-| 0 Foundations | done, live on staging |
-| 1 Admin + libraries | done, live, committed `5d75fa4` |
-| 2 Patients | done, live, committed `ab74391` |
-| 3 Appointments / Today board | done, live, committed `460f5ef` |
-| 4 Treatments / sessions | done, live, committed `a2d5f27` |
-| 5 Bills, payments, printing, KPI rollup | done, live, committed (Phase 5) |
-| 6 Pharmacy & inventory | done, live, committed (Phase 6) |
-| 7 IP stay, final bill, discharge | done, live, committed (Phase 7) |
-| 8 Scanning | being built by a parallel agent in a git worktree (migration `20261031100000_phase8_scanning.sql`, test `11_scanning`); review, merge, deploy, run e2e |
-| **9 Leads (web) + Meta Lead Ads** | **NEXT** |
-| 10–15 | not started |
+| 0–8 | done, live on staging, committed (Phase 8 merged `0843e48`) |
+| UI rules | full-width pages + themed dropdowns (`components/ui/select.tsx`), committed `a323b70` (rules in CLAUDE.md) |
+| **9 Leads + Meta Lead Ads** | **part 1 committed `be4b3e9`**: migration `20261101100000_phase9_leads.sql` (NOT deployed yet), `13_leads` (78 tests; all 13 DB files = 533 pass with it pending), `meta-leads` Edge Function (11 Deno tests, not deployed), lead CSV mapping (`mapLeadColumns/mapLeadRow`), web components in `web/components/leads/` (written, not wired into pages) |
+| 11 Android stage 1 | merged `26825ba` from the helper's worktree: project, login, PIN, role menus, Room, outbox + pull sync, LibraryPicker, settings. `./gradlew test` (5 tests) and `assembleDebug` pass. Sync/PIN/LibraryPicker unit tests and the CI job were NOT written yet. Branch `worktree-agent-af06e1393b4ca70be` also has an unverified WIP commit `331670f` (Gradle plugin clean-up) — not merged |
+| 10, 12–15 | not started |
 
-Staging: migrations up to `20261030100000_phase7_ip_stay.sql` are pushed; 406 DB tests pass (`01`–`10`, `12`); staging logins exist (usernames admin/reception/manager/sales/bdm, password = STAGING_TEST_PASSWORD in .env).
+## Next (Phase 9 part 2)
+1. Wire the web: `lib/nav.ts` Leads item (roles sales_manager + admin, `badge: "leads"`, `badgeLabelKey: "nav.leadsWithCount"`; sidebar uses `item.badgeLabelKey ?? "nav.withCount"`), SM primary action → `/leads?new=1`; command palette: `canSearchPeople(role)` + `searchHref(hit, role)` from `lib/search-href.ts`, heading key `search.results`.
+2. Add the `leads` namespace to `web/messages/en.json` (keys used in `components/leads/*`), plus `nav.leads`, `nav.leadsWithCount`, `search.results`.
+3. Pages: `/leads` (LeadsTable + NewLeadDialog, layout guard SM/A), `/leads/[id]` (detail: edit, stage, amount finalised + lock, notes/activities, calls + log call, book consultation via BookDialog with a lead, link to patient, duplicates), `/leads/import` (ImportScreen kind "leads" → `import_leads`), `/leads/pool` (round-robin pool), `/admin/meta-leads` (field map in settings `sales.meta_field_map`, events + retry), sales manager home = `dashboard_sales_manager` charts.
+4. Today board / appointment actions: lead-only bookings (`lead_only`, "Register as patient" → `/patients/new?lead=` using `lead_for_registration`, then `link_lead_to_patient`); Start treatment shows the agreed price from `patient_leads`.
+5. e2e `leads.db.spec.ts`, then deploy (dry run → `pnpm deploy:supabase`, functions incl. meta-leads), `dev-docs/SETUP_META.md`, PLAN.md G notes for Phase 9.
 
-## Next
-Phase 9 (leads, Meta Lead Ads, sales manager dashboard) per PLAN.md E3. Use migration timestamp `20261101100000` and pgTAP file `13_leads.test.sql`. When the scanning agent reports back: review its branch, merge, deploy `20261031100000_phase8_scanning.sql`, run all tests + its e2e specs.
+## Left in the working tree (not mine — from another Claude session that closed)
+Uncommitted login-form validation (`packages/shared/src/auth.ts` loginSchema, `login-form.tsx`, `login.spec.ts` + screenshots, login keys in `en.json`). Review, then commit or discard — don't mix into other commits (stage only your own hunks).
 
 ## Still open with the owner
 - Push commits to GitHub (VS Code Sync). After pushing, CI annotations (Playwright "github" reporter) are readable without login.
