@@ -1,4 +1,4 @@
-import { House, Palette, Plus, Settings, Users, type LucideIcon } from "lucide-react";
+import { CalendarDays, House, ListTodo, Palette, Plus, Settings, Users, type LucideIcon } from "lucide-react";
 import type { StaffRole } from "@pearl/shared";
 
 export interface NavItem {
@@ -12,7 +12,9 @@ export interface NavItem {
 /** Menu items, in order. Each phase adds its pages here. */
 export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/home", labelKey: "nav.home", icon: House, roles: ["receptionist", "sales_manager", "admin"] },
+  { href: "/appointments", labelKey: "nav.appointments", icon: CalendarDays, roles: ["receptionist", "admin"] },
   { href: "/patients", labelKey: "nav.patients", icon: Users, roles: ["receptionist", "admin"] },
+  { href: "/followups", labelKey: "nav.followups", icon: ListTodo, roles: ["receptionist", "admin"] },
   { href: "/admin", labelKey: "nav.admin", icon: Settings, roles: ["admin"] },
   { href: "/design", labelKey: "nav.design", icon: Palette, roles: ["admin"] },
 ];

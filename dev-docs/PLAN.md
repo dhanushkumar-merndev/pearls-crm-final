@@ -845,3 +845,10 @@ Each phase ends with: tests green → I tell you step by step how to try it on s
   - Cloudflare Turnstile uses Cloudflare's public **test keys** until real keys are added (`.env` section 1 and 3, and Vercel's environment variables). The form refuses to work if no secret is set at all.
   - DocPulse import is CSV (Excel → Save As → CSV) in batches of 500 with a dry run first. Excel files directly come with Phase 14's import/export.
   - Merge repoints every foreign key to `patients` found in the catalog, so later phases' tables are covered automatically.
+- 26/10/2026, Phase 3 done: appointments, walk-ins, Today board, follow-ups, reception dashboard. Decisions made while building:
+  - Capacity: the slot's lock is a transaction-level advisory lock on (doctor, slot). Tested with 10 parallel bookings into a 3-place slot → exactly 3.
+  - Slot capacity order: the doctor's "patients per slot" → the schedule block's → Settings → Appointments (default 3). Slot length the same way (default 15 minutes). Only whole slots fit before closing time.
+  - A walk-in goes into the doctor's slot running right now if it has room; otherwise (or without a doctor) it joins the day's numbered queue.
+  - "Call to confirm" tasks are made every 15 minutes (pg_cron) for bookings not confirmed N hours before (Settings, default 4), once per booking.
+  - The appointments table refuses ranges over a year, so its cost can't grow with the range picked.
+  - WhatsApp reminders are manual (wa.me links with a ready message) until the Cloud API (Phase 10).

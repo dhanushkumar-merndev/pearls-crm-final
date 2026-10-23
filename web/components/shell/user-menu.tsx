@@ -36,9 +36,11 @@ export function UserMenu({ me, collapsed }: { me: Me; collapsed: boolean }) {
           "flex min-h-12 w-full items-center gap-3 rounded-xl px-2 text-left hover:bg-sidebar-accent",
           collapsed && "justify-center px-0",
         )}
-        aria-label={me.full_name}
+        // Collapsed: only initials show, so the button needs a name. Expanded: the visible name is the name
+        // (an aria-label that differs from visible text fails WCAG 2.5.3 "label in name").
+        aria-label={collapsed ? me.full_name : undefined}
       >
-        <span className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-[0.9rem] font-semibold text-primary-foreground">
+        <span aria-hidden className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-[0.9rem] font-semibold text-primary-foreground">
           {initials(me.full_name)}
         </span>
         {!collapsed && (

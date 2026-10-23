@@ -6,7 +6,7 @@
  *      (username + password only, like every staff login), created through the Auth
  *      Admin API; an existing login gets the current password
  *   3. Their public.staff rows
- *   4. supabase/seed/02_demo_settings.sql, only while clinic_settings is empty
+ *   4. supabase/seed/02_demo_settings.sql (fake demo clinic and libraries; skips what exists)
  * Passwords and keys are never printed.
  */
 import { randomInt } from "node:crypto";
@@ -98,13 +98,8 @@ try {
   }
   console.log(`✔ staff rows: ${USERS.length} (one per role)`);
 
-  const { rows } = await db.query<{ n: number }>("select count(*)::int as n from public.clinic_settings");
-  if (rows[0]!.n === 0) {
-    await db.query(readFileSync(resolve(root, "supabase/seed/02_demo_settings.sql"), "utf8"));
-    console.log("✔ demo clinic, settings, number series and integration status added");
-  } else {
-    console.log("• clinic settings already exist, left as they are");
-  }
+  await db.query(readFileSync(resolve(root, "supabase/seed/02_demo_settings.sql"), "utf8"));
+  console.log("✔ demo clinic, doctors, libraries and settings present (existing rows left as they are)");
   await db.query("commit");
 } catch (e) {
   await db.query("rollback");

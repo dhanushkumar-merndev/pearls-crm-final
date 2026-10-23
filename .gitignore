@@ -43,3 +43,6 @@ android/captures/
 Thumbs.db
 .idea/
 *.log
+
+# Saved test logins (Playwright)
+web/e2e/.auth/

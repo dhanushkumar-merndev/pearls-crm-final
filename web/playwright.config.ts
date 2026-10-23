@@ -23,7 +23,12 @@ export default defineConfig({
   expect: { toHaveScreenshot: { maxDiffPixelRatio: 0.01, animations: "disabled" } },
   // channel "chromium" = full Chromium in new headless mode (no separate headless-shell download).
   projects: [
-    { name: "chromium", use: { ...devices["Desktop Chrome"], channel: "chromium", viewport: { width: 1280, height: 800 } } },
+    { name: "setup", testMatch: /auth\.setup\.ts/ },
+    {
+      name: "chromium",
+      dependencies: ["setup"],
+      use: { ...devices["Desktop Chrome"], channel: "chromium", viewport: { width: 1280, height: 800 } },
+    },
   ],
   webServer: {
     command: `pnpm build && pnpm start -p ${PORT}`,

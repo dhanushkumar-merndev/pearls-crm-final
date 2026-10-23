@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(44);
+select plan(46);
 
 create function pg_temp.login(p_id uuid)
 returns void
@@ -118,10 +118,15 @@ select is((select public.global_search('98450 99999') -> 0 ->> 'title'), 'Ravi K
 select is((select public.global_search('9999') -> 0 ->> 'title'), 'Ravi Kumar', 'search by the last digits');
 select is((select public.global_search('ravi') -> 0 ->> 'title'), 'Ravi Kumar', 'search by part of the name');
 select is((select public.global_search('r')), '[]'::jsonb, 'one letter is too short to search');
+select is((select public.global_search('Ravi K') -> 0 ->> 'title'), 'Ravi Kumar', 'a name with a space');
 
 ------------------------------------------------------------------------------
 -- Who can see patients
 ------------------------------------------------------------------------------
+select pg_temp.login(null);
+update public.patients set full_name = 'Ravi Kumar 2' where id = '55555555-1111-4000-a000-000000000002';
+select pg_temp.login('55555555-0000-4000-a000-0000000000b1');
+select is((select public.global_search('Kumar 2') -> 0 ->> 'title'), 'Ravi Kumar 2', 'a name search that contains a digit still finds the name');
 select pg_temp.login('55555555-0000-4000-a000-0000000000c1');
 select is((select count(*)::int from public.patients), 0, 'sales cannot read patients directly');
 select throws_ok($$ select public.register_patient('{"full_name":"X"}', 'new') $$,

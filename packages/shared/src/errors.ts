@@ -21,6 +21,12 @@ export const ERROR_CODES = [
   "duplicate",
   "in_use",
   "link_expired",
+  "slot_full",
+  "doctor_on_leave",
+  "holiday",
+  "outside_schedule",
+  "slot_in_past",
+  "invalid_status_change",
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

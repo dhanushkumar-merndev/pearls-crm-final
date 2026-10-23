@@ -11,7 +11,7 @@ import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Field, PageHeader, Select } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
-import { newId, unwrap } from "@/lib/rpc";
+import { newId, rpc, unwrap } from "@/lib/rpc";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
 import { useFeedback } from "@/lib/use-feedback";
 
@@ -29,6 +29,13 @@ interface Leave {
   id: string;
   during: string;
   reason: string | null;
+}
+
+interface Conflict {
+  id: string;
+  slot_start: string;
+  patient: string | null;
+  phone: string | null;
 }
 
 const WEEKDAYS = [1, 2, 3, 4, 5, 6, 7] as const;
@@ -112,11 +119,22 @@ export function DoctorHours({ doctorId, doctorName }: { doctorId: string; doctor
   });
 
   const [leave, setLeave] = useState({ from: "", to: "", reason: "" });
+  // Bookings the leave would hit: shown first, so reception can move those patients.
+  const [conflicts, setConflicts] = useState<Conflict[] | null>(null);
   const addLeave = useMutation({
     mutationFn: async () => {
       // Whole days in IST: from the start of the first day to the end of the last day.
       const from = istDayStart(leave.from);
       const to = new Date(istDayStart(leave.to).getTime() + 24 * 3600 * 1000);
+      if (conflicts === null) {
+        const found = await rpc<Conflict[]>("leave_conflicts", {
+          p_doctor_id: doctorId, p_from: from.toISOString(), p_to: to.toISOString(),
+        });
+        if (found.length > 0) {
+          setConflicts(found);
+          return "conflicts";
+        }
+      }
       return unwrap(
         await db.from("doctor_leaves").insert({
           id: newId(),
@@ -126,9 +144,11 @@ export function DoctorHours({ doctorId, doctorName }: { doctorId: string; doctor
         }).select("id"),
       );
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
+      if (result === "conflicts") return;
       saved();
       setLeave({ from: "", to: "", reason: "" });
+      setConflicts(null);
       refresh();
     },
     onError: failed,
@@ -263,19 +283,32 @@ export function DoctorHours({ doctorId, doctorName }: { doctorId: string; doctor
         </Table>
         <form onSubmit={submitLeave} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-end">
           <Field label={t("firstDay")}>
-            {(a) => <Input {...a} type="date" required value={leave.from} onChange={(e) => setLeave({ ...leave, from: e.target.value })} />}
+            {(a) => <Input {...a} type="date" required value={leave.from} onChange={(e) => (setLeave({ ...leave, from: e.target.value }), setConflicts(null))} />}
           </Field>
           <Field label={t("lastDay")}>
-            {(a) => <Input {...a} type="date" required value={leave.to} onChange={(e) => setLeave({ ...leave, to: e.target.value })} />}
+            {(a) => <Input {...a} type="date" required value={leave.to} onChange={(e) => (setLeave({ ...leave, to: e.target.value }), setConflicts(null))} />}
           </Field>
           <Field label={t("reason")}>
             {(a) => <Input {...a} maxLength={300} value={leave.reason} onChange={(e) => setLeave({ ...leave, reason: e.target.value })} />}
           </Field>
           <Button type="submit" disabled={addLeave.isPending}>
             <Plus aria-hidden />
-            {t("addLeave")}
+            {conflicts ? t("addLeaveAnyway") : t("addLeave")}
           </Button>
         </form>
+        {conflicts && (
+          <div role="alert" className="rounded-xl border border-border bg-secondary p-3">
+            <p className="font-medium">{t("conflicts", { n: conflicts.length })}</p>
+            <ul className="mt-2 list-disc pl-6">
+              {conflicts.map((c) => (
+                <li key={c.id}>
+                  {formatDateTime(new Date(c.slot_start))} — {c.patient ?? "—"} {c.phone ? `(${c.phone})` : ""}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2 text-text-secondary">{t("conflictsHint")}</p>
+          </div>
+        )}
       </Card>
     </div>
   );

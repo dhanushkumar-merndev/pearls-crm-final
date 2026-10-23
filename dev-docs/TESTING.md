@@ -13,6 +13,14 @@ A phase is finished only when all of these pass (PLAN.md E1).
 | `pnpm db:concurrency` | 50 parallel finalizes → bill numbers with no gaps and no duplicates | **Yes** |
 | `E2E_DB=1 pnpm e2e` | Logged-in browser tests: shell, Ctrl+K search, theme saved per person, design preview charts, role pages | **Yes** (plus `pnpm db:reset` for seed data) |
 
+### Logged-in browser tests on the online staging project
+After `pnpm staging:bootstrap` (fake usernames admin / reception / manager / sales / bdm):
+```bash
+pnpm env:sync
+cd web && E2E_DB=1 E2E_PASSWORD='<STAGING_TEST_PASSWORD from .env>' pnpm e2e
+```
+`e2e/auth.setup.ts` logs in once per role and the tests reuse those sessions, so a run stays under Supabase's sign-in rate limit. Tests create fake patients and bookings with "E2E" in their names on staging.
+
 ### Without Docker: run the database tests on the online project
 Needs `DATABASE_URL` (session pooler, port 5432) in the root `.env`. Every test file rolls back, so nothing is left behind.
 

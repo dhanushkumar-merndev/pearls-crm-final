@@ -19,7 +19,9 @@
     "expand": "Show side menu",
     "mainMenu": "Main menu",
     "admin": "Admin",
-    "patients": "Patients"
+    "patients": "Patients",
+    "appointments": "Appointments",
+    "followups": "Follow-ups"
   },
   "actions": {
     "newPatient": "New patient",
@@ -83,8 +85,8 @@
       "evening": "Good evening, {name}"
     },
     "todayIs": "Today is {date}",
-    "emptyTitle": "Your Today board is on its way",
-    "emptyBody": "Appointments, walk-ins and follow-ups will appear here once booking is built (Phase 3).",
+    "emptyTitle": "Your dashboard is on its way",
+    "emptyBody": "Leads, follow-ups and the sales dashboard arrive with the leads module.",
     "designLink": "See the design preview"
   },
   "design": {
@@ -147,7 +149,13 @@
     "overlap": "This overlaps with an existing entry. Please change the times or dates.",
     "duplicate": "That already exists.",
     "in_use": "This is still used elsewhere, so it can't be removed. Mark it inactive instead.",
-    "link_expired": "This link has expired. Please scan the new QR code at reception."
+    "link_expired": "This link has expired. Please scan the new QR code at reception.",
+    "slot_full": "That slot is full. Please choose another time.",
+    "doctor_on_leave": "The doctor is on leave then.",
+    "holiday": "The clinic is closed that day (holiday).",
+    "outside_schedule": "The doctor doesn't see patients at that time.",
+    "slot_in_past": "That time has already passed.",
+    "invalid_status_change": "That step isn't possible from the current status."
   },
   "common": {
     "saved": "Saved ✓",
@@ -338,7 +346,10 @@
       "5": "Friday",
       "6": "Saturday",
       "7": "Sunday"
-    }
+    },
+    "addLeaveAnyway": "Add leave anyway",
+    "conflicts": "{n, plural, one {# booking falls} other {# bookings fall}} in this leave:",
+    "conflictsHint": "Those bookings stay as they are. Please call the patients and reschedule them from Appointments."
   },
   "users": {
     "title": "Staff logins",
@@ -775,7 +786,8 @@
       "overview": "Overview",
       "documents": "Documents",
       "family": "Family",
-      "timeline": "Timeline"
+      "timeline": "Timeline",
+      "appointments": "Appointments"
     },
     "estimated": "{date} (estimated)",
     "given": "Given",
@@ -806,13 +818,20 @@
     "event": {
       "registered": "Registration",
       "document": "Document",
-      "merged": "Merge"
+      "merged": "Merge",
+      "appointment": "Appointment"
     },
     "mergeTitle": "Merge {name} ({uhid}) into another record",
     "mergeHint": "Use this when the same person was registered twice. Everything on this record moves to the one you pick. This can't be undone.",
     "mergeInto": "Keep this record",
     "mergeButton": "Merge",
-    "mergedDone": "Merged ✓"
+    "mergedDone": "Merged ✓",
+    "book": "Book appointment",
+    "addFollowup": "Add follow-up",
+    "apptWhen": "When",
+    "apptDoctor": "Doctor",
+    "noAppointments": "No appointments yet.",
+    "walkIn": "(walk-in)"
   },
   "selfReg": {
     "loading": "Opening the form…",
@@ -928,6 +947,186 @@
       "area": "Area",
       "city": "City",
       "pincode": "Pincode"
+    }
+  },
+  "appt": {
+    "status": {
+      "pending_confirmation": "Waiting for confirmation",
+      "confirmed": "Confirmed",
+      "arrived": "Arrived",
+      "with_doctor": "With doctor",
+      "done": "Done",
+      "no_show": "No-show",
+      "cancelled": "Cancelled",
+      "rescheduled": "Rescheduled"
+    },
+    "to": {
+      "confirmed": "Mark confirmed",
+      "arrived": "Mark arrived",
+      "with_doctor": "Send in to the doctor",
+      "done": "Mark done",
+      "no_show": "Mark no-show",
+      "cancelled": "Cancel appointment"
+    },
+    "done": {
+      "confirmed": "Confirmed ✓",
+      "arrived": "Arrived ✓",
+      "with_doctor": "With the doctor ✓",
+      "done": "Done ✓",
+      "no_show": "Marked no-show",
+      "cancelled": "Cancelled"
+    },
+    "types": {
+      "consultation": "Consultation",
+      "session": "Session",
+      "procedure": "Procedure",
+      "surgery": "Surgery",
+      "follow_up": "Follow-up",
+      "review": "Review"
+    },
+    "blocked": {
+      "holiday": "Holiday",
+      "doctor_on_leave": "On leave",
+      "past": "Past"
+    },
+    "actions": "Actions",
+    "actionsFor": "Actions for {name}",
+    "reschedule": "Reschedule…",
+    "whatsapp": "WhatsApp reminder",
+    "openPatient": "Open patient file",
+    "waText": "Hello {name}, this is a reminder of your appointment at {clinic} on {date} at {time} with {doctor}. Please reply YES to confirm.",
+    "cancelTitle": "Cancel this appointment?",
+    "reason": "Reason",
+    "reasonHint": "e.g. patient not well, travelling.",
+    "rescheduleTitle": "Reschedule {name}",
+    "moveHere": "Move here",
+    "rescheduled": "Rescheduled ✓ — waiting for confirmation",
+    "doctor": "Doctor",
+    "doctorOptional": "Doctor (optional)",
+    "date": "Day",
+    "slot": "Time",
+    "pickDoctorFirst": "Choose a doctor to see the free times.",
+    "loadingSlots": "Loading free times…",
+    "noHours": "The doctor has no hours on this day.",
+    "left": "{n, plural, =0 {Full} one {# place left} other {# places left}}",
+    "bookTitle": "Book an appointment",
+    "book": "Book",
+    "booking": "Booking…",
+    "booked": "Booked ✓ — {when}",
+    "patient": "Patient",
+    "newPatient": "New patient",
+    "type": "Visit type",
+    "notes": "Notes",
+    "confirmNow": "Already confirmed with the patient",
+    "confirmNowHint": "Tick if the patient is at the desk or just confirmed on the phone.",
+    "walkInTitle": "Walk-in",
+    "walkInHint": "If the doctor's current slot is full, the patient joins the queue with a number.",
+    "walkInButton": "Add walk-in",
+    "queued": "Added to the queue — number {n}",
+    "walkInSlot": "Added to the current slot ✓"
+  },
+  "appointments": {
+    "title": "Appointments",
+    "description": "Book, confirm and move appointments. The board updates live.",
+    "walkIn": "Walk-in",
+    "book": "Book appointment",
+    "views": "Views",
+    "view": {
+      "board": "Board",
+      "table": "Table"
+    },
+    "prevDay": "Previous day",
+    "nextDay": "Next day",
+    "day": "Day",
+    "today": "Today",
+    "holiday": "Clinic closed: {name}",
+    "noDoctors": "No active doctors. Add them in Admin → Doctors.",
+    "onLeave": "On leave",
+    "noHoursToday": "No hours on this day.",
+    "bookAt": "Book {time} with {doctor}",
+    "bookShort": "Book",
+    "queue": "Walk-in queue",
+    "from": "From",
+    "to": "To",
+    "status": "Status",
+    "allStatuses": "All",
+    "sortBy": "Sort by",
+    "sort": {
+      "slot_start": "Time",
+      "patient": "Patient",
+      "doctor": "Doctor",
+      "status": "Status"
+    },
+    "export": "Export (CSV)",
+    "exporting": "Exporting…",
+    "rangeTooWide": "Choose a range of at most one year.",
+    "none": "No appointments in this range.",
+    "walkInQueue": "Queue #{n}",
+    "col": {
+      "when": "When",
+      "patient": "Patient",
+      "phone": "Mobile",
+      "doctor": "Doctor",
+      "type": "Type",
+      "status": "Status"
+    }
+  },
+  "today": {
+    "book": "Book appointment",
+    "walkIn": "Walk-in",
+    "followups": "Follow-ups due ({n})",
+    "pendingRegistrations": "Self-registrations to check ({n})",
+    "tile": {
+      "total": "Appointments today",
+      "waitingConfirmation": "Waiting for confirmation",
+      "arrived": "Arrived",
+      "done": "Done",
+      "noShow": "No-shows",
+      "walkIns": "Walk-ins"
+    },
+    "waiting": "In the clinic now",
+    "nobodyWaiting": "Nobody is waiting.",
+    "upcoming": "Still to come today",
+    "nothingUpcoming": "No more bookings today.",
+    "arrivalsTitle": "Arrivals by hour",
+    "todayArrivals": "Today",
+    "typical": "Typical day",
+    "hour": "Hour",
+    "loadTitle": "Doctors' bookings today",
+    "doctor": "Doctor"
+  },
+  "followups": {
+    "title": "Follow-ups",
+    "description": "Calls and tasks for patients. Overdue ones come first.",
+    "add": "Add follow-up",
+    "addTitle": "New follow-up",
+    "added": "Follow-up added ✓",
+    "patient": "Patient",
+    "due": "Due",
+    "reason": "What to do",
+    "reasonHint": "e.g. call to check how the skin is healing.",
+    "when": "When",
+    "scope": {
+      "today": "Today",
+      "overdue": "Overdue",
+      "upcoming": "Upcoming"
+    },
+    "none": "Nothing here. 🎉",
+    "call": "Call",
+    "done": "Done",
+    "notNeeded": "Not needed",
+    "doneTitle": "Mark as done",
+    "notNeededTitle": "Close as not needed",
+    "outcome": "Outcome",
+    "outcomeHint": "Optional, e.g. spoke to patient, booked for next week.",
+    "completed": "Done ✓",
+    "cancelled": "Closed",
+    "kind": {
+      "followup": "Follow-up",
+      "call_to_confirm": "Call to confirm",
+      "reschedule_request": "Wants to reschedule",
+      "review_recording": "Review recording",
+      "other": "Task"
     }
   }
 }

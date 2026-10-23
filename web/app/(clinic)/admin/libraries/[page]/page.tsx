@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { LIBRARY_PAGES, type LibraryPage } from "@/components/admin/library-configs";
+import { LIBRARY_PAGES, type LibraryPage } from "@/lib/library-pages";
 import { LibraryScreen } from "./library-screen";
 
 export const metadata: Metadata = { title: "Libraries" };

@@ -4,23 +4,10 @@ import { CalendarClock } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
+import type { LibraryPage, LookupKind } from "@/lib/library-pages";
 import { gstLabel, money, type CrudConfig, type Row } from "./crud-table";
 
-export const LIBRARY_PAGES = ["services", "treatments", "rooms", "medicines", "lists", "doctors", "holidays"] as const;
-export type LibraryPage = (typeof LIBRARY_PAGES)[number];
-
-export const LOOKUP_KINDS = [
-  "payment_mode",
-  "bill_category",
-  "lead_source",
-  "lost_reason",
-  "referral_name",
-  "relation",
-  "document_kind",
-  "quick_reply",
-  "break_type",
-] as const;
-export type LookupKind = (typeof LOOKUP_KINDS)[number];
+export { LIBRARY_PAGES, LOOKUP_KINDS, type LibraryPage, type LookupKind } from "@/lib/library-pages";
 
 const TREATMENT_CATEGORIES = ["surgery_ip", "procedure", "non_surgical", "wellness"] as const;
 

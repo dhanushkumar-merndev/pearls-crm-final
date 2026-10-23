@@ -2,15 +2,19 @@
 
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  CircleAlert, ExternalLink, FileUp, GitMerge, Link2, Pencil, Phone, Printer, Save, Unlink, Users,
+  CalendarCheck, CalendarPlus, CircleAlert, ExternalLink, FileUp, GitMerge, Link2, Pencil, Phone, Printer, Save, Unlink, Users,
 } from "lucide-react";
+import { AppointmentActions, type ApptCard } from "@/components/appointments/appointment-actions";
+import { BookDialog } from "@/components/appointments/book-dialog";
+import { ApptStatusBadge } from "@/components/appointments/status";
+import { FollowupDialog } from "@/components/followups/followup-dialog";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Tabs } from "radix-ui";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
-import { formatDate, formatDateTime, istDateString } from "@pearl/shared";
+import { formatDate, formatDateTime, formatTime, istDateString } from "@pearl/shared";
 import { LibraryCombobox, type LibraryItem } from "@/components/library-combobox";
 import { draftFrom, PatientForm, toPayload, type DraftErrors, type PatientDraft } from "@/components/patients/patient-form";
 import { PatientPicker, type PatientHit } from "@/components/patients/patient-picker";
@@ -59,7 +63,8 @@ export function PatientFile({ initial }: { initial: PatientHeader }) {
     queryFn: () => rpc<PatientHeader>("patient_header", { p_patient_id: initial.id }),
   });
   const p = header.data;
-  const [dialog, setDialog] = useState<"edit" | "merge" | null>(null);
+  const [dialog, setDialog] = useState<"edit" | "merge" | "book" | "followup" | null>(null);
+  const hit = { id: p.id, title: p.full_name, uhid: p.uhid, subtitle: p.uhid };
 
   return (
     <div className="flex flex-col gap-5">
@@ -85,6 +90,14 @@ export function PatientFile({ initial }: { initial: PatientHeader }) {
           )}
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button onClick={() => setDialog("book")}>
+            <CalendarPlus aria-hidden />
+            {t("book")}
+          </Button>
+          <Button variant="secondary" onClick={() => setDialog("followup")}>
+            <CalendarCheck aria-hidden />
+            {t("addFollowup")}
+          </Button>
           <Button variant="secondary" onClick={() => setDialog("edit")}>
             <Pencil aria-hidden />
             {t("edit")}
@@ -106,7 +119,7 @@ export function PatientFile({ initial }: { initial: PatientHeader }) {
 
       <Tabs.Root defaultValue="overview" className="flex flex-col gap-4">
         <Tabs.List aria-label={t("sections")} className="flex flex-wrap gap-1 border-b border-border">
-          {(["overview", "documents", "family", "timeline"] as const).map((tab) => (
+          {(["overview", "appointments", "documents", "family", "timeline"] as const).map((tab) => (
             <Tabs.Trigger
               key={tab}
               value={tab}
@@ -120,6 +133,9 @@ export function PatientFile({ initial }: { initial: PatientHeader }) {
         </Tabs.List>
         <Tabs.Content value="overview">
           <Overview p={p} />
+        </Tabs.Content>
+        <Tabs.Content value="appointments">
+          <Appointments patientId={p.id} />
         </Tabs.Content>
         <Tabs.Content value="documents">
           <Documents patientId={p.id} />
@@ -135,6 +151,8 @@ export function PatientFile({ initial }: { initial: PatientHeader }) {
       <Dialog open={dialog !== null} onOpenChange={(o) => !o && setDialog(null)}>
         {dialog === "edit" && <EditDialog p={p} onDone={() => (setDialog(null), void header.refetch())} />}
         {dialog === "merge" && <MergeDialog p={p} />}
+        {dialog === "book" && <BookDialog patient={hit} onDone={() => setDialog(null)} />}
+        {dialog === "followup" && <FollowupDialog patient={hit} onDone={() => setDialog(null)} />}
       </Dialog>
     </div>
   );
@@ -500,6 +518,61 @@ function Family({ p }: { p: PatientHeader }) {
           {t("link")}
         </Button>
       </Card>
+    </div>
+  );
+}
+
+function Appointments({ patientId }: { patientId: string }) {
+  const t = useTranslations("patientFile");
+  const c = useTranslations("common");
+  const list = useInfiniteQuery({
+    queryKey: ["patient_appointments", patientId],
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam }) =>
+      rpc<{ items: (ApptCard & { appt_date: string })[]; next_cursor: string | null }>("patient_appointments", {
+        p_patient_id: patientId,
+        p_cursor: pageParam,
+      }),
+    getNextPageParam: (last) => last.next_cursor,
+  });
+  const items = list.data?.pages.flatMap((x) => x.items) ?? [];
+  return (
+    <div className="flex flex-col gap-3">
+      <Table>
+        <THead>
+          <tr>
+            <TH>{t("apptWhen")}</TH>
+            <TH>{t("apptDoctor")}</TH>
+            <TH>{c("status")}</TH>
+            <TH className="text-right">
+              <span className="sr-only">{c("actions")}</span>
+            </TH>
+          </tr>
+        </THead>
+        <tbody>
+          {list.isPending && <EmptyRow colSpan={4}>{c("loading")}</EmptyRow>}
+          {list.isSuccess && items.length === 0 && <EmptyRow colSpan={4}>{t("noAppointments")}</EmptyRow>}
+          {items.map((a) => (
+            <TR key={a.id}>
+              <TD className="whitespace-nowrap tabular-nums">
+                {formatDate(new Date(a.appt_date))} {a.slot_start ? formatTime(new Date(a.slot_start)) : t("walkIn")}
+              </TD>
+              <TD>{a.doctor ?? "—"}</TD>
+              <TD>
+                <ApptStatusBadge status={a.status} />
+              </TD>
+              <TD className="text-right">
+                <AppointmentActions appt={a} />
+              </TD>
+            </TR>
+          ))}
+        </tbody>
+      </Table>
+      {list.hasNextPage && (
+        <Button variant="secondary" className="self-start" onClick={() => void list.fetchNextPage()}>
+          {c("loadMore")}
+        </Button>
+      )}
     </div>
   );
 }
