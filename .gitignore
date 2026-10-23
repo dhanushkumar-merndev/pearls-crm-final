@@ -35,6 +35,7 @@ android/.gradle/
 android/**/build/
 android/.idea/
 android/captures/
+android/.kotlin/
 *.apk
 *.aab
 

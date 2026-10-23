@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Only the window before Compose draws; all colours come from PearlTheme (tokens.json). -->
+    <style name="Theme.Pearl" parent="android:Theme.Material.NoActionBar" />
+</resources>

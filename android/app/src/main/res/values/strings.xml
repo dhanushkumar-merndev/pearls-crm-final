@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Generic on purpose: the clinic's name comes from its settings, never from the app. -->
+    <string name="app_name">Clinic CRM</string>
+
+    <!-- Not set up -->
+    <string name="not_configured_title">This app isn\'t set up yet</string>
+    <string name="not_configured_body">It doesn\'t know which server to use. Ask the admin for the clinic\'s build of the app.</string>
+
+    <!-- Login (wording as web/messages/en.json "login") -->
+    <string name="login_title">Log in</string>
+    <string name="login_subtitle">Use the username and password your admin gave you.</string>
+    <string name="login_username">Username</string>
+    <string name="login_password">Password</string>
+    <string name="login_show_password">Show password</string>
+    <string name="login_hide_password">Hide password</string>
+    <string name="login_submit">Log in</string>
+    <string name="login_required">Please fill this in.</string>
+    <string name="login_username_rule">Usernames are 3–32 characters: letters, digits, dots, dashes or underscores.</string>
+    <string name="login_wrong">That username or password is not right. Please try again.</string>
+    <string name="login_too_many">Too many tries. Please wait a few minutes and try again.</string>
+    <string name="login_offline">Can\'t reach the server. Check the internet connection.</string>
+    <string name="login_no_access">Your account is not active. Please contact the admin.</string>
+    <string name="login_forgot">Forgot password?</string>
+    <string name="login_forgot_title">Forgot your password?</string>
+    <string name="login_forgot_body">Ask your admin to set a new password for you. Then log in here with it.</string>
+    <string name="login_ok">OK</string>
+    <string name="login_reason_session">Your login ended. Please log in again.</string>
+    <string name="login_reason_inactive">Your account is not active. Please contact the admin.</string>
+    <string name="login_reason_pin">Too many wrong PIN tries. Please log in again.</string>
+    <string name="login_reason_forgot_pin">Log in with your password, then choose a new PIN.</string>
+
+    <!-- PIN -->
+    <string name="pin_create_title">Choose a PIN</string>
+    <string name="pin_create_body">4 to 6 digits. You\'ll enter it when you come back to the app after 5 minutes away.</string>
+    <string name="pin_confirm_title">Type the PIN again</string>
+    <string name="pin_mismatch">The two PINs don\'t match. Please choose your PIN again.</string>
+    <string name="pin_label">PIN</string>
+    <string name="pin_next">Next</string>
+    <string name="pin_save">Save PIN</string>
+    <string name="pin_unlock_title">Enter your PIN</string>
+    <string name="pin_unlock">Unlock</string>
+    <plurals name="pin_wrong">
+        <item quantity="one">Wrong PIN. %1$d try left before you must log in again.</item>
+        <item quantity="other">Wrong PIN. %1$d tries left before you must log in again.</item>
+    </plurals>
+    <string name="pin_forgot">Forgot PIN?</string>
+    <string name="pin_forgot_title">Forgot your PIN?</string>
+    <string name="pin_forgot_body">You\'ll log in again with your username and password, then choose a new PIN. Changes on this phone are kept.</string>
+    <string name="pin_forgot_confirm">Log in again</string>
+    <string name="pin_cancel">Cancel</string>
+    <string name="pin_current_title">Enter your current PIN</string>
+    <string name="pin_changed">PIN changed ✓</string>
+
+    <!-- Reception / admin on the phone -->
+    <string name="use_web_title">Please use the web app</string>
+    <string name="use_web_body">Your work (%1$s) happens in the web app on the clinic computer. This phone app is for sales and field staff.</string>
+    <string name="use_web_sign_out">Sign out</string>
+
+    <!-- Home -->
+    <string name="tab_my_day">My day</string>
+    <string name="tab_leads">Leads</string>
+    <string name="tab_followups">Follow-ups</string>
+    <string name="tab_calls">Calls</string>
+    <string name="tab_visits">Visits</string>
+    <string name="tab_settings">Settings</string>
+    <string name="coming_soon">This screen arrives in the next update. Your login, PIN and offline sync are ready.</string>
+    <string name="home_unsent_failed">Some changes couldn\'t be saved on the server. Open Settings to try again.</string>
+    <string name="home_offline">Offline. Changes are kept on this phone and sent when the internet is back.</string>
+    <string name="home_greeting">Hello, %1$s</string>
+
+    <!-- Notifications -->
+    <string name="notification_channel_general">Reminders and alerts</string>
+</resources>
