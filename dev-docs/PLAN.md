@@ -890,3 +890,12 @@ Each phase ends with: tests green → I tell you step by step how to try it on s
   - Print: the letterhead repeats on every page; the first print is "Original", later ones "Duplicate".
   - KPIs: admissions, discharges and stay days join the daily rollup (average stay = stay days ÷ discharges).
   - Fixed while testing: the finalize dialog asks only for what is still due when included bills were already paid; every screen text is now checked to parse as ICU (a literal `{` must be quoted).
+- 31/10/2026, Phase 8 done: prescription scanning (built in a parallel git worktree, then merged). Decisions made while building:
+  - Page finding and straightening are our own small code (edge map → largest four-sided outline → perspective warp), run in a Web Worker; no OpenCV download. "Document mode" whitens the background and sharpens text. Staff can drag the corners when the guess is wrong.
+  - Size limits live in `web/lib/scan/config.ts` and match the server's upload rules: a saved document ≤ 3 MB, ≈ 450 KB a page, thumbnails ≤ 100 KB, at most 30 pages. Compression lowers quality first and size last, never below a readable 900 px.
+  - The real file type is checked from the file's first bytes (not its name), in the browser and again on the server. HEIC photos work where the browser can open them (Safari, recent Chrome on some phones); elsewhere staff get a clear "save as JPEG" message.
+  - Duplicate warning: each original's SHA-256 is stored; the same file for the same patient asks before saving again.
+  - Phone scan: reception shows a QR (valid 5–120 min, default 30). The link works on the first phone that opens it only (that phone keeps its own secret key); pages appear live on the desk screen. Closing the session ends the link.
+  - Offline-safe queue: pages wait in the browser's storage (IndexedDB) and upload when the connection returns, with retries that back off; a reload doesn't lose them.
+  - Scanner-folder watch: Chrome/Edge only (folder access permission); new files in the chosen folder are offered for upload.
+  - Browser tests for upload need the storage bucket to allow the test site's address (CORS); see continue.md.

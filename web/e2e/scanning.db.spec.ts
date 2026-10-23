@@ -5,6 +5,8 @@ import { open, STATE, uniquePhone } from "./helpers";
 // Needs a backend (E2E_DB=1) with the phone-scan Edge Function and Tigris configured.
 test.skip(!process.env.E2E_DB, "needs the Supabase backend (E2E_DB=1)");
 test.use({ storageState: STATE.reception });
+// Image processing + upload + realtime: more than the default 30 s per test.
+test.setTimeout(120_000);
 
 async function newPatientDocuments(page: Page, label: string) {
   const name = `E2E Scan ${label} ${Date.now()}`;
