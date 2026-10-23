@@ -439,3 +439,9 @@ import_map = "./functions/deno.json"
 [functions.public-form]
 verify_jwt = false
 import_map = "./functions/deno.json"
+
+# Phone scanning from the desk QR: no login. The function checks the single-use QR token
+# and the phone's own secret itself (Postgres phone_scan_* functions, service role only).
+[functions.phone-scan]
+verify_jwt = false
+import_map = "./functions/deno.json"

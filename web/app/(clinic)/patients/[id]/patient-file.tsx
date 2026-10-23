@@ -1,9 +1,7 @@
 "use client";
 
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  CalendarCheck, CalendarPlus, CircleAlert, ExternalLink, FileUp, GitMerge, Link2, Pencil, Phone, Printer, Save, Unlink, Users,
-} from "lucide-react";
+import { CalendarCheck, CalendarPlus, GitMerge, Link2, Pencil, Phone, Printer, Save, Unlink, Users } from "lucide-react";
 import { AppointmentActions, type ApptCard } from "@/components/appointments/appointment-actions";
 import { BookDialog } from "@/components/appointments/book-dialog";
 import { ApptStatusBadge } from "@/components/appointments/status";
@@ -11,14 +9,14 @@ import { FollowupDialog } from "@/components/followups/followup-dialog";
 import { TreatmentsTab } from "@/components/treatments/treatments-tab";
 import { PatientAdmissionsTab } from "@/components/admissions/patient-admissions-tab";
 import { PatientBillsTab } from "@/components/bills/patient-bills-tab";
+import { DocumentsTab } from "@/components/scan/documents-tab";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Tabs } from "radix-ui";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
-import { formatDate, formatDateTime, formatTime, istDateString } from "@pearl/shared";
-import { LibraryCombobox, type LibraryItem } from "@/components/library-combobox";
+import { formatDate, formatDateTime, formatTime } from "@pearl/shared";
 import { draftFrom, PatientForm, toPayload, type DraftErrors, type PatientDraft } from "@/components/patients/patient-form";
 import { PatientPicker, type PatientHit } from "@/components/patients/patient-picker";
 import { Button } from "@/components/ui/button";
@@ -28,11 +26,8 @@ import { Field, Textarea } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
-import { shrinkImage } from "@/lib/image";
-import { newId, rpc } from "@/lib/rpc";
+import { rpc } from "@/lib/rpc";
 import { useMe } from "@/lib/use-me";
-import { getSupabaseBrowser } from "@/lib/supabase/client";
-import { sha256Hex, uploadPrivateFile, viewUrls } from "@/lib/upload";
 import { useFeedback } from "@/lib/use-feedback";
 
 export interface PatientHeader extends Record<string, unknown> {
@@ -150,7 +145,7 @@ export function PatientFile({ initial }: { initial: PatientHeader }) {
           <PatientBillsTab patientId={p.id} />
         </Tabs.Content>
         <Tabs.Content value="documents">
-          <Documents patientId={p.id} />
+          <DocumentsTab patientId={p.id} />
         </Tabs.Content>
         <Tabs.Content value="family">
           <Family p={p} />
@@ -293,179 +288,6 @@ function EditDialog({ p, onDone }: { p: PatientHeader; onDone: () => void }) {
           </Field>
         }
       />
-    </DialogContent>
-  );
-}
-
-interface DocRow {
-  id: string;
-  title: string;
-  doc_date: string;
-  file_id: string;
-  kind: { label: string } | null;
-}
-
-function Documents({ patientId }: { patientId: string }) {
-  const t = useTranslations("patientFile");
-  const c = useTranslations("common");
-  const { failed } = useFeedback();
-  const queryClient = useQueryClient();
-  const [uploading, setUploading] = useState(false);
-  const docs = useInfiniteQuery({
-    queryKey: ["documents", patientId],
-    initialPageParam: 0,
-    queryFn: async ({ pageParam }) => {
-      const { data, error } = await getSupabaseBrowser()
-        .from("documents")
-        .select("id, title, doc_date, file_id, kind:lookup_values!documents_kind_id_fkey(label)")
-        .eq("patient_id", patientId)
-        .eq("archived", false)
-        .order("doc_date", { ascending: false })
-        .order("id", { ascending: false })
-        .range(pageParam, pageParam + 19);
-      if (error) throw error;
-      return data as unknown as DocRow[];
-    },
-    getNextPageParam: (last, all) => (last.length === 20 ? all.length * 20 : undefined),
-  });
-  const rows = docs.data?.pages.flat() ?? [];
-  const open = async (fileId: string) => {
-    try {
-      const urls = await viewUrls([fileId]);
-      if (urls[fileId]) window.open(urls[fileId], "_blank", "noopener");
-    } catch (e) {
-      failed(e);
-    }
-  };
-  return (
-    <div className="flex flex-col gap-3">
-      <div>
-        <Button onClick={() => setUploading(true)}>
-          <FileUp aria-hidden />
-          {t("addDocument")}
-        </Button>
-      </div>
-      <Table>
-        <THead>
-          <tr>
-            <TH>{t("docTitle")}</TH>
-            <TH>{t("docKind")}</TH>
-            <TH>{t("docDate")}</TH>
-            <TH className="text-right">
-              <span className="sr-only">{c("actions")}</span>
-            </TH>
-          </tr>
-        </THead>
-        <tbody>
-          {docs.isPending && <EmptyRow colSpan={4}>{c("loading")}</EmptyRow>}
-          {docs.isSuccess && rows.length === 0 && <EmptyRow colSpan={4}>{t("noDocuments")}</EmptyRow>}
-          {rows.map((d) => (
-            <TR key={d.id}>
-              <TD className="font-medium">{d.title}</TD>
-              <TD>{d.kind?.label ?? "—"}</TD>
-              <TD>{formatDate(new Date(d.doc_date))}</TD>
-              <TD className="text-right">
-                <Button variant="ghost" onClick={() => void open(d.file_id)}>
-                  <ExternalLink aria-hidden />
-                  {t("open")}
-                </Button>
-              </TD>
-            </TR>
-          ))}
-        </tbody>
-      </Table>
-      {docs.hasNextPage && (
-        <Button variant="secondary" className="self-start" onClick={() => void docs.fetchNextPage()}>
-          {c("loadMore")}
-        </Button>
-      )}
-      <Dialog open={uploading} onOpenChange={setUploading}>
-        {uploading && (
-          <UploadDialog
-            patientId={patientId}
-            onDone={() => {
-              setUploading(false);
-              void queryClient.invalidateQueries({ queryKey: ["documents", patientId] });
-              void queryClient.invalidateQueries({ queryKey: ["patient_header", patientId] });
-            }}
-          />
-        )}
-      </Dialog>
-    </div>
-  );
-}
-
-function UploadDialog({ patientId, onDone }: { patientId: string; onDone: () => void }) {
-  const t = useTranslations("patientFile");
-  const { saved, failed } = useFeedback();
-  const [file, setFile] = useState<File | null>(null);
-  const [kind, setKind] = useState<LibraryItem | null>(null);
-  const [title, setTitle] = useState("");
-  const [date, setDate] = useState(istDateString(new Date()));
-  const [duplicate, setDuplicate] = useState<string | null>(null);
-  const [docId] = useState(newId);
-  const [fileClientId] = useState(newId);
-  const upload = useMutation({
-    mutationFn: async (force: boolean) => {
-      const blob = await shrinkImage(file!);
-      if (!force) {
-        const dup = await rpc<{ title: string } | null>("find_duplicate_file", { p_sha256: await sha256Hex(blob), p_patient_id: patientId });
-        if (dup) {
-          setDuplicate(dup.title);
-          return false;
-        }
-      }
-      const { fileId } = await uploadPrivateFile(blob, "document", { patient_id: patientId }, fileClientId);
-      await rpc("create_document", {
-        p_doc: { patient_id: patientId, file_id: fileId, kind_id: kind?.id ?? null, title: title || kind?.label || file!.name, doc_date: date },
-        p_client_id: docId,
-      });
-      return true;
-    },
-    onSuccess: (done) => {
-      if (done) {
-        saved(t("uploaded"));
-        onDone();
-      }
-    },
-    onError: failed,
-  });
-  return (
-    <DialogContent
-      title={t("addDocument")}
-      description={t("uploadHint")}
-      footer={
-        <Button disabled={!file || upload.isPending} onClick={() => upload.mutate(duplicate !== null)}>
-          <FileUp aria-hidden />
-          {upload.isPending ? t("uploading") : duplicate ? t("uploadAnyway") : t("upload")}
-        </Button>
-      }
-    >
-      <div className="flex flex-col gap-4">
-        <Field label={t("file")}>
-          {(a) => (
-            <Input
-              {...a}
-              type="file"
-              accept="image/jpeg,image/png,image/webp,application/pdf"
-              className="py-2.5"
-              onChange={(e) => {
-                setFile(e.target.files?.[0] ?? null);
-                setDuplicate(null);
-              }}
-            />
-          )}
-        </Field>
-        <Field label={t("docKind")}>{(a) => <LibraryCombobox id={a.id} kind="document_kind" allowCreate value={kind} onChange={setKind} />}</Field>
-        <Field label={t("docTitle")}>{(a) => <Input {...a} maxLength={200} value={title} onChange={(e) => setTitle(e.target.value)} />}</Field>
-        <Field label={t("docDate")}>{(a) => <Input {...a} type="date" value={date} onChange={(e) => setDate(e.target.value)} />}</Field>
-        {duplicate && (
-          <p role="alert" className="flex items-start gap-2 rounded-xl border border-border bg-secondary p-3">
-            <CircleAlert aria-hidden className="mt-0.5 size-5 shrink-0 text-status-warning" />
-            {t("duplicate", { title: duplicate })}
-          </p>
-        )}
-      </div>
     </DialogContent>
   );
 }

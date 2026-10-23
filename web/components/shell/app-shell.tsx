@@ -4,6 +4,7 @@ import { Menu, Search, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Dialog } from "radix-ui";
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import { UploadQueueRunner } from "@/components/scan/upload-queue-runner";
 import { Button } from "@/components/ui/button";
 import type { Me } from "@/lib/session";
 import { MeProvider } from "@/lib/use-me";
@@ -125,6 +126,7 @@ export function AppShell({ me, idleMinutes, children }: { me: Me; idleMinutes: n
 
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} role={me.role} onTheme={choose} />
       <IdleLogout minutes={idleMinutes} />
+      <UploadQueueRunner />
     </div>
     </MeProvider>
   );

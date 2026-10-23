@@ -65,7 +65,7 @@ describe("translations", () => {
 
 describe("login redirects", () => {
   it("lets logged-out visitors open only the public pages", () => {
-    for (const p of ["/login", "/forgot-password", "/api/keepalive"]) {
+    for (const p of ["/login", "/forgot-password", "/api/keepalive", "/r/abc", "/scan/abc"]) {
       expect(isPublicPath(p), p).toBe(true);
     }
     // No email links: the old reset / callback routes are gone and not public.

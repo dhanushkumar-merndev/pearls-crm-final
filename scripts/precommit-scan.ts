@@ -15,10 +15,12 @@ const PATTERNS = [/sb_secret_[A-Za-z0-9_-]{10,}/, /\btid_[A-Za-z0-9]{10,}/, /\bt
 
 // Only the root .env (not the shell environment): those are the secrets to keep out.
 const env = existsSync(".env") ? parseEnv(readFileSync(".env", "utf8")) : new Map<string, string>();
-const files = execSync("git add -A -n", { encoding: "utf8" })
+// Files that would be added AND files already staged (a merge or `git add` stages everything).
+const unstaged = execSync("git add -A -n", { encoding: "utf8" })
   .split("\n")
-  .map((l) => /^add '(.*)'$/.exec(l)?.[1])
-  .filter((f): f is string => Boolean(f) && existsSync(f!));
+  .map((l) => /^add '(.*)'$/.exec(l)?.[1]);
+const staged = execSync("git diff --cached --name-only --diff-filter=ACMR", { encoding: "utf8" }).split("\n");
+const files = [...new Set([...unstaged, ...staged])].filter((f): f is string => Boolean(f) && existsSync(f!));
 const findings: string[] = [];
 for (const f of files) {
   if (FORBIDDEN_PATHS.test(f)) findings.push(`private path: ${f}`);

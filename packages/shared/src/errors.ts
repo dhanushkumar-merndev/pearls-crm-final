@@ -42,6 +42,11 @@ export const ERROR_CODES = [
   "dates_invalid",
   "surgeon_required",
   "placeholders_left",
+  // Phase 8: scanning
+  "link_used",
+  "too_many_pages",
+  "heic_not_supported",
+  "file_unreadable",
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

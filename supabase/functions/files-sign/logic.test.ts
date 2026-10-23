@@ -100,3 +100,18 @@ Deno.test("get: signs only what RLS returned", async () => {
   const res = await filesSign({ op: "get", file_ids: [FILE, other] }, deps);
   assertEquals(res.body.urls, { [FILE]: "https://s3/a.pdf?get" });
 });
+
+Deno.test("discard: removes only what the database released", async () => {
+  const other = "22222222-0000-4000-a000-000000000002";
+  const { deps, calls } = fakeDeps({ rpc: { files_discard: { data: [{ id: FILE, object_key: "document/p1.jpg" }] } } });
+  const res = await filesSign({ op: "discard", file_ids: [FILE, other] }, deps);
+  assertEquals(res.body, { removed: [FILE] });
+  assertEquals(calls, ["rpc files_discard", "remove document/p1.jpg"]);
+});
+
+Deno.test("discard: a refused call removes nothing", async () => {
+  const { deps, calls } = fakeDeps({ rpc: { files_discard: { error: { message: "not_allowed" } } } });
+  const res = await filesSign({ op: "discard", file_ids: [FILE] }, deps);
+  assertEquals(res, { status: 403, body: { error: "not_allowed" } });
+  assertEquals(calls, ["rpc files_discard"]);
+});
