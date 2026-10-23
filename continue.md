@@ -39,6 +39,7 @@ Read `CLAUDE.md` and `dev-docs/PLAN.md` first (PLAN.md section G lists every dec
 Uncommitted login-form validation (`packages/shared/src/auth.ts` loginSchema, `login-form.tsx`, `login.spec.ts` + screenshots, login keys in `en.json`). Review, then commit or discard — don't mix into other commits (stage only your own hunks).
 
 ## Still open with the owner
+- Tigris bucket `pearl-staging` CORS: add the Vercel URL and `http://127.0.0.1:3417` (browser tests) to the allowed origins — the CLI key gets "Access Denied". Until then 3 scanning browser tests (offline, duplicate, phone) fail on upload. Also add the Vercel URL to `WEB_ORIGIN` in `.env` and run `pnpm supabase:configure`. Rotate `STAGING_TEST_PASSWORD` (it was shown once in a test log).
 - Push commits to GitHub (VS Code Sync). After pushing, CI annotations (Playwright "github" reporter) are readable without login.
 - GitHub secrets SUPABASE_ACCESS_TOKEN / SUPABASE_PROJECT_REF / SUPABASE_DB_PASSWORD for the auto-deploy job (it skips with a warning until set).
 - Vercel env vars: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, CRON_SECRET, NEXT_PUBLIC_TURNSTILE_SITE_KEY. Turnstile uses Cloudflare test keys until real ones are added.
