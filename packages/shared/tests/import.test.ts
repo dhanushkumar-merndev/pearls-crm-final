@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { csvCell, parseCsv, toCsv } from "../src/csv";
-import { mapPatientColumns, mapPatientRow, mapStockColumns, mapStockRow, parseDate, parseExpiry } from "../src/import";
+import {
+  mapLeadColumns, mapLeadRow, mapPatientColumns, mapPatientRow, mapStockColumns, mapStockRow, parseDate, parseExpiry, parseLeadStage,
+} from "../src/import";
 
 describe("CSV", () => {
   it("handles quotes, commas, line breaks, CRLF and Excel's BOM", () => {
@@ -69,5 +71,33 @@ describe("opening stock mapping", () => {
   it("lists every bad cell before anything is sent", () => {
     const { problems } = mapStockRow(["", "", "later", "0", "abc", "55", "12", "", ""], cols);
     expect(problems).toEqual(["name", "hsn", "gst", "mrp", "batch_no", "expiry_date", "qty"]);
+  });
+});
+
+describe("lead import mapping", () => {
+  const header = ["Sl No", "Date", "Name", "Mobile No", "Treatment", "Assigned to", "Source", "Amount Quoted", "Amount Finalised", "Status", "Due Date", "Comments"];
+  const cols = mapLeadColumns(header);
+  it("finds the sales sheet's columns", () => {
+    expect(cols).toMatchObject({ lead_date: 1, name: 2, phone: 3, treatment: 4, assigned: 5, source: 6, amount_quoted: 7,
+                                 amount_finalised: 8, stage: 9, next_followup: 10, comments1: 11, alt_phone: null });
+  });
+  it("maps a row to the import payload", () => {
+    const cells = ["1", "05/10/2026", "Asha  Rao", "098450-12345", "Rhinoplasty", "sales1", "Instagram", "₹1,20,000", "95000.50", "Booked", "07/10/2026", "call evening"];
+    expect(mapLeadRow(cells, cols)).toEqual({
+      row: {
+        name: "Asha Rao", phone: "+919845012345", treatment: "Rhinoplasty", assigned: "sales1", source: "Instagram",
+        comments1: "call evening", lead_date: "2026-10-05", next_followup_at: "2026-10-07T10:00:00+05:30",
+        amount_quoted_paise: 12000000, amount_finalised_paise: 9500050, stage: "consultation_booked",
+      },
+      problems: [],
+    });
+  });
+  it("reports what it can't read", () => {
+    const cells = ["2", "31/02/2026", "", "12345", "", "", "", "lots", "", "maybe", "", ""];
+    expect(mapLeadRow(cells, cols).problems).toEqual(["name", "phone", "lead_date", "amount_quoted", "stage"]);
+  });
+  it("understands the usual stage words", () => {
+    expect(["New", "RNR", "Not interested", "Surgery fixed", "Won", "spam"].map(parseLeadStage))
+      .toEqual(["new", "not_reachable", "lost", "surgery_scheduled", "converted", "junk"]);
   });
 });

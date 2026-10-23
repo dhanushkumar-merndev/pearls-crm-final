@@ -189,3 +189,102 @@ export function mapStockRow(cells: string[], columns: Record<string, number | nu
   }
   return { row, problems };
 }
+
+/** Lead sheet columns (the sales team's Excel, Meta exports). */
+const LEAD_COLUMNS: Record<string, string[]> = {
+  name: ["name", "lead name", "patient name", "full name", "customer name", "client name"],
+  phone: ["phone", "mobile", "mobile no", "mobile number", "phone no", "phone number", "contact", "contact no", "number", "phone 1"],
+  alt_phone: ["alt phone", "alternate phone", "alternate number", "alternate mobile", "alt mobile", "phone 2", "mobile 2", "other number"],
+  email: ["email", "email id", "e mail"],
+  lead_date: ["date", "lead date", "enquiry date", "created", "created on", "created date"],
+  treatment: ["treatment", "procedure", "interested in", "service"],
+  source: ["source", "lead source", "channel", "platform"],
+  assigned: ["assigned to", "assigned", "owner", "executive", "sales executive", "telecaller", "caller"],
+  referred_by: ["referred by", "referral", "reference"],
+  comments1: ["comments 1", "comment 1", "comments", "comment", "remarks", "notes"],
+  comments2: ["comments 2", "comment 2", "remarks 2", "notes 2"],
+  amount_quoted: ["amount quoted", "quoted", "quote", "quoted amount"],
+  amount_finalised: ["amount finalised", "amount finalized", "finalised amount", "finalized amount", "final amount", "agreed amount"],
+  stage: ["stage", "status", "lead status"],
+  lost_reason: ["lost reason", "reason"],
+  next_followup: ["due date", "follow up", "followup", "next follow up", "follow up date", "next call", "next followup"],
+};
+
+/** Which input column feeds each lead field (null = not present). */
+export function mapLeadColumns(header: string[]): Record<string, number | null> {
+  const cleaned = header.map(clean);
+  return Object.fromEntries(
+    Object.entries(LEAD_COLUMNS).map(([field, names]) => {
+      const i = cleaned.findIndex((h) => names.includes(h));
+      return [field, i >= 0 ? i : null];
+    }),
+  );
+}
+
+/** The words sales sheets use for a stage → our stage (undefined = not recognised). */
+export function parseLeadStage(text: string): string | undefined {
+  const t = clean(text);
+  const words: [RegExp, string][] = [
+    [/^(new|fresh|open)$/, "new"],
+    [/^(contacted|called|spoke|talked)$/, "contacted"],
+    [/^(interested|hot|warm)$/, "interested"],
+    [/^((consultation |appointment )?booked|consultation booked|appointment)$/, "consultation_booked"],
+    [/^(consulted|visited|came|walked in)$/, "consulted"],
+    [/^surgery (scheduled|booked|fixed)$/, "surgery_scheduled"],
+    [/^(converted|won|done|closed won|joined)$/, "converted"],
+    [/^(lost|not interested|closed lost|dropped)$/, "lost"],
+    [/^(not reachable|no answer|rnr|unreachable|switched off|not picking)$/, "not_reachable"],
+    [/^(junk|invalid|spam|wrong number|fake)$/, "junk"],
+  ];
+  return words.find(([re]) => re.test(t))?.[1];
+}
+
+/** One lead row → the import_leads payload: E.164 numbers, paise, ISO dates (follow-ups at 10:00 IST). */
+export function mapLeadRow(cells: string[], columns: Record<string, number | null>): MappedRow {
+  const get = (field: string) => {
+    const i = columns[field];
+    return i === null || i === undefined ? "" : (cells[i] ?? "").trim();
+  };
+  const problems: string[] = [];
+  const row: Record<string, unknown> = {};
+  const name = get("name").replace(/\s+/g, " ");
+  if (!name) problems.push("name");
+  row.name = name;
+  for (const [field, key] of [["phone", "phone"], ["alt_phone", "alt_phone"]] as const) {
+    const v = get(field);
+    if (!v) {
+      if (field === "phone") problems.push("phone");
+      continue;
+    }
+    const n = normalizePhone(v);
+    if (n) row[key] = n.e164;
+    else problems.push(field);
+  }
+  for (const k of ["email", "treatment", "source", "assigned", "referred_by", "comments1", "comments2", "lost_reason"]) {
+    if (get(k)) row[k] = get(k);
+  }
+  for (const [field, key] of [["lead_date", "lead_date"], ["next_followup", "next_followup_at"]] as const) {
+    const v = get(field);
+    if (!v) continue;
+    const iso = parseDate(v);
+    if (!iso) problems.push(field);
+    else row[key] = field === "lead_date" ? iso : `${iso}T10:00:00+05:30`;
+  }
+  for (const [field, key] of [["amount_quoted", "amount_quoted_paise"], ["amount_finalised", "amount_finalised_paise"]] as const) {
+    const v = get(field).replace(/[₹,\s]/g, "");
+    if (!v) continue;
+    try {
+      const paise = rupeesToPaise(v);
+      if (paise < 0) throw new Error("negative");
+      row[key] = paise;
+    } catch {
+      problems.push(field);
+    }
+  }
+  if (get("stage")) {
+    const stage = parseLeadStage(get("stage"));
+    if (stage) row.stage = stage;
+    else problems.push("stage");
+  }
+  return { row, problems };
+}

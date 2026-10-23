@@ -47,6 +47,8 @@ export const ERROR_CODES = [
   "too_many_pages",
   "heic_not_supported",
   "file_unreadable",
+  // Phase 9: leads
+  "amount_locked",
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

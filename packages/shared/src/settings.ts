@@ -38,6 +38,13 @@ export const SETTINGS_SCHEMAS = {
     round_robin: z.boolean().default(true),
     targets_enabled: z.boolean().default(false),
     reception_can_play_recordings: z.boolean().default(false),
+    /** Meta Lead Ads: form question key → lead field (Admin → Meta leads). Standard questions need no entry. */
+    meta_field_map: z
+      .record(
+        z.string().min(1).max(100),
+        z.enum(["name", "phone", "alt_phone", "email", "treatment_text", "comments1", "comments2", "ignore"]),
+      )
+      .default({}),
   }),
   notifications: z.object({
     daily_summary_enabled: z.boolean().default(true),

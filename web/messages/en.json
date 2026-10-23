@@ -178,7 +178,8 @@
     "link_used": "This code was already opened on another phone. Please ask reception for a new code.",
     "too_many_pages": "That is the most pages one document can have. Save these, then scan the rest as a new document.",
     "heic_not_supported": "This browser can't open iPhone (HEIC) photos. Use Safari, or set the iPhone to Settings → Camera → Formats → Most Compatible, or send the photo as JPEG.",
-    "file_unreadable": "This file couldn't be opened. It may be damaged, password-protected or in a format this browser can't read."
+    "file_unreadable": "This file couldn't be opened. It may be damaged, password-protected or in a format this browser can't read.",
+    "amount_locked": "The price was agreed and the treatment has started — only reception or an admin can change it now, with a reason."
   },
   "common": {
     "saved": "Saved ✓",

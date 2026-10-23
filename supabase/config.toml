@@ -445,3 +445,9 @@ import_map = "./functions/deno.json"
 [functions.phone-scan]
 verify_jwt = false
 import_map = "./functions/deno.json"
+
+# Meta Lead Ads webhook: Meta calls it without a login. The function checks Meta's signature
+# (META_APP_SECRET) itself; an admin's retry carries their login token (checked in code).
+[functions.meta-leads]
+verify_jwt = false
+import_map = "./functions/deno.json"
