@@ -1,5 +1,5 @@
 import { randomInt } from "node:crypto";
-import { expect, type Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 
 export const PASSWORD = process.env.E2E_PASSWORD ?? "Pearl@2026";
 
@@ -26,4 +26,10 @@ export async function login(page: Page, username: string, expectUrl: RegExp = /\
 export async function open(page: Page, path: string) {
   await page.goto(path);
   await expect(page.getByRole("navigation", { name: "Main menu" }).first()).toBeVisible();
+}
+
+/** Picks an option in the app's dropdown (components/ui/select.tsx; not a native select). */
+export async function choose(page: Page, field: Locator, option: string) {
+  await field.click();
+  await page.getByRole("option", { name: option, exact: true }).click();
 }

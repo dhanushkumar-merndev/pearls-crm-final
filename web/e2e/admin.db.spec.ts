@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { open, STATE } from "./helpers";
+import { choose, open, STATE } from "./helpers";
 
 // Phase 1: admin setup. Needs a backend with seed data (E2E_DB=1).
 test.skip(!process.env.E2E_DB, "needs the Supabase backend (E2E_DB=1)");
@@ -23,7 +23,7 @@ test.describe("as admin", () => {
     await expect(row).toContainText("₹600.00");
     await row.getByRole("link", { name: "Hours & leave" }).click();
 
-    await page.getByLabel("Day", { exact: true }).selectOption({ label: "Monday" });
+    await choose(page, page.getByLabel("Day", { exact: true }), "Monday");
     await page.getByLabel("From").first().fill("10:00");
     await page.getByLabel("To").first().fill("13:00");
     await page.getByRole("button", { name: "Add hours" }).click();
@@ -44,7 +44,7 @@ test.describe("as admin", () => {
     await page.getByRole("button", { name: "Save" }).click();
     await expect(page.getByText("Saved ✓")).toBeVisible();
     await open(page, "/admin/audit");
-    await page.getByLabel("What").selectOption({ label: "Services" });
+    await choose(page, page.getByLabel("What"), "Services");
     await expect(page.getByText(name).first()).toBeVisible();
   });
 });

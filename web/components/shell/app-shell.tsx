@@ -3,7 +3,7 @@
 import { Menu, Search, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Dialog } from "radix-ui";
-import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { UploadQueueRunner } from "@/components/scan/upload-queue-runner";
 import { Button } from "@/components/ui/button";
 import type { Me } from "@/lib/session";
@@ -55,6 +55,7 @@ export function AppShell({ me, idleMinutes, children }: { me: Me; idleMinutes: n
   const collapsed = useSyncExternalStore(subscribeCollapsed, readCollapsed, () => false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const searchRef = useRef<HTMLButtonElement>(null);
   const { choose } = useThemePreference(me.theme);
   const toggleCollapsed = () => writeCollapsed(!collapsed);
 
@@ -109,6 +110,7 @@ export function AppShell({ me, idleMinutes, children }: { me: Me; idleMinutes: n
             <Menu aria-hidden />
           </Button>
           <button
+            ref={searchRef}
             type="button"
             onClick={() => setPaletteOpen(true)}
             className="mx-auto flex min-h-11 max-w-xl min-w-0 flex-1 items-center gap-3 rounded-full border border-border bg-secondary px-4 text-left text-muted-foreground hover:bg-popover-accent"
@@ -119,12 +121,12 @@ export function AppShell({ me, idleMinutes, children }: { me: Me; idleMinutes: n
           </button>
           <NotificationBell staffId={me.id} />
         </header>
-        <main id="main" tabIndex={-1} className="mx-auto w-full max-w-6xl flex-1 px-4 pt-4 pb-16 outline-none md:px-8">
+        <main id="main" tabIndex={-1} className="w-full min-w-0 flex-1 px-4 pt-4 pb-16 outline-none md:px-8">
           {children}
         </main>
       </div>
 
-      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} role={me.role} onTheme={choose} />
+      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} role={me.role} onTheme={choose} anchorRef={searchRef} />
       <IdleLogout minutes={idleMinutes} />
       <UploadQueueRunner />
     </div>

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { open, STATE, uniquePhone } from "./helpers";
+import { choose, open, STATE, uniquePhone } from "./helpers";
 
 // Phase 6: buy in → sell from the FEFO batch → stock and ledger follow. Needs a backend (E2E_DB=1).
 test.skip(!process.env.E2E_DB, "needs the Supabase backend (E2E_DB=1)");
@@ -42,8 +42,8 @@ test("purchase a new medicine, sell 3 on a pharmacy bill, write off 1", async ({
   await page.getByRole("combobox", { name: "Medicine" }).click();
   await page.getByPlaceholder("Type to search…").fill(medicine);
   await page.getByRole("option", { name: new RegExp(medicine) }).first().click();
-  await expect(page.getByLabel("Batch", { exact: true })).toHaveValue(/[0-9a-f-]{36}/);
-  await expect(page.getByLabel("Batch", { exact: true }).locator("option:checked")).toHaveText(/E2EB1 · exp 12\/2030 · 10 left/);
+  // FEFO picks the batch by itself (the dropdown shows the chosen one).
+  await expect(page.getByLabel("Batch", { exact: true })).toHaveText(/E2EB1 · exp 12\/2030 · 10 left/);
   await page.getByLabel("Qty", { exact: true }).fill("3");
   await page.getByRole("button", { name: "Finalize bill" }).click();
   const dialog = page.getByRole("dialog");
@@ -60,7 +60,7 @@ test("purchase a new medicine, sell 3 on a pharmacy bill, write off 1", async ({
   await expect(page.getByText("7 unit in stock", { exact: false })).toBeVisible();
   await page.getByRole("button", { name: "Adjust batch E2EB1" }).click();
   const adjust = page.getByRole("dialog");
-  await adjust.getByLabel("What happened").selectOption("damaged");
+  await choose(page, adjust.getByLabel("What happened"), "Damaged");
   await adjust.getByLabel("How many").fill("1");
   await adjust.getByLabel("Reason").fill("strip torn");
   await adjust.getByRole("button", { name: "Save adjustment" }).click();

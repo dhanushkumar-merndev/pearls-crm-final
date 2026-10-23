@@ -1,4 +1,3 @@
-import { ChevronDown } from "lucide-react";
 import { useId, type ComponentProps, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { FieldError, Label } from "./input";
@@ -35,24 +34,8 @@ export function Field({
   );
 }
 
-/** Native select (works with the keyboard, screen readers and phones), styled like Input. */
-export function Select({ className, children, ...props }: ComponentProps<"select">) {
-  return (
-    <div className="relative">
-      <select
-        className={cn(
-          "flex min-h-12 w-full appearance-none rounded-xl border border-input bg-background pr-10 pl-4 text-base text-foreground",
-          "disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-status-critical",
-          className,
-        )}
-        {...props}
-      >
-        {children}
-      </select>
-      <ChevronDown aria-hidden className="pointer-events-none absolute top-1/2 right-3 size-5 -translate-y-1/2 text-muted-foreground" />
-    </div>
-  );
-}
+// The app dropdown (custom, themed): see ./select.tsx. Re-exported so forms import one place.
+export { Select } from "./select";
 
 export function Textarea({ className, ...props }: ComponentProps<"textarea">) {
   return (

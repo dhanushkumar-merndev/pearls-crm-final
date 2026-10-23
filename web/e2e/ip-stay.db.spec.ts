@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { open, STATE, uniquePhone } from "./helpers";
+import { choose, open, STATE, uniquePhone } from "./helpers";
 
 // Phase 7: admit → interim bill → discharge → final bill (carries the interim bill once, adds
 // room nights) → discharge summary from the template ("She underwent…") → print. E2E_DB=1.
@@ -20,7 +20,7 @@ test("IP stay: final bill without double counting, discharge summary with the ri
   // A female patient, 36 years old.
   await open(page, "/patients/new");
   await page.getByLabel("Full name").fill(name);
-  await page.getByLabel("Gender").selectOption("female");
+  await choose(page, page.getByLabel("Gender"), "Female");
   await page.getByLabel("Age (years)").fill("36");
   await page.getByLabel("Mobile number").fill(uniquePhone());
   await page.getByRole("button", { name: "Save patient" }).first().click();
@@ -85,7 +85,7 @@ test("IP stay: final bill without double counting, discharge summary with the ri
   await page.goto(stayUrl);
   await page.getByRole("button", { name: "Write discharge summary" }).click();
   dialog = page.getByRole("dialog");
-  await dialog.getByLabel("Start from").selectOption({ label: "Septoplasty (generic)" });
+  await choose(page, dialog.getByLabel("Start from"), "Septoplasty (generic)");
   await dialog.getByRole("button", { name: "Start" }).click();
   await expect(page).toHaveURL(/\/discharge\/[0-9a-f-]{36}$/);
   await expect(page.getByText("Every placeholder is filled ✓")).toBeVisible();
