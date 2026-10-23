@@ -9,6 +9,7 @@ import { BookDialog } from "@/components/appointments/book-dialog";
 import { ApptStatusBadge } from "@/components/appointments/status";
 import { FollowupDialog } from "@/components/followups/followup-dialog";
 import { TreatmentsTab } from "@/components/treatments/treatments-tab";
+import { PatientBillsTab } from "@/components/bills/patient-bills-tab";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -120,7 +121,7 @@ export function PatientFile({ initial }: { initial: PatientHeader }) {
 
       <Tabs.Root defaultValue="overview" className="flex flex-col gap-4">
         <Tabs.List aria-label={t("sections")} className="flex flex-wrap gap-1 border-b border-border">
-          {(["overview", "appointments", "treatments", "documents", "family", "timeline"] as const).map((tab) => (
+          {(["overview", "appointments", "treatments", "bills", "documents", "family", "timeline"] as const).map((tab) => (
             <Tabs.Trigger
               key={tab}
               value={tab}
@@ -140,6 +141,9 @@ export function PatientFile({ initial }: { initial: PatientHeader }) {
         </Tabs.Content>
         <Tabs.Content value="treatments">
           <TreatmentsTab patient={hit} />
+        </Tabs.Content>
+        <Tabs.Content value="bills">
+          <PatientBillsTab patientId={p.id} />
         </Tabs.Content>
         <Tabs.Content value="documents">
           <Documents patientId={p.id} />

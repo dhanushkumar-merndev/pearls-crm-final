@@ -1,3 +1,4 @@
+import { randomInt } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
 import { open, STATE, uniquePhone } from "./helpers";
 
@@ -5,10 +6,13 @@ import { open, STATE, uniquePhone } from "./helpers";
 test.skip(!process.env.E2E_DB, "needs the Supabase backend (E2E_DB=1)");
 test.use({ storageState: STATE.reception });
 
-/** Next Monday as YYYY-MM-DD (demo doctors work Mon–Sat 10:00–13:00 and 14:00–18:00). */
-function nextMonday(): string {
+/**
+ * A Monday 1–8 weeks ahead as YYYY-MM-DD (demo doctors work Mon–Sat 10:00–13:00 and 14:00–18:00).
+ * Random, so runs against a shared staging database don't fill one day's slots.
+ */
+function aMonday(): string {
   const d = new Date();
-  d.setUTCDate(d.getUTCDate() + ((8 - d.getUTCDay()) % 7 || 7));
+  d.setUTCDate(d.getUTCDate() + ((8 - d.getUTCDay()) % 7 || 7) + 7 * randomInt(0, 8));
   return d.toISOString().slice(0, 10);
 }
 
@@ -34,7 +38,7 @@ async function openBoard(page: Page, day: string) {
 test("book from the board; a second desk sees it live", async ({ page, browser }) => {
   const name = `E2E Board ${Date.now()}`;
   await newPatient(page, name);
-  const day = nextMonday();
+  const day = aMonday();
 
   // A second receptionist watching the same day.
   const other = await browser.newContext({ storageState: STATE.reception });
@@ -42,7 +46,7 @@ test("book from the board; a second desk sees it live", async ({ page, browser }
   await openBoard(watcher, day);
 
   await openBoard(page, day);
-  await page.getByRole("button", { name: /Book 2:00 PM with Dr Priya/ }).click();
+  await page.getByRole("button", { name: /^Book .+ with Dr Priya/ }).first().click();
   await pickPatient(page, name);
   await page.getByRole("dialog").getByRole("button", { name: "Book", exact: true }).click();
   await expect(page.getByText(/Booked ✓/)).toBeVisible();
@@ -69,8 +73,8 @@ test("a booking can be confirmed from the patient file", async ({ page }) => {
   const dialog = page.getByRole("dialog");
   await dialog.getByRole("combobox", { name: "Doctor" }).click();
   await page.getByRole("option", { name: /Dr Arjun/ }).click();
-  await dialog.getByLabel("Day", { exact: true }).fill(nextMonday());
-  await dialog.getByRole("radio", { name: /10:15 AM/ }).click();
+  await dialog.getByLabel("Day", { exact: true }).fill(aMonday());
+  await dialog.getByRole("radio").and(page.locator(":enabled")).first().click();
   await dialog.getByRole("button", { name: "Book", exact: true }).click();
   await expect(page.getByText(/Booked ✓/)).toBeVisible();
   await page.getByRole("tab", { name: "Appointments" }).click();

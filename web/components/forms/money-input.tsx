@@ -25,7 +25,13 @@ export function MoneyInput({
         autoComplete="off"
         className="pl-9 tabular-nums"
         value={shown}
-        onFocus={() => setDraft(value === null ? "" : (value / 100).toFixed(2).replace(/\.00$/, ""))}
+        onFocus={(e) => {
+          const raw = value === null ? "" : (value / 100).toFixed(2).replace(/\.00$/, "");
+          // Swap the text in place and keep it selected, so typing replaces the amount instead of appending to it.
+          e.currentTarget.value = raw;
+          e.currentTarget.select();
+          setDraft(raw);
+        }}
         onChange={(e) => {
           setDraft(e.target.value);
           const text = e.target.value.trim();

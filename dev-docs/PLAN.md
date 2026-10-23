@@ -857,3 +857,12 @@ Each phase ends with: tests green → I tell you step by step how to try it on s
   - A session follows its appointment automatically (trigger): booked when linked, done when the visit is done, back to planned on cancel, missed on no-show; a reschedule keeps the link.
   - Removing a session keeps it as "removed" (skipped) with the reason, never deletes it.
   - When the last open session is done the treatment becomes Completed and, if the treatment has "follow-up after N days", a follow-up is created once.
+- 28/10/2026, Phase 5 done: bills, payments, printing, KPI rollup. Decisions made while building:
+  - Line maths in integer paise, GST in basis points, rounding half away from zero; the bill total is rounded to the nearest rupee with a visible "Round off" line. The same rules run in `packages/shared/src/gst.ts` (live preview) and in SQL (the saved figures), both checked against `test-vectors/gst.json`.
+  - A finalized bill is locked by a trigger. Only the admin "amend" and "cancel" functions open it, for their own transaction (`app.bill_amend`); every amendment keeps the previous version in `bill_versions` with the reason.
+  - The first print is "Original"; every later print says "Duplicate". The Print button is a plain link so a page prefetch can't use up the original.
+  - Discounts over the limit in Settings need an admin (checked in the database, per line and per bill).
+  - Payments can be split across modes, kept as an advance, applied from the advance later, or refunded from it. Cancelling a bill returns its payments to the advance.
+  - Dashboards read a daily rollup (`kpi_daily`): yesterday is rolled up at 00:15 IST, and any day whose bills, payments or appointments change is marked and re-rolled within the hour. Today is computed live.
+  - PDF files: the print pages are A4-ready; until Phase 10 (sending bills on WhatsApp needs a file) staff use the browser's "Save as PDF".
+  - Fixed while testing: rupee fields now replace the amount when you type into them (they used to append), and the finalize dialog no longer closes itself after the draft is saved.

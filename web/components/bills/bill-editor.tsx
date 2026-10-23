@@ -10,13 +10,11 @@ import { MoneyInput, GST_RATES_BP } from "@/components/forms/money-input";
 import { LibraryCombobox, type LibraryItem } from "@/components/library-combobox";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Dialog } from "@/components/ui/dialog";
 import { Checkbox, Field, Select } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { newId, rpc } from "@/lib/rpc";
 import { useMe } from "@/lib/use-me";
 import { useFeedback } from "@/lib/use-feedback";
-import { FinalizeDialog } from "./finalize-dialog";
 import type { Bill, BillItem } from "./types";
 
 export interface EditLine {
@@ -110,7 +108,18 @@ export function toPayloadLine(l: EditLine) {
  * Draft bill editor (and admin amend). Every amount shown is a live preview; the
  * database recalculates everything on save, with the same rules.
  */
-export function BillEditor({ bill, amend = false, onAmended }: { bill: Bill; amend?: boolean; onAmended?: () => void }) {
+export function BillEditor({
+  bill,
+  amend = false,
+  onAmended,
+  onFinalize,
+}: {
+  bill: Bill;
+  amend?: boolean;
+  onAmended?: () => void;
+  /** Opens the finalize dialog. It lives in the parent: saving bumps the version, which remounts this editor. */
+  onFinalize?: (saved: Bill) => void;
+}) {
   const t = useTranslations("bill");
   const router = useRouter();
   const me = useMe();
@@ -123,7 +132,6 @@ export function BillEditor({ bill, amend = false, onAmended }: { bill: Bill; ame
   const [referredBy, setReferredBy] = useState(bill.referred_by_text ?? "");
   const [taxInclusive, setTaxInclusive] = useState(bill.tax_inclusive);
   const [reason, setReason] = useState("");
-  const [finalizing, setFinalizing] = useState<Bill | null>(null);
   const update = (key: string, patch: Partial<EditLine>) => setLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...patch } : l)));
 
   const previews = useMemo(() => lines.map((l) => previewLine(l, taxInclusive)), [lines, taxInclusive]);
@@ -156,7 +164,7 @@ export function BillEditor({ bill, amend = false, onAmended }: { bill: Bill; ame
   async function saveThenFinalize() {
     try {
       const b = await save.mutateAsync();
-      setFinalizing(b);
+      onFinalize?.(b);
     } catch {
       // toast shown by onError
     }
@@ -334,9 +342,6 @@ export function BillEditor({ bill, amend = false, onAmended }: { bill: Bill; ame
       )}
       {me?.role !== "admin" && !amend && <p className="text-right text-[0.9rem] text-text-secondary">{t("discountLimitHint")}</p>}
 
-      <Dialog open={finalizing !== null} onOpenChange={(o) => !o && setFinalizing(null)}>
-        {finalizing && <FinalizeDialog bill={finalizing} onDone={() => (setFinalizing(null), router.refresh())} />}
-      </Dialog>
     </div>
   );
 }

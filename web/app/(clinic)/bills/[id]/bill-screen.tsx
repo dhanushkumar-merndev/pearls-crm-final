@@ -8,6 +8,7 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { formatDateTime, formatINR } from "@pearl/shared";
 import { BillEditor } from "@/components/bills/bill-editor";
+import { FinalizeDialog } from "@/components/bills/finalize-dialog";
 import { PaymentDialog } from "@/components/bills/payment-dialog";
 import { payable, type Bill } from "@/components/bills/types";
 import { MoneyInput } from "@/components/forms/money-input";
@@ -33,6 +34,7 @@ export function BillScreen({ initial }: { initial: Bill }) {
   const b = bill.data;
   const [amending, setAmending] = useState(false);
   const [dialog, setDialog] = useState<"pay" | "advance" | "cancel" | null>(null);
+  const [finalizing, setFinalizing] = useState<Bill | null>(null);
   const due = payable(b) - b.received_paise;
 
   return (
@@ -57,7 +59,7 @@ export function BillScreen({ initial }: { initial: Bill }) {
       </div>
 
       {b.status === "draft" ? (
-        <BillEditor key={b.version} bill={b} />
+        <BillEditor key={b.version} bill={b} onFinalize={setFinalizing} />
       ) : amending ? (
         <BillEditor bill={b} amend onAmended={() => (setAmending(false), void bill.refetch())} />
       ) : (
@@ -106,6 +108,9 @@ export function BillScreen({ initial }: { initial: Bill }) {
         )}
         {dialog === "advance" && <AdvanceDialog bill={b} due={due} onDone={() => (setDialog(null), void bill.refetch())} />}
         {dialog === "cancel" && <CancelDialog bill={b} onDone={() => (setDialog(null), router.refresh(), void bill.refetch())} />}
+      </Dialog>
+      <Dialog open={finalizing !== null} onOpenChange={(o) => !o && setFinalizing(null)}>
+        {finalizing && <FinalizeDialog bill={finalizing} onDone={() => (setFinalizing(null), router.refresh(), void bill.refetch())} />}
       </Dialog>
     </div>
   );

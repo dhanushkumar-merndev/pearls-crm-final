@@ -5,7 +5,7 @@ import { CalendarPlus, Footprints, Inbox, ListTodo, Repeat } from "lucide-react"
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
-import { chartTokens, formatTime, istDateString, type ThemeMode } from "@pearl/shared";
+import { chartTokens, formatINR, formatTime, istDateString, type ThemeMode } from "@pearl/shared";
 import { AppointmentActions, type ApptCard } from "@/components/appointments/appointment-actions";
 import { BookDialog, WalkInDialog } from "@/components/appointments/book-dialog";
 import { ApptStatusBadge } from "@/components/appointments/status";
@@ -27,6 +27,7 @@ interface TodayData {
   sessions_due_week: number;
 }
 interface Dashboard {
+  collections: { total_paise: number; by_mode: { mode: string; paise: number }[]; bills: number };
   arrivals_by_hour: { hour: number; today: number; typical: number }[];
   doctor_load: { doctor: string; counts: Record<string, number> }[];
 }
@@ -117,6 +118,17 @@ export function TodayBoard() {
         <StatTile label={t("tile.noShow")} value={String(c.no_show ?? 0)} goodWhen="down" />
         <StatTile label={t("tile.walkIns")} value={String(c.walk_ins ?? 0)} />
       </div>
+      {dash.data && (
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-1 rounded-2xl border border-border p-4">
+          <span className="text-lg font-semibold">{t("collected", { amount: formatINR(dash.data.collections.total_paise) })}</span>
+          {dash.data.collections.by_mode.map((m) => (
+            <span key={m.mode} className="text-text-secondary tabular-nums">
+              {m.mode}: {formatINR(m.paise)}
+            </span>
+          ))}
+          <span className="text-text-secondary">{t("billsToday", { n: dash.data.collections.bills })}</span>
+        </div>
+      )}
 
       <div className="grid gap-4 xl:grid-cols-2">
         <Card className="flex flex-col gap-3">
