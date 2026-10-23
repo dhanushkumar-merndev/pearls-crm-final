@@ -433,3 +433,9 @@ import_map = "./functions/deno.json"
 [functions.admin-users]
 verify_jwt = false
 import_map = "./functions/deno.json"
+
+# The patient's own phone fills the registration form from the reception QR: no login.
+# The function checks the QR token and a Cloudflare Turnstile pass itself.
+[functions.public-form]
+verify_jwt = false
+import_map = "./functions/deno.json"

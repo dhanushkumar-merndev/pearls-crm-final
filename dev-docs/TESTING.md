@@ -29,7 +29,7 @@ Needs `DATABASE_URL` (session pooler, port 5432) in the root `.env`. Every test 
 ```bash
 pnpm --filter @pearl/web exec playwright test --update-snapshots
 ```
-Look at the new pictures before committing them. On a different operating system (for example the CI server), fonts render slightly differently, so baselines may need regenerating there once.
+Look at the new pictures before committing them. The pixel comparison runs **on the developer PC only**: the CI server's Linux draws font edges differently, so one set of pictures can't match both. On CI the same tests still check the theme colours, 44 px sizes, keyboard use and accessibility.
 
 ## Design colours
 `packages/shared/tests/palette.test.ts` fails if a colour change breaks:

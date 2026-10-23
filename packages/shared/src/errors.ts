@@ -20,6 +20,7 @@ export const ERROR_CODES = [
   "overlap",
   "duplicate",
   "in_use",
+  "link_expired",
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

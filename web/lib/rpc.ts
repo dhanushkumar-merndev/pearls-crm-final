@@ -36,8 +36,8 @@ export async function callFunction<T>(name: string, body: Record<string, unknown
   const { data, error } = await getSupabaseBrowser().functions.invoke(name, { body });
   if (error) {
     // FunctionsHttpError keeps the response; our functions answer { error: "<code>" }.
-    const context = (error as { context?: Response }).context;
-    if (context && typeof context.json === "function") {
+    const context = (error as { context?: unknown }).context;
+    if (context instanceof Response) {
       const payload = (await context.json().catch(() => null)) as { error?: string; detail?: string } | null;
       if (payload?.error) throw new AppError(toErrorCode(payload.error), payload.detail);
     }

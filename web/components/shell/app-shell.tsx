@@ -6,6 +6,7 @@ import { Dialog } from "radix-ui";
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import type { Me } from "@/lib/session";
+import { MeProvider } from "@/lib/use-me";
 import { CommandPalette } from "./command-palette";
 import { IdleLogout } from "./idle-logout";
 import { NotificationBell } from "./notification-bell";
@@ -69,6 +70,7 @@ export function AppShell({ me, idleMinutes, children }: { me: Me; idleMinutes: n
   }, []);
 
   return (
+    <MeProvider me={me}>
     <div className="flex min-h-dvh bg-background text-foreground">
       <a
         href="#main"
@@ -124,5 +126,6 @@ export function AppShell({ me, idleMinutes, children }: { me: Me; idleMinutes: n
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} role={me.role} onTheme={choose} />
       <IdleLogout minutes={idleMinutes} />
     </div>
+    </MeProvider>
   );
 }

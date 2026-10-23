@@ -1,0 +1,103 @@
+/* Print pages are always white with black text, whatever the screen theme (PLAN.md B5). */
+@page {
+  size: A4;
+  margin: 12mm;
+}
+.print-root {
+  background: #ffffff;
+  color: #000000;
+  min-height: 100dvh;
+  font-size: 11pt;
+  line-height: 1.45;
+}
+.print-root .sheet {
+  margin: 0 auto;
+  max-width: 186mm;
+  padding: 8mm 0;
+}
+.print-root .toolbar {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin: 0 auto;
+  max-width: 186mm;
+  padding-top: 12px;
+}
+.print-root .toolbar button {
+  border: 1px solid #000;
+  border-radius: 999px;
+  background: #fff;
+  color: #000;
+  font-size: 16px;
+  min-height: 44px;
+  padding: 0 20px;
+  cursor: pointer;
+}
+.print-root .letterhead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 2px solid #000;
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+}
+.print-root .letterhead img {
+  height: 56px;
+  width: auto;
+}
+.print-root .letterhead h1 {
+  font-size: 18pt;
+  margin: 0;
+}
+.print-root .muted {
+  color: #333;
+}
+.print-root h2 {
+  font-size: 12pt;
+  margin: 12px 0 4px;
+  border-bottom: 1px solid #000;
+}
+.print-root .grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 16px;
+}
+.print-root .line {
+  display: flex;
+  gap: 6px;
+  align-items: flex-end;
+  min-height: 24px;
+}
+.print-root .line .label {
+  white-space: nowrap;
+  font-weight: 600;
+}
+.print-root .line .value {
+  flex: 1;
+  border-bottom: 1px dotted #000;
+  min-height: 18px;
+}
+.print-root .box {
+  border: 1px solid #000;
+  min-height: 48px;
+  padding: 4px;
+}
+.print-root .sign {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 28px;
+}
+.print-root .sign div {
+  border-top: 1px solid #000;
+  padding-top: 4px;
+  width: 45%;
+  text-align: center;
+}
+@media print {
+  .print-root .toolbar {
+    display: none;
+  }
+  .print-root .sheet {
+    padding: 0;
+  }
+}

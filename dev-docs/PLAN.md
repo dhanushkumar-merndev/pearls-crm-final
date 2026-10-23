@@ -839,3 +839,9 @@ Each phase ends with: tests green → I tell you step by step how to try it on s
   - GST rates are stored as **basis points** (`gst_rate_bp`, 5% = 500), the same unit as `packages/shared/src/gst.ts`, instead of `numeric(5,2)`.
   - Library merge repoints every foreign key found in the catalog; a foreign key commented `merge:keep` (e.g. finalized bill lines) keeps its old reference.
   - Function privileges: PostgreSQL's global "EXECUTE to PUBLIC" default is revoked for the migration role, and every migration ends with `select private.lock_down_public_functions();`.
+- 25/10/2026, Phase 2 done: patients. Decisions made while building:
+  - An age without a birth date is stored as 1 July of the birth year, flagged `dob_estimated`.
+  - QR self-registration links last 30 minutes and are stored as a SHA-256 hash only. At most 5 forms per network in 10 minutes (salted IP hash, never the IP).
+  - Cloudflare Turnstile uses Cloudflare's public **test keys** until real keys are added (`.env` section 1 and 3, and Vercel's environment variables). The form refuses to work if no secret is set at all.
+  - DocPulse import is CSV (Excel → Save As → CSV) in batches of 500 with a dry run first. Excel files directly come with Phase 14's import/export.
+  - Merge repoints every foreign key to `patients` found in the catalog, so later phases' tables are covered automatically.

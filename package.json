@@ -29,7 +29,8 @@
     "deploy:supabase": "tsx scripts/supabase-deploy.ts",
     "supabase:configure": "tsx scripts/supabase-configure.ts",
     "staging:bootstrap": "tsx scripts/staging-bootstrap.ts",
-    "sql": "tsx scripts/sql.ts"
+    "sql": "tsx scripts/sql.ts",
+    "precommit:scan": "tsx scripts/precommit-scan.ts"
   },
   "devDependencies": {
     "@tigrisdata/cli": "3.16.0",
