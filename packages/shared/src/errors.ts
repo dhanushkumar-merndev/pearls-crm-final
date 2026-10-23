@@ -34,6 +34,9 @@ export const ERROR_CODES = [
   "over_allocated",
   "bill_locked",
   "discount_limit",
+  "stock_insufficient",
+  "expired_batch",
+  "batch_required",
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

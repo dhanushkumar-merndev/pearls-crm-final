@@ -22,7 +22,9 @@
     "patients": "Patients",
     "appointments": "Appointments",
     "followups": "Follow-ups",
-    "bills": "Bills"
+    "bills": "Bills",
+    "pharmacy": "Pharmacy",
+    "withCount": "{label} ({n, plural, one {# alert} other {# alerts}})"
   },
   "actions": {
     "newPatient": "New patient",
@@ -163,7 +165,10 @@
     "over_allocated": "That is more than what is due (or more than the advance available).",
     "below_agreed_price": "This is below the agreed price. Please give a reason.",
     "discount_exceeds_gross": "The discount is bigger than the line amount.",
-    "invalid_quantity": "Quantity must be more than 0."
+    "invalid_quantity": "Quantity must be more than 0.",
+    "stock_insufficient": "Not enough stock in this batch. Check the quantity or choose another batch.",
+    "expired_batch": "This batch has expired and can't be sold or bought in.",
+    "batch_required": "Choose the batch for every medicine line."
   },
   "common": {
     "saved": "Saved ✓",
@@ -652,6 +657,10 @@
     "import": {
       "title": "Import patients",
       "body": "Bring patients over from DocPulse or a spreadsheet."
+    },
+    "importStock": {
+      "title": "Import opening stock",
+      "body": "Medicines, batches and quantities from DocPulse or a sheet."
     }
   },
   "patientForm": {
@@ -946,7 +955,6 @@
     "row": "Row",
     "field": "Column",
     "problem": "Problem",
-    "duplicateUhid": "This UHID already exists",
     "col": {
       "full_name": "Name",
       "phone_e164": "Mobile",
@@ -959,6 +967,32 @@
       "area": "Area",
       "city": "City",
       "pincode": "Pincode"
+    },
+    "duplicateRow": "This UHID already exists",
+    "stock": {
+      "title": "Import opening stock",
+      "description": "Bring medicines and their current stock over from DocPulse or any spreadsheet. Each batch's opening stock can be entered once.",
+      "step1Hint": "In Excel: File → Save As → CSV. Columns such as Item Name, Strength, Form, Manufacturer, HSN, GST %, MRP, Selling Price, Purchase Price, Batch No, Expiry (e.g. 03/2027), Qty, Reorder Level, Rack.",
+      "import": "Import {n} rows",
+      "done": "Imported {n} batches ✓",
+      "seriesHint": "Check the Pharmacy page: the stock and alerts are up to date.",
+      "duplicateRow": "This batch's opening stock is already entered",
+      "col": {
+        "name": "Item name",
+        "strength": "Strength",
+        "form": "Form",
+        "manufacturer": "Manufacturer",
+        "hsn": "HSN",
+        "gst": "GST %",
+        "mrp": "MRP",
+        "selling_price": "Selling price",
+        "purchase_price": "Purchase price",
+        "batch_no": "Batch no.",
+        "expiry_date": "Expiry",
+        "qty": "Quantity",
+        "reorder_level": "Reorder level",
+        "rack": "Rack"
+      }
     }
   },
   "appt": {
@@ -1310,7 +1344,14 @@
     "splitPayment": "Add another mode",
     "overpaid": "Payments are more than the bill total",
     "belowAgreedReason": "Why is this below the agreed price?",
-    "belowAgreedHint": "Agreed package price: {agreed}"
+    "belowAgreedHint": "Agreed package price: {agreed}",
+    "medicine": "Medicine",
+    "batch": "Batch",
+    "chooseBatch": "Choose a batch…",
+    "batchOption": "{no} · exp {exp} · {n} left",
+    "batchExpired": "{no} · expired {exp} · can't be sold",
+    "noStock": "No stock that can be sold. Enter a purchase first.",
+    "onlyLeft": "Only {n} left in this batch"
   },
   "payment": {
     "title": "Advance or refund",
@@ -1368,12 +1409,13 @@
     "billed": "Billed",
     "received": "Received",
     "balanceDue": "Balance due",
-    "advanceHeld": "Advance held"
+    "advanceHeld": "Advance held",
+    "newPharmacyBill": "New pharmacy bill"
   },
   "printBill": {
     "title": {
       "procedure_receipt": "Receipt",
-      "pharmacy_invoice": "Bill of supply",
+      "pharmacy_invoice": "Retail invoice",
       "pharmacy_tax": "Tax invoice",
       "final_bill": "Final bill"
     },
@@ -1422,5 +1464,147 @@
     "belowAgreed": "Below agreed price",
     "terms": "Terms & conditions",
     "for": "For"
+  },
+  "pharmacy": {
+    "title": "Pharmacy",
+    "description": "Stock by batch, purchases from suppliers and alerts. Sales are pharmacy bills.",
+    "sections": "Pharmacy sections",
+    "tab": {
+      "stock": "Stock",
+      "purchases": "Purchases",
+      "suppliers": "Suppliers",
+      "alerts": "Alerts"
+    },
+    "newSale": "New sale",
+    "newSaleHint": "Choose the patient. The bill opens next; medicines come from the earliest-expiring batch first.",
+    "newPurchase": "New purchase",
+    "startBill": "Start the bill",
+    "patient": "Patient",
+    "registerFirst": "Not registered yet? Add the patient first",
+    "tile": {
+      "salesToday": "Sales today",
+      "salesMonth": "Sales this month",
+      "stockValue": "Stock value (at cost)",
+      "nearExpiry": "Expiring soon (at cost)"
+    },
+    "search": "Search medicines",
+    "show": "Show",
+    "view": {
+      "all": "All",
+      "in_stock": "In stock",
+      "low": "Low stock",
+      "expiring": "Expiring soon",
+      "expired": "Expired stock"
+    },
+    "stockSum": "{n, plural, one {# medicine} other {# medicines}} · stock value {amount}",
+    "noItems": "No medicines match.",
+    "rackLabel": "Rack {rack}",
+    "gstLabel": "GST {rate}%",
+    "col": {
+      "medicine": "Medicine",
+      "onHand": "In stock",
+      "nextExpiry": "Next expiry",
+      "status": "Status",
+      "value": "Value",
+      "invoice": "Invoice",
+      "date": "Date",
+      "supplier": "Supplier",
+      "total": "Total",
+      "alert": "Alert",
+      "batch": "Batch",
+      "expiry": "Expiry",
+      "mrp": "MRP",
+      "cost": "Cost",
+      "when": "When",
+      "movement": "Movement",
+      "qty": "Qty",
+      "by": "By"
+    },
+    "badge": {
+      "expired": "{n} expired",
+      "expiring": "{n} expiring",
+      "low": "Low stock",
+      "ok": "OK"
+    },
+    "from": "From",
+    "to": "To",
+    "rangeTooWide": "Pick a range of one year or less",
+    "purchaseStatus": {
+      "draft": "Draft",
+      "posted": "Posted"
+    },
+    "purchaseSum": "{n, plural, one {# purchase} other {# purchases}} · posted {amount}",
+    "noPurchases": "No purchases for these filters.",
+    "alertType": "Alert type",
+    "alert": {
+      "expired": "Expired",
+      "near_expiry": "Expiring soon",
+      "low": "Low stock",
+      "within": "Expires within {days} days"
+    },
+    "noAlerts": "No open alerts. 🎉",
+    "reorderAt": "reorder at {n}",
+    "supplier": {
+      "title": "Suppliers",
+      "add": "Add supplier",
+      "name": "Name",
+      "gstin": "GSTIN",
+      "gstinHint": "15 characters, e.g. 29ABCDE1234F1Z5",
+      "phone": "Phone",
+      "contact": "Contact person",
+      "address": "Address"
+    },
+    "backToPharmacy": "Back to pharmacy",
+    "onHandLine": "{n} {unit} in stock (not counting expired)",
+    "batches": "Batches (earliest expiry first)",
+    "noBatches": "No stock yet. Enter a purchase or the opening stock.",
+    "adjust": "Adjust",
+    "adjustBatch": "Adjust batch {no}",
+    "adjustHint": "{n} in stock now. Every adjustment is kept in the stock history with your name and reason.",
+    "adjustKind": "What happened",
+    "adjustQty": "How many",
+    "countedQty": "Quantity counted on the shelf",
+    "countedHint": "The difference from the stock on record is booked.",
+    "reason": "Reason",
+    "saveAdjustment": "Save adjustment",
+    "adjusted": "Stock adjusted ✓",
+    "ledger": "Stock history",
+    "noMoves": "Nothing yet.",
+    "loadMore": "Load more",
+    "draftBill": "draft bill",
+    "move": {
+      "opening": "Opening stock",
+      "purchase": "Purchase",
+      "sale": "Sold",
+      "sale_cancel": "Sale cancelled",
+      "patient_return": "Returned by patient",
+      "damaged": "Damaged",
+      "expired": "Expired (written off)",
+      "supplier_return": "Returned to supplier",
+      "count_correction": "Stock count"
+    },
+    "backToPurchases": "Back to purchases",
+    "purchaseTitle": "Purchase {no}",
+    "purchaseHint": "Type the supplier's invoice. Quantities are in selling units (e.g. tablets). Nothing reaches stock until you post it.",
+    "invoiceNo": "Supplier invoice no.",
+    "invoiceDate": "Invoice date",
+    "inUnits": "In selling units",
+    "freeQty": "Free",
+    "purchasePrice": "Purchase price",
+    "purchasePriceHint": "Per unit, before GST",
+    "sellingPrice": "Selling price",
+    "sellingPriceHint": "Blank = MRP",
+    "gst": "GST",
+    "removeLine": "Remove line {n}",
+    "addLine": "Add line",
+    "notes": "Notes",
+    "invoiceTotal": "Invoice total {amount}",
+    "discardDraft": "Discard draft",
+    "saveDraft": "Save draft",
+    "draftSaved": "Draft saved",
+    "postToStock": "Post to stock",
+    "postTitle": "Post this purchase to stock?",
+    "postHint": "Invoice total {amount}. The batches below are added to stock. A posted purchase can't be edited; fix mistakes with a stock adjustment.",
+    "posted": "Purchase {no} posted to stock ✓"
   }
 }

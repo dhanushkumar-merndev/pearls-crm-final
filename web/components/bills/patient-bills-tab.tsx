@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { FilePlus2, Wallet } from "lucide-react";
+import { FilePlus2, Pill, Wallet } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -33,7 +33,7 @@ export function PatientBillsTab({ patientId }: { patientId: string }) {
     queryFn: () => rpc<Balance>("patient_balance", { p_patient_id: patientId }),
   });
   const create = useMutation({
-    mutationFn: () => rpc<Bill>("create_bill", { p_type: "procedure_receipt", p_patient_id: patientId, p_links: {}, p_client_id: newId() }),
+    mutationFn: (type: "procedure_receipt" | "pharmacy_invoice") => rpc<Bill>("create_bill", { p_type: type, p_patient_id: patientId, p_links: {}, p_client_id: newId() }),
     onSuccess: (b) => router.push(`/bills/${b.id}`),
     onError: failed,
   });
@@ -41,9 +41,13 @@ export function PatientBillsTab({ patientId }: { patientId: string }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap gap-2">
-        <Button disabled={create.isPending} onClick={() => create.mutate()}>
+        <Button disabled={create.isPending} onClick={() => create.mutate("procedure_receipt")}>
           <FilePlus2 aria-hidden />
           {t("newBill")}
+        </Button>
+        <Button variant="secondary" disabled={create.isPending} onClick={() => create.mutate("pharmacy_invoice")}>
+          <Pill aria-hidden />
+          {t("newPharmacyBill")}
         </Button>
         <Button variant="secondary" onClick={() => setPaying(true)}>
           <Wallet aria-hidden />

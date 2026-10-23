@@ -4,6 +4,7 @@
  *   Number series: 50 parallel "finalize" transactions, ~30% of which roll back.
  *   The committed numbers must be exactly 1..N with no gaps and no duplicates.
  *   Slot capacity: 10 parallel bookings into one 3-place slot → exactly 3 succeed.
+ *   Last unit: 2 desks finalize a pharmacy bill for the only strip left → exactly 1 succeeds.
  *
  * Fixtures use a test-only doctor/staff and a far-future date, and are deleted afterwards.
  * Run against local Supabase (pnpm db:start first):  pnpm db:concurrency
@@ -144,6 +145,97 @@ async function slotCapacity() {
     process.exit(1);
   }
   console.log("✔ slot capacity: exactly 3 of 10 parallel bookings into a 3-place slot");
+  await lastUnit();
+}
+
+const PH = {
+  item: "99999999-6666-4000-a000-0000000000cc",
+  batch: "99999999-8888-4000-a000-0000000000cc",
+  bills: ["99999999-2222-4000-a000-0000000000c1", "99999999-2222-4000-a000-0000000000c2"],
+};
+
+async function lastUnit() {
+  const setup = new pg.Client({ connectionString: url });
+  await setup.connect();
+  const claims = JSON.stringify({ sub: IDS.staff, role: "authenticated" });
+  // Finalized bills and ledger rows are protected by triggers; the fixtures are removed with
+  // the table owner's rights, inside one transaction, and the bill counter is put back.
+  const { rows: series } = await setup.query(
+    "select id, next_value, last_used from public.number_series where series_key = 'pharmacy_invoice' and fy = private.series_fy('pharmacy_invoice', now())",
+  );
+  const cleanup = async () => {
+    await setup.query("begin");
+    for (const t of ["stock_movements", "bills", "bill_items", "item_batches"]) await setup.query(`alter table public.${t} disable trigger user`);
+    await setup.query("delete from public.stock_movements where batch_id = $1", [PH.batch]);
+    await setup.query("delete from public.bill_items where bill_id = any($1::uuid[])", [PH.bills]);
+    await setup.query("delete from public.bills where id = any($1::uuid[])", [PH.bills]);
+    await setup.query("delete from public.stock_alerts where item_id = $1", [PH.item]);
+    await setup.query("delete from public.item_batches where id = $1", [PH.batch]);
+    await setup.query("delete from public.pharmacy_items where id = $1", [PH.item]);
+    for (const t of ["stock_movements", "bills", "bill_items", "item_batches"]) await setup.query(`alter table public.${t} enable trigger user`);
+    await setup.query("delete from public.patients where uhid = 'CONC-PH'");
+    await setup.query("delete from public.staff where id = $1", [IDS.staff]);
+    await setup.query("delete from auth.users where id = $1", [IDS.staff]);
+    await setup.query("commit");
+  };
+  await cleanup();
+  await setup.query("insert into auth.users (id, email) values ($1, 'conc-rec@staff.invalid')", [IDS.staff]);
+  await setup.query("insert into public.staff (id, role, full_name, username) values ($1, 'receptionist', 'Conc Rec', 'concrec')", [IDS.staff]);
+  const { rows: pat } = await setup.query<{ id: string }>("insert into public.patients (uhid, full_name) values ('CONC-PH', 'Conc Pharmacy') returning id");
+  await setup.query("insert into public.pharmacy_items (id, name, active) values ($1, 'CONC last strip', false)", [PH.item]);
+  await setup.query("insert into public.item_batches (id, item_id, batch_no, expiry_date) values ($1, $2, 'LAST', '2099-12-31')", [PH.batch, PH.item]);
+  await setup.query("insert into public.stock_movements (batch_id, kind, qty, ref_table) values ($1, 'opening', 1, 'import')", [PH.batch]);
+  for (const bill of PH.bills) {
+    await setup.query("begin");
+    await setup.query("select set_config('request.jwt.claims', $1, true)", [claims]);
+    await setup.query("set local role authenticated");
+    await setup.query("select public.create_bill('pharmacy_invoice', $1, '{}', $2)", [pat[0]!.id, bill]);
+    await setup.query("select public.save_bill($1, '{}', $2::jsonb, 1)", [
+      bill,
+      JSON.stringify([{ kind: "pharmacy", batch_id: PH.batch, description: "CONC last strip", rate_paise: 100, qty: 1 }]),
+    ]);
+    await setup.query("commit");
+  }
+
+  const pool = new pg.Pool({ connectionString: url, max: 2 });
+  const results = await Promise.all(
+    PH.bills.map(async (bill) => {
+      const client = await pool.connect();
+      try {
+        await client.query("begin");
+        await client.query("select set_config('request.jwt.claims', $1, true)", [claims]);
+        await client.query("set local role authenticated");
+        await client.query("select public.finalize_bill($1, 2)", [bill]);
+        await client.query("select pg_sleep(0.2)"); // hold the batch lock so the other desk waits
+        await client.query("commit");
+        return "sold";
+      } catch (e) {
+        await client.query("rollback");
+        return (e as Error).message;
+      } finally {
+        client.release();
+      }
+    }),
+  );
+  await pool.end();
+  const { rows: stock } = await setup.query<{ q: string }>("select qty_on_hand as q from public.item_batches where id = $1", [PH.batch]);
+  await cleanup();
+  // Put the bill counter back as it was (a test must not leave a gap in real numbering).
+  if (series[0]) {
+    await setup.query("update public.number_series set next_value = $2, last_used = $3 where id = $1", [series[0].id, series[0].next_value, series[0].last_used]);
+  } else {
+    await setup.query("delete from public.number_series where series_key = 'pharmacy_invoice' and fy = private.series_fy('pharmacy_invoice', now())");
+  }
+  await setup.end();
+
+  const sold = results.filter((r) => r === "sold").length;
+  const refused = results.filter((r) => r === "stock_insufficient").length;
+  console.log(`${sold} sold, ${refused} told "not enough stock"; ${stock[0]?.q} left`);
+  if (sold !== 1 || refused !== 1 || Number(stock[0]?.q) !== 0) {
+    console.error("✖ the last unit was sold twice (or not at all) under parallel finalizes");
+    process.exit(1);
+  }
+  console.log("✔ last unit: exactly 1 of 2 parallel sales succeeds");
 }
 
 main().catch((e) => {

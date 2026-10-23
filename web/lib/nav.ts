@@ -1,4 +1,4 @@
-import { CalendarDays, House, ListTodo, Palette, Plus, ReceiptIndianRupee, Settings, Users, type LucideIcon } from "lucide-react";
+import { CalendarDays, House, ListTodo, Palette, Pill, Plus, ReceiptIndianRupee, Settings, Users, type LucideIcon } from "lucide-react";
 import type { StaffRole } from "@pearl/shared";
 
 export interface NavItem {
@@ -7,6 +7,8 @@ export interface NavItem {
   labelKey: string;
   icon: LucideIcon;
   roles: readonly StaffRole[];
+  /** Key in nav_badges(): a count shown next to the label (e.g. open pharmacy alerts). */
+  badge?: string;
 }
 
 /** Menu items, in order. Each phase adds its pages here. */
@@ -15,6 +17,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/appointments", labelKey: "nav.appointments", icon: CalendarDays, roles: ["receptionist", "admin"] },
   { href: "/patients", labelKey: "nav.patients", icon: Users, roles: ["receptionist", "admin"] },
   { href: "/bills", labelKey: "nav.bills", icon: ReceiptIndianRupee, roles: ["receptionist", "admin"] },
+  { href: "/pharmacy", labelKey: "nav.pharmacy", icon: Pill, roles: ["receptionist", "admin"], badge: "pharmacy" },
   { href: "/followups", labelKey: "nav.followups", icon: ListTodo, roles: ["receptionist", "admin"] },
   { href: "/admin", labelKey: "nav.admin", icon: Settings, roles: ["admin"] },
   { href: "/design", labelKey: "nav.design", icon: Palette, roles: ["admin"] },

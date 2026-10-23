@@ -866,3 +866,15 @@ Each phase ends with: tests green → I tell you step by step how to try it on s
   - Dashboards read a daily rollup (`kpi_daily`): yesterday is rolled up at 00:15 IST, and any day whose bills, payments or appointments change is marked and re-rolled within the hour. Today is computed live.
   - PDF files: the print pages are A4-ready; until Phase 10 (sending bills on WhatsApp needs a file) staff use the browser's "Save as PDF".
   - Fixed while testing: rupee fields now replace the amount when you type into them (they used to append), and the finalize dialog no longer closes itself after the draft is saved.
+- 29/10/2026, Phase 6 done: pharmacy and inventory. Decisions made while building:
+  - Stock = sum of movements. `stock_movements` is append-only (a trigger refuses edits and deletes, even by the database owner); `item_batches.qty_on_hand` is a cache kept by a trigger and re-checked every night at 23:30 IST (any drift is fixed and logged).
+  - Expiry is the month on the strip, stored as that month's last day; a batch can be sold through that day. Expired batches are listed but can't be sold or bought in.
+  - FEFO: the bill picks the earliest-expiring batch that has stock; staff can choose another. Selling locks the batch rows in a fixed order, so two desks selling the last strip can't both succeed (tested: 1 of 2) and can't deadlock.
+  - A bill line keeps the batch number, expiry, maker, HSN, GST rate and unit cost from the moment it was billed. Changing the medicine later doesn't change old bills or past margins.
+  - Finalize takes stock out; an admin amend books only the difference; cancelling a bill puts everything back. A patient return outside a bill is a stock adjustment.
+  - Purchases: quantities are in selling units (e.g. tablets); free units add stock at no cost; line total = qty × price + GST, rounded per line like bills. Posting is final (fix mistakes with an adjustment). The same supplier invoice number can't be entered twice.
+  - Adjustments (damaged, expired, returned to supplier, returned by patient, stock count) always need a reason and are idempotent. A stock count books the difference from the counted quantity.
+  - Alerts: low stock (at or below the reorder level, counting unexpired stock), near expiry (the tightest of Settings → Pharmacy → 90/60/30 days) and expired. Each fires once and clears itself after restock or sale; re-checked hourly and after every stock change. The bell gets one notification per person per day, refreshed when new alerts fire; the menu shows the open count.
+  - Opening stock import (Admin → Import opening stock): CSV, 500 rows a batch, a check run first; each batch's opening stock can be entered once.
+  - Pharmacy KPIs (sales, taxable value, cost of goods → margin) join the daily rollup. A pharmacy invoice without GST prints as "Retail invoice", with GST as "Tax invoice".
+  - Fixed while testing: pickers that answer after a round trip (adding an item on the fly) no longer overwrite what was typed meanwhile; live boards reload once when their realtime channel (re)joins, so a change made in that gap isn't missed.

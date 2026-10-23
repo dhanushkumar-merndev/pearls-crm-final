@@ -15,12 +15,16 @@ import { Input } from "@/components/ui/input";
 import { newId, rpc } from "@/lib/rpc";
 import { useMe } from "@/lib/use-me";
 import { useFeedback } from "@/lib/use-feedback";
+import { MedicinePicker } from "./medicine-picker";
 import type { Bill, BillItem } from "./types";
 
 export interface EditLine {
   key: string;
   kind: string;
   service: LibraryItem | null;
+  /** Pharmacy lines: the medicine and the batch it is sold from. */
+  medicine: LibraryItem | null;
+  batch_id: string | null;
   category: LibraryItem | null;
   description: string;
   hsn_sac: string;
@@ -43,6 +47,8 @@ export function lineFrom(i: BillItem): EditLine {
     key: i.id,
     kind: i.kind,
     service: item(i.service_id, i.description),
+    medicine: i.kind === "pharmacy" ? item(i.pharmacy_item_id, i.description) : null,
+    batch_id: i.batch_id,
     category: item(i.category_id, i.category),
     description: i.description,
     hsn_sac: i.hsn_sac ?? "",
@@ -56,9 +62,9 @@ export function lineFrom(i: BillItem): EditLine {
   };
 }
 
-export function emptyLine(): EditLine {
+export function emptyLine(kind = "service"): EditLine {
   return {
-    key: newId(), kind: "service", service: null, category: null, description: "", hsn_sac: "", rate_paise: null, qty: "1",
+    key: newId(), kind, service: null, medicine: null, batch_id: null, category: null, description: "", hsn_sac: "", rate_paise: null, qty: "1",
     discount_type: "amount", discount_amount: 0, discount_percent: "", gst_rate_bp: 0, rest: {},
   };
 }
@@ -92,7 +98,9 @@ export function toPayloadLine(l: EditLine) {
   return {
     ...l.rest,
     kind: l.kind,
-    service_id: l.service?.id ?? null,
+    service_id: l.kind === "pharmacy" ? null : (l.service?.id ?? null),
+    pharmacy_item_id: l.kind === "pharmacy" ? (l.medicine?.id ?? null) : (l.rest.pharmacy_item_id ?? null),
+    batch_id: l.kind === "pharmacy" ? l.batch_id : (l.rest.batch_id ?? null),
     category_id: l.category?.id ?? null,
     description: l.description.trim(),
     hsn_sac: l.hsn_sac.trim() || null,
@@ -127,16 +135,21 @@ export function BillEditor({
   const { saved, failed } = useFeedback();
   const ownLines = bill.items.filter((i) => i.kind !== "carried_in");
   const carried = bill.items.filter((i) => i.kind === "carried_in");
-  const [lines, setLines] = useState<EditLine[]>(() => (ownLines.length ? ownLines.map(lineFrom) : [emptyLine()]));
+  // A pharmacy invoice sells medicines from batches; other bills list services.
+  const lineKind = bill.bill_type === "pharmacy_invoice" ? "pharmacy" : "service";
+  const [lines, setLines] = useState<EditLine[]>(() => (ownLines.length ? ownLines.map(lineFrom) : [emptyLine(lineKind)]));
   const [doctor, setDoctor] = useState<LibraryItem | null>(item(bill.doctor_id, bill.doctor));
   const [referredBy, setReferredBy] = useState(bill.referred_by_text ?? "");
   const [taxInclusive, setTaxInclusive] = useState(bill.tax_inclusive);
   const [reason, setReason] = useState("");
-  const update = (key: string, patch: Partial<EditLine>) => setLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...patch } : l)));
+  // A patch can be a function of the line as it is now: pickers answer after a round trip,
+  // and must not overwrite what was typed meanwhile.
+  const update = (key: string, patch: Partial<EditLine> | ((current: EditLine) => Partial<EditLine>)) =>
+    setLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...(typeof patch === "function" ? patch(l) : patch) } : l)));
 
   const previews = useMemo(() => lines.map((l) => previewLine(l, taxInclusive)), [lines, taxInclusive]);
   const totals = useMemo(() => computeBillTotals(previews.map((p) => p.result).filter((r): r is LineResult => r !== null)), [previews]);
-  const problems = lines.some((l, i) => !l.description.trim() || previews[i]!.result === null);
+  const problems = lines.some((l, i) => !l.description.trim() || previews[i]!.result === null || (l.kind === "pharmacy" && !l.batch_id));
 
   const save = useMutation({
     mutationFn: async () => {
@@ -209,34 +222,41 @@ export function BillEditor({
           return (
             <li key={l.key}>
               <Card className="grid gap-3 md:grid-cols-12 md:items-end">
-                <Field label={t("item")} className="md:col-span-4">
-                  {(a) => (
-                    <LibraryCombobox
-                      id={a.id}
-                      kind="service"
-                      allowCreate
-                      createDefaults={{ price_paise: l.rate_paise ?? 0 }}
-                      value={l.service}
-                      onChange={(s) => {
-                        const d = (s?.defaults ?? {}) as { price_paise?: number; gst_rate_bp?: number; sac?: string | null; category_id?: string | null };
-                        update(l.key, {
-                          service: s,
-                          description: s ? s.label : l.description,
-                          rate_paise: s ? (d.price_paise ?? l.rate_paise) : l.rate_paise,
-                          gst_rate_bp: s ? (d.gst_rate_bp ?? 0) : l.gst_rate_bp,
-                          hsn_sac: s ? (d.sac ?? "") : l.hsn_sac,
-                          category: s && d.category_id ? item(d.category_id, s.subtitle?.split(" · ")[0] ?? "") : l.category,
-                        });
-                      }}
-                    />
-                  )}
-                </Field>
+                {l.kind === "pharmacy" ? (
+                  <MedicinePicker line={l} update={(patch) => update(l.key, patch)} />
+                ) : (
+                  <Field label={t("item")} className="md:col-span-4">
+                    {(a) => (
+                      <LibraryCombobox
+                        id={a.id}
+                        kind="service"
+                        allowCreate
+                        createDefaults={{ price_paise: l.rate_paise ?? 0 }}
+                        value={l.service}
+                        onChange={(s) => {
+                          const d = (s?.defaults ?? {}) as { price_paise?: number; gst_rate_bp?: number; sac?: string | null; category_id?: string | null };
+                          update(l.key, (cur) => ({
+                            service: s,
+                            description: s ? s.label : cur.description,
+                            // A service added on the fly has no price yet: keep the rate typed meanwhile.
+                            rate_paise: s && d.price_paise ? d.price_paise : cur.rate_paise,
+                            gst_rate_bp: s ? (d.gst_rate_bp ?? 0) : cur.gst_rate_bp,
+                            hsn_sac: s ? (d.sac ?? "") : cur.hsn_sac,
+                            category: s && d.category_id ? item(d.category_id, s.subtitle?.split(" · ")[0] ?? "") : cur.category,
+                          }));
+                        }}
+                      />
+                    )}
+                  </Field>
+                )}
                 <Field label={t("description")} className="md:col-span-4" error={!l.description.trim() && l.rate_paise !== null ? t("needDescription") : undefined}>
                   {(a) => <Input {...a} maxLength={300} value={l.description} onChange={(e) => update(l.key, { description: e.target.value })} />}
                 </Field>
-                <Field label={t("category")} className="md:col-span-4">
-                  {(a) => <LibraryCombobox id={a.id} kind="bill_category" value={l.category} onChange={(c) => update(l.key, { category: c })} />}
-                </Field>
+                {l.kind !== "pharmacy" && (
+                  <Field label={t("category")} className="md:col-span-4">
+                    {(a) => <LibraryCombobox id={a.id} kind="bill_category" value={l.category} onChange={(c) => update(l.key, { category: c })} />}
+                  </Field>
+                )}
                 <Field label={t("rate")} className="md:col-span-2">{(a) => <MoneyInput {...a} value={l.rate_paise} onChange={(v) => update(l.key, { rate_paise: v })} />}</Field>
                 <Field label={t("qty")} className="md:col-span-1" error={p.error === "invalid_quantity" ? t("badQty") : undefined}>
                   {(a) => <Input {...a} inputMode="decimal" value={l.qty} onChange={(e) => update(l.key, { qty: e.target.value })} />}
@@ -287,7 +307,7 @@ export function BillEditor({
           );
         })}
       </ol>
-      <Button variant="secondary" className="self-start" onClick={() => setLines((ls) => [...ls, emptyLine()])}>
+      <Button variant="secondary" className="self-start" onClick={() => setLines((ls) => [...ls, emptyLine(lineKind)])}>
         <CirclePlus aria-hidden />
         {t("addLine")}
       </Button>

@@ -46,3 +46,6 @@ Thumbs.db
 
 # Saved test logins (Playwright)
 web/e2e/.auth/
+
+# Claude Code agent worktrees (local only)
+.claude/worktrees/

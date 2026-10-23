@@ -1,3 +1,4 @@
+import { rupeesToPaise } from "./money";
 import { normalizePhone } from "./phone";
 
 /** Column names people use (DocPulse, Excel sheets), lower-cased without punctuation. */
@@ -80,6 +81,111 @@ export function mapPatientRow(cells: string[], columns: Record<string, number | 
   if (pin) {
     if (/^[1-9][0-9]{5}$/.test(pin)) row.pincode = pin;
     else problems.push("pincode");
+  }
+  return { row, problems };
+}
+
+/** Opening stock sheet columns (DocPulse stock export, Excel). */
+const STOCK_COLUMNS: Record<string, string[]> = {
+  name: ["name", "item", "item name", "product", "product name", "medicine", "medicine name", "drug"],
+  strength: ["strength", "potency"],
+  form: ["form", "dosage form", "type", "unit type"],
+  manufacturer: ["manufacturer", "mfg", "mfr", "company", "make", "brand"],
+  hsn: ["hsn", "hsn code", "hsn sac"],
+  gst: ["gst", "gst %", "gst percent", "gst rate", "tax", "tax %", "tax rate"],
+  mrp: ["mrp", "m r p"],
+  selling_price: ["selling price", "sale price", "rate", "price", "sp"],
+  purchase_price: ["purchase price", "cost", "cost price", "purchase rate", "pp"],
+  batch_no: ["batch", "batch no", "batch number", "batchno", "lot", "lot no"],
+  expiry_date: ["expiry", "expiry date", "exp", "exp date", "expdate", "expires"],
+  qty: ["qty", "quantity", "stock", "closing stock", "balance", "on hand", "units"],
+  reorder_level: ["reorder level", "reorder", "min stock", "minimum stock"],
+  rack: ["rack", "shelf", "location", "bin"],
+};
+
+/** Which input column feeds each stock field (null = not present). */
+export function mapStockColumns(header: string[]): Record<string, number | null> {
+  // "GST %" and "Tax %" lose their "%" when cleaned; match on the cleaned names.
+  const cleaned = header.map(clean);
+  return Object.fromEntries(
+    Object.entries(STOCK_COLUMNS).map(([field, names]) => {
+      const i = cleaned.findIndex((h) => names.map(clean).includes(h));
+      return [field, i >= 0 ? i : null];
+    }),
+  );
+}
+
+const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+
+/**
+ * Strip expiry → the first day of its month as "YYYY-MM-01" (the server stores the month's
+ * last day). Accepts "03/27", "3/2027", "03-2027", "Mar-27", "Mar 2027", "31/03/2027", "2027-03-31".
+ */
+export function parseExpiry(text: string): string | null {
+  const t = text.trim().toLowerCase();
+  const full = parseDate(t);
+  if (full) return `${full.slice(0, 7)}-01`;
+  let m: number | undefined;
+  let y: number | undefined;
+  let match = /^(\d{1,2})[/.-](\d{2}|\d{4})$/.exec(t);
+  if (match) [m, y] = [Number(match[1]), Number(match[2])];
+  else if ((match = /^([a-z]{3})[a-z]*[\s/.-]*(\d{2}|\d{4})$/.exec(t))) {
+    const i = MONTHS.indexOf(match[1]!);
+    if (i >= 0) [m, y] = [i + 1, Number(match[2])];
+  }
+  if (m === undefined || y === undefined || m < 1 || m > 12) return null;
+  if (y < 100) y += 2000;
+  return `${y}-${String(m).padStart(2, "0")}-01`;
+}
+
+/** One stock row → the import_opening_stock payload. Money in paise, GST in basis points. */
+export function mapStockRow(cells: string[], columns: Record<string, number | null>): MappedRow {
+  const get = (field: string) => {
+    const i = columns[field];
+    return i === null || i === undefined ? "" : (cells[i] ?? "").trim();
+  };
+  const problems: string[] = [];
+  const row: Record<string, unknown> = {};
+  const name = get("name").replace(/\s+/g, " ");
+  if (!name) problems.push("name");
+  row.name = name;
+  for (const k of ["strength", "form", "manufacturer", "rack"]) if (get(k)) row[k] = get(k);
+  const hsn = get("hsn").replace(/\s/g, "");
+  if (hsn) {
+    if (/^[0-9]{4,8}$/.test(hsn)) row.hsn = hsn;
+    else problems.push("hsn");
+  }
+  const gst = get("gst").replace(/%/g, "").trim();
+  if (gst) {
+    const pct = Number(gst);
+    if (Number.isFinite(pct) && pct >= 0 && pct <= 40) row.gst_rate_bp = Math.round(pct * 100);
+    else problems.push("gst");
+  }
+  for (const [field, key] of [["mrp", "mrp_paise"], ["selling_price", "selling_price_paise"], ["purchase_price", "purchase_price_paise"]] as const) {
+    const v = get(field);
+    if (!v) continue;
+    try {
+      const paise = rupeesToPaise(v);
+      if (paise < 0) throw new Error("negative");
+      row[key] = paise;
+    } catch {
+      problems.push(field);
+    }
+  }
+  const batch = get("batch_no");
+  if (batch) row.batch_no = batch;
+  else problems.push("batch_no");
+  const expiry = parseExpiry(get("expiry_date"));
+  if (expiry) row.expiry_date = expiry;
+  else problems.push("expiry_date");
+  const qty = Number(get("qty").replace(/,/g, ""));
+  if (get("qty") && Number.isFinite(qty) && qty > 0 && Math.round(qty * 1000) === qty * 1000) row.qty = qty;
+  else problems.push("qty");
+  const reorder = get("reorder_level");
+  if (reorder) {
+    const n = Number(reorder);
+    if (Number.isFinite(n) && n >= 0) row.reorder_level = n;
+    else problems.push("reorder_level");
   }
   return { row, problems };
 }

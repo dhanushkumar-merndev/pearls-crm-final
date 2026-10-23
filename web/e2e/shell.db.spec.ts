@@ -17,6 +17,8 @@ async function login(page: Page, username: string) {
 
 test.describe("admin shell", () => {
   test.use({ storageState: STATE.admin });
+  // The theme test changes the admin's saved theme; the others check the default. One at a time.
+  test.describe.configure({ mode: "serial" });
 
   test("admin lands on Home with the ChatGPT-style shell", async ({ page }) => {
     await open(page, "/home");
@@ -50,14 +52,18 @@ test.describe("admin shell", () => {
   test("the theme choice is saved and survives a reload", async ({ page }) => {
     await open(page, "/home");
     await page.getByRole("button", { name: /Asha Admin/ }).click();
+    const saved = page.waitForResponse((r) => r.url().includes("/rpc/set_my_theme") && r.ok());
     await page.getByRole("menuitemradio", { name: "Light" }).click();
     await expect(page.locator("html")).toHaveClass(/light/);
+    await saved; // the choice is saved on the profile; reload only once it is stored
     await page.reload();
     await expect(page.locator("html")).toHaveClass(/light/);
     // put it back for other tests
     await page.getByRole("button", { name: /Asha Admin/ }).click();
+    const back = page.waitForResponse((r) => r.url().includes("/rpc/set_my_theme") && r.ok());
     await page.getByRole("menuitemradio", { name: "Dark" }).click();
     await expect(page.locator("html")).toHaveClass(/dark/);
+    await back;
   });
 });
 

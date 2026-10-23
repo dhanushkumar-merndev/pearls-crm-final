@@ -1,6 +1,6 @@
 # Continue here
 
-Last updated 28/10/2026 (session 4). To resume, say: **"Read continue.md and carry on."**
+Last updated 29/10/2026 (session 4). To resume, say: **"Read continue.md and carry on."**
 Read `CLAUDE.md` and `dev-docs/PLAN.md` first (PLAN.md section G lists every decision made while building).
 
 ## Owner's standing instructions
@@ -14,7 +14,7 @@ Read `CLAUDE.md` and `dev-docs/PLAN.md` first (PLAN.md section G lists every dec
 - `pnpm sql:check <file.sql>` — runs a migration in a rolled-back transaction and prints the failing line.
 - `pnpm sql "select …"` (read-only) / `pnpm sql --pending "…"`.
 - Deploy a tested migration: dry run first (`supabase db push --linked --dry-run` via the tsx one-liner used before), then `pnpm deploy:supabase`, then re-run `pnpm db:test:remote`.
-- `pnpm db:concurrency` with DATABASE_URL on port 6543 (transaction pooler).
+- `pnpm db:concurrency` with DATABASE_URL on port 6543 (transaction pooler): the `.env` URL is the 5432 session pooler (15-client cap), so swap the port for this script.
 - Logged-in browser tests on staging: `cd web && E2E_DB=1 E2E_PASSWORD=<STAGING_TEST_PASSWORD> CI=1 pnpm exec playwright test` (auth.setup.ts logs in once per role).
 - Every migration ends with `select private.lock_down_public_functions();`. Server-only functions: also revoke from `authenticated`.
 - DB tests must not assume an empty database (staging has E2E data).
@@ -28,13 +28,15 @@ Read `CLAUDE.md` and `dev-docs/PLAN.md` first (PLAN.md section G lists every dec
 | 3 Appointments / Today board | done, live, committed `460f5ef` |
 | 4 Treatments / sessions | done, live, committed `a2d5f27` |
 | 5 Bills, payments, printing, KPI rollup | done, live, committed (Phase 5) |
-| **6 Pharmacy & inventory** | **NEXT** |
-| 7–15 | not started |
+| 6 Pharmacy & inventory | done, live, committed (Phase 6) |
+| **7 IP stay, final bill, discharge** | **NEXT** |
+| 8 Scanning | being built by a parallel agent in a git worktree (migration `20261031100000_phase8_scanning.sql`, test `11_scanning`); review, merge, deploy, run e2e |
+| 9–15 | not started |
 
-Staging: migrations up to `20261028100000_phase5_billing.sql` are pushed; 276 DB tests pass (`01`–`08`); staging logins exist (usernames admin/reception/manager/sales/bdm, password = STAGING_TEST_PASSWORD in .env).
+Staging: migrations up to `20261029100000_phase6_pharmacy.sql` are pushed; 328 DB tests pass (`01`–`09`); staging logins exist (usernames admin/reception/manager/sales/bdm, password = STAGING_TEST_PASSWORD in .env).
 
 ## Next
-Phase 6 (pharmacy & inventory) per PLAN.md E3. The pharmacy bill type (`pharmacy_invoice`, HSN/batch/expiry columns on the print) already exists from Phase 5.
+Phase 7 (IP stay, final bill, discharge summary) per PLAN.md E3. Use migration timestamp `20261030100000` and pgTAP file `10_ip_stay.test.sql` (11 is the scanning agent's). Carried-in lines + `consolidated_into_id` already exist from Phase 5.
 
 ## Still open with the owner
 - Push commits to GitHub (VS Code Sync). After pushing, CI annotations (Playwright "github" reporter) are readable without login.

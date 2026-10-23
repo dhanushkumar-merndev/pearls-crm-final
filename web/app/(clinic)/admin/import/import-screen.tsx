@@ -3,7 +3,7 @@
 import { FileSearch, Upload } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
-import { mapPatientColumns, mapPatientRow, parseCsv } from "@pearl/shared";
+import { mapPatientColumns, mapPatientRow, mapStockColumns, mapStockRow, parseCsv, type MappedRow } from "@pearl/shared";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Field, PageHeader } from "@/components/ui/form";
@@ -19,9 +19,25 @@ interface Problem {
   message: string;
 }
 
-/** DocPulse (or any sheet) → patients. Check first (nothing saved), then import in batches of 500. */
-export function ImportScreen() {
+export type ImportKind = "patients" | "stock";
+
+const KINDS: Record<ImportKind, {
+  mapColumns: (header: string[]) => Record<string, number | null>;
+  mapRow: (cells: string[], cols: Record<string, number | null>) => MappedRow;
+  rpc: string;
+  /** Translation prefix: "" for patients (the original keys), "stock." for opening stock. */
+  prefix: string;
+}> = {
+  patients: { mapColumns: mapPatientColumns, mapRow: mapPatientRow, rpc: "import_patients", prefix: "" },
+  stock: { mapColumns: mapStockColumns, mapRow: mapStockRow, rpc: "import_opening_stock", prefix: "stock." },
+};
+
+/** DocPulse (or any sheet) → patients or opening stock. Check first (nothing saved), then import in batches of 500. */
+export function ImportScreen({ kind = "patients" }: { kind?: ImportKind }) {
   const t = useTranslations("import");
+  const errs = useTranslations("errors");
+  const k = KINDS[kind];
+  const tk = (key: string, values?: Record<string, string | number>) => t(`${k.prefix}${key}`, values);
   const { saved, failed } = useFeedback();
   const [rows, setRows] = useState<Record<string, unknown>[]>([]);
   const [problems, setProblems] = useState<Problem[]>([]);
@@ -30,7 +46,7 @@ export function ImportScreen() {
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [imported, setImported] = useState<number | null>(null);
 
-  const missing = columns ? Object.entries(columns).filter(([, i]) => i === null).map(([k]) => t(`col.${k}`)) : [];
+  const missing = columns ? Object.entries(columns).filter(([, i]) => i === null).map(([f]) => tk(`col.${f}`)) : [];
 
   async function read(file: File) {
     setChecked(false);
@@ -38,9 +54,9 @@ export function ImportScreen() {
     const cells = parseCsv(await file.text());
     const [header, ...body] = cells;
     if (!header) return setRows([]);
-    const cols = mapPatientColumns(header);
+    const cols = k.mapColumns(header);
     setColumns(cols);
-    const mapped = body.map((r) => mapPatientRow(r, cols));
+    const mapped = body.map((r) => k.mapRow(r, cols));
     setRows(mapped.map((m) => m.row));
     setProblems(mapped.flatMap((m, i) => m.problems.map((field) => ({ row: i + 2, field, message: t("badCell") }))));
   }
@@ -52,7 +68,7 @@ export function ImportScreen() {
     try {
       for (let i = 0; i < rows.length; i += BATCH) {
         const batch = rows.slice(i, i + BATCH);
-        const res = await rpc<{ ok: number; errors: Problem[] }>("import_patients", { p_rows: batch, p_dry_run: dryRun });
+        const res = await rpc<{ ok: number; errors: Problem[] }>(k.rpc, { p_rows: batch, p_dry_run: dryRun });
         ok += res.ok;
         found.push(...res.errors.map((e) => ({ ...e, row: e.row + i + 1 })));
         setProgress({ done: Math.min(i + BATCH, rows.length), total: rows.length });
@@ -63,7 +79,7 @@ export function ImportScreen() {
       } else {
         setImported(ok);
         setProblems(found);
-        saved(t("done", { n: ok }));
+        saved(tk("done", { n: ok }));
       }
     } catch (e) {
       failed(e);
@@ -74,10 +90,10 @@ export function ImportScreen() {
 
   return (
     <div className="flex flex-col gap-5">
-      <PageHeader title={t("title")} description={t("description")} />
+      <PageHeader title={tk("title")} description={tk("description")} />
       <Card className="flex flex-col gap-3">
         <CardTitle>{t("step1")}</CardTitle>
-        <CardDescription>{t("step1Hint")}</CardDescription>
+        <CardDescription>{tk("step1Hint")}</CardDescription>
         <Field label={t("file")} className="max-w-md">
           {(a) => <Input {...a} type="file" accept=".csv,text/csv" className="py-2.5" onChange={(e) => e.target.files?.[0] && void read(e.target.files[0])} />}
         </Field>
@@ -99,7 +115,7 @@ export function ImportScreen() {
             </Button>
             <Button disabled={!checked || problems.length > 0 || progress !== null || imported !== null} onClick={() => void run(false)}>
               <Upload aria-hidden />
-              {t("import", { n: rows.length })}
+              {tk("import", { n: rows.length })}
             </Button>
           </div>
           {progress && (
@@ -107,7 +123,7 @@ export function ImportScreen() {
               {t("progress", progress)}
             </p>
           )}
-          {imported !== null && <p role="status">{t("done", { n: imported })} {t("seriesHint")}</p>}
+          {imported !== null && <p role="status">{tk("done", { n: imported })} {tk("seriesHint")}</p>}
           {checked && problems.length === 0 && imported === null && <p className="text-good-text">{t("allGood")}</p>}
         </Card>
       )}
@@ -126,8 +142,8 @@ export function ImportScreen() {
             {problems.slice(0, 200).map((p, i) => (
               <TR key={i}>
                 <TD className="tabular-nums">{p.row}</TD>
-                <TD>{p.field ? t(`col.${p.field}`) : "—"}</TD>
-                <TD>{p.message === "duplicate" ? t("duplicateUhid") : p.message}</TD>
+                <TD>{p.field ? tk(`col.${p.field}`) : "—"}</TD>
+                <TD>{p.message === "duplicate" ? tk("duplicateRow") : errs.has(p.message) ? errs(p.message) : p.message}</TD>
               </TR>
             ))}
           </tbody>

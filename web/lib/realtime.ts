@@ -14,12 +14,17 @@ export function useLiveAppointments(day: string, queryKeys: unknown[][]) {
   const keys = JSON.stringify(queryKeys);
   useEffect(() => {
     const supabase = getSupabaseBrowser();
+    const refresh = () => {
+      for (const key of JSON.parse(keys) as unknown[][]) void queryClient.invalidateQueries({ queryKey: key });
+    };
     const channel = supabase
       .channel(`appointments:${day}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "appointments", filter: `appt_date=eq.${day}` }, () => {
-        for (const key of JSON.parse(keys) as unknown[][]) void queryClient.invalidateQueries({ queryKey: key });
-      })
-      .subscribe();
+      .on("postgres_changes", { event: "*", schema: "public", table: "appointments", filter: `appt_date=eq.${day}` }, refresh)
+      // Changes made between the first load and joining (or while reconnecting) send no event:
+      // reload once each time the channel is (re)joined.
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") refresh();
+      });
     return () => {
       void supabase.removeChannel(channel);
     };

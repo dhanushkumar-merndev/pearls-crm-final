@@ -1,5 +1,6 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -8,6 +9,7 @@ import type { ReactNode } from "react";
 import { ClinicMark } from "@/components/clinic-mark";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
+import { rpc } from "@/lib/rpc";
 import { isActive, navFor, PRIMARY_ACTIONS } from "@/lib/nav";
 import type { Me } from "@/lib/session";
 import { cn } from "@/lib/utils";
@@ -33,6 +35,14 @@ export function Sidebar({
   const pathname = usePathname();
   const items = navFor(me.role);
   const action = PRIMARY_ACTIONS[me.role];
+  // One small call for every badge; refreshed every few minutes.
+  const badges = useQuery({
+    queryKey: ["nav_badges"],
+    queryFn: () => rpc<Record<string, number>>("nav_badges"),
+    enabled: items.some((i) => i.badge),
+    staleTime: 60_000,
+    refetchInterval: 300_000,
+  });
 
   return (
     <aside
@@ -93,6 +103,8 @@ export function Sidebar({
         <ul className="flex flex-col gap-1">
           {items.map((item) => {
             const active = isActive(pathname, item.href);
+            const count = item.badge ? (badges.data?.[item.badge] ?? 0) : 0;
+            const label = count > 0 ? t("nav.withCount", { label: t(item.labelKey), n: count }) : t(item.labelKey);
             const link = (
               <Link
                 href={item.href}
@@ -104,11 +116,26 @@ export function Sidebar({
                   collapsed && "justify-center px-0",
                 )}
               >
-                <item.icon aria-hidden className="size-5 shrink-0" />
-                {collapsed ? <span className="sr-only">{t(item.labelKey)}</span> : t(item.labelKey)}
+                <span className="relative">
+                  <item.icon aria-hidden className="size-5 shrink-0" />
+                  {collapsed && count > 0 && <span aria-hidden className="absolute -top-1 -right-1 size-2.5 rounded-full bg-status-warning" />}
+                </span>
+                {collapsed ? (
+                  <span className="sr-only">{label}</span>
+                ) : (
+                  <>
+                    <span className="sr-only">{label}</span>
+                    <span aria-hidden className="flex flex-1 items-center justify-between gap-2">
+                      {t(item.labelKey)}
+                      {count > 0 && (
+                        <span className="min-w-7 rounded-full border border-border bg-secondary px-2 text-center text-[0.8rem] font-semibold tabular-nums">{count}</span>
+                      )}
+                    </span>
+                  </>
+                )}
               </Link>
             );
-            return <li key={item.href}>{collapsed ? <Tooltip label={t(item.labelKey)}>{link}</Tooltip> : link}</li>;
+            return <li key={item.href}>{collapsed ? <Tooltip label={label}>{link}</Tooltip> : link}</li>;
           })}
         </ul>
       </nav>

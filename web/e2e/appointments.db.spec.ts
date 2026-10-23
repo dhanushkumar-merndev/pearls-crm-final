@@ -59,7 +59,7 @@ test("a walk-in without a free slot joins the queue", async ({ page }) => {
   const name = `E2E Walk-in ${Date.now()}`;
   await newPatient(page, name);
   await open(page, "/home");
-  await page.getByRole("button", { name: "Walk-in" }).click();
+  await page.getByRole("button", { name: "Walk-in", exact: true }).click();
   await pickPatient(page, name);
   await page.getByRole("button", { name: "Add walk-in" }).click();
   await expect(page.getByText(/Added to the queue — number \d+|Added to the current slot ✓/)).toBeVisible();

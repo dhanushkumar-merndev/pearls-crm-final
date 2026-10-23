@@ -15,6 +15,7 @@ export type LibraryKind =
   | "treatment_template"
   | "room_type"
   | "pharmacy_item"
+  | "supplier"
   | "doctor"
   | "lead_source"
   | "lost_reason"
