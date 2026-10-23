@@ -29,7 +29,7 @@ export function LoginForm({ next, notice, signOutFirst }: { next: string; notice
     setError(null);
     try {
       const { error: authError } = await getSupabaseBrowser().auth.signInWithPassword({
-        email: toLoginEmail(String(form.get("identifier") ?? "")),
+        email: toLoginEmail(String(form.get("username") ?? "")),
         password: String(form.get("password") ?? ""),
       });
       if (authError) {
@@ -62,10 +62,10 @@ export function LoginForm({ next, notice, signOutFirst }: { next: string; notice
       )}
 
       <div className="flex flex-col gap-2">
-        <Label htmlFor="identifier">{t("identifier")}</Label>
+        <Label htmlFor="username">{t("username")}</Label>
         <Input
-          id="identifier"
-          name="identifier"
+          id="username"
+          name="username"
           autoComplete="username"
           autoCapitalize="none"
           spellCheck={false}

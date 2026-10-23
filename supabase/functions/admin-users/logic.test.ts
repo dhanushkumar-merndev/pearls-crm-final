@@ -25,7 +25,7 @@ function fakeDeps(opts: { role?: string; rpcError?: Record<string, string>; crea
 
 const create = {
   action: "create",
-  email: "rekha@example.com",
+  username: "Rekha",
   full_name: "Rekha",
   role: "receptionist",
   password: "Pearl2026",
@@ -41,7 +41,21 @@ Deno.test("create: makes the login, then the staff row as the admin", async () =
   const { deps, calls } = fakeDeps();
   const res = await adminUsers(create, deps);
   assertEquals(res.status, 200);
-  assertEquals(calls, ["rpc me", "createUser rekha@example.com", "rpc admin_create_staff"]);
+  assertEquals(calls, ["rpc me", "createUser rekha@staff.invalid", "rpc admin_create_staff"]);
+});
+
+Deno.test("create: logins are usernames — the username is required and must be simple", async () => {
+  const { deps, calls } = fakeDeps();
+  const { username: _u, ...noUsername } = create;
+  assertEquals((await adminUsers(noUsername, deps)).body.error, "invalid_input");
+  assertEquals((await adminUsers({ ...create, username: "has space" }, deps)).body.error, "invalid_input");
+  assertEquals((await adminUsers({ ...create, username: "a@b.com" }, deps)).body.error, "invalid_input");
+  assertEquals(calls, []);
+});
+
+Deno.test("create: a taken username is reported as duplicate", async () => {
+  const { deps } = fakeDeps({ createError: "A user with this email address has already been registered" });
+  assertEquals(await adminUsers(create, deps), { status: 409, body: { error: "duplicate" } });
 });
 
 Deno.test("create: if the staff row fails, the login is removed again", async () => {

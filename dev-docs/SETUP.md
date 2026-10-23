@@ -63,16 +63,18 @@ Open **http://localhost:3000** in Chrome or Edge.
 
 ### 1.7 Test logins (fake people, local only)
 
-All passwords: **`Pearl@2026`**
+Every login is a **username + password** (no email, no codes). All passwords: **`Pearl@2026`**
 
-| Log in with | Role | What you should see |
+| Username | Role | What you should see |
 |---|---|---|
-| `admin@pearl.test` | Admin | Home + **Design preview** in the menu |
-| `reception@pearl.test` | Receptionist | Home |
-| `reception2` (username, no email) | Receptionist | Home |
-| `manager@pearl.test` | Sales manager | Home |
-| `sales@pearl.test` | Sales executive | "Please use the mobile app" |
-| `bdm@pearl.test` | BDM | "Please use the mobile app" |
+| `admin` | Admin | Home + **Admin** pages in the menu |
+| `reception` | Receptionist | Home |
+| `reception2` | Receptionist | Home |
+| `manager` | Sales manager | Home |
+| `sales` | Sales executive | "Please use the mobile app" |
+| `bdm` | BDM | "Please use the mobile app" |
+
+Forgot a password? The admin sets a new one: **Admin → Staff logins → Password**.
 
 To stop everything: press **Ctrl + C** in the terminal running `pnpm dev`, then:
 ```bash

@@ -138,7 +138,7 @@ Files go **straight from the browser or phone to Tigris** using a signed link th
   app/                navigation, role routing
   core/{model,data,sync,ui,location,media,telephony}
   feature/{leads,calls,appointments,recordings,bdm,settings}
-/supabase           migrations/, functions/ (Edge, with _shared/), tests/ (pgTAP), seed.sql (fake), config.toml
+/supabase           migrations/, functions/ (Edge, with _shared/), tests/ (pgTAP), seed/ (fake: 01_users local-only, 02_demo_settings), config.toml
 /packages/shared    Zod schemas, money / GST / number-to-words, IST date helpers, generated DB types
 /tests-mocks        local fake Meta Graph, WhatsApp, OpenRouteService, Brevo, FCM; MinIO for S3
 /scripts            type generation, perf seed, golden-vector export
@@ -833,3 +833,9 @@ Each phase ends with: tests green → I tell you step by step how to try it on s
 - 23/10/2026: plan approved, including B5 (ChatGPT-style dark theme) and B6 (dashboards per role). Phase 0 started with the A2 defaults.
 - Still needed: the full brief (sections 15–19) and your answers to A1. Each answer is needed only by the phase that uses it.
 - After each phase: tests green → step-by-step "how to try it" on staging → I stop and wait for you.
+- 23/10/2026: owner asked to build **all phases to production-ready without stopping** between phases (each still has to pass its tests). Vercel deploys itself from git pushes.
+- 24/10/2026: **Logins are username + password only, for every role** (owner's rule). No email logins, email codes or reset links. Admins create logins and set passwords; staff change their own password from the user menu. Email on a staff record is only a contact detail. (Replaces A1 question 9's mixed email/username plan.)
+- 24/10/2026, Phase 1 done: admin setup and libraries. Decisions made while building:
+  - GST rates are stored as **basis points** (`gst_rate_bp`, 5% = 500), the same unit as `packages/shared/src/gst.ts`, instead of `numeric(5,2)`.
+  - Library merge repoints every foreign key found in the catalog; a foreign key commented `merge:keep` (e.g. finalized bill lines) keeps its old reference.
+  - Function privileges: PostgreSQL's global "EXECUTE to PUBLIC" default is revoked for the migration role, and every migration ends with `select private.lock_down_public_functions();`.

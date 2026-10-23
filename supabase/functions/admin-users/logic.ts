@@ -11,9 +11,10 @@ const uuid = z.string().uuid();
 export const requestSchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("create"),
-    // Staff without email log in with a username; the web app maps it to <username>@staff.invalid.
-    email: z.string().email(),
-    username: z.string().regex(/^[a-z0-9._-]{3,32}$/).optional(),
+    // Every login is username + password. Auth gets <username>@staff.invalid (never mailed);
+    // a real email, if given, is only a contact detail on the staff row.
+    username: z.string().trim().toLowerCase().regex(/^[a-z0-9._-]{3,32}$/),
+    email: z.string().trim().toLowerCase().email().optional(),
     full_name: z.string().trim().min(1).max(120),
     role: z.enum(roles),
     phone_e164: z.string().regex(/^\+[1-9][0-9]{7,14}$/).optional(),
@@ -69,14 +70,17 @@ export async function adminUsers(input: unknown, deps: Deps): Promise<Result> {
   const req = parsed.data;
   switch (req.action) {
     case "create": {
-      const created = await deps.auth.createUser(req.email.toLowerCase(), req.password);
-      if ("error" in created) return err("invalid_input", 400, created.error);
+      const created = await deps.auth.createUser(`${req.username}@staff.invalid`, req.password);
+      if ("error" in created) {
+        // Supabase answers "already registered" when the username is taken.
+        return /already|exists|registered/i.test(created.error) ? err("duplicate", 409) : err("invalid_input", 400, created.error);
+      }
       const { data, error } = await deps.rpc("admin_create_staff", {
         p_user_id: created.id,
         p_role: req.role,
         p_full_name: req.full_name,
-        p_username: req.username ?? null,
-        p_email: req.email.endsWith("@staff.invalid") ? null : req.email,
+        p_username: req.username,
+        p_email: req.email ?? null,
         p_phone_e164: req.phone_e164 ?? null,
       });
       if (error) {

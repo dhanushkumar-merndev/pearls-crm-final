@@ -39,7 +39,7 @@ for (const theme of ["dark", "light"] as const) {
 
 test("the form can be used with the keyboard only", async ({ page }) => {
   await page.goto("/login");
-  await page.getByLabel("Email or username").focus();
+  await page.getByLabel("Username").focus();
   await page.keyboard.type("reception2");
   await page.keyboard.press("Tab");
   await expect(page.getByLabel("Password", { exact: true })).toBeFocused();
@@ -53,7 +53,7 @@ test("the form can be used with the keyboard only", async ({ page }) => {
 test("buttons and inputs are big enough to tap (≥ 44 px)", async ({ page }) => {
   await page.goto("/login");
   for (const locator of [
-    page.getByLabel("Email or username"),
+    page.getByLabel("Username"),
     page.getByLabel("Password", { exact: true }),
     page.getByRole("button", { name: "Log in" }),
     page.getByRole("button", { name: "Show password" }),
@@ -66,14 +66,14 @@ test("buttons and inputs are big enough to tap (≥ 44 px)", async ({ page }) =>
 test("without a server, the person is told the connection is the problem", async ({ page }) => {
   test.skip(Boolean(process.env.E2E_DB), "a backend is running");
   await page.goto("/login");
-  await page.getByLabel("Email or username").fill("admin@pearl.test");
+  await page.getByLabel("Username").fill("admin");
   await page.getByLabel("Password", { exact: true }).fill("Pearl@2026");
   await page.getByRole("button", { name: "Log in" }).click();
   await expect(page.locator("#login-error")).toContainText("Can't reach the server");
 });
 
-test("forgot-password page explains the username case", async ({ page }) => {
+test("forgot password: the admin sets a new one (no email links)", async ({ page }) => {
   await page.goto("/forgot-password");
-  await expect(page.getByRole("heading", { name: "Reset your password" })).toBeVisible();
-  await expect(page.getByText("Ask your admin to reset your password")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Forgot your password?" })).toBeVisible();
+  await expect(page.getByText("Ask your admin to set a new password")).toBeVisible();
 });

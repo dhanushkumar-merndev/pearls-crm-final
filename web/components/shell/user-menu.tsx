@@ -1,6 +1,7 @@
 "use client";
 
-import { ChevronsUpDown, LogOut, Monitor, Moon, Sun } from "lucide-react";
+import { ChevronsUpDown, KeyRound, LogOut, Monitor, Moon, Sun } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type { ThemePreference } from "@pearl/shared";
 import {
@@ -26,6 +27,7 @@ export function initials(name: string): string {
 export function UserMenu({ me, collapsed }: { me: Me; collapsed: boolean }) {
   const t = useTranslations();
   const { theme, choose } = useThemePreference(me.theme);
+  const router = useRouter();
 
   return (
     <DropdownMenu>
@@ -66,6 +68,10 @@ export function UserMenu({ me, collapsed }: { me: Me; collapsed: boolean }) {
           </DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
         <DropdownMenuSeparator />
+        <DropdownMenuItem onSelect={() => router.push("/account/password")}>
+          <KeyRound aria-hidden />
+          {t("account.title")}
+        </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => signOut()}>
           <LogOut aria-hidden />
           {t("actions.logOut")}

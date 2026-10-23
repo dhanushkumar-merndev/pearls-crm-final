@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { SUPABASE_KEY, SUPABASE_URL } from "./env";
 
 /** Pages anyone can open without logging in. */
-export const PUBLIC_PATHS = ["/login", "/forgot-password", "/reset-password", "/auth/", "/api/keepalive"];
+export const PUBLIC_PATHS = ["/login", "/forgot-password", "/api/keepalive"];
 
 export function isPublicPath(pathname: string): boolean {
   return PUBLIC_PATHS.some((p) => (p.endsWith("/") ? pathname.startsWith(p) : pathname === p));

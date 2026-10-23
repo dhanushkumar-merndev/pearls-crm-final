@@ -13,6 +13,14 @@ A phase is finished only when all of these pass (PLAN.md E1).
 | `pnpm db:concurrency` | 50 parallel finalizes → bill numbers with no gaps and no duplicates | **Yes** |
 | `E2E_DB=1 pnpm e2e` | Logged-in browser tests: shell, Ctrl+K search, theme saved per person, design preview charts, role pages | **Yes** (plus `pnpm db:reset` for seed data) |
 
+### Without Docker: run the database tests on the online project
+Needs `DATABASE_URL` (session pooler, port 5432) in the root `.env`. Every test file rolls back, so nothing is left behind.
+
+| Command | What |
+|---|---|
+| `pnpm db:test:remote` | The same pgTAP files as `pnpm db:test`, run over `DATABASE_URL` |
+| `DATABASE_URL=<same address with port 6543> pnpm db:concurrency` | The concurrency check. Use the **transaction pooler (port 6543)**: the session pooler allows only 15 connections and the check opens 50. It uses a test-only year (2099) and deletes it afterwards |
+
 ## Golden vectors (worked examples)
 `packages/shared/test-vectors/*.json` hold hand-checked examples, such as GST lines and amounts in words. The TypeScript tests use them now. The SQL bill maths (Phase 5) will be tested against the **same file**, so the screen preview and the saved bill can never disagree. Change a vector only on purpose, and keep both sides passing.
 

@@ -1,6 +1,6 @@
 # Continue here
 
-Paused on 23/10/2026, in the middle of the **online setup** (Tigris → Vercel → Supabase). To resume, open Claude Code in this folder and say:
+Paused on 23/10/2026 (second session), in the middle of the **online setup**. Supabase is deployed and tested; Vercel and the staging logins wait on the owner. To resume, open Claude Code in this folder and say:
 
 > Read continue.md and carry on from "Next steps".
 
@@ -73,55 +73,29 @@ Read `CLAUDE.md` and `dev-docs/PLAN.md` first, as always. No secrets are written
 
 ---
 
+## Done in session 2 (23/10/2026, not committed yet)
+- Steps 1–2: `package.json` has `deploy:supabase`, `supabase:configure`, `staging:bootstrap`, `db:test:remote` (CLI 2.121 accepts `--yes`). Seed split into `supabase/seed/01_users.sql` + `02_demo_settings.sql`; `config.toml`, CLAUDE.md, PLAN.md updated.
+- Steps 3–4: `scripts/staging-bootstrap.ts` and `scripts/db-test-remote.ts` written.
+- Step 5: `pnpm deploy:supabase` ran (migration `20261023100000_foundation` + functions `admin-users`, `files-sign`), `pnpm supabase:configure` ran (6 function secrets). `pnpm db:test:remote` **62/62 pass**; `db:concurrency` passes via the transaction pooler (6543). `01_foundation.test.sql` now inserts its own `main` clinic fixture so it passes without seed data.
+- Step 8: `deploy` job added to `.github/workflows/ci.yml`; runs on `main` are no longer cancelled by a newer push.
+- Security check of the two commits already on GitHub: no secrets, no project ref.
+- **CI `e2e` job fails** on both pushed commits (unit + database jobs pass). Locally all 9 no-backend browser tests pass, so the suspect is the screenshot baselines made on CachyOS vs Ubuntu. Logs need a GitHub login to read.
+
 ## Next steps (in order)
+1. **Owner approves `pnpm staging:bootstrap`** (creates 5 fake logins + staff rows + demo clinic online; blocked by the auto-mode safety check), then run it.
+2. **Vercel account:** the CLI is now logged in as `khanabanaodevelopment-6071` (team "FCS" only); the claude.ai Vercel connector sees no teams. Owner picks the account/team, then do old step 7 (create `pearl-crm`, envs, git link) → `WEB_ORIGIN` → `pnpm supabase:configure` → Tigris CORS.
+3. **GitHub secrets** `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`, `SUPABASE_DB_PASSWORD` (gh CLI not installed; owner adds them in GitHub → Settings → Secrets and variables → Actions, or installs `gh`).
+4. Read the failing e2e log (owner sends it, or `gh` installed) and fix: probably regenerate screenshot baselines on CI.
+5. **Before committing:** `pnpm test`, `pnpm typecheck`, `pnpm lint`, `pnpm build`; `git add -n .` must show no `.env`, `web/.env.local`, `supabase/functions/.env`, `docs/`, `.vercel/`, `supabase/.temp/`; grep staged files for `sb_secret_`, `tid_`, `tsec_`, `eyJ` (only the public local demo key in `.env.example` is OK), the project ref and the DB password. Then commit and push to `main`; watch Vercel and the Action.
+6. **Smoke test online:** each staging role logs in on the Vercel URL; `files-sign` works with an ES256 token; `/api/keepalive` works with `CRON_SECRET`. Then update SETUP.md Part 2 (Supabase, Vercel, auto-deploy).
+7. **Then Phase 1** (PLAN.md E3) and onwards, tests green before moving on.
 
-1. **Wire up the new scripts** in root `package.json`:
-   - `"deploy:supabase": "tsx scripts/supabase-deploy.ts"`
-   - `"supabase:configure": "tsx scripts/supabase-configure.ts"`
-   - `"staging:bootstrap": "tsx scripts/staging-bootstrap.ts"`
-   - `"db:test:remote": "tsx scripts/db-test-remote.ts"`
-
-   Check whether the CLI really accepts `db push --yes` and `functions deploy --yes`; drop the flag if not.
-2. **Split the seed** into `supabase/seed/01_users.sql` (local-only fake users, `Pearl@2026`) and `supabase/seed/02_demo_settings.sql` (demo clinic, settings, number series, integration status). Set `config.toml` `[db.seed] sql_paths` to both files, in order. Update references to `seed.sql` in CLAUDE.md, SETUP.md and TESTING.md.
-3. **Write `scripts/staging-bootstrap.ts`.** It must be idempotent:
-   - generate `STAGING_TEST_PASSWORD` into `.env` if it's empty (letters and digits);
-   - create the auth users `admin@ / reception@ / manager@ / sales@ / bdm@pearl.test` through the Auth Admin REST API, using the legacy service_role key from `apiKey("service_role")`, never printed;
-   - insert `public.staff` rows and run `02_demo_settings.sql` over `DATABASE_URL` when `clinic_settings` is empty.
-4. **Write `scripts/db-test-remote.ts`.** For each `supabase/tests/database/*.sql`, run the file over `DATABASE_URL` and collect the TAP lines. Pass means no `not ok` and the count matches the plan. Each file already does `begin … rollback`.
-5. **Run, in order:** `pnpm deploy:supabase`, then `pnpm supabase:configure`, then `pnpm staging:bootstrap`, then `pnpm db:test:remote`, then `pnpm db:concurrency`.
-   - These are Phase 0's DB tests, never yet run on real Postgres with real Supabase auth.
-   - For `db:concurrency`: if the session pooler (port 5432) refuses 50 clients, use the transaction pooler on port 6543.
-6. ~~Fill `.env` section 1~~ **Done 23/10/2026:**
-   - `NEXT_PUBLIC_SUPABASE_URL` and the publishable key are filled;
-   - `CRON_SECRET` and `STAGING_TEST_PASSWORD` were generated;
-   - `pnpm env:sync` has run.
-
-   The web app on this PC now points at the **online** project. Logins only work after step 5, because the database is still empty.
-7. **Create the Vercel project** (REST API with the CLI token from `~/.local/share/com.vercel.cli/auth.json`, or `vercel project add` plus settings):
-   - name `pearl-crm`, framework `nextjs`, root directory `web`, Node `24.x`, function region `bom1`;
-   - install command `pnpm install --frozen-lockfile --filter @pearl/web...`;
-   - environment variables `ENABLE_EXPERIMENTAL_COREPACK=1` (pnpm 11 from `packageManager`), `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `CRON_SECRET`;
-   - connect the git repo `dhanushkumar-merndev/pearls-crm-final` on branch `main`. If Vercel's GitHub app has no access, ask the owner to grant it.
-
-   Then add the Vercel URL to `WEB_ORIGIN` in `.env`, re-run `pnpm supabase:configure`, and update the Tigris CORS (above).
-8. **CI deploy job** in `.github/workflows/ci.yml`:
-   - `deploy` job with `needs: [checks, database]`, only when `github.event_name == 'push' && github.ref == 'refs/heads/main'`;
-   - runs `pnpm deploy:supabase` with secrets `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF`, `SUPABASE_DB_PASSWORD`;
-   - store those with `gh secret set NAME --repo dhanushkumar-merndev/pearls-crm-final`, piping each value from `.env` so nothing is printed;
-   - never use `pull_request_target` (the repo is public).
-9. **Before the first commit:**
-   - run `pnpm test`, `pnpm typecheck`, `pnpm lint` and `pnpm build`;
-   - do a `git add -n .` dry run and confirm there is no `.env`, `web/.env.local`, `supabase/functions/.env`, `docs/`, `.vercel/` or `supabase/.temp/`;
-   - grep the staged files for `sb_secret_`, `tid_`, `tsec_`, `eyJ`, the project ref and the DB password.
-
-   Then commit (attribution line per the system reminder) and **push to `main`** (the owner asked for this). Watch the Vercel build and the GitHub Action.
-10. **Smoke test online:**
-    - log in as each staging role on the Vercel URL;
-    - the call to `files-sign` works with an ES256 token;
-    - `/api/keepalive` works with `CRON_SECRET`.
-
-    Then update SETUP.md Part 2 (Supabase, Vercel, auto-deploy) and TESTING.md (`db:test:remote`).
-11. **Then Phase 1** (PLAN.md E3) and onwards, phase by phase, tests green before moving on.
+### Vercel project settings (for step 2)
+- name `pearl-crm`, framework `nextjs`, root directory `web`, Node `24.x`, function region `bom1`
+- install command `pnpm install --frozen-lockfile --filter @pearl/web...`
+- env: `ENABLE_EXPERIMENTAL_COREPACK=1`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `CRON_SECRET` (push from `.env` by script, never printed)
+- git repo `dhanushkumar-merndev/pearls-crm-final`, branch `main`
+- Tigris CORS afterwards: `pnpm exec tigris buckets set-cors pearl-staging --origins http://localhost:3000,https://<vercel-url> --methods GET,HEAD,PUT --headers content-type --expose-headers ETag --override`
 
 ## Still open with the owner
 - Save the full brief as `CLINIC_CRM_BUILD_PROMPT.md`. The pasted copy was cut off at section 15, and sections 16–19 have never been seen.

@@ -31,7 +31,13 @@ select is(
    cross join unnest(array['INSERT', 'UPDATE', 'DELETE', 'TRUNCATE']) as p (priv)
    where n.nspname = 'public' and c.relkind in ('r', 'p')
      and has_table_privilege('authenticated', c.oid, p.priv)),
-  'clinic_settings:UPDATE',
+  -- Phase 1: admin master data (RLS lets only admins write; see 03_admin_libraries).
+  'clinic_settings:UPDATE, doctor_leaves:DELETE, doctor_leaves:INSERT, doctor_leaves:UPDATE, '
+  'doctor_schedules:DELETE, doctor_schedules:INSERT, doctor_schedules:UPDATE, doctors:INSERT, doctors:UPDATE, '
+  'holidays:DELETE, holidays:INSERT, holidays:UPDATE, lookup_values:INSERT, lookup_values:UPDATE, '
+  'pharmacy_items:INSERT, pharmacy_items:UPDATE, room_types:INSERT, room_types:UPDATE, services:INSERT, '
+  'services:UPDATE, treatment_template_services:DELETE, treatment_template_services:INSERT, '
+  'treatment_template_services:UPDATE, treatment_templates:INSERT, treatment_templates:UPDATE',
   'signed-in users write directly only where allowed');
 
 select is_empty($$

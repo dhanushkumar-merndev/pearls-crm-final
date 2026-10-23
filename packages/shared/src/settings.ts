@@ -1,0 +1,66 @@
+import { z } from "zod";
+
+/**
+ * app_settings sections (PLAN.md C3). Each is checked against its schema before
+ * saving; the database fills missing keys with the same defaults (private.setting).
+ * Defaults are PLAN.md A2 — app behaviour, never clinic details.
+ */
+const hhmm = z.string().regex(/^([01][0-9]|2[0-3]):[0-5][0-9]$/);
+
+export const SETTINGS_SCHEMAS = {
+  ui: z.object({ default_theme: z.enum(["dark", "light", "system"]).default("dark") }),
+  security: z.object({ idle_logout_minutes: z.number().int().min(0).max(240).default(15) }),
+  appointments: z
+    .object({
+      slot_minutes: z.number().int().min(5).max(240).default(15),
+      capacity_per_slot: z.number().int().min(1).max(50).default(3),
+      day_start: hhmm.default("10:00"),
+      day_end: hhmm.default("20:00"),
+      working_days: z.array(z.number().int().min(1).max(7)).max(7).default([1, 2, 3, 4, 5, 6]),
+      confirm_hours_before: z.number().int().min(0).max(72).default(4),
+      reminder_hours_before: z.number().int().min(0).max(168).default(24),
+      walk_in_queue: z.boolean().default(true),
+    })
+    .refine((v) => v.day_end > v.day_start, { path: ["day_end"], message: "day_end_before_start" }),
+  billing: z.object({
+    tax_inclusive: z.boolean().default(true),
+    round_to_rupee: z.boolean().default(false),
+    receptionist_max_discount_bp: z.number().int().min(0).max(10000).default(2000),
+    agreed_price_categories_exclude: z.array(z.string()).default(["pharmacy"]),
+    ip_number_mode: z.enum(["separate", "uhid"]).default("separate"),
+  }),
+  pharmacy: z.object({
+    near_expiry_days: z.array(z.number().int().min(1).max(365)).max(5).default([90, 60, 30]),
+    negative_stock: z.enum(["block", "warn"]).default("block"),
+    prices_include_gst: z.boolean().default(true),
+  }),
+  sales: z.object({
+    round_robin: z.boolean().default(true),
+    targets_enabled: z.boolean().default(false),
+    reception_can_play_recordings: z.boolean().default(false),
+  }),
+  notifications: z.object({
+    daily_summary_enabled: z.boolean().default(true),
+    daily_summary_time: hhmm.default("20:00"),
+  }),
+} as const;
+
+export type SettingsSection = keyof typeof SETTINGS_SCHEMAS;
+export type Settings<S extends SettingsSection> = z.output<(typeof SETTINGS_SCHEMAS)[S]>;
+
+/** Stored JSON (possibly old or partial) → full settings with defaults filled in. */
+export function readSettings<S extends SettingsSection>(section: S, stored: unknown): Settings<S> {
+  const schema = SETTINGS_SCHEMAS[section] as unknown as z.ZodType<Settings<S>>;
+  const parsed = schema.safeParse(stored ?? {});
+  return parsed.success ? parsed.data : (schema.parse({}) as Settings<S>);
+}
+
+/** Validates a section before saving. Returns the clean value or the first problem's field. */
+export function validateSettings<S extends SettingsSection>(
+  section: S,
+  value: unknown,
+): { ok: true; value: Settings<S> } | { ok: false; field: string } {
+  const parsed = (SETTINGS_SCHEMAS[section] as unknown as z.ZodType<Settings<S>>).safeParse(value);
+  if (parsed.success) return { ok: true, value: parsed.data };
+  return { ok: false, field: parsed.error.issues[0]?.path.join(".") ?? "" };
+}

@@ -24,7 +24,7 @@ web/              Next.js 16 App Router (reception, admin, sales manager)
   proxy.ts          login redirects (Next 16 renamed middleware → proxy)
 packages/shared/  pure TS used by web + Edge Functions: money, GST, words, IST dates, phone, design tokens
   test-vectors/     golden vectors shared by Vitest and pgTAP — change both sides together
-supabase/         migrations/, functions/ (Deno Edge), tests/database (pgTAP), seed.sql, config.toml
+supabase/         migrations/, functions/ (Deno Edge), tests/database (pgTAP), seed/ (01_users local-only, 02_demo_settings), config.toml
 dev-docs/         PLAN.md, SETUP.md, TESTING.md (committed)
 docs/             PRIVATE, git-ignored
 ```

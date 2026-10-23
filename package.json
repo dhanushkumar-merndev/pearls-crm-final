@@ -24,7 +24,12 @@
     "db:reset": "supabase db reset",
     "db:test": "supabase test db",
     "db:types": "supabase gen types typescript --local > packages/shared/src/db.types.ts",
-    "db:concurrency": "tsx scripts/db-concurrency.ts"
+    "db:concurrency": "tsx scripts/db-concurrency.ts",
+    "db:test:remote": "tsx scripts/db-test-remote.ts",
+    "deploy:supabase": "tsx scripts/supabase-deploy.ts",
+    "supabase:configure": "tsx scripts/supabase-configure.ts",
+    "staging:bootstrap": "tsx scripts/staging-bootstrap.ts",
+    "sql": "tsx scripts/sql.ts"
   },
   "devDependencies": {
     "@tigrisdata/cli": "3.16.0",

@@ -20,6 +20,10 @@ insert into public.staff (id, role, full_name) values
   ('11111111-0000-4000-a000-0000000000b2', 'receptionist', 'T Rec Two'),
   ('11111111-0000-4000-a000-0000000000c1', 'sales_executive', 'T Sales'),
   ('11111111-0000-4000-a000-0000000000d1', 'bdm', 'T Bdm');
+-- The seed adds a clinic locally; online (pnpm db:test:remote) there may be none yet.
+insert into public.clinic_settings (branch_code, name, gstin)
+values ('main', 'T Clinic', '29ABCDE1234F1Z5')
+on conflict (branch_code) do nothing;
 
 ------------------------------------------------------------------------------
 -- Login-token hook
@@ -130,9 +134,9 @@ select throws_ok(
 ------------------------------------------------------------------------------
 -- Settings
 ------------------------------------------------------------------------------
-select is(public.update_settings('appointments', '{"slot_minutes":15}', 0), 1, 'first save is version 1');
-select is(public.update_settings('appointments', '{"slot_minutes":20}', 1), 2, 'next save is version 2');
-select throws_ok($$ select public.update_settings('appointments', '{"slot_minutes":30}', 1) $$,
+select is(public.update_settings('registration_form', '{"slot_minutes":15}', 0), 1, 'first save is version 1');
+select is(public.update_settings('registration_form', '{"slot_minutes":20}', 1), 2, 'next save is version 2');
+select throws_ok($$ select public.update_settings('registration_form', '{"slot_minutes":30}', 1) $$,
   'P0001', 'stale_version', 'stale version is refused');
 select throws_ok($$ select public.update_settings('nonsense', '{}', 0) $$,
   'P0001', 'unknown_settings_section', 'unknown section is refused');
@@ -141,11 +145,11 @@ select lives_ok($$ select public.update_settings('whatsapp', '{"enabled":false}'
 reset role;
 set local role authenticated;
 set local request.jwt.claims to '{"sub":"11111111-0000-4000-a000-0000000000b1","role":"authenticated"}';
-select is((select count(*) from public.app_settings where section = 'appointments')::int, 1,
+select is((select count(*) from public.app_settings where section = 'registration_form')::int, 1,
   'receptionist reads public settings');
 select is((select count(*) from public.app_settings where section = 'whatsapp')::int, 0,
   'receptionist cannot read admin-only settings');
-select throws_ok($$ select public.update_settings('appointments', '{}', 2) $$,
+select throws_ok($$ select public.update_settings('registration_form', '{}', 2) $$,
   'P0001', 'not_allowed', 'receptionist cannot change settings');
 update public.clinic_settings set name = 'Hacked' where branch_code = 'main';
 reset role;

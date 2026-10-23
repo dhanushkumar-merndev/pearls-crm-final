@@ -16,16 +16,36 @@ export const ERROR_CODES = [
   "file_too_large",
   "file_type_not_allowed",
   "upload_incomplete",
+  "merge_conflict",
+  "overlap",
+  "duplicate",
+  "in_use",
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];
 
+/**
+ * Postgres errors that reach the app from direct table writes (admin master data).
+ * RPCs raise our own codes instead.
+ */
+const SQLSTATE_CODES: Record<string, ErrorCode> = {
+  "23P01": "overlap", // exclusion constraint, e.g. overlapping doctor hours or leaves
+  "23505": "duplicate", // unique constraint
+  "23503": "in_use", // foreign key: something still points at this row
+  "23514": "invalid_input", // check constraint
+  "22P02": "invalid_input", // bad text for a number/uuid
+  "42501": "not_allowed", // RLS or missing privilege
+};
+
 export function toErrorCode(value: unknown): ErrorCode | "unknown" {
-  const message =
-    typeof value === "string"
-      ? value
-      : value && typeof value === "object" && "message" in value
-        ? String((value as { message: unknown }).message)
-        : "";
+  if (!value) return "unknown";
+  if (typeof value === "object") {
+    const code = "code" in value ? String((value as { code: unknown }).code) : "";
+    const message = "message" in value ? String((value as { message: unknown }).message) : "";
+    if ((ERROR_CODES as readonly string[]).includes(message)) return message as ErrorCode;
+    if (code === "P0001") return "unknown";
+    return SQLSTATE_CODES[code] ?? "unknown";
+  }
+  const message = String(value);
   return (ERROR_CODES as readonly string[]).includes(message) ? (message as ErrorCode) : "unknown";
 }
