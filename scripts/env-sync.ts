@@ -10,14 +10,14 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
-const WEB_KEYS = [
+export const WEB_KEYS = [
   "NEXT_PUBLIC_SUPABASE_URL",
   "NEXT_PUBLIC_SUPABASE_ANON_KEY",
   "NEXT_PUBLIC_TURNSTILE_SITE_KEY",
   "CRON_SECRET",
 ];
 
-const FUNCTION_KEYS = [
+export const FUNCTION_KEYS = [
   "STORAGE_ENDPOINT",
   "STORAGE_REGION",
   "STORAGE_BUCKET",
@@ -56,6 +56,14 @@ export function parseEnv(text: string): Map<string, string> {
     }
     values.set(key, value);
   }
+  return values;
+}
+
+/** Root .env values; real environment variables win (CI passes GitHub secrets that way). */
+export function loadEnv(): Map<string, string> {
+  const envPath = resolve(root, ".env");
+  const values = existsSync(envPath) ? parseEnv(readFileSync(envPath, "utf8")) : new Map<string, string>();
+  for (const [key, value] of Object.entries(process.env)) if (value) values.set(key, value);
   return values;
 }
 

@@ -10,7 +10,7 @@
     "dev": "pnpm --filter @pearl/web dev",
     "build": "pnpm --filter @pearl/web build",
     "test": "pnpm -r --if-present test && pnpm test:functions",
-    "test:functions": "deno test --quiet --config supabase/functions/deno.json supabase/functions",
+    "test:functions": "deno test --quiet --allow-env=WEB_ORIGIN --config supabase/functions/deno.json supabase/functions",
     "typecheck": "pnpm -r --if-present typecheck && pnpm typecheck:functions",
     "typecheck:functions": "deno check --quiet --config supabase/functions/deno.json supabase/functions",
     "lint": "pnpm -r --if-present lint && deno lint --config supabase/functions/deno.json supabase/functions",

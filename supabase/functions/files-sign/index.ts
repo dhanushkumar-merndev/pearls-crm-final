@@ -6,7 +6,7 @@ import { filesSign } from "./logic.ts";
 const storage = storageFromEnv();
 
 Deno.serve(handler(async (req) => {
-  const db = callerClient(req);
+  const db = await callerClient(req);
   if (!db) return fail("not_signed_in", 401);
 
   const result = await filesSign(await readJson(req), {

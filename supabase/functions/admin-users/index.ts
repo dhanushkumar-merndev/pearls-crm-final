@@ -3,7 +3,7 @@ import { callerClient, serviceClient } from "../_shared/supabase.ts";
 import { adminUsers } from "./logic.ts";
 
 Deno.serve(handler(async (req) => {
-  const db = callerClient(req);
+  const db = await callerClient(req);
   if (!db) return fail("not_signed_in", 401);
   const admin = serviceClient();
 

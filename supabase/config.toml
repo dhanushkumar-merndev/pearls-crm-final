@@ -423,10 +423,13 @@ enabled = true
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":180,\"commaStyle\":\"trailing\"}"
 
 # Edge Functions (PLAN.md D3). All share supabase/functions/deno.json for pinned imports.
+# verify_jwt = false: the gateway check only knows legacy HS256 tokens, and the hosted
+# project signs logins with ES256. Each function verifies the token itself
+# (_shared/supabase.ts callerClient → getClaims) before doing anything.
 [functions.files-sign]
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/deno.json"
 
 [functions.admin-users]
-verify_jwt = true
+verify_jwt = false
 import_map = "./functions/deno.json"

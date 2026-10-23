@@ -11,6 +11,7 @@ local.properties
 google-services.json
 supabase/.temp/
 supabase/.branches/
+.vercel/
 
 # Dependencies and builds
 node_modules/
