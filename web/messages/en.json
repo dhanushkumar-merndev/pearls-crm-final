@@ -156,7 +156,13 @@
     "outside_schedule": "The doctor doesn't see patients at that time.",
     "slot_in_past": "That time has already passed.",
     "invalid_status_change": "That step isn't possible from the current status.",
-    "reason_required": "Please give a reason (it is kept in the change history)."
+    "reason_required": "Please give a reason (it is kept in the change history).",
+    "discount_limit": "That discount is more than you are allowed to give. Please ask the admin.",
+    "bill_locked": "This bill is finalized and can't be changed. An admin can amend or cancel it.",
+    "over_allocated": "That is more than what is due (or more than the advance available).",
+    "below_agreed_price": "This is below the agreed price. Please give a reason.",
+    "discount_exceeds_gross": "The discount is bigger than the line amount.",
+    "invalid_quantity": "Quantity must be more than 0."
   },
   "common": {
     "saved": "Saved ✓",

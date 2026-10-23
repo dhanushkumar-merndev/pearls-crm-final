@@ -30,7 +30,9 @@
     "supabase:configure": "tsx scripts/supabase-configure.ts",
     "staging:bootstrap": "tsx scripts/staging-bootstrap.ts",
     "sql": "tsx scripts/sql.ts",
-    "precommit:scan": "tsx scripts/precommit-scan.ts"
+    "precommit:scan": "tsx scripts/precommit-scan.ts",
+    "vectors": "pnpm --filter @pearl/shared vectors",
+    "sql:check": "tsx scripts/sql-check.ts"
   },
   "devDependencies": {
     "@tigrisdata/cli": "3.16.0",

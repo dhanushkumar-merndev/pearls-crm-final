@@ -10,7 +10,8 @@
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json",
-    "tokens": "tsx scripts/gen-tokens.ts"
+    "tokens": "tsx scripts/gen-tokens.ts",
+    "vectors": "tsx scripts/gen-vector-sql.ts"
   },
   "devDependencies": {
     "@types/node": "26.6.5",

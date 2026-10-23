@@ -28,6 +28,12 @@ export const ERROR_CODES = [
   "slot_in_past",
   "invalid_status_change",
   "reason_required",
+  "invalid_quantity",
+  "discount_exceeds_gross",
+  "below_agreed_price",
+  "over_allocated",
+  "bill_locked",
+  "discount_limit",
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

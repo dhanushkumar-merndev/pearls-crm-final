@@ -104,10 +104,10 @@ export function PatientFile({ initial }: { initial: PatientHeader }) {
             {t("edit")}
           </Button>
           <Button asChild variant="secondary">
-            <Link href={`/print/registration/${p.id}`} target="_blank">
+            <a href={`/print/registration/${p.id}`} target="_blank" rel="noopener">
               <Printer aria-hidden />
               {t("printForm")}
-            </Link>
+            </a>
           </Button>
           {me?.role === "admin" && (
             <Button variant="ghost" onClick={() => setDialog("merge")}>

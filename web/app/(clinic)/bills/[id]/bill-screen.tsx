@@ -1,0 +1,258 @@
+"use client";
+
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, CircleX, IndianRupee, Pencil, Printer, Wallet } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { useState } from "react";
+import { formatDateTime, formatINR } from "@pearl/shared";
+import { BillEditor } from "@/components/bills/bill-editor";
+import { PaymentDialog } from "@/components/bills/payment-dialog";
+import { payable, type Bill } from "@/components/bills/types";
+import { MoneyInput } from "@/components/forms/money-input";
+import { Button } from "@/components/ui/button";
+import { Card, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Field, Textarea } from "@/components/ui/form";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { Table, TD, TH, THead, TR } from "@/components/ui/table";
+import { rpc } from "@/lib/rpc";
+import { useMe } from "@/lib/use-me";
+import { useFeedback } from "@/lib/use-feedback";
+
+interface PrintData extends Bill {
+  payments: { received_at: string; mode: string; reference: string | null; amount_paise: number }[];
+}
+
+export function BillScreen({ initial }: { initial: Bill }) {
+  const t = useTranslations("bill");
+  const me = useMe();
+  const router = useRouter();
+  const bill = useQuery({ queryKey: ["bill", initial.id], initialData: initial, queryFn: () => rpc<Bill>("get_bill", { p_bill_id: initial.id }) });
+  const b = bill.data;
+  const [amending, setAmending] = useState(false);
+  const [dialog, setDialog] = useState<"pay" | "advance" | "cancel" | null>(null);
+  const due = payable(b) - b.received_paise;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div>
+        <Button asChild variant="ghost" className="-ml-3 mb-2">
+          <Link href={`/patients/${b.patient_id}`}>
+            <ArrowLeft aria-hidden />
+            {t("backTo", { name: b.patient })}
+          </Link>
+        </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-[1.75rem] font-semibold tracking-tight">
+            {t(`type.${b.bill_type}`)} {b.bill_no && <span className="tabular-nums">· {b.bill_no}</span>}
+          </h1>
+          <StatusBadge kind={b.status === "finalized" ? "good" : b.status === "draft" ? "warning" : "critical"} label={t(`status.${b.status}`)} />
+        </div>
+        <p className="mt-1 text-text-secondary">
+          {b.patient} · {b.uhid}
+          {b.bill_at && ` · ${formatDateTime(new Date(b.bill_at))}`}
+        </p>
+      </div>
+
+      {b.status === "draft" ? (
+        <BillEditor key={b.version} bill={b} />
+      ) : amending ? (
+        <BillEditor bill={b} amend onAmended={() => (setAmending(false), void bill.refetch())} />
+      ) : (
+        <>
+          <div className="flex flex-wrap gap-2">
+            {/* A plain link: a prefetch would count as a print and make the next one a "Duplicate copy". */}
+            <Button asChild>
+              <a href={`/print/bill/${b.id}`} target="_blank" rel="noopener">
+                <Printer aria-hidden />
+                {t("print")}
+              </a>
+            </Button>
+            {b.status === "finalized" && due > 0 && (
+              <Button variant="secondary" onClick={() => setDialog("pay")}>
+                <IndianRupee aria-hidden />
+                {t("addPayment")}
+              </Button>
+            )}
+            {b.status === "finalized" && due > 0 && (b.patient_credit_paise ?? 0) > 0 && (
+              <Button variant="secondary" onClick={() => setDialog("advance")}>
+                <Wallet aria-hidden />
+                {t("useAdvanceButton", { amount: formatINR(b.patient_credit_paise ?? 0) })}
+              </Button>
+            )}
+            {me?.role === "admin" && b.status === "finalized" && (
+              <>
+                <Button variant="ghost" onClick={() => setAmending(true)}>
+                  <Pencil aria-hidden />
+                  {t("amend")}
+                </Button>
+                <Button variant="ghost" onClick={() => setDialog("cancel")}>
+                  <CircleX aria-hidden />
+                  {t("cancelBill")}
+                </Button>
+              </>
+            )}
+          </div>
+          {b.status === "cancelled" && <Card role="status">{t("cancelledBecause", { reason: b.cancel_reason ?? "" })}</Card>}
+          <BillView bill={b} />
+        </>
+      )}
+
+      <Dialog open={dialog !== null} onOpenChange={(o) => !o && setDialog(null)}>
+        {dialog === "pay" && (
+          <PaymentDialog patientId={b.patient_id} bill={{ id: b.id, bill_no: b.bill_no, outstanding_paise: due }} onDone={() => (setDialog(null), void bill.refetch())} />
+        )}
+        {dialog === "advance" && <AdvanceDialog bill={b} due={due} onDone={() => (setDialog(null), void bill.refetch())} />}
+        {dialog === "cancel" && <CancelDialog bill={b} onDone={() => (setDialog(null), router.refresh(), void bill.refetch())} />}
+      </Dialog>
+    </div>
+  );
+}
+
+function BillView({ bill: b }: { bill: Bill }) {
+  const t = useTranslations("bill");
+  const print = useQuery({
+    queryKey: ["bill_view", b.id, b.version, b.received_paise],
+    queryFn: () => rpc<PrintData>("bill_print_data", { p_bill_id: b.id, p_count: false }),
+  });
+  return (
+    <div className="flex flex-col gap-4">
+      <Table>
+        <THead>
+          <tr>
+            <TH>#</TH>
+            <TH>{t("description")}</TH>
+            <TH className="text-right">{t("rate")}</TH>
+            <TH className="text-right">{t("qty")}</TH>
+            <TH className="text-right">{t("discount")}</TH>
+            <TH className="text-right">{t("gst")}</TH>
+            <TH className="text-right">{t("amount")}</TH>
+          </tr>
+        </THead>
+        <tbody>
+          {b.items.map((i) => (
+            <TR key={i.id}>
+              <TD className="tabular-nums">{i.line_no}</TD>
+              <TD>
+                {i.description}
+                {i.category && <span className="block text-[0.85rem] text-text-secondary">{i.category}</span>}
+              </TD>
+              <TD className="text-right tabular-nums">{formatINR(i.rate_paise)}</TD>
+              <TD className="text-right tabular-nums">{Number(i.qty)}</TD>
+              <TD className="text-right tabular-nums">
+                {i.discount_paise > 0 ? (i.discount_type === "percent" ? `${i.discount_value / 100} %` : formatINR(i.discount_paise)) : "—"}
+              </TD>
+              <TD className="text-right tabular-nums">{i.gst_rate_bp / 100}%</TD>
+              <TD className="text-right font-medium tabular-nums">{formatINR(i.total_paise)}</TD>
+            </TR>
+          ))}
+        </tbody>
+      </Table>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card className="flex flex-col gap-2">
+          <CardTitle>{t("payments")}</CardTitle>
+          {print.data?.payments.length === 0 && <p className="text-text-secondary">{t("noPayments")}</p>}
+          <ul className="flex flex-col gap-1">
+            {print.data?.payments.map((p, i) => (
+              <li key={i} className="flex justify-between gap-3 tabular-nums">
+                <span>
+                  {formatDateTime(new Date(p.received_at))} · {p.mode}
+                  {p.reference ? ` · ${p.reference}` : ""}
+                </span>
+                <span>{formatINR(p.amount_paise)}</span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+        <Card className="grid grid-cols-2 gap-x-6 gap-y-1 tabular-nums">
+          <span className="text-text-secondary">{t("gross")}</span>
+          <span className="text-right">{formatINR(b.gross_paise)}</span>
+          <span className="text-text-secondary">{t("discountTotal")}</span>
+          <span className="text-right">−{formatINR(b.discount_paise)}</span>
+          <span className="text-text-secondary">{t("cgst")}</span>
+          <span className="text-right">{formatINR(b.cgst_paise)}</span>
+          <span className="text-text-secondary">{t("sgst")}</span>
+          <span className="text-right">{formatINR(b.sgst_paise)}</span>
+          {b.round_off_paise !== 0 && (
+            <>
+              <span className="text-text-secondary">{t("roundOff")}</span>
+              <span className="text-right">{formatINR(b.round_off_paise)}</span>
+            </>
+          )}
+          {b.carried_in_paise > 0 && (
+            <>
+              <span className="text-text-secondary">{t("carriedInTotal")}</span>
+              <span className="text-right">{formatINR(b.carried_in_paise)}</span>
+            </>
+          )}
+          <span className="border-t border-border pt-1 text-lg font-semibold">{t("total")}</span>
+          <span className="border-t border-border pt-1 text-right text-lg font-semibold">{formatINR(payable(b))}</span>
+          <span className="text-text-secondary">{t("received")}</span>
+          <span className="text-right">{formatINR(b.received_paise)}</span>
+          <span className="font-semibold">{t("balance")}</span>
+          <span className="text-right font-semibold">{formatINR(payable(b) - b.received_paise)}</span>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function AdvanceDialog({ bill, due, onDone }: { bill: Bill; due: number; onDone: () => void }) {
+  const t = useTranslations("bill");
+  const { saved, failed } = useFeedback();
+  const [amount, setAmount] = useState<number | null>(Math.min(due, bill.patient_credit_paise ?? 0));
+  const apply = useMutation({
+    mutationFn: () => rpc("apply_advance", { p_bill_id: bill.id, p_amount_paise: amount }),
+    onSuccess: () => {
+      saved(t("advanceUsed"));
+      onDone();
+    },
+    onError: failed,
+  });
+  return (
+    <DialogContent
+      title={t("useAdvance")}
+      description={t("advanceAvailable", { amount: formatINR(bill.patient_credit_paise ?? 0) })}
+      footer={
+        <Button disabled={!amount || amount > due || apply.isPending} onClick={() => apply.mutate()}>
+          <Wallet aria-hidden />
+          {t("useAdvance")}
+        </Button>
+      }
+    >
+      <Field label={t("amount")}>{(a) => <MoneyInput {...a} value={amount} onChange={setAmount} />}</Field>
+    </DialogContent>
+  );
+}
+
+function CancelDialog({ bill, onDone }: { bill: Bill; onDone: () => void }) {
+  const t = useTranslations("bill");
+  const queryClient = useQueryClient();
+  const { saved, failed } = useFeedback();
+  const [reason, setReason] = useState("");
+  const cancel = useMutation({
+    mutationFn: () => rpc("cancel_bill", { p_bill_id: bill.id, p_reason: reason }),
+    onSuccess: () => {
+      saved(t("cancelled"));
+      void queryClient.invalidateQueries({ queryKey: ["bills"] });
+      onDone();
+    },
+    onError: failed,
+  });
+  return (
+    <DialogContent
+      title={t("cancelTitle", { no: bill.bill_no ?? "" })}
+      description={t("cancelHint")}
+      footer={
+        <Button variant="danger" disabled={reason.trim().length < 3 || cancel.isPending} onClick={() => cancel.mutate()}>
+          <CircleX aria-hidden />
+          {t("cancelBill")}
+        </Button>
+      }
+    >
+      <Field label={t("reason")}>{(a) => <Textarea {...a} rows={2} maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} />}</Field>
+    </DialogContent>
+  );
+}
