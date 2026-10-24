@@ -15,6 +15,7 @@ import { StageBadge } from "@/components/leads/stage-badge";
 import { StageDialog } from "@/components/leads/stage-dialog";
 import type { Lead } from "@/components/leads/types";
 import { PatientPicker, type PatientHit } from "@/components/patients/patient-picker";
+import { RecordingsList } from "@/components/recordings/recordings-list";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
@@ -186,6 +187,11 @@ export function LeadScreen({ initial }: { initial: LeadDetail }) {
                 </li>
               ))}
             </ul>
+          </Card>
+
+          <Card className="flex flex-col gap-3">
+            <CardTitle>{t("recordings")}</CardTitle>
+            <RecordingsList filters={{ lead_id: l.id }} showLead={false} />
           </Card>
 
           <Activities leadId={l.id} />

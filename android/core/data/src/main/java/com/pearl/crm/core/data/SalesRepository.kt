@@ -49,6 +49,8 @@ data class CallDraft(
     /** A new stage chosen in the sheet (null = leave it). */
     val stage: String? = null,
     val lostReasonId: String? = null,
+    /** The phone's call log key when the call is known (caller pop-up): the import then skips it. */
+    val deviceCallKey: String? = null,
 )
 
 /** The "new lead" form, ready to save. [phone] is what was typed; it is normalised here. */
@@ -140,6 +142,7 @@ class SalesRepository(
                     }
                     draft.stage?.let { put("stage", it) }
                     draft.lostReasonId?.let { put("lost_reason_id", it) }
+                    draft.deviceCallKey?.let { put("device_call_key", it) }
                 },
             )
         }
@@ -149,7 +152,7 @@ class SalesRepository(
                     CallLogEntity(
                         id = id, leadId = draft.leadId, phoneE164 = draft.phoneE164, direction = draft.direction,
                         startedAt = draft.startedAt, durationS = draft.durationS, outcome = draft.outcome, notes = notes,
-                        updatedAt = "", pending = true,
+                        updatedAt = "", pending = true, deviceCallKey = draft.deviceCallKey,
                     ),
                 ),
             )

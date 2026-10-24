@@ -928,3 +928,11 @@ Each phase ends with: tests green → I tell you step by step how to try it on s
   - Push: a new notification for someone with the app installed rings their phone (Firebase, data-only message shown by the app). Tokens Firebase no longer knows are removed. Push is best effort; the notification is always in the app.
   - Charts on the phone use Vico 3.1.0 (3.2+ needs a newer Android build toolchain than ours).
   - Moved to Phase 12 (recordings): the voice note when marking a lead lost.
+- 24/10/2026 (session 7), Phase 12 done: caller pop-up and call recordings. Decisions made while building:
+  - The pop-up is drawn straight from the phone-state receiver ("Display over other apps"), with no background service: Android 15 no longer lets apps start one from the background, and this needs no extra permission. Without the overlay permission the app sends an "Add notes" notification instead.
+  - After a CRM call the notes sheet opens with the real length and the phone's call-log key; the call-log import skips that call, so one call is one row.
+  - Call-log import sends only calls with CRM numbers (the leads this person may see, synced as "crm_numbers"); the first import looks back 7 days. Personal calls never leave the phone.
+  - Recordings: the person picks the dialer's folder once (brand-specific hints). A file is matched to a call by the number in its name and the time; files named only with a contact name are matched by time and length and marked "check the match". Unmatched files are never stored or uploaded.
+  - Upload: mono 16 kHz AAC at 24 kbps, first 10 minutes by default (Admin → Settings → Sales: 1–60 minutes; mode "only when asked" or "every CRM call"; per-person override in Admin → Users). The original is only read; its checksum is compared before and after. The recording's id is also the file's id, so a retry never stores it twice.
+  - Managers (and admins) hear call recordings and voice notes; reception only for patients' calls and only when the admin allows it.
+  - The lost-lead voice note is recorded in the app (AAC, max 3 minutes) and always uploaded.

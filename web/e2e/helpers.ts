@@ -1,4 +1,6 @@
-import { randomInt } from "node:crypto";
+import { randomInt, randomUUID } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { expect, type Locator, type Page } from "@playwright/test";
 
 export const PASSWORD = process.env.E2E_PASSWORD ?? "Pearl@2026";
@@ -11,6 +13,8 @@ export const STATE = {
 } as const;
 
 /** A random valid Indian mobile — unique even when tests start in the same millisecond. */
+export { randomUUID };
+
 export function uniquePhone(): string {
   return `9${String(randomInt(0, 1_000_000_000)).padStart(9, "0")}`;
 }
@@ -33,4 +37,44 @@ export async function open(page: Page, path: string) {
 export async function choose(page: Page, field: Locator, option: string) {
   await field.click();
   await page.getByRole("option", { name: option, exact: true }).click();
+}
+
+/** NEXT_PUBLIC_SUPABASE_* from the environment (CI) or web/.env.local (this computer). */
+function backend(): { url: string; anonKey: string } {
+  let url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+  let anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+  if (!url || !anonKey) {
+    const file = join(process.cwd(), ".env.local");
+    if (existsSync(file)) {
+      for (const line of readFileSync(file, "utf8").split("\n")) {
+        const at = line.indexOf("=");
+        if (at < 0) continue;
+        const k = line.slice(0, at).trim();
+        const v = line.slice(at + 1).trim().replace(/^['"]|['"]$/g, "");
+        if (k === "NEXT_PUBLIC_SUPABASE_URL") url ||= v;
+        if (k === "NEXT_PUBLIC_SUPABASE_ANON_KEY") anonKey ||= v;
+      }
+    }
+  }
+  return { url, anonKey };
+}
+
+/**
+ * Calls an RPC as the person logged in on [page] (their session cookie), for test fixtures
+ * that have no web screen (e.g. what the phone app sends). RLS and role checks apply as usual.
+ */
+export async function rpcAs<T>(page: Page, fn: string, args: Record<string, unknown>): Promise<T> {
+  const { url, anonKey } = backend();
+  const parts = (await page.context().cookies())
+    .filter((c) => /^sb-.+-auth-token(\.\d+)?$/.test(c.name))
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+  let raw = decodeURIComponent(parts.map((c) => c.value).join(""));
+  if (raw.startsWith("base64-")) raw = Buffer.from(raw.slice("base64-".length), "base64").toString("utf8");
+  const token = (JSON.parse(raw) as { access_token: string }).access_token;
+  const res = await page.request.post(`${url}/rest/v1/rpc/${fn}`, {
+    headers: { apikey: anonKey, Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    data: args,
+  });
+  if (!res.ok()) throw new Error(`${fn}: HTTP ${res.status()} ${await res.text()}`);
+  return (await res.json()) as T;
 }

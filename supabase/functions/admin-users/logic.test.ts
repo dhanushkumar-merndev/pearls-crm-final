@@ -102,3 +102,15 @@ Deno.test("reactivate lifts the login block", async () => {
   await adminUsers({ action: "reactivate", staff_id: STAFF }, deps);
   assertEquals(calls.at(-1), `updateUser ${STAFF} {"ban_duration":"none"}`);
 });
+
+Deno.test("update: a person's recording upload mode is set or cleared; nothing else is accepted", async () => {
+  const { deps, calls } = fakeDeps();
+  await adminUsers({ action: "update", staff_id: STAFF, patch: { recording_upload_override: "all_calls" } }, deps);
+  await adminUsers({ action: "update", staff_id: STAFF, patch: { recording_upload_override: null } }, deps);
+  assertEquals(calls.filter((c) => c.startsWith("rpc admin_update_staff")), [
+    'rpc admin_update_staff {"recording_upload_override":"all_calls"}',
+    'rpc admin_update_staff {"recording_upload_override":null}',
+  ]);
+  const bad = await adminUsers({ action: "update", staff_id: STAFF, patch: { recording_upload_override: "everything" } }, deps);
+  assertEquals(bad.status, 400);
+});

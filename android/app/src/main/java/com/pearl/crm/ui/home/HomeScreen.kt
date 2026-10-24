@@ -17,6 +17,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -42,7 +43,13 @@ import com.pearl.crm.core.data.auth.Session
 import com.pearl.crm.core.model.StaffRole
 import com.pearl.crm.core.ui.components.StatusLabel
 import com.pearl.crm.core.ui.components.StatusTone
+import com.pearl.crm.feature.sales.AfterCallNotes
 import com.pearl.crm.feature.sales.BookScreen
+import com.pearl.crm.feature.sales.CallSetupScreen
+import com.pearl.crm.feature.sales.LocalVoiceNotes
+import com.pearl.crm.feature.sales.RecordingsOnPhoneScreen
+import com.pearl.crm.feature.sales.StartedCall
+import com.pearl.crm.feature.sales.VoiceNotes
 import com.pearl.crm.feature.sales.CallsScreen
 import com.pearl.crm.feature.sales.FollowupsScreen
 import com.pearl.crm.feature.sales.LeadDetailScreen
@@ -60,6 +67,8 @@ import kotlinx.coroutines.launch
 
 private const val CHANGE_PIN = "change-pin"
 private const val LEAD = "lead/{id}"
+private const val CALL_SETUP = "call-setup"
+private const val PHONE_RECORDINGS = "phone-recordings"
 private const val BOOK = "book/{id}"
 
 @Composable
@@ -73,65 +82,109 @@ fun HomeScreen(container: AppContainer, session: Session) {
     val pinChanged = stringResource(R.string.pin_changed)
     val scope = rememberCoroutineScope()
     AskForNotifications()
+    val voiceNotes = remember { VoiceNotes(container.voiceRecorder, container.recordings) }
+    val isSales = role == StaffRole.SalesExecutive || role == StaffRole.SalesManager
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbar) },
-        bottomBar = {
-            if (tabs.any { it.route == route }) {
-                NavigationBar {
-                    tabs.forEach { tab ->
-                        NavigationBarItem(
-                            selected = route == tab.route,
-                            onClick = {
-                                nav.navigate(tab.route) {
-                                    popUpTo(nav.graph.findStartDestination().id) { saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            },
-                            icon = { Icon(tab.icon, contentDescription = null) },
-                            label = { Text(stringResource(tab.label)) },
-                        )
+    CompositionLocalProvider(LocalVoiceNotes provides voiceNotes) {
+        Scaffold(
+            snackbarHost = { SnackbarHost(snackbar) },
+            bottomBar = {
+                if (tabs.any { it.route == route }) {
+                    NavigationBar {
+                        tabs.forEach { tab ->
+                            NavigationBarItem(
+                                selected = route == tab.route,
+                                onClick = {
+                                    nav.navigate(tab.route) {
+                                        popUpTo(nav.graph.findStartDestination().id) { saveState = true }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
+                                },
+                                icon = { Icon(tab.icon, contentDescription = null) },
+                                label = { Text(stringResource(tab.label)) },
+                            )
+                        }
                     }
                 }
-            }
-        },
-    ) { padding ->
-        NavHost(nav, startDestination = tabs.first().route, modifier = Modifier.padding(padding)) {
-            val sales = role == StaffRole.SalesExecutive || role == StaffRole.SalesManager
-            val openLead: (String) -> Unit = { id -> nav.navigate("lead/$id") }
-            tabs.forEach { tab ->
-                composable(tab.route) {
-                    when {
-                        tab == HomeTab.MyDay && sales -> SalesMyDayRoute(container, session, openLead)
-                        tab == HomeTab.MyDay -> MyDayScreen(container, session)
-                        tab == HomeTab.Leads && sales -> LeadsScreen(container.sales, container.library, openLead)
-                        tab == HomeTab.Followups -> FollowupsScreen(session.staffId, container.sales, container.library, openLead)
-                        tab == HomeTab.Calls -> CallsScreen(container.sales, openLead)
-                        tab == HomeTab.Settings -> SettingsRoute(container, session) { nav.navigate(CHANGE_PIN) }
-                        else -> ComingSoonScreen(stringResource(tab.label))
+            },
+        ) { padding ->
+            NavHost(nav, startDestination = tabs.first().route, modifier = Modifier.padding(padding)) {
+                val sales = role == StaffRole.SalesExecutive || role == StaffRole.SalesManager
+                val openLead: (String) -> Unit = { id -> nav.navigate("lead/$id") }
+                tabs.forEach { tab ->
+                    composable(tab.route) {
+                        when {
+                            tab == HomeTab.MyDay && sales -> SalesMyDayRoute(container, session, openLead)
+                            tab == HomeTab.MyDay -> MyDayScreen(container, session)
+                            tab == HomeTab.Leads && sales -> LeadsScreen(container.sales, container.library, openLead)
+                            tab == HomeTab.Followups -> FollowupsScreen(session.staffId, container.sales, container.library, openLead)
+                            tab == HomeTab.Calls -> CallsScreen(container.sales, openLead)
+                            tab == HomeTab.Settings -> SettingsRoute(
+                                container,
+                                session,
+                                onChangePin = { nav.navigate(CHANGE_PIN) },
+                                onCallSetup = if (isSales) ({ nav.navigate(CALL_SETUP) }) else null,
+                                onRecordings = if (isSales) ({ nav.navigate(PHONE_RECORDINGS) }) else null,
+                            )
+                            else -> ComingSoonScreen(stringResource(tab.label))
+                        }
                     }
                 }
-            }
-            composable(LEAD) { entry ->
-                val id = entry.arguments?.getString("id").orEmpty()
-                LeadDetailScreen(id, container.sales, container.library, onBack = { nav.popBackStack() }, onBook = { nav.navigate("book/$it") })
-            }
-            composable(BOOK) { entry ->
-                val id = entry.arguments?.getString("id").orEmpty()
-                BookScreen(id, container.sales, container.library, onBack = { nav.popBackStack() }, onBooked = { text ->
-                    nav.popBackStack()
-                    scope.launch { snackbar.showSnackbar(text) }
-                })
-            }
-            composable(CHANGE_PIN) {
-                ChangePinRoute(container) { changed ->
-                    nav.popBackStack()
-                    if (changed) scope.launch { snackbar.showSnackbar(pinChanged) }
+                composable(CALL_SETUP) {
+                    CallSetupScreen(container.settings, onScanNow = { container.runRecordingScan() }, onBack = { nav.popBackStack() })
+                }
+                composable(PHONE_RECORDINGS) {
+                    RecordingsOnPhoneScreen(
+                        container.recordings,
+                        onSyncRequested = { com.pearl.crm.core.sync.RecordingWorker.schedule(container.appContext) },
+                        onBack = { nav.popBackStack() },
+                    )
+                }
+                composable(LEAD) { entry ->
+                    val id = entry.arguments?.getString("id").orEmpty()
+                    LeadDetailScreen(id, container.sales, container.library, onBack = { nav.popBackStack() }, onBook = { nav.navigate("book/$it") })
+                }
+                composable(BOOK) { entry ->
+                    val id = entry.arguments?.getString("id").orEmpty()
+                    BookScreen(id, container.sales, container.library, onBack = { nav.popBackStack() }, onBooked = { text ->
+                        nav.popBackStack()
+                        scope.launch { snackbar.showSnackbar(text) }
+                    })
+                }
+                composable(CHANGE_PIN) {
+                    ChangePinRoute(container) { changed ->
+                        nav.popBackStack()
+                        if (changed) scope.launch { snackbar.showSnackbar(pinChanged) }
+                    }
                 }
             }
         }
+        if (isSales) AfterCallFromPhone(container, snackbar)
     }
+}
+
+/** A CRM call just ended (caller flow): the notes sheet with the call's real length. */
+@Composable
+private fun AfterCallFromPhone(container: AppContainer, snackbar: SnackbarHostState) {
+    val request by container.pendingAfterCall.collectAsStateWithLifecycle()
+    val call = request ?: return
+    val lead by remember(call.leadId) { container.sales.observeLead(call.leadId) }.collectAsStateWithLifecycle(null)
+    val scope = rememberCoroutineScope()
+    val savedText = stringResource(com.pearl.crm.feature.sales.R.string.saved_offline)
+    AfterCallNotes(
+        sales = container.sales,
+        library = container.library,
+        call = StartedCall(call.leadId, call.phone, call.startedAt),
+        leadName = lead?.name ?: call.phone,
+        durationS = call.durationS,
+        direction = call.direction,
+        deviceCallKey = call.deviceCallKey,
+        onDone = { saved ->
+            container.pendingAfterCall.value = null
+            if (saved) scope.launch { snackbar.showSnackbar(savedText) }
+        },
+    )
 }
 
 /** Android 13+: ask once for notification permission when push is set up. */
@@ -177,7 +230,13 @@ private fun SalesMyDayRoute(container: AppContainer, session: Session, openLead:
 }
 
 @Composable
-private fun SettingsRoute(container: AppContainer, session: Session, onChangePin: () -> Unit) {
+private fun SettingsRoute(
+    container: AppContainer,
+    session: Session,
+    onChangePin: () -> Unit,
+    onCallSetup: (() -> Unit)?,
+    onRecordings: (() -> Unit)?,
+) {
     val profile by container.profile.collectAsStateWithLifecycle()
     val theme by container.settings.theme.collectAsStateWithLifecycle()
     val status by container.syncRunner.status.collectAsStateWithLifecycle()
@@ -210,6 +269,8 @@ private fun SettingsRoute(container: AppContainer, session: Session, onChangePin
         },
         onDiscard = { id -> scope.launch { outbox.delete(id) } },
         onSignOut = { scope.launch { container.signOutByChoice() } },
+        onCallSetup = onCallSetup,
+        onRecordings = onRecordings,
     )
 }
 

@@ -23,6 +23,9 @@
     <string name="settings_theme_light">Light</string>
     <string name="settings_theme_system">Same as phone</string>
 
+    <string name="settings_calls">Calls and recordings</string>
+    <string name="settings_call_setup">Set up calls and recordings</string>
+    <string name="settings_recordings">Recordings on this phone</string>
     <string name="settings_security">PIN and sign out</string>
     <string name="settings_change_pin">Change PIN</string>
     <string name="settings_sign_out">Sign out</string>

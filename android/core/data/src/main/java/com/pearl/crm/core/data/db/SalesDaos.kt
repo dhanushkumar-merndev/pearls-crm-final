@@ -3,6 +3,7 @@ package com.pearl.crm.core.data.db
 import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Embedded
+import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
@@ -184,6 +185,16 @@ interface CallLogDao {
         """,
     )
     fun observeRecentWithLead(limit: Int): Flow<List<CallWithLead>>
+
+    @Query("SELECT COUNT(*) FROM call_logs WHERE device_call_key = :key")
+    suspend fun countByDeviceKey(key: String): Int
+
+    /** Calls around a time, for matching recordings and imports (with the number's last 10 digits). */
+    @Query("SELECT * FROM call_logs WHERE started_at BETWEEN :from AND :to ORDER BY started_at")
+    suspend fun between(from: Long, to: Long): List<CallLogEntity>
+
+    @Insert(onConflict = androidx.room.OnConflictStrategy.IGNORE)
+    suspend fun insertIgnore(rows: List<CallLogEntity>)
 
     /** Calls made here that the server took but didn't send back (e.g. the lead moved to someone else). */
     @Query("DELETE FROM call_logs WHERE pending = 1 AND id NOT IN (SELECT id FROM outbox)")

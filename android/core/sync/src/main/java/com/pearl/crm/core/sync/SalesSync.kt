@@ -4,6 +4,8 @@ import com.pearl.crm.core.data.db.AppointmentDao
 import com.pearl.crm.core.data.db.AppointmentEntity
 import com.pearl.crm.core.data.db.CallLogDao
 import com.pearl.crm.core.data.db.CallLogEntity
+import com.pearl.crm.core.data.db.CrmNumberDao
+import com.pearl.crm.core.data.db.CrmNumberEntity
 import com.pearl.crm.core.data.db.FollowupDao
 import com.pearl.crm.core.data.db.FollowupEntity
 import com.pearl.crm.core.data.db.LeadDao
@@ -51,6 +53,16 @@ class CallLogsSync(private val dao: CallLogDao) : SyncEntity {
 
     override suspend fun apply(rows: List<JsonObject>, removed: List<String>) {
         dao.upsert(parse(rows, CallLogEntity::fromRow))
+        removed.chunked(MAX_SQL_ARGS).forEach { dao.deleteByIds(it) }
+    }
+}
+
+/** The numbers the caller pop-up and the call-log import look for. */
+class CrmNumbersSync(private val dao: CrmNumberDao) : SyncEntity {
+    override val name = SyncEntityName.CRM_NUMBERS
+
+    override suspend fun apply(rows: List<JsonObject>, removed: List<String>) {
+        dao.upsert(parse(rows, CrmNumberEntity::fromRow))
         removed.chunked(MAX_SQL_ARGS).forEach { dao.deleteByIds(it) }
     }
 }

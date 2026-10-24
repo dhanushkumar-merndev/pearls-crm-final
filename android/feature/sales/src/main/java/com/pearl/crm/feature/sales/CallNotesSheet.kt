@@ -80,6 +80,8 @@ data class CallNotesInput(
     val next: NextChoice = NextChoice.Close,
     val stage: String? = null,
     val lostReason: LibraryItem? = null,
+    /** Optional, only for a lost lead: the person says why. */
+    val voiceNote: VoiceClip? = null,
 )
 
 enum class NotesField { Outcome, Notes, LostReason }
@@ -123,6 +125,7 @@ fun CallNotesForm(
     var next by rememberSaveable { mutableStateOf(NextChoice.Close) }
     var stage by rememberSaveable { mutableStateOf<String?>(null) }
     var lostReason by remember { mutableStateOf<LibraryItem?>(null) }
+    var voiceNote by remember { mutableStateOf<VoiceClip?>(null) }
     var errors by remember { mutableStateOf<Map<NotesField, Int>>(emptyMap()) }
     val notesFocus = remember { FocusRequester() }
     val scroll = rememberScrollState()
@@ -234,6 +237,7 @@ fun CallNotesForm(
                 modifier = Modifier.bringIntoViewRequester(lostView).testTag("lost-reason"),
             )
             FieldError(errors[NotesField.LostReason], "lost-reason-error")
+            VoiceNoteRecorder(voiceNote) { voiceNote = it }
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -241,7 +245,7 @@ fun CallNotesForm(
                 stringResource(R.string.notes_save),
                 Icons.Outlined.Check,
                 onClick = {
-                    val input = CallNotesInput(outcome, notes, next, stage, lostReason)
+                    val input = CallNotesInput(outcome, notes, next, stage, lostReason, voiceNote.takeIf { stage == LeadStage.LOST })
                     val found = validateCallNotes(input)
                     errors = found
                     if (found.isEmpty()) onSave(input) else showFirst = NotesField.entries.first { it in found }

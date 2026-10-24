@@ -29,7 +29,8 @@
     "leads": "Leads",
     "leadsWithCount": "{label} ({n, plural, one {# lead waiting for an owner} other {# leads waiting for an owner}})",
     "whatsapp": "WhatsApp",
-    "whatsappWithCount": "{label} ({n, plural, one {# conversation with new replies} other {# conversations with new replies}})"
+    "whatsappWithCount": "{label} ({n, plural, one {# conversation with new replies} other {# conversations with new replies}})",
+    "recordings": "Recordings"
   },
   "actions": {
     "newPatient": "New patient",
@@ -460,6 +461,11 @@
     "ownRole": "You can't change your own role.",
     "startAnywhere": "May start the day away from the office",
     "startAnywhereHint": "Skips the office location check at day start.",
+    "recordingUpload": "Call recordings",
+    "recordingUploadHint": "Overrides the clinic setting for this person.",
+    "recordingUploadDefault": "Same as the clinic setting",
+    "recordingUploadSyncOnly": "Upload only when a manager asks",
+    "recordingUploadAllCalls": "Upload every CRM call",
     "reason": "Reason",
     "reasonHint": "Optional. Kept in the change history.",
     "setPassword": "New password for {name}",
@@ -572,7 +578,11 @@
       "description": "Leads and recordings.",
       "round_robin": "Share new leads among sales executives in turn",
       "targets_enabled": "Use monthly sales targets",
-      "reception_can_play_recordings": "Reception may play call recordings"
+      "reception_can_play_recordings": "Reception may play call recordings",
+      "recording_upload_mode": "Call recordings are uploaded",
+      "recording_upload_mode_sync_only": "Only when a manager asks (Request sync)",
+      "recording_upload_mode_all_calls": "Every call with a CRM number",
+      "recording_max_minutes": "Upload only the first … minutes of a long call"
     },
     "notifications": {
       "title": "Daily summary",
@@ -2397,7 +2407,8 @@
     "allSources": "All sources",
     "onlySources": "Only the sources ticked:",
     "sourcesFor": "Sources for {name}",
-    "orderFor": "Order for {name}"
+    "orderFor": "Order for {name}",
+    "recordings": "Call recordings and voice notes"
   },
   "salesDash": {
     "title": "Sales dashboard",
@@ -2778,5 +2789,36 @@
     "call": "Call",
     "register": "Register patient",
     "addLead": "Add as lead"
+  },
+  "recordings": {
+    "title": "Recordings",
+    "description": "Call recordings and voice notes from the sales phones. Recordings still on a phone can be asked for: the phone uploads them at its next sync.",
+    "loading": "Loading…",
+    "empty": "No recordings yet.",
+    "more": "Show more",
+    "kind": {
+      "call": "Call",
+      "voice_note": "Voice note",
+      "visit": "Visit"
+    },
+    "status": {
+      "on_phone": "On the phone",
+      "queued": "Waiting for the phone",
+      "uploading": "Uploading",
+      "synced": "Ready to play",
+      "failed": "Upload failed",
+      "archived": "Archived"
+    },
+    "askedAt": "Asked {at}",
+    "checkMatch": "Check: matched by time only",
+    "trimmed": "Long call: only the first {minutes} minutes were uploaded.",
+    "failedBecause": "Why: {error}",
+    "play": "Play",
+    "player": "Recording player",
+    "requestSync": "Request sync",
+    "requested": "Asked. The phone will upload it at its next sync.",
+    "filterStatus": "Status",
+    "filterKind": "Type",
+    "any": "Any"
   }
 }

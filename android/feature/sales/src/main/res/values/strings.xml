@@ -39,9 +39,7 @@
     <string name="due_at">Call back %1$s</string>
     <string name="overdue_since">Overdue since %1$s</string>
     <string name="saved_offline">Saved. It will be sent when the internet is back.</string>
-    <string name="saved">Saved.</string>
     <string name="back">Back</string>
-    <string name="needs_internet">This needs the internet.</string>
 
     <!-- Leads list -->
     <string name="leads_title">Leads</string>
@@ -88,7 +86,6 @@
     <string name="lead_none">Nothing yet.</string>
     <string name="lead_not_found">This lead is no longer on your phone (it may have moved to someone else).</string>
     <string name="lead_stage_save">Save stage</string>
-    <string name="lead_stage_required">Choose a stage.</string>
 
     <!-- After-call notes sheet -->
     <string name="notes_title">How did the call go?</string>
@@ -107,6 +104,12 @@
     <string name="notes_stage_keep">Keep as it is</string>
     <string name="notes_lost_reason">Why was it lost?</string>
     <string name="notes_lost_reason_required">Choose why the lead was lost.</string>
+    <string name="voice_record">Record why (voice note, optional)</string>
+    <string name="voice_stop">Stop</string>
+    <string name="voice_recording">Recording… %1$d:%2$02d</string>
+    <string name="voice_ready">Voice note %1$d:%2$02d ready</string>
+    <string name="voice_delete">Delete</string>
+    <string name="voice_failed">The microphone couldn\'t be used. Allow it in the phone\'s settings to record.</string>
     <string name="notes_save">Save notes</string>
     <string name="notes_later">Later</string>
 
@@ -142,6 +145,60 @@
     <string name="book_loading">Loading free times…</string>
     <string name="book_today">Today</string>
     <string name="book_tomorrow">Tomorrow</string>
+
+    <!-- Recordings on this phone -->
+    <string name="rec_title">Recordings on this phone</string>
+    <string name="rec_hint">Recordings of calls with CRM numbers. Other calls are never touched. Only the first minutes of a long call are uploaded; the file on the phone stays as it is.</string>
+    <string name="rec_empty">No call recordings found yet. Finish the setup (Settings → Calls and recordings).</string>
+    <string name="rec_sync">Sync</string>
+    <string name="rec_sync_all">Sync all (%1$d)</string>
+    <string name="rec_call">Call</string>
+    <string name="rec_voice_note">Voice note</string>
+    <string name="rec_status_on_phone">On this phone</string>
+    <string name="rec_status_queued">Waiting to upload</string>
+    <string name="rec_status_uploading">Uploading…</string>
+    <string name="rec_status_synced">Uploaded</string>
+    <string name="rec_status_failed">Couldn\'t upload</string>
+    <plurals name="rec_trimmed">
+        <item quantity="one">Long call: the first minute was uploaded.</item>
+        <item quantity="other">Long call: the first %1$d minutes were uploaded.</item>
+    </plurals>
+    <string name="rec_check_match">Matched by time only: a manager will check it.</string>
+
+    <!-- Calls and recordings setup -->
+    <string name="setup_title">Calls and recordings</string>
+    <string name="setup_intro">Do these once on this phone. The app then shows who is calling, asks for notes after CRM calls, and finds the dialer\'s recordings.</string>
+    <string name="setup_fix">Allow</string>
+    <string name="setup_change">Change</string>
+    <string name="setup_done">Done</string>
+    <string name="setup_phone">Phone and call log</string>
+    <string name="setup_phone_why">To know when a CRM lead calls or is called. Calls with other numbers are ignored and never leave the phone.</string>
+    <string name="setup_overlay">Show over other apps</string>
+    <string name="setup_overlay_why">For the caller bubble during a call and the notes sheet right after it. Turn on "Allow display over other apps" for this app.</string>
+    <string name="setup_notify">Notifications</string>
+    <string name="setup_notify_why">For new leads, sync requests from your manager, and notes reminders.</string>
+    <string name="setup_mic">Microphone</string>
+    <string name="setup_mic_why">Only for voice notes you record yourself (for example why a lead was lost).</string>
+    <string name="setup_battery">Keep the app running</string>
+    <string name="setup_battery_samsung">Allow "unrestricted" battery use. Then Settings → Battery → Background usage limits: make sure this app is not in "Sleeping apps" or "Deep sleeping apps".</string>
+    <string name="setup_battery_xiaomi">Allow "no restrictions" battery use. Then Settings → Apps → this app → Autostart: on, and Battery saver: No restrictions.</string>
+    <string name="setup_battery_coloros">Allow unrestricted battery use. Then Settings → Apps → this app → Battery → Allow background activity and Allow auto launch.</string>
+    <string name="setup_battery_vivo">Allow unrestricted battery use. Then i Manager → App manager → Autostart: on for this app, and Battery → High background power use: on.</string>
+    <string name="setup_battery_other">Allow unrestricted battery use, and turn off any "auto-start" or "sleeping apps" limit for this app in the phone\'s settings.</string>
+    <string name="setup_folder">Recordings folder</string>
+    <string name="setup_folder_samsung">Turn on call recording in the Phone app (⋮ → Settings → Record calls → Auto record). Then choose Internal storage → Recordings → Call.</string>
+    <string name="setup_folder_xiaomi">Turn on call recording in the Phone app. Then choose Internal storage → MIUI → sound_recorder → call_rec.</string>
+    <string name="setup_folder_coloros">Turn on call recording in the Phone app. Then choose Internal storage → Music → Recordings → Call Recordings (or Recordings → Call).</string>
+    <string name="setup_folder_vivo">Turn on call recording in the Phone app. Then choose Internal storage → Recordings → Record → Call.</string>
+    <string name="setup_folder_other">Turn on call recording in the Phone app, then choose the folder where it saves recordings. (Phones with the Google Phone app keep recordings inside the dialer; they can\'t be read.)</string>
+    <string name="setup_folder_chosen">Chosen: %1$s</string>
+    <string name="setup_popup">Caller pop-up</string>
+    <string name="setup_popup_why">Show the lead\'s details during CRM calls and ask for notes after.</string>
+    <string name="setup_check">Look for recordings now</string>
+    <plurals name="setup_found_plural">
+        <item quantity="one">%1$d new recording found.</item>
+        <item quantity="other">%1$d new recordings found.</item>
+    </plurals>
 
     <!-- My day -->
     <string name="myday_hello">Hello, %1$s</string>

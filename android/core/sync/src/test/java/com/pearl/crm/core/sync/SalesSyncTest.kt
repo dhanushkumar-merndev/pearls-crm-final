@@ -30,7 +30,10 @@ class SalesSyncTest {
 
     private fun engine() = PullEngine(
         transport = server,
-        entities = listOf(LeadsSync(db.leads()), FollowupsSync(db.followups()), AppointmentsSync(db.appointments()), CallLogsSync(db.callLogs())),
+        entities = listOf(
+            LeadsSync(db.leads()), FollowupsSync(db.followups()), AppointmentsSync(db.appointments()), CallLogsSync(db.callLogs()),
+            CrmNumbersSync(db.crmNumbers()),
+        ),
         markers = db.syncMarkers(),
         inTransaction = db.transactionRunner(),
     )
@@ -95,6 +98,24 @@ class SalesSyncTest {
         engine().pull()
         assertTrue(db.leads().get("L3") != null)
         assertEquals(1, db.leads().observeList(true, emptyList(), null, "", 0, 50).first().size)
+    }
+
+    @Test
+    fun crmNumbersFeedTheCallerLookup() = runTest {
+        respond(
+            """{"entities":{
+              "leads":{"rows":[${leadRow("L1", "Asha", "2027-01-16T05:30:00+00:00")}],"next":"m1"},
+              "crm_numbers":{"rows":[{"id":"L1","lead_id":"L1","phone_last10":"9845012345","alt_phone_last10":"9900011122","updated_at":"x"}],"next":"c1"}}}""",
+        )
+        engine().pull()
+        assertEquals(setOf("9845012345", "9900011122"), db.crmNumbers().allLast10().toSet())
+        val card = db.crmNumbers().card("9900011122")!!
+        assertEquals("Asha", card.name)
+        assertEquals("contacted", card.stage)
+
+        respond("""{"entities":{"crm_numbers":{"rows":[],"removed":["L1"],"next":"c2"}}}""")
+        engine().pull()
+        assertNull(db.crmNumbers().card("9845012345"))
     }
 
     @Test

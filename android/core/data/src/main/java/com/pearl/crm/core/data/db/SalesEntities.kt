@@ -177,6 +177,8 @@ data class CallLogEntity(
     val notes: String?,
     @ColumnInfo(name = "updated_at") val updatedAt: String,
     val pending: Boolean = false,
+    /** The phone's own call log id for this call (imports and notes for the same call meet on it). */
+    @ColumnInfo(name = "device_call_key") val deviceCallKey: String? = null,
 ) {
     companion object {
         fun fromRow(row: JsonObject) = CallLogEntity(
@@ -189,6 +191,7 @@ data class CallLogEntity(
             outcome = row.str("outcome"),
             notes = row.str("notes"),
             updatedAt = row.str("updated_at").orEmpty(),
+            deviceCallKey = row.str("device_call_key"),
         )
     }
 }

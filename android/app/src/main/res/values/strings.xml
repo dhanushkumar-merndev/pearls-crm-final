@@ -52,6 +52,15 @@
     <string name="pin_current_title">Enter your current PIN</string>
     <string name="pin_changed">PIN changed ✓</string>
 
+    <!-- Caller pop-up -->
+    <string name="caller_bubble_description">Caller details from the CRM. Tap to hide.</string>
+    <string name="caller_bubble_from_crm">CRM lead</string>
+    <string name="caller_bubble_lead">Lead</string>
+    <string name="caller_bubble_next">Call back %1$s</string>
+    <string name="caller_bubble_last_note">Last note: %1$s</string>
+    <string name="calls_channel">After-call notes</string>
+    <string name="calls_notes_title">Add notes for your call</string>
+
     <!-- Reception / admin on the phone -->
     <string name="use_web_title">Please use the web app</string>
     <string name="use_web_body">Your work (%1$s) happens in the web app on the clinic computer. This phone app is for sales and field staff.</string>

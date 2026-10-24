@@ -74,6 +74,8 @@ export const editStaffSchema = z.object({
   role: requiredChoice(STAFF_ROLES),
   phone: optionalPhone(),
   bdm_start_anywhere: z.boolean(),
+  /** "" = follow the clinic setting (Settings → Sales). */
+  recording_upload_override: z.enum(["", "sync_only", "all_calls"]),
   reason: optionalText(300),
 });
 

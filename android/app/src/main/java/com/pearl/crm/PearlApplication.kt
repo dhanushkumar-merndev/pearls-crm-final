@@ -4,11 +4,12 @@ import android.app.Application
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
+import com.pearl.crm.core.sync.RecordingsHost
 import com.pearl.crm.core.sync.SyncHost
 import com.pearl.crm.core.sync.SyncRunner
 import com.pearl.crm.push.Push
 
-class PearlApplication : Application(), SyncHost {
+class PearlApplication : Application(), SyncHost, RecordingsHost {
     lateinit var container: AppContainer
         private set
 
@@ -33,6 +34,8 @@ class PearlApplication : Application(), SyncHost {
             },
         )
     }
+
+    override suspend fun runRecordings(): Boolean = container.runRecordings()
 
     /** The session already ended inside the RPC client; the screens follow the session state. */
     override fun onSyncSignedOut() = Unit

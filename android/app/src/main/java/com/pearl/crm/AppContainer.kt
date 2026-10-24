@@ -1,8 +1,21 @@
 package com.pearl.crm
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
+import android.net.Uri
+import androidx.core.content.ContextCompat
 import androidx.room.withTransaction
+import com.pearl.crm.calls.AfterCallRequest
 import com.pearl.crm.core.data.AccountRepository
+import com.pearl.crm.core.data.CallLogImporter
+import com.pearl.crm.core.data.RecordingsRepository
+import com.pearl.crm.core.data.audio.AacTranscoder
+import com.pearl.crm.core.data.audio.VoiceRecorder
+import com.pearl.crm.core.data.device.ContentCallLogSource
+import com.pearl.crm.core.data.device.SafRecordingFolder
+import com.pearl.crm.core.data.net.EdgeClient
+import com.pearl.crm.core.data.net.SignedUploader
 import com.pearl.crm.core.data.LibraryRepository
 import com.pearl.crm.core.data.OutboxWriter
 import com.pearl.crm.core.data.SalesRepository
@@ -22,13 +35,16 @@ import com.pearl.crm.core.data.security.SecurePrefs
 import com.pearl.crm.core.model.LibrarySource
 import com.pearl.crm.core.model.RpcFailure
 import com.pearl.crm.core.model.StaffProfile
+import com.pearl.crm.core.model.StaffRole
 import com.pearl.crm.core.sync.AppointmentsSync
 import com.pearl.crm.core.sync.CallLogsSync
+import com.pearl.crm.core.sync.CrmNumbersSync
 import com.pearl.crm.core.sync.FollowupsSync
 import com.pearl.crm.core.sync.LeadsSync
 import com.pearl.crm.core.sync.LookupValuesSync
 import com.pearl.crm.core.sync.OutboxProcessor
 import com.pearl.crm.core.sync.PullEngine
+import com.pearl.crm.core.sync.RecordingWorker
 import com.pearl.crm.core.sync.SyncRunner
 import com.pearl.crm.core.sync.SyncScheduler
 import com.pearl.crm.push.Push
@@ -46,6 +62,7 @@ import java.io.File
 
 /** Everything the app needs, made once per process (simple manual wiring; no DI framework). */
 class AppContainer(private val context: Context) {
+    val appContext: Context get() = context
     val config = SupabaseConfig(BuildConfig.SUPABASE_URL, BuildConfig.SUPABASE_ANON_KEY)
     val appVersion: String = BuildConfig.VERSION_NAME
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -60,6 +77,16 @@ class AppContainer(private val context: Context) {
     val library: LibrarySource = LibraryRepository(rpc, db.lookupValues())
     val account = AccountRepository(rpc, sessions, outbox)
     val sales = SalesRepository(rpc, db, outbox)
+    private val edge = EdgeClient(config, http, sessions)
+    val callLogSource = ContentCallLogSource(context)
+    private val callLogImporter = CallLogImporter(callLogSource, db, outbox, settings, { sessions.session.value?.staffId })
+    val recordings = RecordingsRepository(
+        rpc, db, outbox, SignedUploader(edge, http), AacTranscoder(context, File(context.cacheDir, "recordings")), settings,
+    )
+    val voiceRecorder = VoiceRecorder(context, File(context.filesDir, "voice-notes"))
+
+    /** A finished CRM call waiting for its notes (set by the caller flow, shown by the home screen). */
+    val pendingAfterCall = MutableStateFlow<AfterCallRequest?>(null)
     val pins = PinController(PinStore(securePrefs))
     val lock = AppLock(settings, pins)
     val scheduler = SyncScheduler(context)
@@ -74,12 +101,16 @@ class AppContainer(private val context: Context) {
                 FollowupsSync(db.followups()),
                 AppointmentsSync(db.appointments()),
                 CallLogsSync(db.callLogs()),
+                CrmNumbersSync(db.crmNumbers()),
             ),
             markers = db.syncMarkers(),
             inTransaction = { block -> db.withTransaction { block() } },
         ),
         isSignedIn = { sessions.session.value != null },
-        afterPull = { sales.tidyAfterPull() },
+        afterPull = {
+            sales.tidyAfterPull()
+            RecordingWorker.schedule(context)
+        },
     )
 
     private val _profile = MutableStateFlow<StaffProfile?>(null)
@@ -100,7 +131,10 @@ class AppContainer(private val context: Context) {
         // The phone keeps one person's data: someone else logging in starts from empty.
         withContext(Dispatchers.IO) {
             val owner = settings.databaseOwner
-            if (owner != null && owner != staffId) db.clearAllTables()
+            if (owner != null && owner != staffId) {
+                db.clearAllTables()
+                settings.callLogImportedUntil = 0
+            }
             settings.databaseOwner = staffId
         }
         crashes.flush(outbox)
@@ -116,9 +150,42 @@ class AppContainer(private val context: Context) {
 
     private fun onSignedOut() {
         scheduler.stopAll()
+        RecordingWorker.cancel(context)
         _profile.value = null
         // A new login always sets a new PIN.
         pins.clear()
+    }
+
+    fun granted(permission: String): Boolean = ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
+
+    /**
+     * Call log import, new recordings, the server's requests, uploads (RecordingWorker).
+     * Returns true when an upload is still waiting for a connection.
+     */
+    suspend fun runRecordings(): Boolean {
+        val role = sessions.session.value?.staffRole ?: return false
+        if (role != StaffRole.SalesExecutive && role != StaffRole.SalesManager) return false
+        if (granted(Manifest.permission.READ_CALL_LOG)) runCatching { callLogImporter.import() }
+        settings.recordingFolder?.let { folder ->
+            runCatching { recordings.scan(SafRecordingFolder(context, Uri.parse(folder))) }
+        }
+        try {
+            recordings.applyServerTasks()
+        } catch (_: RpcFailure.Transient) {
+            return true
+        } catch (_: RpcFailure) {
+            // Signed out or refused: uploads below will say so.
+        }
+        return recordings.uploadQueued().offline
+    }
+
+    /** "Look for recordings now" in the setup screen: import calls, then scan the folder. */
+    suspend fun runRecordingScan(): Int {
+        if (granted(Manifest.permission.READ_CALL_LOG)) runCatching { callLogImporter.import() }
+        val folder = settings.recordingFolder ?: return 0
+        val found = recordings.scan(SafRecordingFolder(context, Uri.parse(folder)))
+        if (found > 0) RecordingWorker.schedule(context)
+        return found
     }
 
     /** "Sign out" in Settings: ends the session and removes this person's data from the phone. */

@@ -41,6 +41,10 @@ export const SETTINGS_SCHEMAS = {
     round_robin: z.boolean().default(true),
     targets_enabled: z.boolean().default(false),
     reception_can_play_recordings: z.boolean().default(false),
+    /** Call recordings: upload every matched call, or only when a manager asks (Request sync). Staff can override. */
+    recording_upload_mode: z.enum(["sync_only", "all_calls"]).default("sync_only"),
+    /** Only the first N minutes of a long call are uploaded (with a note that it was cut). */
+    recording_max_minutes: int(1, 60).default(10),
     /** Meta Lead Ads: form question key → lead field (Admin → Meta leads). Standard questions need no entry. */
     meta_field_map: z
       .record(

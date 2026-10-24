@@ -21,6 +21,9 @@ class OutboxWriter(
     @Volatile
     var onEnqueued: () -> Unit = {}
 
+    /** True while a write with this id is waiting or failed (not yet on the server). */
+    suspend fun isQueued(clientId: String): Boolean = dao.get(clientId) != null
+
     /**
      * [clientId] must be the same id the [args] carry as `p_client_id` (when the RPC takes one).
      * [entityKey] groups writes that must arrive in order, e.g. "lead:<id>".

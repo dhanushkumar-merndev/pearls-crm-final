@@ -22,6 +22,15 @@ describe("settings", () => {
     expect(validateSettings("billing", { ip_number_mode: "whatever" })).toEqual({ ok: false, field: "ip_number_mode" });
   });
 
+  it("sales: recordings upload only when asked, first 10 minutes", () => {
+    const s = readSettings("sales", {});
+    expect(s.recording_upload_mode).toBe("sync_only");
+    expect(s.recording_max_minutes).toBe(10);
+    expect(validateSettings("sales", { recording_upload_mode: "everything" })).toEqual({ ok: false, field: "recording_upload_mode" });
+    expect(validateSettings("sales", { recording_max_minutes: 0 })).toEqual({ ok: false, field: "recording_max_minutes" });
+    expect(validateSettings("sales", { recording_upload_mode: "all_calls", recording_max_minutes: 60 }).ok).toBe(true);
+  });
+
   it("whatsapp: off until switched on, quiet hours 21:00–09:00 IST", () => {
     const w = readSettings("whatsapp", {});
     expect(w.enabled).toBe(false);

@@ -37,7 +37,8 @@ Read `CLAUDE.md` and `dev-docs/PLAN.md` first (PLAN.md section G lists every dec
 | **9 Leads + Meta Lead Ads** | **DONE + deployed (session 6)**. Was: part 1 committed `be4b3e9`: migration `20261101100000_phase9_leads.sql` (NOT deployed yet), `13_leads` (78 tests; all 13 DB files = 533 pass with it pending), `meta-leads` Edge Function (11 Deno tests, not deployed), lead CSV mapping (`mapLeadColumns/mapLeadRow`), web components in `web/components/leads/` (written, not wired into pages) |
 | **11 Android: foundation + sales** | **DONE + deployed (session 7)**: module `:feature:sales` (Leads with swipe Call/WhatsApp + new lead, lead detail, after-call notes sheet, Follow-ups, Calls, booking with free slots, My day with Vico chart + needs-confirmation), `SalesRepository` (offline-first via the outbox), Room v2 + migration test, sales sync entities, push (migration `20261105100000_phase11_push.sql`, function `push-send`, `17_push` 10 tests). Android `./gradlew test assembleDebug lintDebug`: 93 tests pass. CI job `android`. Voice note for lost leads moved to Phase 12 |
 | **10 WhatsApp + drips** | **DONE + deployed (session 6)**: migration `20261103100000_phase10_whatsapp.sql`, functions `wa-webhook` / `wa-dispatch` / `wa-templates-sync`, Vault secrets + `EDGE_CRON_SECRET` via `pnpm supabase:configure`, pages Admin → WhatsApp / Drip campaigns, patient WhatsApp tab, lead WhatsApp card, `15_whatsapp` (31), e2e `whatsapp.db.spec.ts` (5). Owner setup: `dev-docs/SETUP_WHATSAPP.md` |
-| 12–15 | not started |
+| **12 Caller pop-up + recordings** | **DONE + deployed (session 7)**: migration `20261106100000_phase12_recordings.sql` (recordings table, upload mode, Request sync), `18_recordings` (24), web Recordings page + lead card + settings + per-person override, e2e `recordings.db.spec.ts` (2). Android: caller bubble + after-call sheet, call-log import, recordings folder + matcher + compressor + upload worker, setup checklist, lost-lead voice note; Room v3. Owner field checklist in `dev-docs/TRY_ANDROID.md` step 8 |
+| 13–15 | not started |
 
 ## Session 6 (owner: "all phases, tested, production ready; validation missing; import has no template")
 - DONE `cd14e32` validation on every form (shared rules `packages/shared/src/validation.ts`, hook `web/lib/use-zod-form.ts`, schemas `web/lib/schemas/*`, `packages/shared/src/{patient,lead}.ts`). New forms MUST use `useZodForm(schema)` + `Field error={checks.error(path)}`.
@@ -51,7 +52,9 @@ Read `CLAUDE.md` and `dev-docs/PLAN.md` first (PLAN.md section G lists every dec
 - DONE Phase 11 (see the table). A helper session wrote the stage-1 Android tests + CI job (merged `b3cb04e`). Outbox fix: the next-retry time now ignores writes waiting behind an earlier one (was waking every 30 s).
 - Android build notes: Vico must stay on 3.1.x until AGP supports compileSdk 37. Unit tests run on Robolectric; Compose UI tests live next to each feature (`feature/sales/src/test`).
 - Totals now: DB 600 (17 files), shared 206, web 63, Deno 90, Android 93.
-- NEXT: 12 (caller pop-up, call-log import, recordings, lost voice note), 13 (BDM), 14 (dashboards, notifications, backup/purge incl. `job_runs`, Excel), 15.
+- DONE Phase 12 (see the table). The audio compressor (MediaCodec) can't run in JVM tests: its maths (mono, resample, size plan) is unit-tested; the real codec is on the field checklist.
+- Totals now: DB 624 (18 files), shared 207, web 63, Deno 92, Android 134, e2e recordings 2.
+- NEXT: 13 (BDM), 14 (dashboards, notifications, backup/purge incl. `job_runs`, Excel), 15.
 
 ## Login-form validation (from another Claude session) — now committed
 `loginSchema` (zod) in `packages/shared/src/auth.ts`, `login-form.tsx` (field errors, focus first bad field, "forgot password" link removed), `login.spec.ts` + screenshots, login keys in `en.json`. Committed as its own commit but not re-verified after the hand-off: run `pnpm test` and the login e2e once.

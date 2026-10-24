@@ -47,3 +47,54 @@ The app file is `android/app/build/outputs/apk/debug/app-debug.apk`.
 ## If something goes wrong
 - "Some changes couldn't be saved": open **Settings** — each refused change shows why, with **Try again** and **Discard**.
 - The app says it isn't set up: the build didn't find the root `.env`. Build again from the project folder.
+
+---
+
+# Phase 12: caller pop-up and call recordings
+
+Rebuild and reinstall the app (steps 2–3 above). Then on the phone:
+
+## 6. One-time setup (about 5 minutes)
+1. Open the app → **Settings** → **Set up calls and recordings**.
+2. Tap **Allow** on each step until it shows **Done**:
+   - **Phone and call log** — Android asks twice; choose Allow.
+   - **Show over other apps** — a settings page opens; switch it on for "Clinic CRM", then press Back.
+   - **Notifications**, **Microphone** — Allow.
+   - **Keep the app running** — choose Allow, then follow the extra steps written for your phone's brand.
+   - **Recordings folder** — first switch on automatic call recording in the phone's own dialer (the step says where), make one test call, then tap **Allow** and pick the folder shown in the step.
+3. Leave **Caller pop-up** on.
+
+## 7. Things to try
+| Try this | What should happen |
+|---|---|
+| Call a lead's number from another phone | While it rings, a dark card at the top shows the lead's name, stage and last note. Tap it to hide it |
+| Answer, talk a little, hang up | The app opens "How did the call go?" for that lead, with the real call length |
+| Call a number that isn't a lead | Nothing happens. That call never leaves the phone |
+| Mark a lead **Lost** in the notes sheet | "Record why (voice note, optional)" appears. Record a few words, then Stop, then Save |
+| Wait a minute, then **Settings → Recordings on this phone** | The call's recording is listed as "On this phone" (or "Uploaded" if the admin chose "every call") |
+| On the web (as manager): menu → **Recordings** → **Request sync** on that recording | The phone gets a notification. Within a few minutes the recording shows "Uploaded", and **Play** works on the web |
+| Make a call longer than 10 minutes and request it | The web shows "Long call: only the first 10 minutes were uploaded." The file on the phone is untouched |
+| Web: **Admin → Settings → Sales** | "Call recordings are uploaded": only when asked / every CRM call; and how many minutes |
+| Web: **Admin → Users → Edit** on a sales person | "Call recordings": override the clinic setting for that person |
+| Restart the phone, then call a lead | The pop-up still works without opening the app first |
+
+## 8. Field checklist (do this once on every phone model you buy)
+Tick each box on each model. If something fails, note the model and Android version and tell me.
+
+| Check | Model 1: ______ | Model 2: ______ | Model 3: ______ |
+|---|---|---|---|
+| Pop-up shows for an incoming CRM call (screen on) | ☐ | ☐ | ☐ |
+| Pop-up shows for an incoming CRM call (phone locked) | ☐ | ☐ | ☐ |
+| Pop-up shows for an outgoing CRM call | ☐ | ☐ | ☐ |
+| Notes sheet opens after hanging up, with the right length | ☐ | ☐ | ☐ |
+| A missed CRM call appears in the lead's calls on the web | ☐ | ☐ | ☐ |
+| A personal (non-CRM) call does NOT appear anywhere | ☐ | ☐ | ☐ |
+| The dialer's recording is found ("Recordings on this phone") | ☐ | ☐ | ☐ |
+| Matched to the right lead (check the name) | ☐ | ☐ | ☐ |
+| Request sync → uploaded within 15 minutes on Wi-Fi | ☐ | ☐ | ☐ |
+| Uploaded audio plays clearly on the web | ☐ | ☐ | ☐ |
+| Original file still plays in the phone's own app afterwards | ☐ | ☐ | ☐ |
+| Works after a restart (no need to open the app) | ☐ | ☐ | ☐ |
+| Works the next morning (phone idle overnight) | ☐ | ☐ | ☐ |
+
+Phones that use the **Google Phone app** (Pixel, Motorola, many newer Xiaomi/OnePlus/Oppo/Realme) keep recordings inside the dialer where no app can read them. The pop-up and notes still work there; use the voice note for important calls.

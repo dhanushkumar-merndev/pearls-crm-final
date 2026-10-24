@@ -23,7 +23,7 @@ class AppDatabaseMigrationTest {
     val helper = MigrationTestHelper(InstrumentationRegistry.getInstrumentation(), AppDatabase::class.java)
 
     @Test
-    fun version1To2AddsTheSalesTablesAndKeepsQueuedWrites() = runTest {
+    fun upgradesFromVersion1ToTheLatestKeepingQueuedWrites() = runTest {
         helper.createDatabase(DB, 1).apply {
             execSQL(
                 "INSERT INTO outbox (id, seq, rpc, args, entity_key, kind, created_at, attempts, next_attempt_at, last_error, state) " +
@@ -32,7 +32,7 @@ class AppDatabaseMigrationTest {
             close()
         }
         // Validates the tables against the schema file …
-        helper.runMigrationsAndValidate(DB, 2, true, *AppDatabase.MIGRATIONS).apply {
+        helper.runMigrationsAndValidate(DB, 3, true, *AppDatabase.MIGRATIONS).apply {
             execSQL(
                 "INSERT INTO leads (id, name, phone_e164, phone_last10, stage, last_activity_at, updated_at, local_only, pending) " +
                     "VALUES ('l1', 'Test Lead', '+919800000001', '9800000001', 'new', 0, '', 0, 0)",
@@ -48,12 +48,33 @@ class AppDatabaseMigrationTest {
         try {
             assertEquals("lead_note_add", db.outbox().get("w1")?.rpc)
             assertEquals("Test Lead", db.leads().get("l1")?.name)
+            assertEquals(emptyList<String>(), db.crmNumbers().allLast10())
         } finally {
             db.close()
         }
     }
 
+    @Test
+    fun version2To3KeepsCallsAndAddsTheirDeviceKey() = runTest {
+        helper.createDatabase(DB2, 2).apply {
+            execSQL(
+                "INSERT INTO call_logs (id, lead_id, phone_e164, direction, started_at, duration_s, outcome, notes, updated_at, pending) " +
+                    "VALUES ('c1', 'l1', '+919800000001', 'outgoing', 1000, 60, 'connected', 'kept', 'x', 1)",
+            )
+            close()
+        }
+        helper.runMigrationsAndValidate(DB2, 3, true, *AppDatabase.MIGRATIONS).apply {
+            query("SELECT notes, device_call_key FROM call_logs WHERE id = 'c1'").use { c ->
+                c.moveToFirst()
+                assertEquals("kept", c.getString(0))
+                assertEquals(true, c.isNull(1))
+            }
+            close()
+        }
+    }
+
     private companion object {
+        const val DB2 = "migration-test-2.db"
         const val DB = "migration-test.db"
     }
 }

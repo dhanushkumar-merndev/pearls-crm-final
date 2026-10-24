@@ -16,6 +16,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.GraphicEq
+import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material.icons.outlined.Pin
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Sync
@@ -74,6 +76,9 @@ fun SettingsScreen(
     onDiscard: (String) -> Unit,
     onSignOut: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Sales roles only: calls and recordings setup, and the phone's recordings. */
+    onCallSetup: (() -> Unit)? = null,
+    onRecordings: (() -> Unit)? = null,
 ) {
     var confirmSignOut by rememberSaveable { mutableStateOf(false) }
     var discarding by rememberSaveable { mutableStateOf<String?>(null) }
@@ -140,6 +145,13 @@ fun SettingsScreen(
                 ThemeOption(stringResource(R.string.settings_theme_dark), state.theme == ThemeMode.Dark) { onThemeChange(ThemeMode.Dark) }
                 ThemeOption(stringResource(R.string.settings_theme_light), state.theme == ThemeMode.Light) { onThemeChange(ThemeMode.Light) }
                 ThemeOption(stringResource(R.string.settings_theme_system), state.theme == ThemeMode.System) { onThemeChange(ThemeMode.System) }
+            }
+        }
+
+        if (onCallSetup != null || onRecordings != null) {
+            Section(stringResource(R.string.settings_calls)) {
+                onCallSetup?.let { PearlButton(stringResource(R.string.settings_call_setup), Icons.Outlined.Phone, it, kind = ButtonKind.Secondary) }
+                onRecordings?.let { PearlButton(stringResource(R.string.settings_recordings), Icons.Outlined.GraphicEq, it, kind = ButtonKind.Secondary) }
             }
         }
 

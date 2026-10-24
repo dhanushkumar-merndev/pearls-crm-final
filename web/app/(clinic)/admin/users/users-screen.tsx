@@ -28,6 +28,7 @@ interface StaffRow {
   phone_e164: string | null;
   active: boolean;
   bdm_start_anywhere: boolean;
+  recording_upload_override: "sync_only" | "all_calls" | null;
 }
 
 type Dialogs = { kind: "create" } | { kind: "edit" | "password" | "deactivate"; row: StaffRow } | null;
@@ -50,7 +51,7 @@ export function UsersScreen({ myId }: { myId: string }) {
     queryFn: async () => {
       let query = getSupabaseBrowser()
         .from("staff")
-        .select("id, full_name, role, username, email, phone_e164, active, bdm_start_anywhere", { count: "exact" });
+        .select("id, full_name, role, username, email, phone_e164, active, bdm_start_anywhere, recording_upload_override", { count: "exact" });
       if (search) query = query.ilike("full_name", `%${search.replace(/[%_\\]/g, (x) => `\\${x}`)}%`);
       const { data, error, count } = await query.order("active", { ascending: false }).order("full_name").range(offset, offset + LIMIT - 1);
       return { rows: unwrap({ data, error }) as StaffRow[], total: count ?? 0 };
@@ -236,6 +237,7 @@ function EditDialog({ row, isMe, onDone }: { row: StaffRow; isMe: boolean; onDon
     role: row.role,
     phone: row.phone_e164 ?? "",
     bdm_start_anywhere: row.bdm_start_anywhere,
+    recording_upload_override: (row.recording_upload_override ?? "") as "" | "sync_only" | "all_calls",
     reason: "",
   });
   const checks = useZodForm(editStaffSchema);
@@ -244,7 +246,14 @@ function EditDialog({ row, isMe, onDone }: { row: StaffRow; isMe: boolean; onDon
     checks.clear(key);
   };
   const update = useMutation({
-    mutationFn: (d: { full_name: string; role: StaffRole; phone: string | null; bdm_start_anywhere: boolean; reason: string | null }) =>
+    mutationFn: (d: {
+      full_name: string;
+      role: StaffRole;
+      phone: string | null;
+      bdm_start_anywhere: boolean;
+      recording_upload_override: "" | "sync_only" | "all_calls";
+      reason: string | null;
+    }) =>
       callFunction("admin-users", {
         action: "update",
         staff_id: row.id,
@@ -253,6 +262,7 @@ function EditDialog({ row, isMe, onDone }: { row: StaffRow; isMe: boolean; onDon
           ...(isMe ? {} : { role: d.role }),
           phone_e164: d.phone,
           bdm_start_anywhere: d.bdm_start_anywhere,
+          recording_upload_override: d.recording_upload_override || null,
         },
         reason: d.reason ?? undefined,
       }),
@@ -294,6 +304,21 @@ function EditDialog({ row, isMe, onDone }: { row: StaffRow; isMe: boolean; onDon
             checked={form.bdm_start_anywhere}
             onChange={(e) => set("bdm_start_anywhere", e.target.checked)}
           />
+        )}
+        {(form.role === "sales_executive" || form.role === "sales_manager") && (
+          <Field label={t("recordingUpload")} hint={t("recordingUploadHint")} error={checks.error("recording_upload_override")}>
+            {(a) => (
+              <Select
+                {...a}
+                value={form.recording_upload_override}
+                onChange={(e) => set("recording_upload_override", e.target.value as "" | "sync_only" | "all_calls")}
+              >
+                <option value="">{t("recordingUploadDefault")}</option>
+                <option value="sync_only">{t("recordingUploadSyncOnly")}</option>
+                <option value="all_calls">{t("recordingUploadAllCalls")}</option>
+              </Select>
+            )}
+          </Field>
         )}
         <Field label={t("reason")} hint={t("reasonHint")} error={checks.error("reason")}>
           {(a) => <Input {...a} maxLength={300} value={form.reason} onChange={(e) => set("reason", e.target.value)} />}

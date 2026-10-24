@@ -43,7 +43,16 @@ const SECTIONS: { section: SettingsSection; fields: Record<string, FieldKind> }[
   },
   { section: "pharmacy", fields: { near_expiry_days: "int_list", negative_stock: { options: ["block", "warn"] }, prices_include_gst: "bool" } },
   { section: "security", fields: { idle_logout_minutes: "int" } },
-  { section: "sales", fields: { round_robin: "bool", targets_enabled: "bool", reception_can_play_recordings: "bool" } },
+  {
+    section: "sales",
+    fields: {
+      round_robin: "bool",
+      targets_enabled: "bool",
+      reception_can_play_recordings: "bool",
+      recording_upload_mode: { options: ["sync_only", "all_calls"] },
+      recording_max_minutes: "int",
+    },
+  },
   { section: "notifications", fields: { daily_summary_enabled: "bool", daily_summary_time: "time" } },
 ];
 

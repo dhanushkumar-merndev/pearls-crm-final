@@ -238,8 +238,13 @@ fun AfterCallNotes(
     leadName: String,
     onDone: (saved: Boolean) -> Unit,
     awayMs: Long = 0,
+    /** From the phone's call log when the caller flow knows the call (real length, its key). */
+    durationS: Int? = null,
+    direction: String = com.pearl.crm.core.model.CallDirection.OUTGOING,
+    deviceCallKey: String? = null,
 ) {
     val scope = rememberCoroutineScope()
+    val voice = LocalVoiceNotes.current
     var busy by remember { mutableStateOf(false) }
     CallNotesSheet(
         leadName = leadName,
@@ -256,12 +261,16 @@ fun AfterCallNotes(
                         outcome = input.outcome!!,
                         notes = input.notes,
                         next = input.next.toStep(istToday()),
+                        direction = direction,
                         startedAt = call.startedAt,
-                        durationS = (awayMs / 1000).toInt().coerceIn(0, 4 * 3600),
+                        durationS = (durationS ?: (awayMs / 1000).toInt()).coerceIn(0, 4 * 3600),
                         stage = input.stage,
                         lostReasonId = input.lostReason?.id,
+                        deviceCallKey = deviceCallKey,
                     ),
                 )
+                val clip = input.voiceNote
+                if (clip != null && voice != null) voice.recordings.addVoiceNote(call.leadId, clip.file, clip.seconds, lostNote = true)
                 busy = false
                 onDone(true)
             }

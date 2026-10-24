@@ -17,8 +17,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
     entities = [
         LookupValueEntity::class, OutboxItem::class, SyncMarker::class,
         LeadEntity::class, FollowupEntity::class, AppointmentEntity::class, CallLogEntity::class,
+        CrmNumberEntity::class, RecordingEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -29,6 +30,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun followups(): FollowupDao
     abstract fun appointments(): AppointmentDao
     abstract fun callLogs(): CallLogDao
+    abstract fun crmNumbers(): CrmNumberDao
+    abstract fun recordings(): RecordingDao
 
     companion object {
         const val NAME = "pearl.db"
@@ -52,7 +55,21 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2)
+        /** 2 → 3 (Phase 12): CRM numbers, recordings, and the phone's own key on call notes. SQL from schemas/…/3.json. */
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `call_logs` ADD COLUMN `device_call_key` TEXT")
+                db.execSQL("CREATE TABLE IF NOT EXISTS `crm_numbers` (`id` TEXT NOT NULL, `lead_id` TEXT NOT NULL, `phone_last10` TEXT NOT NULL, `alt_phone_last10` TEXT, `patient_id` TEXT, `updated_at` TEXT NOT NULL, PRIMARY KEY(`id`))")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_crm_numbers_phone_last10` ON `crm_numbers` (`phone_last10`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_crm_numbers_alt_phone_last10` ON `crm_numbers` (`alt_phone_last10`)")
+                db.execSQL("CREATE TABLE IF NOT EXISTS `recordings` (`id` TEXT NOT NULL, `kind` TEXT NOT NULL, `uri` TEXT NOT NULL, `file_name` TEXT NOT NULL, `size_bytes` INTEGER NOT NULL, `recorded_at` INTEGER NOT NULL, `duration_s` INTEGER NOT NULL, `call_log_id` TEXT, `lead_id` TEXT, `confidence` REAL, `needs_review` INTEGER NOT NULL, `status` TEXT NOT NULL, `file_id` TEXT, `uploaded_s` INTEGER, `trimmed` INTEGER NOT NULL, `error` TEXT, `attempts` INTEGER NOT NULL, `lost_note` INTEGER NOT NULL, `created_at` INTEGER NOT NULL, PRIMARY KEY(`id`))")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_recordings_status` ON `recordings` (`status`)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_recordings_uri` ON `recordings` (`uri`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_recordings_lead_id` ON `recordings` (`lead_id`)")
+            }
+        }
+
+        val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3)
 
         fun build(context: Context, name: String = NAME): AppDatabase =
             Room.databaseBuilder(context.applicationContext, AppDatabase::class.java, name)
