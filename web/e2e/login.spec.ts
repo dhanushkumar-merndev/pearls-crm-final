@@ -67,6 +67,34 @@ test("buttons and inputs are big enough to tap (≥ 44 px)", async ({ page }) =>
   }
 });
 
+test("an empty or impossible login is stopped before anything is sent", async ({ page }) => {
+  let signInCalls = 0;
+  await page.route("**/auth/v1/token**", (route) => {
+    signInCalls++;
+    return route.abort();
+  });
+  await page.goto("/login");
+  const username = page.getByLabel("Username");
+  await page.getByRole("button", { name: "Log in" }).click();
+  await expect(page.locator("#username-error")).toHaveText("Please enter your username.");
+  await expect(page.locator("#password-error")).toHaveText("Please enter your password.");
+  await expect(username).toBeFocused();
+  await expect(username).toHaveAttribute("aria-invalid", "true");
+
+  await username.fill("rekha@example.com");
+  await expect(page.locator("#username-error")).toBeHidden(); // typing clears it
+  await page.getByLabel("Password", { exact: true }).fill("Pearl@2026");
+  await page.getByRole("button", { name: "Log in" }).click();
+  await expect(page.locator("#username-error")).toContainText("no spaces or @");
+  await expect(page.locator("#password-error")).toBeHidden();
+  expect(signInCalls).toBe(0);
+});
+
+test("there is no forgot-password link (the admin resets passwords)", async ({ page }) => {
+  await page.goto("/login");
+  await expect(page.getByRole("link", { name: /forgot/i })).toHaveCount(0);
+});
+
 test("without a server, the person is told the connection is the problem", async ({ page }) => {
   test.skip(Boolean(process.env.E2E_DB), "a backend is running");
   await page.goto("/login");

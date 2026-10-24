@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 /**
  * Every staff member logs in with a USERNAME and password (owner's rule, 24/10/2026):
  * no email logins, no email codes, no email reset links. Admins create accounts and
@@ -17,6 +19,24 @@ export function normalizeUsername(input: string): string {
 export function isValidUsername(input: string): boolean {
   return USERNAME_PATTERN.test(normalizeUsername(input));
 }
+
+/**
+ * The login form is checked before anything is sent: an empty field or a username no
+ * account could have never reaches Supabase. Messages are keys under `login` in
+ * messages/en.json. The password is not trimmed and not held to the "new password"
+ * rules here — any non-empty value is passed on as typed.
+ */
+export const loginSchema = z.object({
+  username: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .min(1, { error: "usernameRequired", abort: true })
+    .regex(USERNAME_PATTERN, { error: "usernameInvalid" }),
+  password: z.string().min(1, { error: "passwordRequired" }),
+});
+
+export type LoginInput = z.infer<typeof loginSchema>;
 
 /** The hidden Supabase Auth address for a username. */
 export function toLoginEmail(username: string): string {

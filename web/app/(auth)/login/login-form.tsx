@@ -1,14 +1,16 @@
 "use client";
 
 import { Eye, EyeOff, Info, LoaderCircle, LogIn } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState, type FormEvent } from "react";
-import { toLoginEmail } from "@pearl/shared";
+import { loginSchema, toLoginEmail, type LoginInput } from "@pearl/shared";
 import { Button } from "@/components/ui/button";
 import { FieldError, Input, Label } from "@/components/ui/input";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
+
+type LoginField = keyof LoginInput;
+const FIELDS: readonly LoginField[] = ["username", "password"];
 
 export function LoginForm({ next, notice, signOutFirst }: { next: string; notice: string | null; signOutFirst: boolean }) {
   const t = useTranslations("login");
@@ -16,6 +18,7 @@ export function LoginForm({ next, notice, signOutFirst }: { next: string; notice
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<LoginField, string>>>({});
 
   useEffect(() => {
     if (signOutFirst) void getSupabaseBrowser().auth.signOut();
@@ -24,13 +27,32 @@ export function LoginForm({ next, notice, signOutFirst }: { next: string; notice
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (busy) return;
-    const form = new FormData(event.currentTarget);
+    const formEl = event.currentTarget;
+    const form = new FormData(formEl);
+    // Checked here first: an empty or impossible login never reaches the server.
+    const parsed = loginSchema.safeParse({
+      username: String(form.get("username") ?? ""),
+      password: String(form.get("password") ?? ""),
+    });
+    if (!parsed.success) {
+      const found: Partial<Record<LoginField, string>> = {};
+      for (const issue of parsed.error.issues) {
+        const field = issue.path[0] as LoginField;
+        found[field] ??= t(issue.message);
+      }
+      setFieldErrors(found);
+      setError(null);
+      const first = FIELDS.find((f) => found[f]);
+      if (first) (formEl.elements.namedItem(first) as HTMLInputElement | null)?.focus();
+      return;
+    }
+    setFieldErrors({});
     setBusy(true);
     setError(null);
     try {
       const { error: authError } = await getSupabaseBrowser().auth.signInWithPassword({
-        email: toLoginEmail(String(form.get("username") ?? "")),
-        password: String(form.get("password") ?? ""),
+        email: toLoginEmail(parsed.data.username),
+        password: parsed.data.password,
       });
       if (authError) {
         const status = authError.status ?? 0;
@@ -45,6 +67,16 @@ export function LoginForm({ next, notice, signOutFirst }: { next: string; notice
       setError(t("offline"));
       setBusy(false);
     }
+  }
+
+  /** Typing in a field clears its own message. */
+  function clearFieldError(field: LoginField) {
+    if (fieldErrors[field]) setFieldErrors((prev) => ({ ...prev, [field]: undefined }));
+  }
+
+  function a11y(field: LoginField) {
+    const describedBy = [fieldErrors[field] && `${field}-error`, error && "login-error"].filter(Boolean).join(" ");
+    return { "aria-invalid": Boolean(fieldErrors[field] || error), "aria-describedby": describedBy || undefined };
   }
 
   return (
@@ -70,9 +102,10 @@ export function LoginForm({ next, notice, signOutFirst }: { next: string; notice
           autoCapitalize="none"
           spellCheck={false}
           required
-          aria-invalid={Boolean(error)}
-          aria-describedby={error ? "login-error" : undefined}
+          onChange={() => clearFieldError("username")}
+          {...a11y("username")}
         />
+        <FieldError id="username-error">{fieldErrors.username}</FieldError>
       </div>
 
       <div className="flex flex-col gap-2">
@@ -85,8 +118,8 @@ export function LoginForm({ next, notice, signOutFirst }: { next: string; notice
             autoComplete="current-password"
             required
             className="pr-14"
-            aria-invalid={Boolean(error)}
-            aria-describedby={error ? "login-error" : undefined}
+            onChange={() => clearFieldError("password")}
+            {...a11y("password")}
           />
           <Button
             variant="ghost"
@@ -99,6 +132,7 @@ export function LoginForm({ next, notice, signOutFirst }: { next: string; notice
             {showPassword ? <EyeOff aria-hidden /> : <Eye aria-hidden />}
           </Button>
         </div>
+        <FieldError id="password-error">{fieldErrors.password}</FieldError>
       </div>
 
       <FieldError id="login-error">{error}</FieldError>
@@ -107,10 +141,6 @@ export function LoginForm({ next, notice, signOutFirst }: { next: string; notice
         {busy ? <LoaderCircle aria-hidden className="animate-spin" /> : <LogIn aria-hidden />}
         {busy ? t("submitting") : t("submit")}
       </Button>
-
-      <Link href="/forgot-password" className="self-center text-link underline-offset-4 hover:underline">
-        {t("forgot")}
-      </Link>
     </form>
   );
 }

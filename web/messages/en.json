@@ -64,14 +64,16 @@
     "hidePassword": "Hide password",
     "submit": "Log in",
     "submitting": "Logging in…",
-    "forgot": "Forgot password?",
     "wrong": "That username or password is not right. Please try again.",
     "tooMany": "Too many tries. Please wait a few minutes and try again.",
     "offline": "Can't reach the server. Check the internet connection.",
     "reasonIdle": "You were logged out because the screen was left idle.",
     "reasonNoAccess": "Your account is not active. Please contact the admin.",
     "reasonPasswordChanged": "Password changed. Please log in with your new password.",
-    "username": "Username"
+    "username": "Username",
+    "usernameRequired": "Please enter your username.",
+    "usernameInvalid": "Usernames are 3 to 32 letters or numbers (dots, dashes and underscores are fine), with no spaces or @.",
+    "passwordRequired": "Please enter your password."
   },
   "forgot": {
     "title": "Forgot your password?",
