@@ -43,8 +43,26 @@ const shown = (v: unknown) =>
   v === null || v === undefined || v === "" || (Array.isArray(v) && v.length === 0) ? "—" : Array.isArray(v) ? v.join(", ") : String(v);
 const same = (a: unknown, b: unknown) => shown(a).toLowerCase() === shown(b).toLowerCase();
 
-export function RegisterScreen({ requestId }: { requestId: string | null }) {
+interface LeadForRegistration {
+  id: string;
+  sl_no: number;
+  full_name: string;
+  phone_e164: string | null;
+  alt_phone_e164: string | null;
+  email: string | null;
+  referred_by_text: string | null;
+  patient_id: string | null;
+}
+
+export function RegisterScreen({ requestId, leadId = null }: { requestId: string | null; leadId?: string | null }) {
   const t = useTranslations("common");
+  const r = useTranslations("register");
+  // Registering a lead who came in (sales booked them): start from what sales typed.
+  const lead = useQuery({
+    queryKey: ["lead_for_registration", leadId],
+    enabled: Boolean(leadId),
+    queryFn: () => rpc<LeadForRegistration | null>("lead_for_registration", { p_lead_id: leadId }),
+  });
   // Reviewing a QR self-registration: load what the patient typed, then start the form from it.
   const request = useQuery({
     queryKey: ["registration_request", requestId],
@@ -56,16 +74,47 @@ export function RegisterScreen({ requestId }: { requestId: string | null }) {
       },
   });
   if (requestId && !request.data) return <p>{request.isError ? t("loadFailed") : t("loading")}</p>;
+  if (leadId && lead.isPending) return <p>{t("loading")}</p>;
+  if (leadId && lead.data?.patient_id) {
+    return (
+      <Card className="flex flex-col items-start gap-3">
+        <p>{r("leadAlreadyRegistered", { n: lead.data.sl_no })}</p>
+        <Button asChild>
+          <a href={`/patients/${lead.data.patient_id}`}>{r("openPatientFile")}</a>
+        </Button>
+      </Card>
+    );
+  }
+  const fromLead = lead.data
+    ? draftFrom({
+        full_name: lead.data.full_name,
+        phone_e164: lead.data.phone_e164,
+        alt_phone_e164: lead.data.alt_phone_e164,
+        email: lead.data.email,
+        referred_by_text: lead.data.referred_by_text,
+      })
+    : null;
   return (
     <RegisterForm
       requestId={requestId}
       requestStatus={request.data?.status ?? null}
-      initial={request.data ? draftFrom(request.data.payload) : emptyDraft()}
+      lead={lead.data ? { id: lead.data.id, sl_no: lead.data.sl_no } : null}
+      initial={request.data ? draftFrom(request.data.payload) : (fromLead ?? emptyDraft())}
     />
   );
 }
 
-function RegisterForm({ requestId, requestStatus, initial }: { requestId: string | null; requestStatus: string | null; initial: PatientDraft }) {
+function RegisterForm({
+  requestId,
+  requestStatus,
+  lead,
+  initial,
+}: {
+  requestId: string | null;
+  requestStatus: string | null;
+  lead: { id: string; sl_no: number } | null;
+  initial: PatientDraft;
+}) {
   const t = useTranslations("register");
   const router = useRouter();
   const { failed } = useFeedback();
@@ -86,7 +135,15 @@ function RegisterForm({ requestId, requestStatus, initial }: { requestId: string
         p_client_id: args.decision === "update" ? null : clientId,
       });
     },
-    onSuccess: (res, args) => {
+    onSuccess: async (res, args) => {
+      if (lead) {
+        // The lead's booking, calls and tasks move to the patient file.
+        try {
+          await rpc("link_lead_to_patient", { p_lead_id: lead.id, p_patient_id: res.patient_id });
+        } catch (e) {
+          failed(e);
+        }
+      }
       toast.success(args.decision === "update" ? t("updated", { uhid: res.uhid }) : t("registered", { uhid: res.uhid }));
       router.push(`/patients/${res.patient_id}`);
     },
@@ -127,6 +184,11 @@ function RegisterForm({ requestId, requestStatus, initial }: { requestId: string
           </Button>
         }
       />
+      {lead && (
+        <Card className="mb-3" role="status">
+          {t("fromLead", { n: lead.sl_no })}
+        </Card>
+      )}
       {requestStatus && requestStatus !== "pending" && (
         <Card className="mb-3 text-text-secondary" role="status">
           {t("alreadyHandled")}

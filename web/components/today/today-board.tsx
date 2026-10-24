@@ -138,7 +138,11 @@ export function TodayBoard() {
             {board.data?.waiting.map((a) => (
               <li key={a.id} className="flex flex-wrap items-center gap-2 rounded-xl border border-border p-2">
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate font-medium">{a.queue_no ? `#${a.queue_no} ` : ""}{a.patient}</span>
+                  <span className="block truncate font-medium">
+                    {a.queue_no ? `#${a.queue_no} ` : ""}
+                    {a.patient}
+                    {a.lead_only && <LeadTag />}
+                  </span>
                   <span className="block text-[0.9rem] text-text-secondary">{[a.doctor, a.uhid].filter(Boolean).join(" · ")}</span>
                 </span>
                 <ApptStatusBadge status={a.status} />
@@ -155,7 +159,10 @@ export function TodayBoard() {
               <li key={a.id} className="flex flex-wrap items-center gap-2 rounded-xl border border-border p-2">
                 <span className="w-20 font-medium tabular-nums">{a.slot_start ? formatTime(new Date(a.slot_start)) : ""}</span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate font-medium">{a.patient}</span>
+                  <span className="block truncate font-medium">
+                    {a.patient}
+                    {a.lead_only && <LeadTag />}
+                  </span>
                   <span className="block text-[0.9rem] text-text-secondary">{a.doctor}</span>
                 </span>
                 <ApptStatusBadge status={a.status} />
@@ -193,4 +200,10 @@ export function TodayBoard() {
       </Dialog>
     </div>
   );
+}
+
+/** A booking for a lead (sales booked it; no patient file yet): reception registers them on arrival. */
+function LeadTag() {
+  const t = useTranslations("today");
+  return <span className="ml-2 rounded-full border border-border px-2 py-0.5 text-[0.8rem] font-normal text-text-secondary">{t("leadOnly")}</span>;
 }

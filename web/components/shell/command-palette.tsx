@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { Command } from "cmdk";
-import { LoaderCircle, Monitor, Moon, Search, Sun, UserRound } from "lucide-react";
+import { LoaderCircle, Monitor, Moon, Search, Sun, Target, UserRound } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -10,6 +10,7 @@ import { useDebounced } from "@/components/library-combobox";
 import { rpc } from "@/lib/rpc";
 import type { StaffRole, ThemePreference } from "@pearl/shared";
 import { navFor } from "@/lib/nav";
+import { canSearchPeople, searchHref } from "@/lib/search-href";
 
 const groupClass =
   "[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:pt-3 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:text-[0.85rem] [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground";
@@ -23,7 +24,7 @@ interface Hit {
   subtitle: string;
 }
 
-/** One search box everywhere ("/" or Ctrl+K): patients (name, phone, UHID), pages, theme. */
+/** One search box everywhere ("/" or Ctrl+K): patients and leads by role (name, phone, UHID), pages, theme. */
 export function CommandPalette({
   open,
   onOpenChange,
@@ -39,10 +40,9 @@ export function CommandPalette({
   const router = useRouter();
   const [q, setQ] = useState("");
   const search = useDebounced(q.trim(), 250);
-  const canSearchPatients = role === "receptionist" || role === "admin";
   const hits = useQuery({
     queryKey: ["global_search", search],
-    enabled: open && canSearchPatients && search.length >= 2,
+    enabled: open && canSearchPeople(role) && search.length >= 2,
     queryFn: () => rpc<Hit[]>("global_search", { p_q: search }),
   });
   const run = (fn: () => void) => {
@@ -72,14 +72,16 @@ export function CommandPalette({
       <Command.List className="max-h-[60vh] overflow-y-auto p-2">
         <Command.Empty className="px-3 py-6 text-center text-text-secondary">{t("search.noResults")}</Command.Empty>
         {(hits.data?.length ?? 0) > 0 && (
-          <Command.Group heading={t("search.patients")} className={groupClass}>
+          <Command.Group heading={t("search.results")} className={groupClass}>
             {hits.data!.map((h) => (
               // Server results: keep them even though cmdk's own filter doesn't know them.
-              <Command.Item key={h.id} value={`${q} ${h.title} ${h.subtitle}`} onSelect={() => run(() => router.push(`/patients/${h.id}`))} className={itemClass}>
-                <UserRound aria-hidden />
+              <Command.Item key={`${h.type}-${h.id}`} value={`${q} ${h.title} ${h.subtitle} ${h.id}`} onSelect={() => run(() => router.push(searchHref(h, role)))} className={itemClass}>
+                {h.type === "lead" ? <Target aria-hidden /> : <UserRound aria-hidden />}
                 <span className="flex min-w-0 flex-col">
                   <span className="truncate">{h.title}</span>
-                  <span className="truncate text-[0.85rem] text-text-secondary">{h.subtitle}</span>
+                  <span className="truncate text-[0.85rem] text-text-secondary">
+                    {h.type === "lead" ? `${t("search.lead")} · ${h.subtitle}` : h.subtitle}
+                  </span>
                 </span>
               </Command.Item>
             ))}

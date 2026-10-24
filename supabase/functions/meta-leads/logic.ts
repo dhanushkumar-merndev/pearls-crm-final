@@ -5,7 +5,11 @@
 //        fields, and Postgres makes the lead (number dedupe, round-robin owner, notification).
 //   POST from an admin (login token): {action: "retry", leadgen_id} tries a failed one again.
 // Pure logic here; index.ts wires the real Graph API and database.
+import { z } from "zod";
 import { normalizePhone } from "../_shared/phone.ts";
+
+/** An admin's "Try again" from the web app (login token, no Meta signature). */
+export const retrySchema = z.object({ action: z.literal("retry"), leadgen_id: z.string().regex(/^[0-9]{5,30}$/) });
 
 export const GRAPH_VERSION = "v23.0";
 export const GRAPH_FIELDS = "field_data,created_time,ad_id,ad_name,adset_name,campaign_name,form_id,platform";

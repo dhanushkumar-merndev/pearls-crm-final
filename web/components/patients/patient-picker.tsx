@@ -15,6 +15,8 @@ export interface PatientHit {
   title: string;
   uhid: string;
   subtitle: string;
+  /** global_search also returns leads; the picker keeps patients only. */
+  type?: string;
 }
 
 /** Find a patient by name, phone or UHID (server search, 10 results). */
@@ -45,7 +47,7 @@ export function PatientPicker({
     enabled: open && search.length >= 2,
     queryFn: () => rpc<PatientHit[]>("global_search", { p_q: search }),
   });
-  const items = (hits.data ?? []).filter((h) => h.id !== excludeId);
+  const items = (hits.data ?? []).filter((h) => h.id !== excludeId && (h.type ?? "patient") === "patient");
   return (
     <Popover.Root open={open} onOpenChange={setOpen}>
       <Popover.Trigger asChild>

@@ -217,8 +217,20 @@ function StartDialog({ patient, onDone }: { patient: PatientHit; onDone: () => v
   const [doctor, setDoctor] = useState<LibraryItem | null>(null);
   const [form, setForm] = useState({ name: "", sessions: "1", gaps: "0", pricing: "package", start: istDateString(new Date()), notes: "" });
   const [price, setPrice] = useState<number | null>(0);
-  const [agreed, setAgreed] = useState<number | null>(null);
+  const [agreedTyped, setAgreed] = useState<number | null>(null);
+  const [agreedTouched, setAgreedTouched] = useState(false);
   const [clientId] = useState(newId);
+  // The price sales agreed with the patient (their lead's "Amount finalised") starts the agreed price.
+  const leads = useQuery({
+    queryKey: ["patient_leads", patient.id],
+    queryFn: () =>
+      rpc<{ id: string; sl_no: number; stage: string; amount_finalised_paise: number | null; finalised_by_name: string | null }[]>(
+        "patient_leads",
+        { p_patient_id: patient.id },
+      ),
+  });
+  const fromSales = leads.data?.find((l) => l.amount_finalised_paise !== null && l.stage !== "converted" && l.stage !== "junk") ?? null;
+  const agreed = agreedTouched ? agreedTyped : (agreedTyped ?? fromSales?.amount_finalised_paise ?? null);
   function chooseTemplate(item: LibraryItem | null) {
     setTemplate(item);
     if (!item) return;
@@ -301,8 +313,16 @@ function StartDialog({ patient, onDone }: { patient: PatientHit; onDone: () => v
           )}
         </Field>
         <Field label={t("price")} error={checks.error("price")}>{(a) => <MoneyInput {...a} value={price} onChange={(v) => (setPrice(v), checks.clear("price"))} />}</Field>
-        <Field label={t("agreedPrice")} hint={t("agreedHint")} error={checks.error("agreed")}>
-          {(a) => <MoneyInput {...a} value={agreed} onChange={(v) => (setAgreed(v), checks.clear("agreed"))} />}
+        <Field
+          label={t("agreedPrice")}
+          hint={
+            fromSales
+              ? t("agreedFromSales", { amount: formatINR(fromSales.amount_finalised_paise!), n: fromSales.sl_no, by: fromSales.finalised_by_name ?? "—" })
+              : t("agreedHint")
+          }
+          error={checks.error("agreed")}
+        >
+          {(a) => <MoneyInput {...a} value={agreed} onChange={(v) => (setAgreed(v), setAgreedTouched(true), checks.clear("agreed"))} />}
         </Field>
         <Field label={t("notes")} error={checks.error("notes")} className="sm:col-span-2">
           {(a) => <Textarea {...a} rows={2} maxLength={4000} value={form.notes} onChange={(e) => setField("notes", e.target.value)} />}

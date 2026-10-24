@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarClock, ChevronDown, CircleCheck, CircleX, DoorOpen, MessageCircle, Stethoscope, UserRound, UserX } from "lucide-react";
+import { CalendarClock, ChevronDown, CircleCheck, CircleX, DoorOpen, MessageCircle, Stethoscope, UserPlus, UserRound, UserX } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState, type ReactNode } from "react";
@@ -35,6 +35,10 @@ export interface ApptCard {
   version: number;
   is_walk_in: boolean;
   queue_no: number | null;
+  /** A booking made for a lead who has no patient file yet (sales booked it). */
+  lead_only?: boolean;
+  lead_id?: string | null;
+  lead_sl_no?: number | null;
 }
 
 const ICONS: Partial<Record<ApptStatus, ReactNode>> = {
@@ -70,6 +74,10 @@ export function AppointmentActions({ appt, onChanged }: { appt: ApptCard; onChan
     },
     onError: failed,
   });
+  // Sales may only confirm, cancel or reschedule lead bookings (the database enforces it too).
+  const sales = me?.role === "sales_manager" || me?.role === "sales_executive";
+  const reception = me?.role === "receptionist" || me?.role === "admin";
+  const next = NEXT[appt.status].filter((s) => !sales || s === "confirmed" || s === "cancelled");
   const message = appt.slot_start
     ? t("waText", {
         name: appt.patient ?? "",
@@ -90,7 +98,15 @@ export function AppointmentActions({ appt, onChanged }: { appt: ApptCard; onChan
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          {NEXT[appt.status]
+          {reception && appt.lead_only && appt.lead_id && (
+            <DropdownMenuItem asChild>
+              <Link href={`/patients/new?lead=${appt.lead_id}`}>
+                <UserPlus aria-hidden />
+                {t("registerLead")}
+              </Link>
+            </DropdownMenuItem>
+          )}
+          {next
             .filter((s) => s !== "cancelled")
             .map((s) => (
               <DropdownMenuItem key={s} disabled={setStatus.isPending} onSelect={() => setStatus.mutate({ status: s })}>
@@ -104,7 +120,7 @@ export function AppointmentActions({ appt, onChanged }: { appt: ApptCard; onChan
               {t("reschedule")}
             </DropdownMenuItem>
           )}
-          {NEXT[appt.status].includes("cancelled") && (
+          {next.includes("cancelled") && (
             <DropdownMenuItem onSelect={() => setDialog("cancel")}>
               <CircleX aria-hidden />
               {t("to.cancelled")}
@@ -119,7 +135,7 @@ export function AppointmentActions({ appt, onChanged }: { appt: ApptCard; onChan
               </a>
             </DropdownMenuItem>
           )}
-          {appt.patient_id && (
+          {appt.patient_id && reception && (
             <DropdownMenuItem asChild>
               <Link href={`/patients/${appt.patient_id}`}>
                 <UserRound aria-hidden />

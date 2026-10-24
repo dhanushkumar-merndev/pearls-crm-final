@@ -104,7 +104,7 @@ export function Sidebar({
           {items.map((item) => {
             const active = isActive(pathname, item.href);
             const count = item.badge ? (badges.data?.[item.badge] ?? 0) : 0;
-            const label = count > 0 ? t("nav.withCount", { label: t(item.labelKey), n: count }) : t(item.labelKey);
+            const label = count > 0 ? t(item.badgeLabelKey ?? "nav.withCount", { label: t(item.labelKey), n: count }) : t(item.labelKey);
             const link = (
               <Link
                 href={item.href}

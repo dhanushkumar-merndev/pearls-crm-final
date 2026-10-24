@@ -1,6 +1,6 @@
 import { allowOrigin, corsHeaders } from "../_shared/http.ts";
 import { callerClient, serviceClient } from "../_shared/supabase.ts";
-import { GRAPH_FIELDS, GRAPH_VERSION, hmacHex, processLeadgen, webhook, type Deps, type GraphLead } from "./logic.ts";
+import { GRAPH_FIELDS, GRAPH_VERSION, hmacHex, processLeadgen, retrySchema, webhook, type Deps, type GraphLead } from "./logic.ts";
 
 const appSecret = Deno.env.get("META_APP_SECRET") ?? "";
 const pageToken = Deno.env.get("META_PAGE_ACCESS_TOKEN") ?? "";
@@ -45,8 +45,9 @@ Deno.serve(async (req) => {
     if (req.method === "POST" && !req.headers.get("X-Hub-Signature-256") && req.headers.get("Authorization")) {
       const caller = await callerClient(req);
       if (!caller) return reply(401, { error: "not_signed_in" }, origin);
-      const body = (await req.json().catch(() => null)) as { action?: string; leadgen_id?: string } | null;
-      if (body?.action !== "retry" || typeof body.leadgen_id !== "string") return reply(400, { error: "invalid_input" }, origin);
+      const parsed = retrySchema.safeParse(await req.json().catch(() => null));
+      if (!parsed.success) return reply(400, { error: "invalid_input" }, origin);
+      const body = parsed.data;
       const { data: allowed, error } = await caller.rpc("meta_lead_retry_check", { p_leadgen_id: body.leadgen_id });
       if (error) return reply(403, { error: "not_allowed" }, origin);
       if (!allowed) return reply(409, { error: "stale_version" }, origin);

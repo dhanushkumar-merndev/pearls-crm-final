@@ -1,6 +1,6 @@
 import {
-  BedDouble, Building2, FileInput, FileText, PackageOpen, CalendarOff, ClipboardList, History, Inbox, ListChecks, Pill, Settings, Stethoscope,
-  Syringe, Users, type LucideIcon,
+  BedDouble, Building2, FileInput, FileText, Megaphone, PackageOpen, CalendarOff, ClipboardList, History, Inbox, ListChecks, Pill, Settings,
+  Stethoscope, Syringe, Target, Users, type LucideIcon,
 } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -25,6 +25,8 @@ const LINKS: { href: string; key: string; icon: LucideIcon }[] = [
   { href: "/admin/review", key: "review", icon: Inbox },
   { href: "/admin/import", key: "import", icon: FileInput },
   { href: "/admin/import?kind=stock", key: "importStock", icon: PackageOpen },
+  { href: "/leads/import", key: "importLeads", icon: Target },
+  { href: "/admin/meta-leads", key: "metaLeads", icon: Megaphone },
   { href: "/admin/audit", key: "audit", icon: History },
 ];
 

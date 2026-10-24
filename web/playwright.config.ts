@@ -23,7 +23,7 @@ export default defineConfig({
   expect: { toHaveScreenshot: { maxDiffPixelRatio: 0.01, animations: "disabled" } },
   // channel "chromium" = full Chromium in new headless mode (no separate headless-shell download).
   projects: [
-    { name: "setup", testMatch: /auth\.setup\.ts/ },
+    { name: "setup", testMatch: /auth\.setup\.ts/, use: { channel: "chromium" } },
     {
       name: "chromium",
       dependencies: ["setup"],

@@ -1,4 +1,4 @@
-import { BedDouble, CalendarDays, House, ListTodo, Palette, Pill, Plus, ReceiptIndianRupee, Settings, Users, type LucideIcon } from "lucide-react";
+import { BedDouble, CalendarDays, House, ListTodo, Palette, Pill, Plus, ReceiptIndianRupee, Settings, Target, Users, type LucideIcon } from "lucide-react";
 import type { StaffRole } from "@pearl/shared";
 
 export interface NavItem {
@@ -9,11 +9,14 @@ export interface NavItem {
   roles: readonly StaffRole[];
   /** Key in nav_badges(): a count shown next to the label (e.g. open pharmacy alerts). */
   badge?: string;
+  /** Screen-reader label with the count (default "nav.withCount", which says "alerts"). */
+  badgeLabelKey?: string;
 }
 
 /** Menu items, in order. Each phase adds its pages here. */
 export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/home", labelKey: "nav.home", icon: House, roles: ["receptionist", "sales_manager", "admin"] },
+  { href: "/leads", labelKey: "nav.leads", icon: Target, roles: ["sales_manager", "admin"], badge: "leads", badgeLabelKey: "nav.leadsWithCount" },
   { href: "/appointments", labelKey: "nav.appointments", icon: CalendarDays, roles: ["receptionist", "admin"] },
   { href: "/patients", labelKey: "nav.patients", icon: Users, roles: ["receptionist", "admin"] },
   { href: "/admissions", labelKey: "nav.admissions", icon: BedDouble, roles: ["receptionist", "admin"] },
@@ -35,7 +38,7 @@ export interface PrimaryAction {
 export const PRIMARY_ACTIONS: Partial<Record<StaffRole, PrimaryAction>> = {
   receptionist: { labelKey: "actions.newPatient", icon: Plus, href: "/patients/new" },
   admin: { labelKey: "actions.newPatient", icon: Plus, href: "/patients/new" },
-  sales_manager: { labelKey: "actions.newLead", icon: Plus, href: null },
+  sales_manager: { labelKey: "actions.newLead", icon: Plus, href: "/leads?new=1" },
 };
 
 export function navFor(role: StaffRole): NavItem[] {

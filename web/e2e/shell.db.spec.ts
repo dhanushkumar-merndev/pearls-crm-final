@@ -33,7 +33,7 @@ test.describe("admin shell", () => {
   test("Ctrl+K search opens and navigates", async ({ page }) => {
     await open(page, "/home");
     await page.keyboard.press("Control+k");
-    const search = page.getByPlaceholder("Search name, phone or UHID…").last();
+    const search = page.getByPlaceholder("Search name, phone, UHID or lead no.…").last();
     await expect(search).toBeFocused();
     await search.fill("Design");
     await page.keyboard.press("Enter");

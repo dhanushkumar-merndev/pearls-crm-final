@@ -1,6 +1,6 @@
 // deno-lint-ignore-file require-await -- fakes implement async interfaces without awaiting
 import { assertEquals } from "@std/assert";
-import { challenge, hmacHex, leadgenRefs, mapLead, webhook, type Deps, type GraphLead } from "./logic.ts";
+import { challenge, hmacHex, leadgenRefs, mapLead, retrySchema, webhook, type Deps, type GraphLead } from "./logic.ts";
 
 const SECRET = "test-app-secret";
 const enc = (s: string) => new TextEncoder().encode(s);
@@ -137,4 +137,11 @@ Deno.test("mapping: first + last name, alternate number, ignored questions, no n
     source_detail: {},
   });
   assertEquals(mapLead({ field_data: [{ name: "full_name", values: ["No Number"] }] }, {}), { error: "phone" });
+});
+
+Deno.test("retry request: only an action and a numeric leadgen id are accepted", () => {
+  assertEquals(retrySchema.safeParse({ action: "retry", leadgen_id: "123456789012345" }).success, true);
+  assertEquals(retrySchema.safeParse({ action: "retry", leadgen_id: "12;drop" }).success, false);
+  assertEquals(retrySchema.safeParse({ action: "delete", leadgen_id: "123456789" }).success, false);
+  assertEquals(retrySchema.safeParse(null).success, false);
 });

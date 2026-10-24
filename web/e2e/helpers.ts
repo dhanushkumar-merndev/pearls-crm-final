@@ -7,6 +7,7 @@ export const PASSWORD = process.env.E2E_PASSWORD ?? "Pearl@2026";
 export const STATE = {
   admin: "e2e/.auth/admin.json",
   reception: "e2e/.auth/reception.json",
+  manager: "e2e/.auth/manager.json",
 } as const;
 
 /** A random valid Indian mobile — unique even when tests start in the same millisecond. */

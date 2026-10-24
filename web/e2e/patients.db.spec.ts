@@ -57,7 +57,7 @@ test("Ctrl+K finds a patient by phone", async ({ page }) => {
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(name);
   await open(page, "/home");
   await page.keyboard.press("Control+k");
-  await page.getByPlaceholder("Search name, phone or UHID…").last().fill(mobile.slice(-6));
+  await page.getByPlaceholder("Search name, phone, UHID or lead no.…").last().fill(mobile.slice(-6));
   await page.getByRole("option", { name: new RegExp(name) }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(name);
 });

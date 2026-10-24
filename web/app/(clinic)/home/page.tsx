@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { formatDate, istParts } from "@pearl/shared";
+import { SalesDashboard } from "@/components/sales/sales-dashboard";
 import { TodayBoard } from "@/components/today/today-board";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
@@ -27,6 +28,8 @@ export default async function HomePage() {
 
       {me && (me.role === "receptionist" || me.role === "admin") ? (
         <TodayBoard />
+      ) : me?.role === "sales_manager" ? (
+        <SalesDashboard />
       ) : (
         <Card className="flex flex-col items-start gap-3 py-10 sm:items-center sm:text-center">
           <CalendarDays aria-hidden className="size-10 text-text-secondary" />
