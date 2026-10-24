@@ -76,7 +76,12 @@ class OutboxProcessor(
         } catch (e: RpcFailure.Transient) {
             retry(item, e.message ?: "transient")
         } catch (e: RpcFailure.Permanent) {
-            refuse(item, e.code)
+            if (e.code in ALREADY_DONE[item.rpc].orEmpty()) {
+                dao.delete(item.id)
+                Result.Sent
+            } else {
+                refuse(item, e.code)
+            }
         } catch (_: RpcFailure.SignedOut) {
             Result.SignedOut
         } catch (e: Exception) {
@@ -106,6 +111,16 @@ class OutboxProcessor(
     companion object {
         private const val BATCH = 50
         private val LOCK = Mutex()
+
+        /**
+         * Refusals that mean "this was already done": an earlier send went through but its
+         * answer was lost, so the retry finds the task closed / the booking confirmed.
+         * The next pull brings the server's real state either way.
+         */
+        private val ALREADY_DONE = mapOf(
+            "complete_followup" to setOf("stale_version"),
+            "set_appointment_status" to setOf("invalid_status_change"),
+        )
 
         /** 30 s, 1 min, 2 min, … capped at 1 hour. */
         fun backoffMs(attempt: Int): Long = minOf(30_000L shl (attempt - 1).coerceIn(0, 7), 3_600_000L)

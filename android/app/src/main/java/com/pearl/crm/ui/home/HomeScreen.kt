@@ -39,8 +39,15 @@ import com.pearl.crm.AppContainer
 import com.pearl.crm.BuildConfig
 import com.pearl.crm.R
 import com.pearl.crm.core.data.auth.Session
+import com.pearl.crm.core.model.StaffRole
 import com.pearl.crm.core.ui.components.StatusLabel
 import com.pearl.crm.core.ui.components.StatusTone
+import com.pearl.crm.feature.sales.BookScreen
+import com.pearl.crm.feature.sales.CallsScreen
+import com.pearl.crm.feature.sales.FollowupsScreen
+import com.pearl.crm.feature.sales.LeadDetailScreen
+import com.pearl.crm.feature.sales.LeadsScreen
+import com.pearl.crm.feature.sales.MyDayScreen as SalesMyDayScreen
 import com.pearl.crm.feature.settings.FailedChange
 import com.pearl.crm.feature.settings.SettingsScreen
 import com.pearl.crm.feature.settings.SettingsUiState
@@ -52,6 +59,8 @@ import com.pearl.crm.ui.pin.PinViewModel
 import kotlinx.coroutines.launch
 
 private const val CHANGE_PIN = "change-pin"
+private const val LEAD = "lead/{id}"
+private const val BOOK = "book/{id}"
 
 @Composable
 fun HomeScreen(container: AppContainer, session: Session) {
@@ -89,14 +98,31 @@ fun HomeScreen(container: AppContainer, session: Session) {
         },
     ) { padding ->
         NavHost(nav, startDestination = tabs.first().route, modifier = Modifier.padding(padding)) {
+            val sales = role == StaffRole.SalesExecutive || role == StaffRole.SalesManager
+            val openLead: (String) -> Unit = { id -> nav.navigate("lead/$id") }
             tabs.forEach { tab ->
                 composable(tab.route) {
-                    when (tab) {
-                        HomeTab.MyDay -> MyDayScreen(container, session)
-                        HomeTab.Settings -> SettingsRoute(container, session) { nav.navigate(CHANGE_PIN) }
+                    when {
+                        tab == HomeTab.MyDay && sales -> SalesMyDayRoute(container, session, openLead)
+                        tab == HomeTab.MyDay -> MyDayScreen(container, session)
+                        tab == HomeTab.Leads && sales -> LeadsScreen(container.sales, container.library, openLead)
+                        tab == HomeTab.Followups -> FollowupsScreen(session.staffId, container.sales, container.library, openLead)
+                        tab == HomeTab.Calls -> CallsScreen(container.sales, openLead)
+                        tab == HomeTab.Settings -> SettingsRoute(container, session) { nav.navigate(CHANGE_PIN) }
                         else -> ComingSoonScreen(stringResource(tab.label))
                     }
                 }
+            }
+            composable(LEAD) { entry ->
+                val id = entry.arguments?.getString("id").orEmpty()
+                LeadDetailScreen(id, container.sales, container.library, onBack = { nav.popBackStack() }, onBook = { nav.navigate("book/$it") })
+            }
+            composable(BOOK) { entry ->
+                val id = entry.arguments?.getString("id").orEmpty()
+                BookScreen(id, container.sales, container.library, onBack = { nav.popBackStack() }, onBooked = { text ->
+                    nav.popBackStack()
+                    scope.launch { snackbar.showSnackbar(text) }
+                })
             }
             composable(CHANGE_PIN) {
                 ChangePinRoute(container) { changed ->
@@ -134,6 +160,20 @@ private fun MyDayScreen(container: AppContainer, session: Session) {
         if (status.offline) StatusLabel(stringResource(R.string.home_offline), StatusTone.Offline)
         Text(stringResource(R.string.coming_soon), color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
+}
+
+@Composable
+private fun SalesMyDayRoute(container: AppContainer, session: Session, openLead: (String) -> Unit) {
+    val profile by container.profile.collectAsStateWithLifecycle()
+    val status by container.syncRunner.status.collectAsStateWithLifecycle()
+    val failed by remember { container.db.outbox().observeFailed() }.collectAsStateWithLifecycle(emptyList())
+    SalesMyDayScreen(
+        name = profile?.fullName?.takeIf { it.isNotBlank() } ?: session.username,
+        sales = container.sales,
+        offline = status.offline,
+        hasFailedChanges = failed.isNotEmpty(),
+        onOpenLead = openLead,
+    )
 }
 
 @Composable

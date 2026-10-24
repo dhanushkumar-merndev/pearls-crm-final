@@ -34,6 +34,8 @@ class SyncRunner(
     private val pull: PullEngine,
     private val isSignedIn: () -> Boolean,
     private val clock: () -> Long = System::currentTimeMillis,
+    /** After a complete pull: tidy rows made on the phone that the server took but didn't send back. */
+    private val afterPull: suspend () -> Unit = {},
 ) {
     private val _status = MutableStateFlow(SyncStatus())
     val status: StateFlow<SyncStatus> = _status.asStateFlow()
@@ -66,6 +68,7 @@ class SyncRunner(
                 _status.value = _status.value.copy(offline = false, errorCode = e.code)
                 return if (sent.waiting > 0) SyncResult.RetryLater else SyncResult.Done
             }
+            afterPull()
             _status.value = _status.value.copy(offline = false, errorCode = null, lastSuccessAt = clock())
             return if (sent.waiting > 0) SyncResult.RetryLater else SyncResult.Done
         } finally {

@@ -80,6 +80,7 @@ dependencies {
     implementation(project(":core:sync"))
     implementation(project(":core:ui"))
     implementation(project(":feature:settings"))
+    implementation(project(":feature:sales"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)

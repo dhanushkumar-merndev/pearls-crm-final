@@ -11,6 +11,7 @@ A phase is finished only when all of these pass (PLAN.md E1).
 | `pnpm e2e` | Browser tests: login page, themes, accessibility (axe), keyboard use, 44 px targets, screenshots | No |
 | `pnpm db:test` | pgTAP: roles, deactivation, audit log, number series, settings, uploads, RLS on every table | **Yes** (`pnpm db:start`) |
 | `pnpm db:concurrency` | 50 parallel finalizes → bill numbers with no gaps and no duplicates | **Yes** |
+| `cd android && ./gradlew test assembleDebug lintDebug` | Android: sync, outbox, PIN, Room migrations, sales repository, notes sheet / booking UI (Robolectric), APK builds, lint | No |
 | `E2E_DB=1 pnpm e2e` | Logged-in browser tests: shell, Ctrl+K search, theme saved per person, design preview charts, role pages | **Yes** (plus `pnpm db:reset` for seed data) |
 
 ### Logged-in browser tests on the online staging project

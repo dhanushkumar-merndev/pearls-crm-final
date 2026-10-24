@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Stages and call outcomes: same words as the web (web/messages/en.json leads.stage / leads.outcome). -->
+    <string name="stage_new">New</string>
+    <string name="stage_contacted">Contacted</string>
+    <string name="stage_interested">Interested</string>
+    <string name="stage_consultation_booked">Consultation booked</string>
+    <string name="stage_consulted">Consulted</string>
+    <string name="stage_surgery_scheduled">Surgery fixed</string>
+    <string name="stage_converted">Converted</string>
+    <string name="stage_not_reachable">Not reachable</string>
+    <string name="stage_lost">Lost</string>
+    <string name="stage_junk">Junk</string>
+
+    <string name="outcome_connected">Spoke</string>
+    <string name="outcome_no_answer">No answer</string>
+    <string name="outcome_busy">Busy</string>
+    <string name="outcome_switched_off">Switched off</string>
+    <string name="outcome_wrong_number">Wrong number</string>
+    <string name="outcome_call_back">Asked to call back</string>
+
+    <string name="appt_pending_confirmation">Waiting for confirmation</string>
+    <string name="appt_confirmed">Confirmed</string>
+    <string name="appt_arrived">Arrived</string>
+    <string name="appt_with_doctor">With doctor</string>
+    <string name="appt_done">Done</string>
+    <string name="appt_no_show">No-show</string>
+    <string name="appt_cancelled">Cancelled</string>
+    <string name="appt_rescheduled">Rescheduled</string>
+    <string name="task_open">Open</string>
+    <string name="task_done">Done</string>
+    <string name="task_cancelled">Cancelled</string>
+
+    <string name="not_sent_yet">Not sent yet</string>
+    <string name="call">Call</string>
+    <string name="whatsapp">WhatsApp</string>
+    <string name="no_whatsapp">WhatsApp isn\'t installed on this phone.</string>
+    <string name="no_dialer">This phone can\'t make calls.</string>
+    <string name="due_at">Call back %1$s</string>
+    <string name="overdue_since">Overdue since %1$s</string>
+    <string name="saved_offline">Saved. It will be sent when the internet is back.</string>
+    <string name="saved">Saved.</string>
+    <string name="back">Back</string>
+    <string name="needs_internet">This needs the internet.</string>
+
+    <!-- Leads list -->
+    <string name="leads_title">Leads</string>
+    <string name="leads_search">Search name or number</string>
+    <string name="leads_filter_due">Due now</string>
+    <string name="leads_filter_all">All</string>
+    <string name="leads_filter_new">New</string>
+    <string name="leads_filter_interested">Interested</string>
+    <string name="leads_filter_booked">Booked</string>
+    <string name="leads_empty">No leads here.</string>
+    <string name="leads_empty_due">Nobody to call right now.</string>
+    <string name="leads_new">New lead</string>
+    <string name="leads_swipe_hint">Swipe right to call, left for WhatsApp.</string>
+
+    <!-- New lead -->
+    <string name="new_lead_title">New lead</string>
+    <string name="new_lead_name">Name</string>
+    <string name="new_lead_phone">Phone number</string>
+    <string name="new_lead_treatment">Treatment asked about (optional)</string>
+    <string name="new_lead_source">Where they heard of us (optional)</string>
+    <string name="new_lead_comments">Notes (optional)</string>
+    <string name="new_lead_save">Save lead</string>
+    <string name="new_lead_cancel">Cancel</string>
+    <string name="new_lead_name_required">Type the name.</string>
+    <string name="new_lead_phone_invalid">Type a valid phone number, like 98450 12345.</string>
+    <string name="new_lead_duplicate">%1$s already has this number. Saving makes a second lead linked to it.</string>
+
+    <!-- Lead detail -->
+    <string name="lead_title">Lead</string>
+    <string name="lead_number">Lead #%1$d</string>
+    <string name="lead_stage">Stage</string>
+    <string name="lead_change_stage">Change stage</string>
+    <string name="lead_log_call">Add call notes</string>
+    <string name="lead_book">Book a consultation</string>
+    <string name="lead_add_note">Add a note</string>
+    <string name="lead_note">Note</string>
+    <string name="lead_note_save">Save note</string>
+    <string name="lead_note_required">Type the note.</string>
+    <string name="lead_treatment">Treatment: %1$s</string>
+    <string name="lead_comments">Notes: %1$s</string>
+    <string name="lead_tasks">Follow-ups</string>
+    <string name="lead_bookings">Bookings</string>
+    <string name="lead_calls">Calls</string>
+    <string name="lead_none">Nothing yet.</string>
+    <string name="lead_not_found">This lead is no longer on your phone (it may have moved to someone else).</string>
+    <string name="lead_stage_save">Save stage</string>
+    <string name="lead_stage_required">Choose a stage.</string>
+
+    <!-- After-call notes sheet -->
+    <string name="notes_title">How did the call go?</string>
+    <string name="notes_outcome">Result</string>
+    <string name="notes_outcome_required">Choose how the call went.</string>
+    <string name="notes_text">Notes</string>
+    <string name="notes_counter">%1$d / %2$d</string>
+    <string name="notes_too_long">Keep notes under %1$d letters.</string>
+    <string name="notes_next">Next step</string>
+    <string name="notes_next_close">Done for now</string>
+    <string name="notes_next_tomorrow">Call tomorrow</string>
+    <string name="notes_next_3days">In 3 days</string>
+    <string name="notes_next_week">Next week</string>
+    <string name="notes_next_none">No more calls</string>
+    <string name="notes_stage">Change stage (optional)</string>
+    <string name="notes_stage_keep">Keep as it is</string>
+    <string name="notes_lost_reason">Why was it lost?</string>
+    <string name="notes_lost_reason_required">Choose why the lead was lost.</string>
+    <string name="notes_save">Save notes</string>
+    <string name="notes_later">Later</string>
+
+    <!-- Follow-ups -->
+    <string name="followups_title">Follow-ups</string>
+    <string name="followups_overdue">Overdue</string>
+    <string name="followups_today">Today</string>
+    <string name="followups_upcoming">Next 7 days</string>
+    <string name="followups_empty">No follow-ups. Well done.</string>
+    <string name="followups_done">Done</string>
+    <string name="followups_kind_call_to_confirm">Confirm the booking</string>
+
+    <!-- Calls -->
+    <string name="calls_title">Calls</string>
+    <string name="calls_empty">No calls in the last 60 days.</string>
+    <string name="calls_unknown">Unknown number</string>
+    <string name="calls_duration">%1$d min %2$d s</string>
+
+    <!-- Booking -->
+    <string name="book_title">Book a consultation</string>
+    <string name="book_doctor">Doctor</string>
+    <string name="book_day">Day</string>
+    <string name="book_slot">Time</string>
+    <string name="book_pick_doctor">Choose a doctor to see free times.</string>
+    <string name="book_no_slots">No free times that day. Try another day.</string>
+    <string name="book_slot_left">%1$s · %2$d left</string>
+    <string name="book_online">Online consultation (video call)</string>
+    <string name="book_confirmed">The patient has confirmed</string>
+    <string name="book_save">Book</string>
+    <string name="book_done">Booked for %1$s.</string>
+    <string name="book_slot_required">Choose a time.</string>
+    <string name="book_doctor_required">Choose a doctor.</string>
+    <string name="book_loading">Loading free times…</string>
+    <string name="book_today">Today</string>
+    <string name="book_tomorrow">Tomorrow</string>
+
+    <!-- My day -->
+    <string name="myday_hello">Hello, %1$s</string>
+    <string name="myday_calls">Calls today</string>
+    <string name="myday_connected">Spoke</string>
+    <string name="myday_due">Follow-ups today</string>
+    <string name="myday_overdue">Overdue</string>
+    <string name="myday_booked">Booked today</string>
+    <string name="myday_pending">To confirm</string>
+    <string name="myday_chart">Calls per day (last 14 days)</string>
+    <string name="myday_chart_table">Show as table</string>
+    <string name="myday_chart_chart">Show as chart</string>
+    <string name="myday_chart_row">%1$s: %2$d calls, %3$d spoke</string>
+    <string name="myday_offline_numbers">Numbers need the internet. Your lists below still work.</string>
+    <string name="myday_confirm_title">Waiting for the patient to confirm</string>
+    <string name="myday_confirm_none">All bookings are confirmed.</string>
+    <string name="myday_confirm">Confirmed</string>
+    <string name="myday_refresh">Refresh</string>
+    <string name="myday_unsent_failed">Some changes couldn\'t be saved on the server. Open Settings to see them.</string>
+    <string name="myday_offline">Offline. Your work is saved on this phone.</string>
+</resources>

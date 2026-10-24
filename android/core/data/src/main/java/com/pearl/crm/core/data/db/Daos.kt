@@ -83,7 +83,14 @@ abstract class OutboxDao {
     @Query("UPDATE outbox SET state = 'pending', attempts = 0, next_attempt_at = :now, last_error = NULL WHERE id = :id AND state = 'failed'")
     abstract suspend fun retry(id: String, now: Long): Int
 
-    @Query("SELECT MIN(next_attempt_at) FROM outbox WHERE state = 'pending'")
+    /** When the next send is due: only first-in-line items count (the rest wait behind them). */
+    @Query(
+        """
+        SELECT MIN(o.next_attempt_at) FROM outbox AS o
+        WHERE o.state = 'pending'
+          AND NOT EXISTS (SELECT 1 FROM outbox AS p WHERE p.entity_key = o.entity_key AND p.seq < o.seq)
+        """,
+    )
     abstract suspend fun earliestPending(): Long?
 
     @Query("SELECT COUNT(*) FROM outbox WHERE state = 'pending'")

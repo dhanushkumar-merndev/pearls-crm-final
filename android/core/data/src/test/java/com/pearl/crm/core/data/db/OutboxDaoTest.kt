@@ -110,6 +110,15 @@ class OutboxDaoTest {
     }
 
     @Test
+    fun earliestPendingIgnoresWritesWaitingBehindAnEarlierOne() = runTest {
+        dao.enqueue(item("a1", "lead:A", dueAt = 50_000))
+        dao.enqueue(item("a2", "lead:A", dueAt = 0)) // due long ago, but must wait for a1
+        assertEquals(50_000L, dao.earliestPending())
+        dao.markFailed("a1", "duplicate")
+        assertNull(dao.earliestPending()) // a2 can't go until the person retries a1
+    }
+
+    @Test
     fun unsentCountIgnoresCrashReports() = runTest {
         dao.enqueue(item("u1", "lead:A"))
         dao.enqueue(item("t1", "crash:1", kind = OutboxKind.Telemetry))

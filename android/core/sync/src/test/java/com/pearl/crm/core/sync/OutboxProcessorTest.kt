@@ -145,6 +145,29 @@ class OutboxProcessorTest {
     }
 
     @Test
+    fun aRetryThatFindsTheWorkAlreadyDoneCountsAsSent() = runTest {
+        // The first send went through but its answer was lost: the server now says "already closed".
+        server.handler = { fn, _ ->
+            when (fn) {
+                "complete_followup" -> throw RpcFailure.Permanent("stale_version")
+                "set_appointment_status" -> throw RpcFailure.Permanent("invalid_status_change")
+                else -> throw RpcFailure.Permanent("stale_version")
+            }
+        }
+        queue("f1", "lead:A", rpc = "complete_followup")
+        queue("p1", "appointment:1", rpc = "set_appointment_status")
+        queue("x1", "lead:B", rpc = "update_lead")
+
+        val outcome = processor().run()
+
+        assertEquals(2, outcome.sent)
+        assertEquals(1, outcome.failed) // the same code from another call is a real refusal
+        assertNull(dao.get("f1"))
+        assertNull(dao.get("p1"))
+        assertEquals("failed", dao.get("x1")!!.state)
+    }
+
+    @Test
     fun aRefusedCrashReportIsDroppedQuietly() = runTest {
         server.handler = { fn, _ -> if (fn == "telemetry_add") throw RpcFailure.Permanent("invalid_input") else JsonNull }
         queue("t1", "crash", rpc = "telemetry_add", kind = OutboxKind.Telemetry)

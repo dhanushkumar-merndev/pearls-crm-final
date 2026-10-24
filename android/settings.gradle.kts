@@ -23,4 +23,4 @@ rootProject.name = "pearl-android"
 
 include(":app")
 include(":core:model", ":core:data", ":core:sync", ":core:ui")
-include(":feature:settings")
+include(":feature:settings", ":feature:sales")

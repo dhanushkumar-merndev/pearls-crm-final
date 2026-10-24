@@ -919,3 +919,12 @@ Each phase ends with: tests green → I tell you step by step how to try it on s
   - Live site address: https://pearl-sales.vercel.app (login emails link there; set in WEB_ORIGIN).
   - Team inbox (owner, 24/10/2026: "3–5 people will chat, mostly real time"): menu → WhatsApp lists conversations with unread replies and opens the chat beside the list; it, the chat panel and the menu badge update live through Realtime on `wa_threads` (same visibility as messaging). Opening a conversation marks it read for the team.
   - Housekeeping still to add (Phase 14): `job_runs` grows by one row per dispatch run (~105k rows a year) — purge rows older than 90 days.
+- 24/10/2026 (session 7), Phase 11 done: the Android sales app. Decisions made while building:
+  - Everything a salesperson does on the phone (call notes, notes, stage changes, "done" on a follow-up, confirming a booking, a new lead) is saved on the phone first and sent by the outbox; it works with no signal and shows "Not sent yet" until the server has it. Free slots, booking and the "My day" numbers need the internet (the server decides them).
+  - Call flow: Call opens the phone's dialer; coming back to the app opens the "How did the call go?" sheet for that lead (result required, notes up to 2,000 letters, next step: done for now / tomorrow / in 3 days / next week at 11 AM IST / no more calls, optional stage, lost needs a reason from the list). Phase 12 replaces the guessed call length with the real call log.
+  - A new lead typed on the phone warns when the number is already on the phone and is then saved anyway (the server links it to the older lead, as on the web).
+  - "Done for now" closes the follow-up that was due; later ones stay (same as the web's call log).
+  - A retry of "Done" or "Confirmed" whose first send reached the server but lost its answer is treated as sent, not as a failure.
+  - Push: a new notification for someone with the app installed rings their phone (Firebase, data-only message shown by the app). Tokens Firebase no longer knows are removed. Push is best effort; the notification is always in the app.
+  - Charts on the phone use Vico 3.1.0 (3.2+ needs a newer Android build toolchain than ours).
+  - Moved to Phase 12 (recordings): the voice note when marking a lead lost.

@@ -5,6 +5,7 @@ import androidx.room.withTransaction
 import com.pearl.crm.core.data.AccountRepository
 import com.pearl.crm.core.data.LibraryRepository
 import com.pearl.crm.core.data.OutboxWriter
+import com.pearl.crm.core.data.SalesRepository
 import com.pearl.crm.core.data.SettingsStore
 import com.pearl.crm.core.data.auth.AuthApi
 import com.pearl.crm.core.data.auth.SessionManager
@@ -21,6 +22,10 @@ import com.pearl.crm.core.data.security.SecurePrefs
 import com.pearl.crm.core.model.LibrarySource
 import com.pearl.crm.core.model.RpcFailure
 import com.pearl.crm.core.model.StaffProfile
+import com.pearl.crm.core.sync.AppointmentsSync
+import com.pearl.crm.core.sync.CallLogsSync
+import com.pearl.crm.core.sync.FollowupsSync
+import com.pearl.crm.core.sync.LeadsSync
 import com.pearl.crm.core.sync.LookupValuesSync
 import com.pearl.crm.core.sync.OutboxProcessor
 import com.pearl.crm.core.sync.PullEngine
@@ -54,6 +59,7 @@ class AppContainer(private val context: Context) {
     val outbox = OutboxWriter(db.outbox())
     val library: LibrarySource = LibraryRepository(rpc, db.lookupValues())
     val account = AccountRepository(rpc, sessions, outbox)
+    val sales = SalesRepository(rpc, db, outbox)
     val pins = PinController(PinStore(securePrefs))
     val lock = AppLock(settings, pins)
     val scheduler = SyncScheduler(context)
@@ -62,11 +68,18 @@ class AppContainer(private val context: Context) {
         outbox = OutboxProcessor(db.outbox(), rpc),
         pull = PullEngine(
             transport = rpc,
-            entities = listOf(LookupValuesSync(db.lookupValues())),
+            entities = listOf(
+                LookupValuesSync(db.lookupValues()),
+                LeadsSync(db.leads()),
+                FollowupsSync(db.followups()),
+                AppointmentsSync(db.appointments()),
+                CallLogsSync(db.callLogs()),
+            ),
             markers = db.syncMarkers(),
             inTransaction = { block -> db.withTransaction { block() } },
         ),
         isSignedIn = { sessions.session.value != null },
+        afterPull = { sales.tidyAfterPull() },
     )
 
     private val _profile = MutableStateFlow<StaffProfile?>(null)

@@ -1,6 +1,6 @@
 # Continue here
 
-Last updated 24/10/2026 (session 6). To resume, say: **"Read continue.md and carry on."**
+Last updated 24/10/2026 (session 7). To resume, say: **"Read continue.md and carry on."**
 
 ## FIRST, on another computer: pull
 Everything is pushed to GitHub (`origin/main`, plus the unmerged WIP branch). Before anything else:
@@ -35,7 +35,7 @@ Read `CLAUDE.md` and `dev-docs/PLAN.md` first (PLAN.md section G lists every dec
 | 0–8 | done, live on staging, committed (Phase 8 merged `0843e48`) |
 | UI rules | full-width pages + themed dropdowns (`components/ui/select.tsx`), committed `a323b70` (rules in CLAUDE.md) |
 | **9 Leads + Meta Lead Ads** | **DONE + deployed (session 6)**. Was: part 1 committed `be4b3e9`: migration `20261101100000_phase9_leads.sql` (NOT deployed yet), `13_leads` (78 tests; all 13 DB files = 533 pass with it pending), `meta-leads` Edge Function (11 Deno tests, not deployed), lead CSV mapping (`mapLeadColumns/mapLeadRow`), web components in `web/components/leads/` (written, not wired into pages) |
-| 11 Android stage 1 | merged `26825ba` from the helper's worktree: project, login, PIN, role menus, Room, outbox + pull sync, LibraryPicker, settings. `./gradlew test` (5 tests) and `assembleDebug` pass. Sync/PIN/LibraryPicker unit tests and the CI job were NOT written yet. Branch `worktree-agent-af06e1393b4ca70be` also has an unverified WIP commit `331670f` (Gradle plugin clean-up) — not merged |
+| **11 Android: foundation + sales** | **DONE + deployed (session 7)**: module `:feature:sales` (Leads with swipe Call/WhatsApp + new lead, lead detail, after-call notes sheet, Follow-ups, Calls, booking with free slots, My day with Vico chart + needs-confirmation), `SalesRepository` (offline-first via the outbox), Room v2 + migration test, sales sync entities, push (migration `20261105100000_phase11_push.sql`, function `push-send`, `17_push` 10 tests). Android `./gradlew test assembleDebug lintDebug`: 93 tests pass. CI job `android`. Voice note for lost leads moved to Phase 12 |
 | **10 WhatsApp + drips** | **DONE + deployed (session 6)**: migration `20261103100000_phase10_whatsapp.sql`, functions `wa-webhook` / `wa-dispatch` / `wa-templates-sync`, Vault secrets + `EDGE_CRON_SECRET` via `pnpm supabase:configure`, pages Admin → WhatsApp / Drip campaigns, patient WhatsApp tab, lead WhatsApp card, `15_whatsapp` (31), e2e `whatsapp.db.spec.ts` (5). Owner setup: `dev-docs/SETUP_WHATSAPP.md` |
 | 12–15 | not started |
 
@@ -46,6 +46,12 @@ Read `CLAUDE.md` and `dev-docs/PLAN.md` first (PLAN.md section G lists every dec
 - DONE Phase 10 (see the table). The database timer → `wa-dispatch` chain was checked live (pg_cron 200). `.env`: a value pasted over several lines (the Firebase JSON) broke the Supabase CLI and was read as "{" — it is now one line in single quotes, and `pnpm env:sync` refuses multi-line values.
 - DONE WhatsApp team inbox + live updates (migration `20261104100000_wa_inbox.sql` deployed, `16_wa_inbox` 14 tests, e2e 6/6). Android: Gradle now runs on an auto-downloaded JDK 21 (`android/gradle/gradle-daemon-jvm.properties`; the PC only has Java 27, which breaks AGP's jlink); `android/local.properties` points at ~/Android/Sdk (not committed).
 - NEXT: 11 (rest: Android sales features, sync/PIN/LibraryPicker tests, CI job), 12, 13, 14 (add `job_runs` purge), 15.
+
+## Session 7
+- DONE Phase 11 (see the table). A helper session wrote the stage-1 Android tests + CI job (merged `b3cb04e`). Outbox fix: the next-retry time now ignores writes waiting behind an earlier one (was waking every 30 s).
+- Android build notes: Vico must stay on 3.1.x until AGP supports compileSdk 37. Unit tests run on Robolectric; Compose UI tests live next to each feature (`feature/sales/src/test`).
+- Totals now: DB 600 (17 files), shared 206, web 63, Deno 90, Android 93.
+- NEXT: 12 (caller pop-up, call-log import, recordings, lost voice note), 13 (BDM), 14 (dashboards, notifications, backup/purge incl. `job_runs`, Excel), 15.
 
 ## Login-form validation (from another Claude session) — now committed
 `loginSchema` (zod) in `packages/shared/src/auth.ts`, `login-form.tsx` (field errors, focus first bad field, "forgot password" link removed), `login.spec.ts` + screenshots, login keys in `en.json`. Committed as its own commit but not re-verified after the hand-off: run `pnpm test` and the login e2e once.

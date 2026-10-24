@@ -23,7 +23,7 @@ class AppDatabaseMigrationTest {
     val helper = MigrationTestHelper(InstrumentationRegistry.getInstrumentation(), AppDatabase::class.java)
 
     @Test
-    fun exportedSchema1MatchesTheEntitiesAndKeepsQueuedWrites() = runTest {
+    fun version1To2AddsTheSalesTablesAndKeepsQueuedWrites() = runTest {
         helper.createDatabase(DB, 1).apply {
             execSQL(
                 "INSERT INTO outbox (id, seq, rpc, args, entity_key, kind, created_at, attempts, next_attempt_at, last_error, state) " +
@@ -32,7 +32,13 @@ class AppDatabaseMigrationTest {
             close()
         }
         // Validates the tables against the schema file …
-        helper.runMigrationsAndValidate(DB, 1, true, *AppDatabase.MIGRATIONS).close()
+        helper.runMigrationsAndValidate(DB, 2, true, *AppDatabase.MIGRATIONS).apply {
+            execSQL(
+                "INSERT INTO leads (id, name, phone_e164, phone_last10, stage, last_activity_at, updated_at, local_only, pending) " +
+                    "VALUES ('l1', 'Test Lead', '+919800000001', '9800000001', 'new', 0, '', 0, 0)",
+            )
+            close()
+        }
 
         // … and Room's own identity check against the compiled entities.
         val db = Room.databaseBuilder(ApplicationProvider.getApplicationContext(), AppDatabase::class.java, DB)
@@ -41,6 +47,7 @@ class AppDatabaseMigrationTest {
             .build()
         try {
             assertEquals("lead_note_add", db.outbox().get("w1")?.rpc)
+            assertEquals("Test Lead", db.leads().get("l1")?.name)
         } finally {
             db.close()
         }
