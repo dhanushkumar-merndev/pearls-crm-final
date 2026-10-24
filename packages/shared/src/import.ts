@@ -1,3 +1,4 @@
+import { toCsv } from "./csv";
 import { rupeesToPaise } from "./money";
 import { normalizePhone } from "./phone";
 
@@ -44,7 +45,33 @@ export function parseDate(text: string): string | null {
 
 export interface MappedRow {
   row: Record<string, unknown>;
+  /** Fields (payload keys) that can't be imported as they are, in column order. */
   problems: string[];
+  /**
+   * Why, per field in `problems`: "required", "tooLong", "phone", "date", "expiry", "email",
+   * "pincode", "amount", "qty", "gst", "hsn", "age", "stage", "number" (screen text: import.why.*).
+   */
+  reasons: Record<string, string>;
+}
+
+const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+
+/** Collects problems for one row. */
+function problemList() {
+  const problems: string[] = [];
+  const reasons: Record<string, string> = {};
+  const bad = (field: string, reason: string) => {
+    if (!(field in reasons)) problems.push(field);
+    reasons[field] ??= reason;
+  };
+  return { problems, reasons, bad };
+}
+
+/** Text with a length limit: empty → skipped, too long → a problem. */
+function text(row: Record<string, unknown>, key: string, value: string, max: number, bad: (f: string, r: string) => void, field = key) {
+  if (!value) return;
+  if (value.length > max) bad(field, "tooLong");
+  else row[key] = value;
 }
 
 /** One sheet row → the import_patients payload, with problems found before sending. */
@@ -53,16 +80,17 @@ export function mapPatientRow(cells: string[], columns: Record<string, number | 
     const i = columns[field];
     return i === null || i === undefined ? "" : (cells[i] ?? "").trim();
   };
-  const problems: string[] = [];
+  const { problems, reasons, bad } = problemList();
   const row: Record<string, unknown> = {};
   const name = get("full_name").replace(/\s+/g, " ");
-  if (!name) problems.push("full_name");
+  if (!name) bad("full_name", "required");
+  else if (name.length > 120) bad("full_name", "tooLong");
   row.full_name = name;
   const phone = get("phone_e164");
   if (phone) {
     const n = normalizePhone(phone);
     if (n) row.phone_e164 = n.e164;
-    else problems.push("phone_e164");
+    else bad("phone_e164", "phone");
   }
   const gender = get("gender").toLowerCase();
   row.gender = /^(f|female|woman)$/.test(gender) ? "female" : /^(m|male|man)$/.test(gender) ? "male" : gender ? "other" : "unknown";
@@ -70,19 +98,27 @@ export function mapPatientRow(cells: string[], columns: Record<string, number | 
   if (dob) {
     const iso = parseDate(dob);
     if (iso) row.dob = iso;
-    else problems.push("dob");
+    else bad("dob", "date");
   } else if (get("age_years")) {
-    const age = Number.parseInt(get("age_years"), 10);
+    const age = Number(get("age_years"));
     if (Number.isInteger(age) && age >= 0 && age <= 120) row.age_years = age;
-    else problems.push("age_years");
+    else bad("age_years", "age");
   }
-  for (const k of ["uhid", "email", "address", "area", "city"]) if (get(k)) row[k] = get(k);
+  text(row, "uhid", get("uhid"), 40, bad);
+  const email = get("email");
+  if (email) {
+    if (!EMAIL.test(email)) bad("email", "email");
+    else text(row, "email", email, 200, bad);
+  }
+  text(row, "address", get("address"), 500, bad);
+  text(row, "area", get("area"), 120, bad);
+  text(row, "city", get("city"), 80, bad);
   const pin = get("pincode");
   if (pin) {
     if (/^[1-9][0-9]{5}$/.test(pin)) row.pincode = pin;
-    else problems.push("pincode");
+    else bad("pincode", "pincode");
   }
-  return { row, problems };
+  return { row, problems, reasons };
 }
 
 /** Opening stock sheet columns (DocPulse stock export, Excel). */
@@ -144,22 +180,26 @@ export function mapStockRow(cells: string[], columns: Record<string, number | nu
     const i = columns[field];
     return i === null || i === undefined ? "" : (cells[i] ?? "").trim();
   };
-  const problems: string[] = [];
+  const { problems, reasons, bad } = problemList();
   const row: Record<string, unknown> = {};
   const name = get("name").replace(/\s+/g, " ");
-  if (!name) problems.push("name");
+  if (!name) bad("name", "required");
+  else if (name.length > 200) bad("name", "tooLong");
   row.name = name;
-  for (const k of ["strength", "form", "manufacturer", "rack"]) if (get(k)) row[k] = get(k);
+  text(row, "strength", get("strength"), 60, bad);
+  text(row, "form", get("form"), 40, bad);
+  text(row, "manufacturer", get("manufacturer"), 120, bad);
+  text(row, "rack", get("rack"), 40, bad);
   const hsn = get("hsn").replace(/\s/g, "");
   if (hsn) {
     if (/^[0-9]{4,8}$/.test(hsn)) row.hsn = hsn;
-    else problems.push("hsn");
+    else bad("hsn", "hsn");
   }
   const gst = get("gst").replace(/%/g, "").trim();
   if (gst) {
     const pct = Number(gst);
     if (Number.isFinite(pct) && pct >= 0 && pct <= 40) row.gst_rate_bp = Math.round(pct * 100);
-    else problems.push("gst");
+    else bad("gst", "gst");
   }
   for (const [field, key] of [["mrp", "mrp_paise"], ["selling_price", "selling_price_paise"], ["purchase_price", "purchase_price_paise"]] as const) {
     const v = get(field);
@@ -169,25 +209,28 @@ export function mapStockRow(cells: string[], columns: Record<string, number | nu
       if (paise < 0) throw new Error("negative");
       row[key] = paise;
     } catch {
-      problems.push(field);
+      bad(field, "amount");
     }
   }
   const batch = get("batch_no");
-  if (batch) row.batch_no = batch;
-  else problems.push("batch_no");
-  const expiry = parseExpiry(get("expiry_date"));
+  if (!batch) bad("batch_no", "required");
+  else if (batch.length > 40) bad("batch_no", "tooLong");
+  else row.batch_no = batch;
+  const expiryText = get("expiry_date");
+  const expiry = parseExpiry(expiryText);
   if (expiry) row.expiry_date = expiry;
-  else problems.push("expiry_date");
-  const qty = Number(get("qty").replace(/,/g, ""));
-  if (get("qty") && Number.isFinite(qty) && qty > 0 && Math.round(qty * 1000) === qty * 1000) row.qty = qty;
-  else problems.push("qty");
+  else bad("expiry_date", expiryText ? "expiry" : "required");
+  const qtyText = get("qty").replace(/,/g, "");
+  const qty = Number(qtyText);
+  if (qtyText && Number.isFinite(qty) && qty > 0 && Math.round(qty * 1000) === qty * 1000) row.qty = qty;
+  else bad("qty", qtyText ? "qty" : "required");
   const reorder = get("reorder_level");
   if (reorder) {
     const n = Number(reorder);
     if (Number.isFinite(n) && n >= 0) row.reorder_level = n;
-    else problems.push("reorder_level");
+    else bad("reorder_level", "number");
   }
-  return { row, problems };
+  return { row, problems, reasons };
 }
 
 /** Lead sheet columns (the sales team's Excel, Meta exports). */
@@ -245,29 +288,36 @@ export function mapLeadRow(cells: string[], columns: Record<string, number | nul
     const i = columns[field];
     return i === null || i === undefined ? "" : (cells[i] ?? "").trim();
   };
-  const problems: string[] = [];
+  const { problems, reasons, bad } = problemList();
   const row: Record<string, unknown> = {};
   const name = get("name").replace(/\s+/g, " ");
-  if (!name) problems.push("name");
+  if (!name) bad("name", "required");
+  else if (name.length > 200) bad("name", "tooLong");
   row.name = name;
   for (const [field, key] of [["phone", "phone"], ["alt_phone", "alt_phone"]] as const) {
     const v = get(field);
     if (!v) {
-      if (field === "phone") problems.push("phone");
+      if (field === "phone") bad("phone", "required");
       continue;
     }
     const n = normalizePhone(v);
     if (n) row[key] = n.e164;
-    else problems.push(field);
+    else bad(field, "phone");
   }
-  for (const k of ["email", "treatment", "source", "assigned", "referred_by", "comments1", "comments2", "lost_reason"]) {
-    if (get(k)) row[k] = get(k);
+  if (row.alt_phone && row.alt_phone === row.phone) delete row.alt_phone;
+  const email = get("email");
+  if (email) {
+    if (!EMAIL.test(email)) bad("email", "email");
+    else text(row, "email", email, 200, bad);
+  }
+  for (const [k, max] of [["treatment", 200], ["source", 120], ["assigned", 120], ["referred_by", 200], ["comments1", 2000], ["comments2", 2000], ["lost_reason", 120]] as const) {
+    text(row, k, get(k), max, bad);
   }
   for (const [field, key] of [["lead_date", "lead_date"], ["next_followup", "next_followup_at"]] as const) {
     const v = get(field);
     if (!v) continue;
     const iso = parseDate(v);
-    if (!iso) problems.push(field);
+    if (!iso) bad(field, "date");
     else row[key] = field === "lead_date" ? iso : `${iso}T10:00:00+05:30`;
   }
   for (const [field, key] of [["amount_quoted", "amount_quoted_paise"], ["amount_finalised", "amount_finalised_paise"]] as const) {
@@ -278,13 +328,53 @@ export function mapLeadRow(cells: string[], columns: Record<string, number | nul
       if (paise < 0) throw new Error("negative");
       row[key] = paise;
     } catch {
-      problems.push(field);
+      bad(field, "amount");
     }
   }
   if (get("stage")) {
     const stage = parseLeadStage(get("stage"));
     if (stage) row.stage = stage;
-    else problems.push("stage");
+    else bad("stage", "stage");
   }
-  return { row, problems };
+  return { row, problems, reasons };
+}
+
+export type ImportKind = "patients" | "stock" | "leads";
+
+/**
+ * Downloadable templates: the column names each import understands best, plus two sample
+ * rows (made-up people and medicines) showing how to write dates, money and numbers.
+ * Every column maps straight back through the matching map*Columns (tested).
+ */
+export const IMPORT_TEMPLATES: Record<ImportKind, { headers: string[]; examples: string[][]; required: string[] }> = {
+  patients: {
+    headers: ["Name", "Mobile", "Gender", "DOB", "Age", "UHID", "Email", "Address", "Area", "City", "Pincode"],
+    examples: [
+      ["Sample Patient One", "98450 12345", "F", "31/03/1990", "", "", "", "12 Main Road", "Indiranagar", "Bengaluru", "560038"],
+      ["Sample Patient Two", "9845012346", "M", "", "45", "OLD-1001", "patient.two@example.com", "", "", "Mysuru", "570001"],
+    ],
+    required: ["full_name"],
+  },
+  stock: {
+    headers: ["Item Name", "Strength", "Form", "Manufacturer", "HSN", "GST %", "MRP", "Selling Price", "Purchase Price", "Batch No", "Expiry", "Qty", "Reorder Level", "Rack"],
+    examples: [
+      ["Sample Tablet", "500 mg", "Tablet", "Sample Pharma", "30049099", "12", "35.50", "35.50", "21.20", "SB1001", "03/2028", "120", "20", "A1"],
+      ["Sample Syrup", "100 ml", "Syrup", "Sample Pharma", "30049011", "5", "110", "", "70", "SS2002", "Dec-2027", "15", "5", "B2"],
+    ],
+    required: ["name", "batch_no", "expiry_date", "qty"],
+  },
+  leads: {
+    headers: ["Date", "Name", "Mobile", "Alternate Mobile", "Email", "Treatment", "Source", "Assigned To", "Referred By", "Status", "Lost Reason", "Due Date", "Amount Quoted", "Amount Finalised", "Comments 1", "Comments 2"],
+    examples: [
+      ["01/10/2026", "Sample Lead One", "90000 00001", "", "lead.one@example.com", "Hair transplant", "", "", "", "New", "", "05/10/2026", "80000", "", "Asked for a call in the evening", ""],
+      ["02/10/2026", "Sample Lead Two", "9000000002", "9000000003", "", "Rhinoplasty", "", "", "Friend", "Interested", "", "", "150000", "135000", "", ""],
+    ],
+    required: ["name", "phone"],
+  },
+};
+
+/** The template as CSV text (Excel opens it directly). */
+export function importTemplateCsv(kind: ImportKind): string {
+  const t = IMPORT_TEMPLATES[kind];
+  return toCsv([t.headers, ...t.examples]);
 }

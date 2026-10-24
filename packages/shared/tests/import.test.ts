@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { csvCell, parseCsv, toCsv } from "../src/csv";
 import {
-  mapLeadColumns, mapLeadRow, mapPatientColumns, mapPatientRow, mapStockColumns, mapStockRow, parseDate, parseExpiry, parseLeadStage,
+  IMPORT_TEMPLATES, importTemplateCsv, mapLeadColumns, mapLeadRow, mapPatientColumns, mapPatientRow, mapStockColumns, mapStockRow, parseDate,
+  parseExpiry, parseLeadStage,
 } from "../src/import";
 
 describe("CSV", () => {
@@ -28,10 +29,13 @@ describe("patient import mapping", () => {
     expect(mapPatientRow(["  Meera  Nair ", "098450 12345", "F", "31/03/1990", "PAC2139", "560001"], cols)).toEqual({
       row: { full_name: "Meera Nair", phone_e164: "+919845012345", gender: "female", dob: "1990-03-31", uhid: "PAC2139", pincode: "560001" },
       problems: [],
+      reasons: {},
     });
   });
   it("reports bad cells instead of guessing", () => {
-    expect(mapPatientRow(["", "123", "M", "31/02/1990", "", "012345"], cols).problems).toEqual(["full_name", "phone_e164", "dob", "pincode"]);
+    const r = mapPatientRow(["", "123", "M", "31/02/1990", "", "012345"], cols);
+    expect(r.problems).toEqual(["full_name", "phone_e164", "dob", "pincode"]);
+    expect(r.reasons).toEqual({ full_name: "required", phone_e164: "phone", dob: "date", pincode: "pincode" });
   });
   it("parses Indian and ISO dates, rejects impossible ones", () => {
     expect(parseDate("1-4-2026")).toBe("2026-04-01");
@@ -69,8 +73,9 @@ describe("opening stock mapping", () => {
     });
   });
   it("lists every bad cell before anything is sent", () => {
-    const { problems } = mapStockRow(["", "", "later", "0", "abc", "55", "12", "", ""], cols);
+    const { problems, reasons } = mapStockRow(["", "", "later", "0", "abc", "55", "12", "", ""], cols);
     expect(problems).toEqual(["name", "hsn", "gst", "mrp", "batch_no", "expiry_date", "qty"]);
+    expect(reasons).toMatchObject({ name: "required", expiry_date: "expiry", qty: "qty", mrp: "amount" });
   });
 });
 
@@ -90,6 +95,7 @@ describe("lead import mapping", () => {
         amount_quoted_paise: 12000000, amount_finalised_paise: 9500050, stage: "consultation_booked",
       },
       problems: [],
+      reasons: {},
     });
   });
   it("reports what it can't read", () => {
@@ -99,5 +105,27 @@ describe("lead import mapping", () => {
   it("understands the usual stage words", () => {
     expect(["New", "RNR", "Not interested", "Surgery fixed", "Won", "spam"].map(parseLeadStage))
       .toEqual(["new", "not_reachable", "lost", "surgery_scheduled", "converted", "junk"]);
+  });
+});
+
+describe("templates", () => {
+  const mappers = {
+    patients: [mapPatientColumns, mapPatientRow],
+    stock: [mapStockColumns, mapStockRow],
+    leads: [mapLeadColumns, mapLeadRow],
+  } as const;
+  for (const kind of ["patients", "stock", "leads"] as const) {
+    it(`${kind}: every template column is recognised and the sample rows import cleanly`, () => {
+      const [header, ...rows] = parseCsv(importTemplateCsv(kind));
+      const [mapColumns, mapRow] = mappers[kind];
+      const cols = mapColumns(header!);
+      expect(Object.entries(cols).filter(([, i]) => i === null).map(([f]) => f)).toEqual([]);
+      for (const field of IMPORT_TEMPLATES[kind].required) expect(cols[field], field).not.toBeNull();
+      for (const r of rows) expect(mapRow(r, cols).problems).toEqual([]);
+    });
+  }
+  it("text over the column's limit is reported, not cut", () => {
+    const cols = mapPatientColumns(["Name", "City"]);
+    expect(mapPatientRow(["Asha", "x".repeat(81)], cols).reasons).toEqual({ city: "tooLong" });
   });
 });

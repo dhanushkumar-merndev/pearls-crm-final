@@ -1443,8 +1443,11 @@ declare
   v_seen text[] := '{}';
   v_p jsonb;
   v_ref uuid;
+  v_state text;
   v_detail text;
   v_message text;
+  v_constraint text;
+  v_column text;
 begin
   perform private.require_staff(array['sales_manager', 'admin']::public.staff_role[]);
   if jsonb_typeof(p_rows) <> 'array' or jsonb_array_length(p_rows) > 500 then
@@ -1512,15 +1515,16 @@ begin
         -- Dry run: still check types and limits by inserting inside a sub-transaction that is undone.
         begin
           perform private.lead_insert(v_p - 'assigned_to', gen_random_uuid(), 'import');
-          raise exception using errcode = 'P0002', message = 'dry_run';
-        exception when sqlstate 'P0002' then null;
+          raise exception using errcode = 'PX001', message = 'dry_run_ok'; -- undo the trial insert
+        exception when sqlstate 'PX001' then null;
         end;
       end if;
       v_ok := v_ok + 1;
     exception when others then
-      get stacked diagnostics v_detail = pg_exception_detail, v_message = message_text;
-      v_errors := v_errors || jsonb_build_object('row', v_i, 'field', nullif(v_detail, ''), 'message',
-        case when v_message in ('invalid_input', 'duplicate', 'not_found', 'reason_required') then v_message else 'invalid_input' end);
+      get stacked diagnostics v_state = returned_sqlstate, v_detail = pg_exception_detail, v_message = message_text,
+                              v_constraint = constraint_name, v_column = column_name;
+      -- private.import_error is defined by the import-checks migration (resolved when this runs).
+      v_errors := v_errors || private.import_error(v_i, v_state, v_message, v_detail, v_constraint, v_column, array['leads']);
     end;
   end loop;
   return jsonb_build_object('ok', v_ok, 'errors', v_errors, 'dry_run', p_dry_run);
