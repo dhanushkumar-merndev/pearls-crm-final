@@ -30,6 +30,31 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder
 
+  android:
+    name: Android unit tests + debug build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v5
+      # Gradle runs on JDK 21 (android/gradle/gradle-daemon-jvm.properties); installing it
+      # here saves the auto-download. The runner already has the Android SDK (ANDROID_HOME).
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v5
+      # No root .env in CI: the app builds with an empty backend address ("not set up yet").
+      - run: ./gradlew test assembleDebug --console=plain
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: android-test-reports
+          path: |
+            android/**/build/reports/tests/
+            android/**/build/test-results/
+
   database:
     name: Database tests (pgTAP + concurrency)
     runs-on: ubuntu-latest
