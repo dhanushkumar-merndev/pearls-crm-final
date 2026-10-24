@@ -1,6 +1,16 @@
 # Continue here
 
-Last updated 23/10/2026 late (session 5). To resume, say: **"Read continue.md and carry on."**
+Last updated 24/10/2026 (session 5). To resume, say: **"Read continue.md and carry on."**
+
+## FIRST, on another computer: pull
+Everything is pushed to GitHub (`origin/main`, plus the unmerged WIP branch). Before anything else:
+```
+git clone https://github.com/dhanushkumar-merndev/pearls-crm-final.git pearls   # first time only
+cd pearls
+git checkout main && git pull        # every time you sit down at a computer
+pnpm install
+```
+Not in git (git-ignored, copy by hand or recreate): the root `.env` (template `.env.example`, then `pnpm env:sync`), `docs/` (private patient data), `android/local.properties`. Always `git pull` before starting and push (VS Code → Sync) when you finish, so the two computers don't diverge.
 Read `CLAUDE.md` and `dev-docs/PLAN.md` first (PLAN.md section G lists every decision made while building).
 
 ## Owner's standing instructions
@@ -35,12 +45,12 @@ Read `CLAUDE.md` and `dev-docs/PLAN.md` first (PLAN.md section G lists every dec
 4. Today board / appointment actions: lead-only bookings (`lead_only`, "Register as patient" → `/patients/new?lead=` using `lead_for_registration`, then `link_lead_to_patient`); Start treatment shows the agreed price from `patient_leads`.
 5. e2e `leads.db.spec.ts`, then deploy (dry run → `pnpm deploy:supabase`, functions incl. meta-leads), `dev-docs/SETUP_META.md`, PLAN.md G notes for Phase 9.
 
-## Left in the working tree (not mine — from another Claude session that closed)
-Uncommitted login-form validation (`packages/shared/src/auth.ts` loginSchema, `login-form.tsx`, `login.spec.ts` + screenshots, login keys in `en.json`). Review, then commit or discard — don't mix into other commits (stage only your own hunks).
+## Login-form validation (from another Claude session) — now committed
+`loginSchema` (zod) in `packages/shared/src/auth.ts`, `login-form.tsx` (field errors, focus first bad field, "forgot password" link removed), `login.spec.ts` + screenshots, login keys in `en.json`. Committed as its own commit but not re-verified after the hand-off: run `pnpm test` and the login e2e once.
 
 ## Still open with the owner
 - Tigris bucket `pearl-staging` CORS: add the Vercel URL and `http://127.0.0.1:3417` (browser tests) to the allowed origins — the CLI key gets "Access Denied". Until then 3 scanning browser tests (offline, duplicate, phone) fail on upload. Also add the Vercel URL to `WEB_ORIGIN` in `.env` and run `pnpm supabase:configure`. Rotate `STAGING_TEST_PASSWORD` (it was shown once in a test log).
-- Push commits to GitHub (VS Code Sync). After pushing, CI annotations (Playwright "github" reporter) are readable without login.
+- Commits are pushed (24/10/2026); keep pushing via VS Code Sync or `git push`. After pushing, CI annotations (Playwright "github" reporter) are readable without login.
 - GitHub secrets SUPABASE_ACCESS_TOKEN / SUPABASE_PROJECT_REF / SUPABASE_DB_PASSWORD for the auto-deploy job (it skips with a warning until set).
 - Vercel env vars: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, CRON_SECRET, NEXT_PUBLIC_TURNSTILE_SITE_KEY. Turnstile uses Cloudflare test keys until real ones are added.
 - Full brief sections 15–19 (`CLINIC_CRM_BUILD_PROMPT.md`), PLAN.md A1 answers, Vercel Pro / Supabase Pro before go-live.
