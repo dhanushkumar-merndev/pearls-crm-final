@@ -49,6 +49,12 @@ export const ERROR_CODES = [
   "file_unreadable",
   // Phase 9: leads
   "amount_locked",
+  // Phase 10: WhatsApp
+  "whatsapp_off",
+  "opted_out",
+  "outside_window",
+  "not_configured",
+  "whatsapp_api",
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

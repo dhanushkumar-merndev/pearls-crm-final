@@ -21,4 +21,17 @@ describe("settings", () => {
     expect(validateSettings("security", { idle_logout_minutes: 9999 })).toEqual({ ok: false, field: "idle_logout_minutes" });
     expect(validateSettings("billing", { ip_number_mode: "whatever" })).toEqual({ ok: false, field: "ip_number_mode" });
   });
+
+  it("whatsapp: off until switched on, quiet hours 21:00–09:00 IST", () => {
+    const w = readSettings("whatsapp", {});
+    expect(w.enabled).toBe(false);
+    expect([w.quiet_start, w.quiet_end]).toEqual(["21:00", "09:00"]);
+    expect(w.cost_utility_paise).toBe(12);
+    expect(w.stop_reply).toBeNull();
+    expect(validateSettings("whatsapp", { quiet_start: "25:00" })).toEqual({ ok: false, field: "quiet_start" });
+    expect(validateSettings("whatsapp", { cost_marketing_paise: -1 })).toEqual({ ok: false, field: "cost_marketing_paise" });
+    expect(validateSettings("whatsapp", { stop_reply: "x".repeat(1001) })).toEqual({ ok: false, field: "stop_reply" });
+    // Overnight and equal times are both fine (equal = no quiet hours).
+    expect(validateSettings("whatsapp", { quiet_start: "09:00", quiet_end: "09:00" }).ok).toBe(true);
+  });
 });

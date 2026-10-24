@@ -185,7 +185,12 @@
     "too_many_pages": "That is the most pages one document can have. Save these, then scan the rest as a new document.",
     "heic_not_supported": "This browser can't open iPhone (HEIC) photos. Use Safari, or set the iPhone to Settings → Camera → Formats → Most Compatible, or send the photo as JPEG.",
     "file_unreadable": "This file couldn't be opened. It may be damaged, password-protected or in a format this browser can't read.",
-    "amount_locked": "The price was agreed and the treatment has started — only reception or an admin can change it now, with a reason."
+    "amount_locked": "The price was agreed and the treatment has started — only reception or an admin can change it now, with a reason.",
+    "whatsapp_off": "WhatsApp is switched off. An admin can switch it on in Admin → WhatsApp.",
+    "opted_out": "This person asked not to get WhatsApp messages (they wrote STOP). They can write START to get them again.",
+    "outside_window": "They haven't written in the last 24 hours, so WhatsApp only allows an approved template. Choose a template, or open WhatsApp on your phone.",
+    "not_configured": "This connection isn't set up yet. The setup guide in dev-docs explains the keys to add.",
+    "whatsapp_api": "WhatsApp (Meta) refused the request. Check the WhatsApp keys, then try again."
   },
   "common": {
     "saved": "Saved ✓",
@@ -735,6 +740,14 @@
     "metaLeads": {
       "title": "Meta lead ads",
       "body": "Facebook and Instagram leads: setup, extra questions, deliveries and retries."
+    },
+    "whatsapp": {
+      "title": "WhatsApp",
+      "body": "Connection, reminders, quiet hours, templates and this month's messages and cost."
+    },
+    "drips": {
+      "title": "Drip campaigns",
+      "body": "Messages sent on a schedule after a lead comes in, a consultation, a treatment or a discharge."
     }
   },
   "patientForm": {
@@ -877,7 +890,8 @@
       "appointments": "Appointments",
       "treatments": "Treatments",
       "bills": "Bills",
-      "ip": "IP stays"
+      "ip": "IP stays",
+      "whatsapp": "WhatsApp"
     },
     "estimated": "{date} (estimated)",
     "given": "Given",
@@ -2361,7 +2375,9 @@
       "appointment": "Consultation booked",
       "duplicate": "Another lead with the same number came in",
       "enquired_again": "Enquired again (Meta ad)",
-      "deleted": "Removed"
+      "deleted": "Removed",
+      "whatsapp": "WhatsApp sent",
+      "whatsapp_in": "WhatsApp reply"
     },
     "loading": "Loading…",
     "poolTitle": "Who gets new leads",
@@ -2498,5 +2514,245 @@
     "loading": "Loading…",
     "noEvents": "Nothing received yet.",
     "more": "Load more"
+  },
+  "whatsapp": {
+    "title": "WhatsApp",
+    "loading": "Loading messages…",
+    "cantLoad": "Couldn't load the messages. Please refresh.",
+    "optedOut": "Asked for no messages",
+    "manualNumber": "Manual WhatsApp for this number",
+    "apiOff": "WhatsApp sending is off",
+    "windowOpen": "Can reply freely until {time}",
+    "templatesOnly": "Templates only",
+    "noPhone": "There is no phone number to message.",
+    "conversation": "Conversation",
+    "older": "Show older messages",
+    "empty": "No messages yet.",
+    "optedOutHint": "They asked not to get WhatsApp messages. Turn messages back on only if they ask you to.",
+    "optIn": "They asked to get messages again",
+    "optOut": "Stop WhatsApp messages to this number",
+    "optedOutSaved": "No more WhatsApp messages will go to this number.",
+    "optedInSaved": "WhatsApp messages are allowed again.",
+    "template": "Template: {name}",
+    "status": {
+      "queued": "Waiting to send",
+      "sent": "Sent",
+      "delivered": "Delivered",
+      "read": "Read",
+      "failed": "Not sent",
+      "manual": "Sent from a phone",
+      "received": "Received"
+    },
+    "action": {
+      "confirmed": "Confirmed the booking",
+      "reschedule": "Asked to change the booking",
+      "stop": "Asked for no messages",
+      "start": "Asked for messages again"
+    },
+    "queued": "Message queued — it goes out in a few seconds.",
+    "sendAs": "Send as",
+    "useTemplate": "Approved template",
+    "useText": "Free message",
+    "windowClosedHint": "They haven't written in the last 24 hours, so WhatsApp only allows an approved template.",
+    "templateField": "Template",
+    "noTemplates": "No approved templates yet. An admin can sync them in Admin → WhatsApp.",
+    "chooseTemplate": "Choose a template",
+    "sending": "Sending…",
+    "send": "Send",
+    "message": "Message",
+    "manualNumberHint": "This number is set to manual WhatsApp. Type the message: it is saved here and WhatsApp opens with it ready to send.",
+    "apiOffHint": "Automatic WhatsApp is off. Type the message: it is saved here and WhatsApp opens with it ready to send.",
+    "openWhatsApp": "Open WhatsApp",
+    "drips": "Drip campaigns",
+    "addToDrip": "Add to a campaign",
+    "addToDripHint": "They get the campaign's messages on its schedule, outside quiet hours. A reply or a booking can stop it.",
+    "noDrips": "Not in any campaign.",
+    "dripStatus": {
+      "active": "Running",
+      "paused": "Paused",
+      "completed": "Finished",
+      "stopped": "Stopped"
+    },
+    "dripProgress": "{sent} of {steps} sent",
+    "dripNext": "Next: {at}",
+    "pause": "Pause",
+    "resume": "Resume",
+    "stop": "Stop",
+    "enrolled": "Added to the campaign.",
+    "enroll": "Add",
+    "campaign": "Campaign",
+    "noCampaigns": "No running campaign fits. An admin can make one in Admin → Drip campaigns.",
+    "chooseCampaign": "Choose a campaign"
+  },
+  "waAdmin": {
+    "title": "WhatsApp",
+    "description": "Booking confirmations, reminders, replies and drip campaigns through the WhatsApp Cloud API.",
+    "connection": "Connection",
+    "state": {
+      "ok": "Connected",
+      "error": "Problem",
+      "unknown": "Not checked yet",
+      "off": "Not set up"
+    },
+    "lastOk": "Last worked {at}",
+    "neverOk": "Hasn't worked yet",
+    "lastRun": "last sending run {at}",
+    "noRunYet": "no sending run yet",
+    "testing": "Testing…",
+    "test": "Test connection",
+    "syncing": "Getting templates…",
+    "sync": "Get templates from Meta",
+    "testOk": "Connected ✓ {name} ({number})",
+    "synced": "{count, plural, one {# template} other {# templates}} copied from Meta ✓",
+    "callbackUrl": "Webhook callback URL",
+    "copy": "Copy",
+    "copied": "Copied ✓",
+    "setupHint": "Meta sends delivery ticks and replies to this address. The keys go in the .env file (dev-docs/SETUP_WHATSAPP.md explains each click).",
+    "monthTitle": "This month",
+    "n": {
+      "sent": "Sent",
+      "delivered": "Delivered",
+      "read": "Read",
+      "failed": "Not sent",
+      "manual": "Sent from a phone",
+      "received": "Replies received",
+      "queued": "Waiting now",
+      "optedOut": "Numbers that said STOP",
+      "cost": "Estimated cost"
+    },
+    "costHint": "Estimated from the prices below; Meta's invoice has the real amount. Replies within 24 hours are free.",
+    "failuresTitle": "Recent messages that couldn't be sent",
+    "col": {
+      "when": "When",
+      "phone": "Number",
+      "purpose": "For",
+      "problem": "Problem",
+      "template": "Template",
+      "status": "Meta status",
+      "values": "Values",
+      "actions": "Actions"
+    },
+    "purpose": {
+      "appointment_booked": "Booking confirmation",
+      "appointment_reminder": "Booking reminder",
+      "lead_welcome": "New lead welcome",
+      "followup": "Follow-up",
+      "other": "Other"
+    },
+    "dripsLink": "Drip campaigns →",
+    "settingsTitle": "Settings",
+    "settingsHint": "Automatic messages go only when sending is on and a template is chosen for that purpose.",
+    "s": {
+      "enabled": "Send WhatsApp messages from the CRM",
+      "enabledHint": "Off: staff can still open WhatsApp on their phone with the message ready (it is saved here).",
+      "send_booking_confirmation": "Send a confirmation when a booking is made",
+      "send_reminders": "Send booking reminders",
+      "remindersHint": "How long before is set in Admin → Settings → Appointments (reminder hours).",
+      "quiet_start": "Quiet hours start",
+      "quietHint": "India time. Automatic messages wait until quiet hours end; messages staff send go at once. The same time twice means no quiet hours.",
+      "quiet_end": "Quiet hours end",
+      "cost_utility_paise": "Price per service message (₹)",
+      "cost_marketing_paise": "Price per marketing message (₹)",
+      "stop_reply": "Reply when someone writes STOP",
+      "stopReplyHint": "Leave empty for: “You won't get WhatsApp messages from us any more. Reply START to get them again.”"
+    },
+    "saving": "Saving…",
+    "save": "Save",
+    "templatesTitle": "Templates",
+    "templatesHint": "Templates are made and approved in Meta's WhatsApp Manager, then copied here with “Get templates from Meta”. Choose what each is for and which value fills each '{{1}}', '{{2}}'…",
+    "loading": "Loading…",
+    "noTemplates": "No templates yet. Make them in WhatsApp Manager, then click “Get templates from Meta”.",
+    "category": {
+      "marketing": "Marketing",
+      "utility": "Service",
+      "authentication": "Login code"
+    },
+    "off": "switched off",
+    "tplStatus": {
+      "APPROVED": "Approved",
+      "PENDING": "Waiting for Meta",
+      "REJECTED": "Rejected",
+      "PAUSED": "Paused by Meta",
+      "DISABLED": "Disabled by Meta"
+    },
+    "noValues": "No values needed",
+    "var": {
+      "name": "Full name",
+      "first_name": "First name",
+      "clinic_name": "Clinic name",
+      "clinic_phone": "Clinic phone",
+      "appt_date": "Booking date",
+      "appt_time": "Booking time",
+      "doctor": "Doctor",
+      "uhid": "UHID",
+      "treatment": "Treatment"
+    },
+    "valuesMissing": "Choose {n, plural, one {# value} other {# values}}",
+    "edit": "Edit",
+    "purposeField": "Used for",
+    "purposeHint": "One template per purpose. “Other” templates can be sent by staff and used in drip campaigns.",
+    "noPurpose": "Nothing automatic",
+    "valueFor": "Value for {n}",
+    "chooseValue": "Choose a value",
+    "activeField": "Offer this template",
+    "activeHint": "Switched off: staff can't pick it and nothing automatic uses it."
+  },
+  "drips": {
+    "title": "Drip campaigns",
+    "description": "A series of approved WhatsApp templates sent on a schedule. Quiet hours are respected and numbers that said STOP never get them.",
+    "new": "New campaign",
+    "col": {
+      "name": "Campaign",
+      "starts": "Starts when",
+      "steps": "Messages",
+      "people": "People",
+      "state": "State",
+      "actions": "Actions"
+    },
+    "loading": "Loading…",
+    "empty": "No campaigns yet.",
+    "trigger": {
+      "manual": "Staff add someone",
+      "lead_created": "A new lead comes in",
+      "consultation_done": "A consultation is done",
+      "treatment_started": "A treatment starts",
+      "treatment_completed": "A treatment is completed",
+      "discharged": "A patient is discharged"
+    },
+    "audience": {
+      "patient": "Patients",
+      "lead": "Leads"
+    },
+    "stepLine": "{n}. {template} — after {days, plural, one {# day} other {# days}} {hours, plural, one {# hour} other {# hours}}",
+    "people": "{active} running · {done} finished",
+    "on": "On",
+    "off": "Off",
+    "edit": "Edit",
+    "editTitle": "Edit {name}",
+    "newTitle": "New drip campaign",
+    "saving": "Saving…",
+    "save": "Save campaign",
+    "f": {
+      "name": "Name",
+      "description": "Notes (optional)",
+      "audience": "Who gets it",
+      "trigger": "Starts when",
+      "stop_on_reply": "Stop when they reply",
+      "stop_on_booking": "Stop when they book an appointment",
+      "active": "Campaign is on",
+      "activeHint": "Off: nobody new is added; people already in it stop getting messages until it is on again.",
+      "template": "Message {n}",
+      "days": "Days after",
+      "hours": "Hours after"
+    },
+    "stepsTitle": "Messages",
+    "stepsHint": "Each message is sent this long after the start (the event, or when staff added the person). Put them in time order.",
+    "noTemplates": "No approved templates yet. Get them first in Admin → WhatsApp.",
+    "chooseTemplate": "Choose a template",
+    "removeStep": "Remove message {n}",
+    "addStep": "Add a message",
+    "noSteps": "Add at least one message.",
+    "triggerAudience": "This start doesn't fit who gets it (leads: staff add or a new lead; patients: the other events).",
+    "stepOrder": "This message is earlier than the one before it."
   }
 }

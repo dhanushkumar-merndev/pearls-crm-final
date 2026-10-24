@@ -37,6 +37,7 @@ export const FUNCTION_KEYS = [
   "WHATSAPP_ACCESS_TOKEN",
   "WHATSAPP_APP_SECRET",
   "WHATSAPP_WEBHOOK_VERIFY_TOKEN",
+  "EDGE_CRON_SECRET",
   "FCM_PROJECT_ID",
   "FCM_SERVICE_ACCOUNT_JSON",
   "ORS_API_KEY",
@@ -57,6 +58,17 @@ export function parseEnv(text: string): Map<string, string> {
     values.set(key, value);
   }
   return values;
+}
+
+/**
+ * Line numbers that are neither blank, a comment nor KEY=VALUE — usually the rest of a value
+ * pasted over several lines (e.g. a JSON key file), which only keeps its first line.
+ */
+export function strayLines(text: string): number[] {
+  return text.split(/\r?\n/).flatMap((raw, i) => {
+    const line = raw.trim();
+    return !line || line.startsWith("#") || /^(export\s+)?[A-Za-z_][A-Za-z0-9_]*\s*=/.test(line) ? [] : [i + 1];
+  });
 }
 
 /** Root .env values; real environment variables win (CI passes GitHub secrets that way). */
@@ -102,7 +114,16 @@ function main() {
     console.error("✖ No .env file yet. Copy .env.example to .env first:\n    cp .env.example .env");
     process.exit(1);
   }
-  const values = parseEnv(readFileSync(envPath, "utf8"));
+  const text = readFileSync(envPath, "utf8");
+  const stray = strayLines(text);
+  if (stray.length) {
+    console.error(
+      `✖ .env line(s) ${stray.join(", ")} are not KEY=VALUE. Each value must be on ONE line — paste a JSON key file\n` +
+        `  as one line in single quotes: KEY='{"type":"service_account",…}'. Nothing was written.`,
+    );
+    process.exit(1);
+  }
+  const values = parseEnv(text);
 
   for (const key of WEB_KEYS) {
     if (looksLikeServerKey(values.get(key) ?? "")) {

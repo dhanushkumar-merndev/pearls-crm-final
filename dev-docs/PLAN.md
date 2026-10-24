@@ -909,3 +909,12 @@ Each phase ends with: tests green → I tell you step by step how to try it on s
   - "Amount finalised" (agreed price) pre-fills Start treatment's agreed price; once a treatment has started only reception or an admin can change it, with a reason.
   - Meta lead ads: Admin → Meta lead ads shows the callback URL, maps extra form questions, lists every delivery and retries failed ones (setup: `dev-docs/SETUP_META.md`). Answers not mapped go to "More comments".
   - Fixed while testing: an admin settings form could lose a row typed before the saved settings arrived; editable lists now copy server data once and never over unsaved edits.
+- 24/10/2026 (session 6), Phase 10 done: WhatsApp Cloud API and drip campaigns. Decisions made while building:
+  - Every outgoing message is saved first and sent by `wa-dispatch` (every 5 minutes from the database timer, and at once after a staff send). Booking confirmations and reminders are sent once each, whatever runs twice; delivery ticks only move forward (sent → delivered → read).
+  - Replies are understood in English, Kannada and Hindi (YES / ok / ಹೌದು / हाँ confirm the next booking; NO / change ask for a call back; STOP / START switch messages off and on). Longer or mixed replies are left for staff to read. A reply after the booking time does nothing.
+  - Free-typed messages only within 24 hours of the person's last message (Meta's rule); otherwise an approved template. Automatic messages wait outside quiet hours (default 21:00–09:00 IST); staff sends go at once.
+  - Without the Cloud API (or for a number set to manual), staff type the message, it is saved, and WhatsApp opens on their phone with it ready.
+  - Templates are made in Meta's WhatsApp Manager and copied in; the admin picks what each is for and which value fills each {{n}}. Estimated cost per message is a setting; Meta's invoice is the real amount.
+  - Drip campaigns: patients (consultation done, treatment started / completed, discharged, or added by staff) or leads (new lead, or added by staff); a reply or a booking can stop it; opted-out numbers never get it.
+  - Live site address: https://pearl-sales.vercel.app (login emails link there; set in WEB_ORIGIN).
+  - Housekeeping still to add (Phase 14): `job_runs` grows by one row per dispatch run (~105k rows a year) — purge rows older than 90 days.

@@ -10,6 +10,7 @@ import { TreatmentsTab } from "@/components/treatments/treatments-tab";
 import { PatientAdmissionsTab } from "@/components/admissions/patient-admissions-tab";
 import { PatientBillsTab } from "@/components/bills/patient-bills-tab";
 import { DocumentsTab } from "@/components/scan/documents-tab";
+import { WhatsAppPanel } from "@/components/whatsapp/whatsapp-panel";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -65,6 +66,8 @@ export function PatientFile({ initial }: { initial: PatientHeader }) {
   const p = header.data;
   const [dialog, setDialog] = useState<"edit" | "merge" | "book" | "followup" | null>(null);
   const hit = { id: p.id, title: p.full_name, uhid: p.uhid, subtitle: p.uhid };
+  // Patient messages are reception's (and the admin's) — Postgres checks the same.
+  const canWhatsApp = me?.role === "receptionist" || me?.role === "admin";
 
   return (
     <div className="flex flex-col gap-5">
@@ -119,7 +122,9 @@ export function PatientFile({ initial }: { initial: PatientHeader }) {
 
       <Tabs.Root defaultValue="overview" className="flex flex-col gap-4">
         <Tabs.List aria-label={t("sections")} className="flex flex-wrap gap-1 border-b border-border">
-          {(["overview", "appointments", "treatments", "ip", "bills", "documents", "family", "timeline"] as const).map((tab) => (
+          {(["overview", "appointments", "treatments", "ip", "bills", "documents", "whatsapp", "family", "timeline"] as const)
+            .filter((tab) => tab !== "whatsapp" || canWhatsApp)
+            .map((tab) => (
             <Tabs.Trigger
               key={tab}
               value={tab}
@@ -149,6 +154,11 @@ export function PatientFile({ initial }: { initial: PatientHeader }) {
         <Tabs.Content value="documents">
           <DocumentsTab patientId={p.id} />
         </Tabs.Content>
+        {canWhatsApp && (
+          <Tabs.Content value="whatsapp">
+            <WhatsAppPanel patientId={p.id} canDrip />
+          </Tabs.Content>
+        )}
         <Tabs.Content value="family">
           <Family p={p} />
         </Tabs.Content>

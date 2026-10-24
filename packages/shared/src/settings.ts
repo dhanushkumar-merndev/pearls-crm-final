@@ -49,6 +49,20 @@ export const SETTINGS_SCHEMAS = {
       )
       .default({}),
   }),
+  /** WhatsApp Cloud API (Phase 10). Automatic messages wait for `enabled` and approved templates. */
+  whatsapp: z.object({
+    enabled: z.boolean().default(false),
+    send_booking_confirmation: z.boolean().default(true),
+    send_reminders: z.boolean().default(true),
+    /** IST. Automatic messages wait until quiet_end; the same time twice = no quiet hours. */
+    quiet_start: hhmm.default("21:00"),
+    quiet_end: hhmm.default("09:00"),
+    /** Estimated cost per message, shown on the WhatsApp page (Meta bills the real amount). */
+    cost_utility_paise: int(0, 100000).default(12),
+    cost_marketing_paise: int(0, 100000).default(88),
+    /** Sent once after someone writes STOP. Empty = the built-in text. */
+    stop_reply: z.string().trim().max(1000, { error: "max" }).nullable().default(null),
+  }),
   notifications: z.object({
     daily_summary_enabled: z.boolean().default(true),
     daily_summary_time: hhmm.default("20:00"),

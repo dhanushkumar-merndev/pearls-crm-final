@@ -44,5 +44,10 @@
     <string name="error_heic_not_supported">This browser can\'t open iPhone (HEIC) photos. Use Safari, or set the iPhone to Settings → Camera → Formats → Most Compatible, or send the photo as JPEG.</string>
     <string name="error_file_unreadable">This file couldn\'t be opened. It may be damaged, password-protected or in a format this browser can\'t read.</string>
     <string name="error_amount_locked">The price was agreed and the treatment has started — only reception or an admin can change it now, with a reason.</string>
+    <string name="error_whatsapp_off">WhatsApp is switched off. An admin can switch it on in Admin → WhatsApp.</string>
+    <string name="error_opted_out">This person asked not to get WhatsApp messages (they wrote STOP). They can write START to get them again.</string>
+    <string name="error_outside_window">They haven\'t written in the last 24 hours, so WhatsApp only allows an approved template. Choose a template, or open WhatsApp on your phone.</string>
+    <string name="error_not_configured">This connection isn\'t set up yet. The setup guide in dev-docs explains the keys to add.</string>
+    <string name="error_whatsapp_api">WhatsApp (Meta) refused the request. Check the WhatsApp keys, then try again.</string>
     <string name="error_unknown">Something went wrong. Please try again.</string>
 </resources>

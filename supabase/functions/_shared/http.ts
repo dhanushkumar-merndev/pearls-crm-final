@@ -2,7 +2,7 @@
 // (packages/shared/src/errors.ts) so the apps translate them the same way.
 
 // WEB_ORIGIN: comma-separated web app addresses allowed to call from a browser
-// (e.g. "http://localhost:3000,https://pearl-crm.vercel.app"). Unset = any.
+// (e.g. "http://localhost:3000,https://pearl-sales.vercel.app"). Unset = any.
 const allowedOrigins = (Deno.env.get("WEB_ORIGIN") ?? "*")
   .split(",")
   .map((o) => o.trim())

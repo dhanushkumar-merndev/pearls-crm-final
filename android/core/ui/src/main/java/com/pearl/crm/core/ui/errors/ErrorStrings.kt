@@ -48,5 +48,10 @@ internal val ERROR_STRINGS: Map<String, Int> = mapOf(
     "heic_not_supported" to R.string.error_heic_not_supported,
     "file_unreadable" to R.string.error_file_unreadable,
     "amount_locked" to R.string.error_amount_locked,
+    "whatsapp_off" to R.string.error_whatsapp_off,
+    "opted_out" to R.string.error_opted_out,
+    "outside_window" to R.string.error_outside_window,
+    "not_configured" to R.string.error_not_configured,
+    "whatsapp_api" to R.string.error_whatsapp_api,
     "unknown" to R.string.error_unknown,
 )

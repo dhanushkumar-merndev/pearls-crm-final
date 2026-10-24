@@ -1,11 +1,11 @@
 import { assertEquals } from "@std/assert";
 import { allowOrigin, handler, json } from "./http.ts";
 
-const allowed = ["http://localhost:3000", "https://pearl-crm.vercel.app"];
+const allowed = ["http://localhost:3000", "https://pearl-sales.vercel.app"];
 
 Deno.test("only listed web addresses are allowed", () => {
   assertEquals(allowOrigin("http://localhost:3000", allowed), "http://localhost:3000");
-  assertEquals(allowOrigin("https://pearl-crm.vercel.app", allowed), "https://pearl-crm.vercel.app");
+  assertEquals(allowOrigin("https://pearl-sales.vercel.app", allowed), "https://pearl-sales.vercel.app");
   assertEquals(allowOrigin("https://evil.example", allowed), null);
   assertEquals(allowOrigin(null, allowed), null);
   assertEquals(allowOrigin("https://anything.example", ["*"]), "*");

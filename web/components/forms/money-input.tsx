@@ -33,7 +33,9 @@ export function MoneyInput({
   const [draft, setDraft] = useState<string | null>(null);
   const bad = draft !== null && draft.trim() !== "" && !parses(draft);
   const badId = id ? `${id}-amount` : undefined;
-  const shown = draft ?? (value === null ? "" : formatINR(value, { symbol: false }));
+  // A value that isn't whole paise (e.g. NaN from an emptied form) shows as empty, never crashes the page.
+  const amount = value !== null && Number.isSafeInteger(value) ? value : null;
+  const shown = draft ?? (amount === null ? "" : formatINR(amount, { symbol: false }));
   return (
     <div className="relative">
       <span aria-hidden className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-text-secondary">
@@ -48,7 +50,7 @@ export function MoneyInput({
         aria-describedby={[describedBy, bad ? badId : undefined].filter(Boolean).join(" ") || undefined}
         value={shown}
         onFocus={(e) => {
-          const raw = value === null ? "" : (value / 100).toFixed(2).replace(/\.00$/, "");
+          const raw = amount === null ? "" : (amount / 100).toFixed(2).replace(/\.00$/, "");
           // Swap the text in place and keep it selected, so typing replaces the amount instead of appending to it.
           e.currentTarget.value = raw;
           e.currentTarget.select();

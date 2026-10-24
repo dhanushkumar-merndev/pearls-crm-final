@@ -1,5 +1,5 @@
 import {
-  BedDouble, Building2, FileInput, FileText, Megaphone, PackageOpen, CalendarOff, ClipboardList, History, Inbox, ListChecks, Pill, Settings,
+  BedDouble, Building2, FileInput, FileText, Megaphone, MessageCircle, Repeat, PackageOpen, CalendarOff, ClipboardList, History, Inbox, ListChecks, Pill, Settings,
   Stethoscope, Syringe, Target, Users, type LucideIcon,
 } from "lucide-react";
 import type { Metadata } from "next";
@@ -27,6 +27,8 @@ const LINKS: { href: string; key: string; icon: LucideIcon }[] = [
   { href: "/admin/import?kind=stock", key: "importStock", icon: PackageOpen },
   { href: "/leads/import", key: "importLeads", icon: Target },
   { href: "/admin/meta-leads", key: "metaLeads", icon: Megaphone },
+  { href: "/admin/whatsapp", key: "whatsapp", icon: MessageCircle },
+  { href: "/admin/drips", key: "drips", icon: Repeat },
   { href: "/admin/audit", key: "audit", icon: History },
 ];
 

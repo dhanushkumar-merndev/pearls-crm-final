@@ -451,3 +451,17 @@ import_map = "./functions/deno.json"
 [functions.meta-leads]
 verify_jwt = false
 import_map = "./functions/deno.json"
+
+# WhatsApp (Phase 10). The webhook is called by Meta (signature checked in the function); the
+# dispatcher by the database timer (x-cron-secret) or a staff login; template sync by an admin.
+[functions.wa-webhook]
+verify_jwt = false
+import_map = "./functions/deno.json"
+
+[functions.wa-dispatch]
+verify_jwt = false
+import_map = "./functions/deno.json"
+
+[functions.wa-templates-sync]
+verify_jwt = false
+import_map = "./functions/deno.json"

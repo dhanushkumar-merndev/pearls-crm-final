@@ -3,11 +3,26 @@
  * from the root .env (pnpm supabase:configure). Run after the first deploy and
  * whenever WEB_ORIGIN, SMTP_* or an integration key changes. Values are never printed.
  */
+import { randomBytes } from "node:crypto";
+import { readFileSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
+import pg from "pg";
+import { setEnvValues } from "./env-set.ts";
 import { FUNCTION_KEYS } from "./env-sync.ts";
-import { project, webOrigins } from "./supabase-api.ts";
+import { project, root, webOrigins } from "./supabase-api.ts";
 
-const { env, api } = project();
+const { env, api, url } = project();
 const { site, all } = webOrigins(env);
+
+// The database timer (pg_cron → pg_net) proves itself to wa-dispatch with this secret.
+let cronSecret = env.get("EDGE_CRON_SECRET") ?? "";
+if (!cronSecret) {
+  cronSecret = randomBytes(32).toString("hex");
+  env.set("EDGE_CRON_SECRET", cronSecret);
+  const envPath = resolve(root, ".env");
+  writeFileSync(envPath, setEnvValues(readFileSync(envPath, "utf8"), new Map([["EDGE_CRON_SECRET", cronSecret]])));
+  console.log("✔ .env: EDGE_CRON_SECRET made (64 characters)");
+}
 
 // Mirrors supabase/config.toml [auth] so local and online behave the same.
 const auth: Record<string, unknown> = {
@@ -43,3 +58,23 @@ console.log(env.get("SMTP_USER") ? "✔ Emails go through Brevo" : "• Emails u
 const secrets = FUNCTION_KEYS.filter((k) => env.get(k)).map((name) => ({ name, value: env.get(name)! }));
 if (secrets.length) await api("/secrets", { method: "POST", body: secrets });
 console.log(`✔ Server function keys: ${secrets.length} of ${FUNCTION_KEYS.length} set (${secrets.map((s) => s.name).join(", ")})`);
+
+// The same secret and the functions' address go into the database's Vault, where
+// private.call_edge reads them. Only for the online database (DATABASE_URL in section 9).
+const databaseUrl = env.get("DATABASE_URL") ?? "";
+if (databaseUrl && !/@(127\.0\.0\.1|localhost)[:/]/.test(databaseUrl)) {
+  const db = new pg.Client({ connectionString: databaseUrl });
+  await db.connect();
+  try {
+    for (const [name, value] of [["edge_base_url", `${url}/functions/v1`], ["edge_cron_secret", cronSecret]] as const) {
+      const { rows } = await db.query<{ id: string }>("select id from vault.secrets where name = $1", [name]);
+      if (rows[0]) await db.query("select vault.update_secret($1, $2)", [rows[0].id, value]);
+      else await db.query("select vault.create_secret($1, $2)", [value, name]);
+    }
+  } finally {
+    await db.end();
+  }
+  console.log("✔ Database timer can start server functions (Vault: edge_base_url, edge_cron_secret)");
+} else {
+  console.log("• DATABASE_URL is not the online database: timer secrets not stored (fill .env section 9)");
+}

@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
+import { IntlMessageFormat } from "intl-messageformat";
 import { describe, expect, it } from "vitest";
 import messages from "../messages/en.json" with { type: "json" };
 
@@ -36,5 +37,22 @@ describe("screen text", () => {
       }
     }
     expect(missing).toEqual([]);
+  });
+
+  it("every message is valid ICU (a stray { or } breaks the screen at run time)", () => {
+    const bad: string[] = [];
+    const walk = (o: unknown, path: string) => {
+      if (typeof o === "string") {
+        try {
+          new IntlMessageFormat(o, "en");
+        } catch (e) {
+          bad.push(`${path}: ${(e as Error).message}`);
+        }
+      } else if (o && typeof o === "object") {
+        for (const [k, v] of Object.entries(o)) walk(v, path ? `${path}.${k}` : k);
+      }
+    };
+    walk(messages, "");
+    expect(bad).toEqual([]);
   });
 });

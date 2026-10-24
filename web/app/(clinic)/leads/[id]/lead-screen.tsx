@@ -20,6 +20,7 @@ import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
 import { Field, Textarea } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { WhatsAppPanel } from "@/components/whatsapp/whatsapp-panel";
 import { newId, rpc } from "@/lib/rpc";
 import { useMe } from "@/lib/use-me";
 import { useFeedback } from "@/lib/use-feedback";
@@ -193,6 +194,7 @@ export function LeadScreen({ initial }: { initial: LeadDetail }) {
         <aside className="flex flex-col gap-5">
           <FollowupCard lead={l} onSaved={refresh} />
           <PatientCard lead={l} isAdmin={isAdmin} onLinked={refresh} />
+          <WhatsAppPanel leadId={l.id} canDrip={me?.role === "sales_manager" || isAdmin} />
           {l.duplicates.length > 0 && (
             <Card className="flex flex-col gap-2">
               <CardTitle>{t("sameNumber")}</CardTitle>

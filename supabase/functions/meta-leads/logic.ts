@@ -6,12 +6,14 @@
 //   POST from an admin (login token): {action: "retry", leadgen_id} tries a failed one again.
 // Pure logic here; index.ts wires the real Graph API and database.
 import { z } from "zod";
+import { challenge, GRAPH_VERSION, hmacHex, signatureOk } from "../_shared/meta.ts";
 import { normalizePhone } from "../_shared/phone.ts";
+
+export { challenge, GRAPH_VERSION, hmacHex, signatureOk };
 
 /** An admin's "Try again" from the web app (login token, no Meta signature). */
 export const retrySchema = z.object({ action: z.literal("retry"), leadgen_id: z.string().regex(/^[0-9]{5,30}$/) });
 
-export const GRAPH_VERSION = "v23.0";
 export const GRAPH_FIELDS = "field_data,created_time,ad_id,ad_name,adset_name,campaign_name,form_id,platform";
 
 export type LeadField = "name" | "phone" | "alt_phone" | "email" | "treatment_text" | "comments1" | "comments2" | "ignore";
@@ -61,33 +63,6 @@ export interface Deps {
   rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
   fetchLead: (leadgenId: string) => Promise<GraphLead>;
   fieldMap: () => Promise<Record<string, string>>;
-}
-
-export async function hmacHex(key: string, data: Uint8Array | string): Promise<string> {
-  const k = await crypto.subtle.importKey("raw", new TextEncoder().encode(key), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-  const bytes = typeof data === "string" ? new TextEncoder().encode(data) : data;
-  const sig = await crypto.subtle.sign("HMAC", k, bytes as BufferSource);
-  return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-function sameText(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
-}
-
-/** X-Hub-Signature-256 = "sha256=" + HMAC-SHA256(raw body, app secret), compared in constant time. */
-export async function signatureOk(raw: Uint8Array, header: string | null, appSecret: string): Promise<boolean> {
-  if (!appSecret || !header?.startsWith("sha256=")) return false;
-  return sameText(header.slice("sha256=".length).toLowerCase(), await hmacHex(appSecret, raw));
-}
-
-export function challenge(params: URLSearchParams, verifyToken: string): { status: number; body: string } {
-  if (verifyToken && params.get("hub.mode") === "subscribe" && params.get("hub.verify_token") === verifyToken) {
-    return { status: 200, body: params.get("hub.challenge") ?? "" };
-  }
-  return { status: 403, body: "forbidden" };
 }
 
 const idText = (v: unknown) => (typeof v === "string" || typeof v === "number" ? String(v) : undefined);

@@ -111,7 +111,7 @@ To redo it (for example for production, with `pearl-prod`):
    pnpm exec tigris buckets create pearl-staging --access private --locations sin
    pnpm exec tigris buckets set-cors pearl-staging --origins http://localhost:3000 --methods GET,HEAD,PUT --headers content-type --expose-headers ETag --override
    ```
-   For more than one address, separate them with commas: `--origins http://localhost:3000,https://your-app.vercel.app`.
+   For more than one address, separate them with commas: `--origins http://localhost:3000,http://127.0.0.1:3417,https://pearl-sales.vercel.app` (127.0.0.1:3417 is the browser tests' address).
 3. Create a key that only works on that bucket. This writes it straight into `.env` section 2 without showing it:
    ```bash
    pnpm exec tigris access-keys create pearl-staging-functions --bucket pearl-staging --role Editor --export | pnpm -s env:set TIGRIS_STORAGE_ACCESS_KEY_ID=STORAGE_ACCESS_KEY_ID TIGRIS_STORAGE_SECRET_ACCESS_KEY=STORAGE_SECRET_ACCESS_KEY

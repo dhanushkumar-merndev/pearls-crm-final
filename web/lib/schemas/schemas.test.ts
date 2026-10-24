@@ -5,6 +5,7 @@ import { bookSchema, cancelSchema } from "./appointments";
 import { billSchema, finalizeSchema, paymentSchema } from "./billing";
 import { admissionSchema, doctorHoursSchema, doctorLeaveSchema, editTreatmentSchema, followupSchema, startTreatmentSchema } from "./clinical";
 import { adjustStockSchema, purchaseSchema } from "./pharmacy";
+import { dripCampaignSchema, dripEnrollSchema, templateSchema, waTemplateSendSchema, waTextSchema } from "./whatsapp";
 
 const errs = (schema: z.ZodType, value: unknown) => {
   const r = schema.safeParse(value);
@@ -132,5 +133,38 @@ describe("pharmacy", () => {
     expect(errs(adjustStockSchema(5), { kind: "damaged", qty: "6", reason: "Broken strip" })).toEqual({ qty: "errors.stock_insufficient" });
     expect(errs(adjustStockSchema(5), { kind: "count_correction", qty: "0", reason: "Counted" })).toEqual({});
     expect(errs(adjustStockSchema(5), { kind: "patient_return", qty: "0", reason: "Back" })).toEqual({ qty: "errors.invalid_quantity" });
+  });
+});
+
+describe("whatsapp", () => {
+  const ID = "11111111-1111-4111-8111-111111111111";
+  it("template: purpose optional, one value per {{n}}", () => {
+    expect(templateSchema(2).parse({ purpose: "", variable_map: ["name", "appt_date"], active: true })).toEqual({
+      purpose: null, variable_map: ["name", "appt_date"], active: true,
+    });
+    expect(errs(templateSchema(2), { purpose: "x", variable_map: ["name", ""], active: true })).toEqual({ purpose: "choose", "variable_map.1": "choose" });
+    expect(errs(templateSchema(1), { purpose: "followup", variable_map: [], active: true })).toEqual({ variable_map: "choose" });
+  });
+  it("drip campaign: steps in time order become minutes; trigger must suit the audience", () => {
+    const good = {
+      name: " Aftercare ", description: "", trigger: "treatment_completed", audience: "patient", stop_on_reply: true, stop_on_booking: true, active: true,
+      steps: [{ template_id: ID, days: "0", hours: "2" }, { template_id: ID, days: "7", hours: "0" }],
+    };
+    expect(dripCampaignSchema.parse(good)).toMatchObject({ name: "Aftercare", description: null, steps: [{ offset_minutes: 120 }, { offset_minutes: 10080 }] });
+    expect(errs(dripCampaignSchema, { ...good, audience: "lead" })).toEqual({ trigger: "drips.triggerAudience" });
+    expect(errs(dripCampaignSchema, { ...good, trigger: "lead_created" })).toEqual({ trigger: "drips.triggerAudience" });
+    expect(dripCampaignSchema.safeParse({ ...good, audience: "lead", trigger: "manual" }).success).toBe(true);
+    expect(errs(dripCampaignSchema, { ...good, steps: [good.steps[1], good.steps[0]] })).toEqual({ "steps.1.days": "drips.stepOrder" });
+    expect(errs(dripCampaignSchema, { ...good, name: "", steps: [] })).toEqual({ name: "required", steps: "drips.noSteps" });
+    expect(errs(dripCampaignSchema, { ...good, steps: [{ template_id: "", days: "", hours: "24" }] })).toEqual({
+      "steps.0.template_id": "choose", "steps.0.days": "required", "steps.0.hours": "max",
+    });
+  });
+  it("sending: a template must be picked; text required and at most 4096 characters", () => {
+    expect(errs(waTemplateSendSchema, { template_id: "" })).toEqual({ template_id: "choose" });
+    expect(errs(waTextSchema, { text: "  " })).toEqual({ text: "required" });
+    expect(errs(waTextSchema, { text: "x".repeat(4097) })).toEqual({ text: "tooLong" });
+    expect(waTextSchema.parse({ text: " Hi " })).toEqual({ text: "Hi" });
+    expect(errs(dripEnrollSchema, { campaign_id: "nope" })).toEqual({ campaign_id: "choose" });
   });
 });

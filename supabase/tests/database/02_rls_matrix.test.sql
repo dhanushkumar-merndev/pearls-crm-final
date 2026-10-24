@@ -78,6 +78,8 @@ insert into public.integration_status (integration) values ('ors') on conflict d
 insert into public.job_runs (job) values ('fixture');
 insert into public.usage_counters (month, metric, value) values ('2030-01-01', 'fixture', 1);
 insert into public.idempotency_keys (key, fn) values (gen_random_uuid(), 'fixture');
+insert into public.wa_webhook_events (event_key, kind) values ('fixture:' || gen_random_uuid(), 'other');
+insert into public.wa_messages (phone_e164, direction, kind, status) values ('+919000000999', 'inbound', 'text', 'received');
 
 create temp table violations (finding text) on commit drop;
 
@@ -88,7 +90,7 @@ declare
   n bigint;
   found_rows text[] := '{}';
   admin_only text[] := array['audit_log', 'number_series', 'client_errors', 'integration_status',
-                             'job_runs', 'usage_counters'];
+                             'job_runs', 'usage_counters', 'wa_webhook_events', 'wa_messages'];
 begin
   for r in select * from (values
     ('33333333-0000-4000-a000-0000000000b1', 'receptionist'),

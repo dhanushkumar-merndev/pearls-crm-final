@@ -54,6 +54,8 @@ test("IP stay: final bill without double counting, discharge summary with the ri
   await page.getByRole("option", { name: "Cash", exact: true }).click();
   await dialog.getByRole("button", { name: "Fully paid" }).click();
   await expect(page.getByText(/^Bill .+ finalized$/)).toBeVisible();
+  // The number appears in the heading once the finalized bill has reloaded.
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/·\s*\S/);
   const interimNo = (await page.getByRole("heading", { level: 1 }).textContent())!.split("·")[1]!.trim();
 
   // Discharge.
