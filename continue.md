@@ -1,6 +1,6 @@
 # Continue here
 
-Last updated 24/10/2026 (session 5). To resume, say: **"Read continue.md and carry on."**
+Last updated 24/10/2026 (session 6). To resume, say: **"Read continue.md and carry on."**
 
 ## FIRST, on another computer: pull
 Everything is pushed to GitHub (`origin/main`, plus the unmerged WIP branch). Before anything else:
@@ -37,6 +37,11 @@ Read `CLAUDE.md` and `dev-docs/PLAN.md` first (PLAN.md section G lists every dec
 | **9 Leads + Meta Lead Ads** | **part 1 committed `be4b3e9`**: migration `20261101100000_phase9_leads.sql` (NOT deployed yet), `13_leads` (78 tests; all 13 DB files = 533 pass with it pending), `meta-leads` Edge Function (11 Deno tests, not deployed), lead CSV mapping (`mapLeadColumns/mapLeadRow`), web components in `web/components/leads/` (written, not wired into pages) |
 | 11 Android stage 1 | merged `26825ba` from the helper's worktree: project, login, PIN, role menus, Room, outbox + pull sync, LibraryPicker, settings. `./gradlew test` (5 tests) and `assembleDebug` pass. Sync/PIN/LibraryPicker unit tests and the CI job were NOT written yet. Branch `worktree-agent-af06e1393b4ca70be` also has an unverified WIP commit `331670f` (Gradle plugin clean-up) — not merged |
 | 10, 12–15 | not started |
+
+## Session 6 (owner: "all phases, tested, production ready; validation missing; import has no template")
+- DONE `cd14e32` validation on every form (shared rules `packages/shared/src/validation.ts`, hook `web/lib/use-zod-form.ts`, schemas `web/lib/schemas/*`, `packages/shared/src/{patient,lead}.ts`). New forms MUST use `useZodForm(schema)` + `Field error={checks.error(path)}`.
+- DONE `61b641b` imports: templates, browser checks, server check run (migration `20261102100000_import_checks.sql`, NOT deployed; needs phase 9 deployed first), problem report CSV, leads import kind. Component `web/components/import/import-screen.tsx`.
+- NEXT: Phase 9 part 2 below, then deploy 9 + import checks, then phases 10, 11 (rest), 12, 13, 14, 15.
 
 ## Next (Phase 9 part 2)
 1. Wire the web: `lib/nav.ts` Leads item (roles sales_manager + admin, `badge: "leads"`, `badgeLabelKey: "nav.leadsWithCount"`; sidebar uses `item.badgeLabelKey ?? "nav.withCount"`), SM primary action → `/leads?new=1`; command palette: `canSearchPeople(role)` + `searchHref(hit, role)` from `lib/search-href.ts`, heading key `search.results`.
