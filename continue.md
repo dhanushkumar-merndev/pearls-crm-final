@@ -44,6 +44,7 @@ Read `CLAUDE.md` and `dev-docs/PLAN.md` first (PLAN.md section G lists every dec
 - DONE `61b641b` imports: templates, browser checks, server check run (migration `20261102100000_import_checks.sql`, NOT deployed; needs phase 9 deployed first), problem report CSV, leads import kind. Component `web/components/import/import-screen.tsx`.
 - DONE Phase 9 part 2 (leads pages, pool, Meta admin, sales dashboard, reception hand-over, e2e `leads.db.spec.ts` 9/9) and DEPLOYED to staging: migrations 20261101100000 + 20261102100000 and all functions. Full e2e: 40 pass, 2 flaky, 3 known Tigris-CORS scanning failures.
 - DONE Phase 10 (see the table). The database timer → `wa-dispatch` chain was checked live (pg_cron 200). `.env`: a value pasted over several lines (the Firebase JSON) broke the Supabase CLI and was read as "{" — it is now one line in single quotes, and `pnpm env:sync` refuses multi-line values.
+- DONE WhatsApp team inbox + live updates (migration `20261104100000_wa_inbox.sql` deployed, `16_wa_inbox` 14 tests, e2e 6/6). Android: Gradle now runs on an auto-downloaded JDK 21 (`android/gradle/gradle-daemon-jvm.properties`; the PC only has Java 27, which breaks AGP's jlink); `android/local.properties` points at ~/Android/Sdk (not committed).
 - NEXT: 11 (rest: Android sales features, sync/PIN/LibraryPicker tests, CI job), 12, 13, 14 (add `job_runs` purge), 15.
 
 ## Login-form validation (from another Claude session) — now committed

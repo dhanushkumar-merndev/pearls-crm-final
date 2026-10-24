@@ -55,6 +55,35 @@ test.describe("reception", () => {
   });
 });
 
+test.describe("reception inbox", () => {
+  test.use({ storageState: STATE.reception });
+
+  test("WhatsApp inbox: a new conversation appears live, opens beside the list, and shows in the menu", async ({ page, context }) => {
+    await context.route("https://wa.me/**", (route) => route.fulfill({ body: "wa.me" }));
+    // A second tab watches the inbox while the first one sends.
+    const inbox = await context.newPage();
+    await open(inbox, "/whatsapp");
+    await expect(inbox.getByRole("heading", { name: "WhatsApp", level: 1 })).toBeVisible();
+
+    await newPatient(page);
+    const name = (await page.getByRole("heading", { level: 1 }).textContent())!;
+    await page.getByRole("tab", { name: "WhatsApp" }).click();
+    await page.getByLabel("Message").fill("Inbox live test");
+    const popup = context.waitForEvent("page");
+    await page.getByRole("button", { name: "Open WhatsApp" }).click();
+    await (await popup).close();
+
+    // No reload: Realtime brings it in.
+    const row = inbox.getByRole("region", { name: "Conversations" }).getByRole("button", { name: new RegExp(name) });
+    await expect(row).toBeVisible({ timeout: 15_000 });
+    await expect(row).toContainText("Inbox live test");
+    await row.click();
+    await expect(inbox.getByRole("list", { name: "Conversation" }).getByText("Inbox live test")).toBeVisible();
+    await expect(inbox.getByRole("link", { name: "Open the patient file →" })).toBeVisible();
+    await expect(inbox.getByRole("navigation", { name: "Main menu" }).first().getByRole("link", { name: /WhatsApp/ })).toBeVisible();
+  });
+});
+
 test.describe("admin", () => {
   test.use({ storageState: STATE.admin });
 

@@ -9,6 +9,7 @@ import type { ReactNode } from "react";
 import { ClinicMark } from "@/components/clinic-mark";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
+import { useLiveWhatsApp } from "@/lib/realtime";
 import { rpc } from "@/lib/rpc";
 import { isActive, navFor, PRIMARY_ACTIONS } from "@/lib/nav";
 import type { Me } from "@/lib/session";
@@ -43,6 +44,8 @@ export function Sidebar({
     staleTime: 60_000,
     refetchInterval: 300_000,
   });
+  // The unread-WhatsApp badge moves the moment a reply arrives or someone reads it.
+  useLiveWhatsApp(null, [["nav_badges"]], items.some((i) => i.badge === "whatsapp"));
 
   return (
     <aside

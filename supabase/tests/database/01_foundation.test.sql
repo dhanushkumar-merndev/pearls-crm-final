@@ -144,7 +144,9 @@ select throws_ok($$ select public.update_settings('registration_form', '{"slot_m
   'P0001', 'stale_version', 'stale version is refused');
 select throws_ok($$ select public.update_settings('nonsense', '{}', 0) $$,
   'P0001', 'unknown_settings_section', 'unknown section is refused');
-select lives_ok($$ select public.update_settings('whatsapp', '{"enabled":false}', 0) $$, 'admin-only section saved');
+-- The section may already be saved on a shared project: use its current version.
+select lives_ok($$ select public.update_settings('whatsapp', '{"enabled":false}',
+                    coalesce((select version from public.app_settings where section = 'whatsapp'), 0)) $$, 'admin-only section saved');
 
 reset role;
 set local role authenticated;

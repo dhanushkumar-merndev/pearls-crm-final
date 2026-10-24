@@ -91,6 +91,10 @@ You can write your own as well; Kannada and Hindi templates work the same way. M
 3. Reply **YES**. Within a few seconds the booking shows **Confirmed**, and the "call to confirm" task disappears from the Today board.
 4. Reply **STOP**. You get one message saying messages have stopped, and the tab shows **Asked for no messages**. Reply **START** to undo it.
 
+## Chatting as a team
+
+The **WhatsApp** item in the menu (reception, sales managers, admin) is the team inbox. It lists every conversation you're allowed to reply to, newest first. Conversations with new replies show a count, and the menu shows how many conversations have unread replies. Everything updates by itself within a second or two: a reply, a message a colleague sends, or the Delivered/Read ticks. Opening a conversation marks it read for the whole team. Reception sees patients (and numbers that aren't in the CRM yet); sales managers see leads.
+
 ## Drip campaigns
 
 **Admin → Drip campaigns → New campaign.** Pick who gets it (patients or leads), when it starts (a new lead, a consultation done, a treatment started or completed, a discharge, or "staff add someone") and the messages with their delays. For example: an after-care message 1 day after a treatment is completed, then another 7 days after.

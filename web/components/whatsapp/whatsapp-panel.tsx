@@ -3,7 +3,7 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BellOff, BellRing, Check, CheckCheck, CircleAlert, Clock, ExternalLink, Hand, Pause, Play, Plus, Send, Square } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { formatDateTime, formatTime } from "@pearl/shared";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
@@ -15,6 +15,7 @@ import { dripEnrollSchema, waTemplateSendSchema, waTextSchema } from "@/lib/sche
 import { getSupabaseBrowser } from "@/lib/supabase/client";
 import { useFeedback } from "@/lib/use-feedback";
 import { useZodForm } from "@/lib/use-zod-form";
+import { useLiveWhatsApp } from "@/lib/realtime";
 import { waLink } from "@/lib/whatsapp";
 import { cn } from "@/lib/utils";
 
@@ -83,11 +84,33 @@ export function WhatsAppPanel({ patientId, leadId, canDrip }: { patientId?: stri
     queryFn: ({ pageParam }) =>
       rpc<WaThread>("wa_thread", { p_patient_id: patientId ?? null, p_lead_id: leadId ?? null, p_cursor: pageParam, p_limit: 30 }),
     getNextPageParam: (last) => last.next_cursor,
-    refetchInterval: 20_000,
+    // Live updates come through useLiveWhatsApp; this is only a safety net.
+    refetchInterval: 120_000,
   });
   const head = thread.data?.pages[0];
   const items = (thread.data?.pages.flatMap((p) => p.items) ?? []).slice().reverse();
   const refresh = () => void queryClient.invalidateQueries({ queryKey: key });
+  useLiveWhatsApp(head?.phone_e164 ?? undefined, [key, ["drip_enrollments"]], !!head?.phone_e164);
+  // Like a chat: keep the newest message in view when one arrives.
+  const listRef = useRef<HTMLOListElement>(null);
+  const newestId = items.at(-1)?.id;
+  useEffect(() => {
+    const el = listRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [newestId]);
+  // Open = read for the team: clears the unread count in the inbox and the menu badge.
+  const newestInbound = items.findLast((m) => m.direction === "inbound")?.id;
+  useEffect(() => {
+    if (!newestInbound) return;
+    void rpc<number>("wa_mark_read", { p_patient_id: patientId ?? null, p_lead_id: leadId ?? null })
+      .then((n) => {
+        if (n > 0) {
+          void queryClient.invalidateQueries({ queryKey: ["nav_badges"] });
+          void queryClient.invalidateQueries({ queryKey: ["wa_inbox"] });
+        }
+      })
+      .catch(() => undefined);
+  }, [newestInbound, patientId, leadId, queryClient]);
 
   const optOut = useMutation({
     mutationFn: (out: boolean) => rpc("wa_set_opt_out", { p_patient_id: patientId ?? null, p_lead_id: leadId ?? null, p_out: out }),
@@ -123,7 +146,7 @@ export function WhatsAppPanel({ patientId, leadId, canDrip }: { patientId?: stri
           <CardDescription>{t("noPhone")}</CardDescription>
         ) : (
           <>
-            <ol aria-label={t("conversation")} className="flex max-h-[28rem] flex-col gap-2 overflow-y-auto rounded-xl border border-border p-3">
+            <ol ref={listRef} aria-live="polite" aria-label={t("conversation")} className="flex max-h-[28rem] flex-col gap-2 overflow-y-auto rounded-xl border border-border p-3">
               {thread.hasNextPage && (
                 <li className="self-center">
                   <Button variant="ghost" disabled={thread.isFetchingNextPage} onClick={() => void thread.fetchNextPage()}>

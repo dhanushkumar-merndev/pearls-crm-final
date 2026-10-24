@@ -917,4 +917,5 @@ Each phase ends with: tests green → I tell you step by step how to try it on s
   - Templates are made in Meta's WhatsApp Manager and copied in; the admin picks what each is for and which value fills each {{n}}. Estimated cost per message is a setting; Meta's invoice is the real amount.
   - Drip campaigns: patients (consultation done, treatment started / completed, discharged, or added by staff) or leads (new lead, or added by staff); a reply or a booking can stop it; opted-out numbers never get it.
   - Live site address: https://pearl-sales.vercel.app (login emails link there; set in WEB_ORIGIN).
+  - Team inbox (owner, 24/10/2026: "3–5 people will chat, mostly real time"): menu → WhatsApp lists conversations with unread replies and opens the chat beside the list; it, the chat panel and the menu badge update live through Realtime on `wa_threads` (same visibility as messaging). Opening a conversation marks it read for the team.
   - Housekeeping still to add (Phase 14): `job_runs` grows by one row per dispatch run (~105k rows a year) — purge rows older than 90 days.
