@@ -16,8 +16,8 @@ import { useTranslations } from "next-intl";
 import { Tabs } from "radix-ui";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
-import { formatDate, formatDateTime, formatTime } from "@pearl/shared";
-import { draftFrom, PatientForm, toPayload, type DraftErrors, type PatientDraft } from "@/components/patients/patient-form";
+import { formatDate, formatDateTime, formatTime, PATIENT_SERVER_FIELDS, patientDraftSchema } from "@pearl/shared";
+import { draftFrom, PatientForm, type PatientDraft } from "@/components/patients/patient-form";
 import { PatientPicker, type PatientHit } from "@/components/patients/patient-picker";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
@@ -29,6 +29,8 @@ import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
 import { rpc } from "@/lib/rpc";
 import { useMe } from "@/lib/use-me";
 import { useFeedback } from "@/lib/use-feedback";
+import { linkRelativeSchema, mergePatientSchema } from "@/lib/schemas/clinical";
+import { useZodForm } from "@/lib/use-zod-form";
 
 export interface PatientHeader extends Record<string, unknown> {
   id: string;
@@ -239,11 +241,10 @@ function EditDialog({ p, onDone }: { p: PatientHeader; onDone: () => void }) {
   const r = useTranslations("register");
   const { saved, failed } = useFeedback();
   const [draft, setDraft] = useState<PatientDraft>(() => draftFrom(p, { relation: p.attender_relation, heard_from: p.heard_from }));
-  const [errors, setErrors] = useState<DraftErrors>({});
+  const form = useZodForm(patientDraftSchema);
   const [reason, setReason] = useState("");
   const save = useMutation({
-    mutationFn: () => {
-      const { payload } = toPayload(draft);
+    mutationFn: (payload: Record<string, unknown>) => {
       // Only send consents that changed, so their "given at" time stays true.
       const before = (p.consents ?? {}) as Record<string, { given?: boolean }>;
       const consents = Object.fromEntries(
@@ -251,13 +252,15 @@ function EditDialog({ p, onDone }: { p: PatientHeader; onDone: () => void }) {
       );
       const patch = { ...payload, consents };
       if (Object.keys(consents).length === 0) delete (patch as Record<string, unknown>).consents;
-      return rpc("update_patient", { p_id: p.id, p_patch: patch, p_version: p.version, p_reason: reason || null });
+      return rpc("update_patient", { p_id: p.id, p_patch: patch, p_version: p.version, p_reason: reason.trim() || null });
     },
     onSuccess: () => {
       saved();
       onDone();
     },
-    onError: failed,
+    onError: (e) => {
+      if (!form.fromServer(e, PATIENT_SERVER_FIELDS)) failed(e);
+    },
   });
   return (
     <DialogContent
@@ -267,10 +270,9 @@ function EditDialog({ p, onDone }: { p: PatientHeader; onDone: () => void }) {
         <Button
           disabled={save.isPending}
           onClick={() => {
-            const { errors: e } = toPayload(draft);
-            setErrors(e);
-            if (Object.keys(e).length) return toast.error(r("fixFields"));
-            save.mutate();
+            const payload = form.validate(draft);
+            if (!payload) return toast.error(r("fixFields"));
+            save.mutate(payload);
           }}
         >
           <Save aria-hidden />
@@ -281,7 +283,8 @@ function EditDialog({ p, onDone }: { p: PatientHeader; onDone: () => void }) {
       <PatientForm
         draft={draft}
         onChange={setDraft}
-        errors={errors}
+        errors={form.errors}
+        onEdit={form.clear}
         extra={
           <Field label={t("reason")} hint={t("reasonHint")}>
             {(a) => <Input {...a} maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} />}
@@ -298,9 +301,10 @@ function Family({ p }: { p: PatientHeader }) {
   const queryClient = useQueryClient();
   const { saved, failed } = useFeedback();
   const [relative, setRelative] = useState<PatientHit | null>(null);
+  const linkChecks = useZodForm(linkRelativeSchema);
   const refresh = () => void queryClient.invalidateQueries({ queryKey: ["patient_header", p.id] });
   const link = useMutation({
-    mutationFn: () => rpc("link_family", { p_patient_id: p.id, p_relative_id: relative!.id }),
+    mutationFn: (relativeId: string) => rpc("link_family", { p_patient_id: p.id, p_relative_id: relativeId }),
     onSuccess: () => {
       saved(t("linked"));
       setRelative(null);
@@ -344,10 +348,16 @@ function Family({ p }: { p: PatientHeader }) {
         </ul>
       )}
       <Card className="flex flex-wrap items-end gap-3">
-        <Field label={t("linkRelative")} className="min-w-64 flex-1">
-          {(a) => <PatientPicker id={a.id} excludeId={p.id} value={relative} onChange={setRelative} />}
+        <Field label={t("linkRelative")} error={linkChecks.error("relative")} className="min-w-64 flex-1">
+          {(a) => <PatientPicker {...a} excludeId={p.id} value={relative} onChange={(r) => (setRelative(r), linkChecks.clear("relative"))} />}
         </Field>
-        <Button disabled={!relative || link.isPending} onClick={() => link.mutate()}>
+        <Button
+          disabled={link.isPending}
+          onClick={() => {
+            const d = linkChecks.validate({ relative });
+            if (d) link.mutate(d.relative);
+          }}
+        >
           <Link2 aria-hidden />
           {t("link")}
         </Button>
@@ -458,11 +468,12 @@ function MergeDialog({ p }: { p: PatientHeader }) {
   const { saved, failed } = useFeedback();
   const [into, setInto] = useState<PatientHit | null>(null);
   const [reason, setReason] = useState("");
+  const checks = useZodForm(mergePatientSchema);
   const merge = useMutation({
-    mutationFn: () => rpc("merge_patients", { p_from: p.id, p_into: into!.id, p_reason: reason }),
-    onSuccess: () => {
+    mutationFn: (d: { into: string; reason: string }) => rpc("merge_patients", { p_from: p.id, p_into: d.into, p_reason: d.reason }),
+    onSuccess: (_, d) => {
       saved(t("mergedDone"));
-      router.push(`/patients/${into!.id}`);
+      router.push(`/patients/${d.into}`);
     },
     onError: failed,
   });
@@ -471,15 +482,26 @@ function MergeDialog({ p }: { p: PatientHeader }) {
       title={t("mergeTitle", { name: p.full_name, uhid: p.uhid })}
       description={t("mergeHint")}
       footer={
-        <Button variant="danger" disabled={!into || reason.trim().length < 3 || merge.isPending} onClick={() => merge.mutate()}>
+        <Button
+          variant="danger"
+          disabled={merge.isPending}
+          onClick={() => {
+            const d = checks.validate({ into, reason });
+            if (d) merge.mutate(d);
+          }}
+        >
           <GitMerge aria-hidden />
           {t("mergeButton")}
         </Button>
       }
     >
       <div className="flex flex-col gap-4">
-        <Field label={t("mergeInto")}>{(a) => <PatientPicker id={a.id} excludeId={p.id} value={into} onChange={setInto} />}</Field>
-        <Field label={t("reason")}>{(a) => <Textarea {...a} rows={2} maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} />}</Field>
+        <Field label={t("mergeInto")} error={checks.error("into")}>
+          {(a) => <PatientPicker {...a} excludeId={p.id} value={into} onChange={(v) => (setInto(v), checks.clear("into"))} />}
+        </Field>
+        <Field label={t("reason")} error={checks.error("reason")}>
+          {(a) => <Textarea {...a} rows={2} maxLength={300} value={reason} onChange={(e) => (setReason(e.target.value), checks.clear("reason"))} />}
+        </Field>
       </div>
     </DialogContent>
   );

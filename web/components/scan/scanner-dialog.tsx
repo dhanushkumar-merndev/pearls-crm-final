@@ -21,7 +21,9 @@ import { loadPdfLib } from "@/lib/scan/pdf";
 import { buildDocument, pageTotal, preparePage, releasePage, updatePage, type ImagePage, type PageOrigin, type ScanPage } from "@/lib/scan/pages";
 import type { PageSettings } from "@/lib/scan/process";
 import { enqueue } from "@/lib/upload-queue";
+import { documentSchema } from "@/lib/schemas/clinical";
 import { useFeedback } from "@/lib/use-feedback";
+import { useZodForm } from "@/lib/use-zod-form";
 import { cn } from "@/lib/utils";
 import { CameraPanel } from "./camera-panel";
 import { FolderPanel } from "./folder-panel";
@@ -156,7 +158,10 @@ export function ScannerDialog({ patientId, onDone }: { patientId: string; onDone
     setPages((list) => list.filter((p) => p.id !== page.id));
   };
 
+  const checks = useZodForm(documentSchema);
   const save = async (force: boolean) => {
+    const doc = checks.validate({ title, date });
+    if (!doc) return;
     setSaving(true);
     try {
       let checkLater = !force;
@@ -178,9 +183,9 @@ export function ScannerDialog({ patientId, onDone }: { patientId: string; onDone
       const built = await buildDocument(pages, [...received]);
       await enqueue({
         patientId,
-        title: title.trim() || kind?.label || t("defaultTitle"),
+        title: doc.title || kind?.label || t("defaultTitle"),
         kindId: kind?.id ?? null,
-        docDate: date,
+        docDate: doc.date,
         pageCount: built.pageCount,
         file: built.file,
         reuseFileId: built.reuseFileId,
@@ -303,9 +308,15 @@ export function ScannerDialog({ patientId, onDone }: { patientId: string; onDone
         </section>
 
         <div className="grid gap-4 sm:grid-cols-3">
-          <Field label={t("kind")}>{(a) => <LibraryCombobox id={a.id} kind="document_kind" allowCreate value={kind} onChange={setKind} />}</Field>
-          <Field label={t("docTitle")}>{(a) => <Input {...a} maxLength={200} value={title} placeholder={kind?.label ?? t("defaultTitle")} onChange={(e) => setTitle(e.target.value)} />}</Field>
-          <Field label={t("docDate")}>{(a) => <Input {...a} type="date" value={date} onChange={(e) => setDate(e.target.value)} />}</Field>
+          <Field label={t("kind")}>{(a) => <LibraryCombobox {...a} kind="document_kind" allowCreate value={kind} onChange={setKind} />}</Field>
+          <Field label={t("docTitle")} error={checks.error("title")}>
+            {(a) => (
+              <Input {...a} maxLength={200} value={title} placeholder={kind?.label ?? t("defaultTitle")} onChange={(e) => (setTitle(e.target.value), checks.clear("title"))} />
+            )}
+          </Field>
+          <Field label={t("docDate")} error={checks.error("date")}>
+            {(a) => <Input {...a} type="date" value={date} onChange={(e) => (setDate(e.target.value), checks.clear("date"))} />}
+          </Field>
         </div>
 
         {duplicate && (

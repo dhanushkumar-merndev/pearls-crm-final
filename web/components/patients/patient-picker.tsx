@@ -24,12 +24,16 @@ export function PatientPicker({
   excludeId,
   id,
   placeholder,
+  "aria-invalid": invalid,
+  "aria-describedby": describedBy,
 }: {
   value: PatientHit | null;
   onChange: (p: PatientHit | null) => void;
   excludeId?: string;
   id?: string;
   placeholder?: string;
+  "aria-invalid"?: boolean;
+  "aria-describedby"?: string;
 }) {
   const t = useTranslations("picker");
   const [open, setOpen] = useState(false);
@@ -51,7 +55,9 @@ export function PatientPicker({
           role="combobox"
           aria-expanded={open}
           aria-controls={listId}
-          className="flex min-h-12 w-full items-center gap-2 rounded-xl border border-input bg-background px-4 text-left text-base"
+          aria-invalid={invalid || undefined}
+          aria-describedby={describedBy}
+          className="flex min-h-12 w-full items-center gap-2 rounded-xl border border-input bg-background px-4 text-left text-base aria-invalid:border-status-critical"
         >
           <span className={cn("flex-1 truncate", !value && "text-muted-foreground")}>
             {value ? `${value.title} · ${value.uhid}` : (placeholder ?? t("findPatient"))}

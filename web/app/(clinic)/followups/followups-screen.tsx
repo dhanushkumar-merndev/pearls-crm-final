@@ -13,7 +13,9 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Field, PageHeader, Textarea } from "@/components/ui/form";
 import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
 import { rpc } from "@/lib/rpc";
+import { followupOutcomeSchema } from "@/lib/schemas/clinical";
 import { useFeedback } from "@/lib/use-feedback";
+import { useZodForm } from "@/lib/use-zod-form";
 
 interface Followup {
   id: string;
@@ -151,8 +153,9 @@ function CloseDialog({ f, cancel, onDone }: { f: Followup; cancel: boolean; onDo
   const queryClient = useQueryClient();
   const { saved, failed } = useFeedback();
   const [outcome, setOutcome] = useState("");
+  const checks = useZodForm(followupOutcomeSchema);
   const close = useMutation({
-    mutationFn: () => rpc("complete_followup", { p_id: f.id, p_outcome: outcome || null, p_cancel: cancel }),
+    mutationFn: (o: string | null) => rpc("complete_followup", { p_id: f.id, p_outcome: o, p_cancel: cancel }),
     onSuccess: () => {
       saved(cancel ? t("cancelled") : t("completed"));
       void queryClient.invalidateQueries({ queryKey: ["followups"] });
@@ -166,14 +169,20 @@ function CloseDialog({ f, cancel, onDone }: { f: Followup; cancel: boolean; onDo
       title={cancel ? t("notNeededTitle") : t("doneTitle")}
       description={f.reason}
       footer={
-        <Button disabled={close.isPending} onClick={() => close.mutate()}>
+        <Button
+          disabled={close.isPending}
+          onClick={() => {
+            const d = checks.validate({ outcome });
+            if (d) close.mutate(d.outcome);
+          }}
+        >
           <Check aria-hidden />
           {cancel ? t("notNeeded") : t("done")}
         </Button>
       }
     >
-      <Field label={t("outcome")} hint={t("outcomeHint")}>
-        {(a) => <Textarea {...a} rows={2} maxLength={500} value={outcome} onChange={(e) => setOutcome(e.target.value)} />}
+      <Field label={t("outcome")} hint={t("outcomeHint")} error={checks.error("outcome")}>
+        {(a) => <Textarea {...a} rows={2} maxLength={500} value={outcome} onChange={(e) => (setOutcome(e.target.value), checks.clear("outcome"))} />}
       </Field>
     </DialogContent>
   );

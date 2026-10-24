@@ -46,3 +46,23 @@ export function toLoginEmail(username: string): string {
 export function isUsernameLogin(email: string): boolean {
   return email.toLowerCase().endsWith(`@${STAFF_EMAIL_DOMAIN}`);
 }
+
+/** New passwords (same rule as supabase/config.toml and the admin-users function): 8–72 characters, a letter and a digit. */
+export const PASSWORD_MIN = 8;
+export const newPasswordRule = () =>
+  z
+    .string({ error: "required" })
+    .min(1, { error: "required", abort: true })
+    .min(PASSWORD_MIN, { error: "passwordShort", abort: true })
+    .max(72, { error: "tooLong" })
+    .regex(/[A-Za-z]/, { error: "account.weak" })
+    .regex(/[0-9]/, { error: "account.weak" });
+
+/** A staff member changing their own password (user menu → Change password). */
+export const changePasswordSchema = z
+  .object({
+    current: z.string().min(1, { error: "required" }),
+    next: newPasswordRule(),
+    again: z.string(),
+  })
+  .refine((d) => d.next === d.again, { path: ["again"], error: "passwordMismatch" });

@@ -15,7 +15,9 @@ import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
 import { newId, rpc } from "@/lib/rpc";
+import { ADJUST_KINDS, adjustStockSchema } from "@/lib/schemas/pharmacy";
 import { useFeedback } from "@/lib/use-feedback";
+import { useZodForm } from "@/lib/use-zod-form";
 
 interface Batch {
   id: string;
@@ -176,7 +178,7 @@ export function ItemScreen({ initial }: { initial: ItemStock }) {
   );
 }
 
-const KINDS = ["damaged", "expired", "supplier_return", "patient_return", "count_correction"] as const;
+const KINDS = ADJUST_KINDS;
 
 function AdjustDialog({ itemId, batch, onDone }: { itemId: string; batch: Batch; onDone: () => void }) {
   const t = useTranslations("pharmacy");
@@ -186,10 +188,11 @@ function AdjustDialog({ itemId, batch, onDone }: { itemId: string; batch: Batch;
   const [qty, setQty] = useState("");
   const [reason, setReason] = useState("");
   const [clientId] = useState(newId);
-  const n = Number(qty);
-  const valid = qty !== "" && Number.isFinite(n) && (kind === "count_correction" ? n >= 0 : n > 0) && reason.trim().length >= 3;
+  const [schema] = useState(() => adjustStockSchema(batch.qty_on_hand));
+  const checks = useZodForm(schema);
   const adjust = useMutation({
-    mutationFn: () => rpc("adjust_stock", { p_batch_id: batch.id, p_kind: kind, p_qty: n, p_reason: reason.trim(), p_client_id: clientId }),
+    mutationFn: (d: { kind: string; qty: number; reason: string }) =>
+      rpc("adjust_stock", { p_batch_id: batch.id, p_kind: d.kind, p_qty: d.qty, p_reason: d.reason, p_client_id: clientId }),
     onSuccess: () => {
       saved(t("adjusted"));
       for (const key of [["item_stock", itemId], ["stock_ledger", itemId], ["stock_table"], ["pharmacy_summary"], ["pharmacy_alerts"]]) {
@@ -204,16 +207,22 @@ function AdjustDialog({ itemId, batch, onDone }: { itemId: string; batch: Batch;
       title={t("adjustBatch", { no: batch.batch_no })}
       description={t("adjustHint", { n: qtyLabel(batch.qty_on_hand) })}
       footer={
-        <Button disabled={!valid || adjust.isPending} onClick={() => adjust.mutate()}>
+        <Button
+          disabled={adjust.isPending}
+          onClick={() => {
+            const d = checks.validate({ kind, qty, reason });
+            if (d) adjust.mutate(d);
+          }}
+        >
           <SlidersHorizontal aria-hidden />
           {t("saveAdjustment")}
         </Button>
       }
     >
       <div className="flex flex-col gap-4">
-        <Field label={t("adjustKind")}>
+        <Field label={t("adjustKind")} error={checks.error("kind")}>
           {(a) => (
-            <Select {...a} value={kind} onChange={(e) => setKind(e.target.value as typeof kind)}>
+            <Select {...a} value={kind} onChange={(e) => (setKind(e.target.value as typeof kind), checks.clear("qty"))}>
               {KINDS.map((k) => (
                 <option key={k} value={k}>
                   {t(`move.${k}`)}
@@ -222,10 +231,16 @@ function AdjustDialog({ itemId, batch, onDone }: { itemId: string; batch: Batch;
             </Select>
           )}
         </Field>
-        <Field label={kind === "count_correction" ? t("countedQty") : t("adjustQty")} hint={kind === "count_correction" ? t("countedHint") : undefined}>
-          {(a) => <Input {...a} inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)} />}
+        <Field
+          label={kind === "count_correction" ? t("countedQty") : t("adjustQty")}
+          hint={kind === "count_correction" ? t("countedHint") : undefined}
+          error={checks.error("qty")}
+        >
+          {(a) => <Input {...a} inputMode="decimal" value={qty} onChange={(e) => (setQty(e.target.value), checks.clear("qty"))} />}
         </Field>
-        <Field label={t("reason")}>{(a) => <Textarea {...a} rows={2} maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} />}</Field>
+        <Field label={t("reason")} error={checks.error("reason")}>
+          {(a) => <Textarea {...a} rows={2} maxLength={300} value={reason} onChange={(e) => (setReason(e.target.value), checks.clear("reason"))} />}
+        </Field>
       </div>
     </DialogContent>
   );

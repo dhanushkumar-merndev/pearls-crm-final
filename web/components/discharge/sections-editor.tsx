@@ -28,10 +28,25 @@ export interface Medication {
  * Discharge sections with {{placeholders}}. "Insert" puts a placeholder where the cursor was
  * in the last text box used, so staff never have to type the braces.
  */
-export function SectionsEditor({ sections, onChange }: { sections: Section[]; onChange: (s: Section[]) => void }) {
+export function SectionsEditor({
+  sections,
+  onChange,
+  errorOf,
+  onEdit,
+}: {
+  sections: Section[];
+  onChange: (s: Section[]) => void;
+  /** Message for "sections.<i>.title" / "sections.<i>.body" (useZodForm). */
+  errorOf?: (path: string) => string | undefined;
+  onEdit?: (path: string) => void;
+}) {
   const t = useTranslations("discharge");
   const last = useRef<{ key: string; el: HTMLTextAreaElement } | null>(null);
-  const set = (key: string, patch: Partial<Section>) => onChange(sections.map((s) => (s.key === key ? { ...s, ...patch } : s)));
+  const set = (key: string, patch: Partial<Section>) => {
+    const i = sections.findIndex((s) => s.key === key);
+    for (const field of Object.keys(patch)) onEdit?.(`sections.${i}.${field}`);
+    onChange(sections.map((s) => (s.key === key ? { ...s, ...patch } : s)));
+  };
   const move = (i: number, by: number) => {
     const next = [...sections];
     const [s] = next.splice(i, 1);
@@ -76,7 +91,7 @@ export function SectionsEditor({ sections, onChange }: { sections: Section[]; on
           <li key={s.key}>
             <Card className="flex flex-col gap-3">
               <div className="flex flex-wrap items-end gap-2">
-                <Field label={t("sectionTitle")} className="min-w-56 flex-1">
+                <Field label={t("sectionTitle")} error={errorOf?.(`sections.${i}.title`)} className="min-w-56 flex-1">
                   {(a) => <Input {...a} maxLength={120} value={s.title} onChange={(e) => set(s.key, { title: e.target.value })} />}
                 </Field>
                 <Button variant="ghost" aria-label={t("moveUp", { n: i + 1 })} disabled={i === 0} onClick={() => move(i, -1)}>
@@ -89,7 +104,7 @@ export function SectionsEditor({ sections, onChange }: { sections: Section[]; on
                   <Trash2 aria-hidden />
                 </Button>
               </div>
-              <Field label={t("sectionBody", { title: s.title || t("section", { n: i + 1 }) })}>
+              <Field label={t("sectionBody", { title: s.title || t("section", { n: i + 1 }) })} error={errorOf?.(`sections.${i}.body`)}>
                 {(a) => (
                   <Textarea
                     {...a}
@@ -117,9 +132,23 @@ export function SectionsEditor({ sections, onChange }: { sections: Section[]; on
 const MED_FIELDS = ["name", "dose", "frequency", "duration", "instructions"] as const;
 
 /** Medicines on discharge: one row each (name, dose, how often, how long, instructions). */
-export function MedicationsEditor({ meds, onChange }: { meds: Medication[]; onChange: (m: Medication[]) => void }) {
+export function MedicationsEditor({
+  meds,
+  onChange,
+  errorOf,
+  onEdit,
+}: {
+  meds: Medication[];
+  onChange: (m: Medication[]) => void;
+  /** Message for "medications.<i>.<field>" (useZodForm). */
+  errorOf?: (path: string) => string | undefined;
+  onEdit?: (path: string) => void;
+}) {
   const t = useTranslations("discharge");
-  const set = (i: number, patch: Partial<Medication>) => onChange(meds.map((m, j) => (j === i ? { ...m, ...patch } : m)));
+  const set = (i: number, patch: Partial<Medication>) => {
+    for (const field of Object.keys(patch)) onEdit?.(`medications.${i}.${field}`);
+    onChange(meds.map((m, j) => (j === i ? { ...m, ...patch } : m)));
+  };
   return (
     <div className="flex flex-col gap-3">
       {meds.length === 0 && <p className="text-text-secondary">{t("noMeds")}</p>}
@@ -128,7 +157,12 @@ export function MedicationsEditor({ meds, onChange }: { meds: Medication[]; onCh
           <li key={i}>
             <Card className="grid gap-3 md:grid-cols-12 md:items-end">
               {MED_FIELDS.map((f) => (
-                <Field key={f} label={t(`med.${f}`)} className={f === "name" ? "md:col-span-3" : "md:col-span-2"}>
+                <Field
+                  key={f}
+                  label={t(`med.${f}`)}
+                  error={errorOf?.(`medications.${i}.${f}`)}
+                  className={f === "name" ? "md:col-span-3" : "md:col-span-2"}
+                >
                   {(a) => <Input {...a} maxLength={f === "instructions" ? 200 : 120} value={m[f] ?? ""} onChange={(e) => set(i, { [f]: e.target.value })} />}
                 </Field>
               ))}

@@ -4,16 +4,18 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Pencil, Save } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState, type FormEvent } from "react";
-import { financialYear, readSettings, validateSettings, type SettingsSection } from "@pearl/shared";
+import { financialYear, readSettings, SETTINGS_SCHEMAS, type SettingsSection } from "@pearl/shared";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Checkbox, Field, PageHeader, Select } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
-import { rpc, unwrap } from "@/lib/rpc";
+import { asAppError, rpc, unwrap } from "@/lib/rpc";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
+import { numberSeriesSchema } from "@/lib/schemas/admin";
 import { useFeedback } from "@/lib/use-feedback";
+import { useZodForm } from "@/lib/use-zod-form";
 
 type FieldKind = "int" | "bool" | "time" | "weekdays" | "percent_bp" | "int_list" | { options: string[] };
 const SECTIONS: { section: SettingsSection; fields: Record<string, FieldKind> }[] = [
@@ -85,9 +87,19 @@ function SectionForm({
   const days = useTranslations("doctorHours.weekday");
   const queryClient = useQueryClient();
   const { saved, failed } = useFeedback();
-  const [form, setForm] = useState<Record<string, unknown>>(() => ({ ...readSettings(section, value) }) as Record<string, unknown>);
-  const [error, setError] = useState<string | null>(null);
-  const set = (k: string, v: unknown) => setForm((f) => ({ ...f, [k]: v }));
+  const [form, setForm] = useState<Record<string, unknown>>(() => {
+    const v = { ...readSettings(section, value) } as Record<string, unknown>;
+    // Lists are edited as text ("90, 60, 30") and read back on save.
+    for (const [k, kind] of Object.entries(fields)) if (kind === "int_list") v[k] = ((v[k] as number[]) ?? []).join(", ");
+    return v;
+  });
+  const checks = useZodForm(SETTINGS_SCHEMAS[section]);
+  const set = (k: string, v: unknown) => {
+    setForm((f) => ({ ...f, [k]: v }));
+    checks.clear(k);
+  };
+  // A number box left empty is NaN (so it's reported), never a silent default.
+  const toNumber = (text: string) => (text.trim() === "" ? Number.NaN : Number(text));
 
   const save = useMutation({
     mutationFn: (clean: unknown) => rpc<number>("update_settings", { p_section: section, p_value: clean, p_version: version }),
@@ -100,10 +112,12 @@ function SectionForm({
 
   function submit(e: FormEvent) {
     e.preventDefault();
-    const result = validateSettings(section, form);
-    if (!result.ok) return setError(result.field);
-    setError(null);
-    save.mutate(result.value);
+    const value: Record<string, unknown> = { ...form };
+    for (const [k, kind] of Object.entries(fields)) {
+      if (kind === "int_list") value[k] = String(form[k] ?? "").split(/[,\s]+/).filter(Boolean).map(Number);
+    }
+    const clean = checks.validate(value);
+    if (clean) save.mutate(clean);
   }
 
   return (
@@ -116,7 +130,7 @@ function SectionForm({
         <div className="grid gap-4 sm:grid-cols-2">
           {Object.entries(fields).map(([key, kind]) => {
             const label = t(`${section}.${key}`);
-            const err = error === key ? t("invalid") : undefined;
+            const err = checks.error(key) ?? checks.error(`${key}.0`);
             if (kind === "bool")
               return <Checkbox key={key} label={label} checked={Boolean(form[key])} onChange={(e) => set(key, e.target.checked)} className="sm:col-span-2" />;
             if (kind === "weekdays")
@@ -136,6 +150,11 @@ function SectionForm({
                       );
                     })}
                   </div>
+                  {err && (
+                    <p role="alert" className="text-[0.95rem] text-bad-text">
+                      {err}
+                    </p>
+                  )}
                 </fieldset>
               );
             return (
@@ -152,12 +171,7 @@ function SectionForm({
                   ) : kind === "time" ? (
                     <Input {...a} type="time" value={String(form[key] ?? "")} onChange={(e) => set(key, e.target.value)} />
                   ) : kind === "int_list" ? (
-                    <Input
-                      {...a}
-                      inputMode="numeric"
-                      value={((form[key] as number[]) ?? []).join(", ")}
-                      onChange={(e) => set(key, e.target.value.split(/[,\s]+/).filter(Boolean).map(Number))}
-                    />
+                    <Input {...a} inputMode="numeric" value={String(form[key] ?? "")} onChange={(e) => set(key, e.target.value)} />
                   ) : kind === "percent_bp" ? (
                     <Input
                       {...a}
@@ -165,11 +179,17 @@ function SectionForm({
                       min={0}
                       max={100}
                       step={0.5}
-                      value={Number(form[key] ?? 0) / 100}
-                      onChange={(e) => set(key, Math.round(Number(e.target.value) * 100))}
+                      value={Number.isNaN(Number(form[key])) ? "" : Number(form[key] ?? 0) / 100}
+                      onChange={(e) => set(key, Math.round(toNumber(e.target.value) * 100))}
                     />
                   ) : (
-                    <Input {...a} type="number" inputMode="numeric" value={String(form[key] ?? "")} onChange={(e) => set(key, Number(e.target.value))} />
+                    <Input
+                      {...a}
+                      type="number"
+                      inputMode="numeric"
+                      value={Number.isNaN(form[key]) ? "" : String(form[key] ?? "")}
+                      onChange={(e) => set(key, toNumber(e.target.value))}
+                    />
                   )
                 }
               </Field>
@@ -274,31 +294,42 @@ function SeriesDialog({ seriesKey, fy, row, onDone }: { seriesKey: string; fy: s
   const [form, setForm] = useState({
     prefix: row?.prefix ?? "",
     format: row?.format ?? (seriesKey === "uhid" ? "{prefix}{n}" : "{prefix}/{fy}/{n}"),
-    next_value: row?.next_value ?? 1,
-    padding: row?.padding ?? 0,
+    next_value: String(row?.next_value ?? 1),
+    padding: String(row?.padding ?? 0),
   });
+  const [schema] = useState(() => numberSeriesSchema((row?.last_used ?? 0) + 1));
+  const checks = useZodForm(schema);
+  const set = (key: keyof typeof form, value: string) => {
+    setForm((f) => ({ ...f, [key]: value }));
+    checks.clear(key);
+  };
   const save = useMutation({
-    mutationFn: () =>
+    mutationFn: (d: { prefix: string; format: string; next_value: number; padding: number }) =>
       rpc("set_number_series", {
         p_key: seriesKey,
         p_fy: fy,
-        p_prefix: form.prefix.trim(),
-        p_format: form.format.trim(),
-        p_next_value: form.next_value,
-        p_padding: form.padding,
+        p_prefix: d.prefix,
+        p_format: d.format,
+        p_next_value: d.next_value,
+        p_padding: d.padding,
       }),
     onSuccess: () => {
       saved();
       onDone();
     },
-    onError: failed,
+    onError: (e) => {
+      if (asAppError(e).code === "series_below_used") return checks.setError("next_value", "errors.series_below_used");
+      failed(e);
+    },
   });
+  const nextShown = Number(form.next_value) || 0;
+  const paddingShown = Math.min(Math.max(Number(form.padding) || 0, 0), 10);
   return (
     <DialogContent
       title={t(`key.${seriesKey}`)}
       description={t("dialogHint")}
       footer={
-        <Button type="submit" form="series-form" disabled={save.isPending || !form.format.includes("{n}")}>
+        <Button type="submit" form="series-form" disabled={save.isPending}>
           <Save aria-hidden />
           {c("save")}
         </Button>
@@ -307,26 +338,27 @@ function SeriesDialog({ seriesKey, fy, row, onDone }: { seriesKey: string; fy: s
       <form
         id="series-form"
         className="flex flex-col gap-4"
+        noValidate
         onSubmit={(e) => {
           e.preventDefault();
-          save.mutate();
+          const d = checks.validate(form);
+          if (d) save.mutate(d);
         }}
       >
-        <Field label={t("prefix")}>{(a) => <Input {...a} maxLength={20} value={form.prefix} onChange={(e) => setForm({ ...form, prefix: e.target.value })} />}</Field>
-        <Field label={t("format")} hint={t("formatHint")}>
-          {(a) => <Input {...a} value={form.format} onChange={(e) => setForm({ ...form, format: e.target.value })} />}
+        <Field label={t("prefix")} error={checks.error("prefix")}>
+          {(a) => <Input {...a} maxLength={20} value={form.prefix} onChange={(e) => set("prefix", e.target.value)} />}
         </Field>
-        <Field label={t("nextNumber")} hint={row ? t("nextHint", { used: row.last_used }) : undefined}>
-          {(a) => (
-            <Input {...a} type="number" min={(row?.last_used ?? 0) + 1} value={form.next_value}
-              onChange={(e) => setForm({ ...form, next_value: Number(e.target.value) })} />
-          )}
+        <Field label={t("format")} hint={t("formatHint")} error={checks.error("format")}>
+          {(a) => <Input {...a} maxLength={60} value={form.format} onChange={(e) => set("format", e.target.value)} />}
         </Field>
-        <Field label={t("padding")} hint={t("paddingHint")}>
-          {(a) => <Input {...a} type="number" min={0} max={10} value={form.padding} onChange={(e) => setForm({ ...form, padding: Number(e.target.value) })} />}
+        <Field label={t("nextNumber")} hint={row ? t("nextHint", { used: row.last_used }) : undefined} error={checks.error("next_value")}>
+          {(a) => <Input {...a} type="number" min={(row?.last_used ?? 0) + 1} value={form.next_value} onChange={(e) => set("next_value", e.target.value)} />}
+        </Field>
+        <Field label={t("padding")} hint={t("paddingHint")} error={checks.error("padding")}>
+          {(a) => <Input {...a} type="number" min={0} max={10} value={form.padding} onChange={(e) => set("padding", e.target.value)} />}
         </Field>
         <p className="rounded-xl border border-border bg-secondary p-3">
-          {t("looksLike")} <strong className="tabular-nums">{preview({ ...form, fy }, form.next_value)}</strong>
+          {t("looksLike")} <strong className="tabular-nums">{preview({ ...form, padding: paddingShown, fy }, nextShown)}</strong>
         </p>
       </form>
     </DialogContent>

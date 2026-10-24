@@ -5,6 +5,7 @@ import { BedDouble, CirclePlus, Save, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
+import type { z } from "zod";
 import { fromIstDateTimeLocal, istDateTimeLocal } from "@pearl/shared";
 import { LibraryCombobox, type LibraryItem } from "@/components/library-combobox";
 import { PatientPicker, type PatientHit } from "@/components/patients/patient-picker";
@@ -12,8 +13,10 @@ import { Button } from "@/components/ui/button";
 import { DialogContent } from "@/components/ui/dialog";
 import { Field, Select, Textarea } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { newId, rpc } from "@/lib/rpc";
+import { asAppError, newId, rpc } from "@/lib/rpc";
+import { admissionSchema } from "@/lib/schemas/clinical";
 import { useFeedback } from "@/lib/use-feedback";
+import { useZodForm } from "@/lib/use-zod-form";
 import type { Admission } from "./types";
 
 interface SurgeonRow {
@@ -71,35 +74,41 @@ export function AdmissionForm({
     enabled: Boolean(patient),
   });
 
-  const payload = () => ({
-    patient_id: patient!.id,
-    admitted_at: fromIstDateTimeLocal(admittedAt),
-    treatment_id: treatmentId || null,
-    room_type_id: room?.id ?? null,
-    room_label: roomLabel,
-    procedures: procedures.split(",").map((p) => p.trim()).filter(Boolean),
-    diagnosis,
-    anaesthesia,
-    surgery_at: surgeryAt ? fromIstDateTimeLocal(surgeryAt) : null,
-    attender_name: attender.name,
-    attender_phone: attender.phone,
-    attender_relation: attender.relation,
-    surgeons: surgeons.filter((s) => s.doctor).map((s) => ({ doctor_id: s.doctor!.id, role: s.role })),
+  const [schema] = useState(() => admissionSchema(afterDischarge));
+  const checks = useZodForm(schema);
+  const clear = (path: string) => checks.clear(path);
+  type Checked = z.output<typeof schema>;
+  const payload = (d: Checked) => ({
+    patient_id: d.patient,
+    admitted_at: fromIstDateTimeLocal(d.admitted_at),
+    treatment_id: d.treatment,
+    room_type_id: d.room,
+    room_label: d.room_label,
+    procedures: d.procedures,
+    diagnosis: d.diagnosis,
+    anaesthesia: d.anaesthesia,
+    surgery_at: d.surgery_at ? fromIstDateTimeLocal(d.surgery_at) : null,
+    attender_name: d.attender_name,
+    attender_phone: d.attender_phone,
+    attender_relation: d.attender_relation,
+    surgeons: d.surgeons.filter((s) => s.doctor).map((s) => ({ doctor_id: s.doctor, role: s.role })),
   });
   const save = useMutation({
-    mutationFn: () =>
+    mutationFn: (d: Checked) =>
       editing
-        ? rpc<Admission>("update_admission", { p_admission_id: admission!.id, p_patch: payload(), p_version: admission!.version, p_reason: reason || null })
-        : rpc<Admission>("admit_patient", { p_admission: payload(), p_client_id: clientId }),
+        ? rpc<Admission>("update_admission", { p_admission_id: admission!.id, p_patch: payload(d), p_version: admission!.version, p_reason: d.reason })
+        : rpc<Admission>("admit_patient", { p_admission: payload(d), p_client_id: clientId }),
     onSuccess: (a) => {
       saved(editing ? t("updated") : t("admitted", { ip: a.ip_number }));
       for (const key of ["admission", "admissions"]) void queryClient.invalidateQueries({ queryKey: [key] });
       if (onDone) onDone(a);
       else router.push(`/admissions/${a.id}`);
     },
-    onError: failed,
+    onError: (e) => {
+      if (asAppError(e).code === "dates_invalid") return checks.setError("surgery_at", "errors.dates_invalid");
+      failed(e);
+    },
   });
-  const valid = Boolean(patient) && fromIstDateTimeLocal(admittedAt) !== null && (!afterDischarge || reason.trim().length >= 3);
 
   return (
     <DialogContent
@@ -107,7 +116,28 @@ export function AdmissionForm({
       title={editing ? t("editTitle", { ip: admission!.ip_number }) : t("admitTitle")}
       description={editing ? undefined : t("admitHint")}
       footer={
-        <Button disabled={!valid || save.isPending} onClick={() => save.mutate()}>
+        <Button
+          disabled={save.isPending}
+          onClick={() => {
+            const d = checks.validate({
+              patient,
+              admitted_at: admittedAt,
+              treatment: treatmentId,
+              room,
+              room_label: roomLabel,
+              procedures,
+              diagnosis,
+              anaesthesia,
+              surgery_at: surgeryAt,
+              attender_name: attender.name,
+              attender_phone: attender.phone,
+              attender_relation: attender.relation,
+              surgeons: surgeons.map((s) => ({ doctor: s.doctor, role: s.role })),
+              reason,
+            });
+            if (d) save.mutate(d);
+          }}
+        >
           {editing ? <Save aria-hidden /> : <BedDouble aria-hidden />}
           {editing ? t("saveChanges") : t("admit")}
         </Button>
@@ -115,12 +145,14 @@ export function AdmissionForm({
     >
       <div className="grid gap-4 sm:grid-cols-2">
         {!editing && !fixedPatient && (
-          <Field label={t("patient")} className="sm:col-span-2">
-            {(a) => <PatientPicker id={a.id} value={patient} onChange={setPatient} />}
+          <Field label={t("patient")} error={checks.error("patient")} className="sm:col-span-2">
+            {(a) => <PatientPicker {...a} value={patient} onChange={(p) => (setPatient(p), clear("patient"))} />}
           </Field>
         )}
-        <Field label={t("admittedAt")}>{(a) => <Input {...a} type="datetime-local" value={admittedAt} onChange={(e) => setAdmittedAt(e.target.value)} />}</Field>
-        <Field label={t("treatment")} hint={t("treatmentHint")}>
+        <Field label={t("admittedAt")} error={checks.error("admitted_at")}>
+          {(a) => <Input {...a} type="datetime-local" value={admittedAt} onChange={(e) => (setAdmittedAt(e.target.value), clear("admitted_at"))} />}
+        </Field>
+        <Field label={t("treatment")} hint={t("treatmentHint")} error={checks.error("treatment")}>
           {(a) => (
             <Select {...a} value={treatmentId} onChange={(e) => setTreatmentId(e.target.value)} disabled={!patient}>
               <option value="">{t("noTreatment")}</option>
@@ -132,25 +164,36 @@ export function AdmissionForm({
             </Select>
           )}
         </Field>
-        <Field label={t("roomType")}>{(a) => <LibraryCombobox id={a.id} kind="room_type" value={room} onChange={setRoom} />}</Field>
-        <Field label={t("roomLabel")} hint={t("roomLabelHint")}>
-          {(a) => <Input {...a} maxLength={60} value={roomLabel} onChange={(e) => setRoomLabel(e.target.value)} />}
+        <Field label={t("roomType")} error={checks.error("room")}>{(a) => <LibraryCombobox {...a} kind="room_type" value={room} onChange={setRoom} />}</Field>
+        <Field label={t("roomLabel")} hint={t("roomLabelHint")} error={checks.error("room_label")}>
+          {(a) => <Input {...a} maxLength={60} value={roomLabel} onChange={(e) => (setRoomLabel(e.target.value), clear("room_label"))} />}
         </Field>
-        <Field label={t("procedures")} hint={t("proceduresHint")} className="sm:col-span-2">
-          {(a) => <Input {...a} maxLength={500} value={procedures} onChange={(e) => setProcedures(e.target.value)} />}
+        <Field label={t("procedures")} hint={t("proceduresHint")} error={checks.error("procedures")} className="sm:col-span-2">
+          {(a) => <Input {...a} maxLength={500} value={procedures} onChange={(e) => (setProcedures(e.target.value), clear("procedures"))} />}
         </Field>
-        <Field label={t("diagnosis")} className="sm:col-span-2">
-          {(a) => <Input {...a} maxLength={500} value={diagnosis} onChange={(e) => setDiagnosis(e.target.value)} />}
+        <Field label={t("diagnosis")} error={checks.error("diagnosis")} className="sm:col-span-2">
+          {(a) => <Input {...a} maxLength={500} value={diagnosis} onChange={(e) => (setDiagnosis(e.target.value), clear("diagnosis"))} />}
         </Field>
-        <Field label={t("anaesthesia")}>{(a) => <Input {...a} maxLength={120} value={anaesthesia} onChange={(e) => setAnaesthesia(e.target.value)} />}</Field>
-        <Field label={t("surgeryAt")}>{(a) => <Input {...a} type="datetime-local" value={surgeryAt} onChange={(e) => setSurgeryAt(e.target.value)} />}</Field>
+        <Field label={t("anaesthesia")} error={checks.error("anaesthesia")}>
+          {(a) => <Input {...a} maxLength={120} value={anaesthesia} onChange={(e) => (setAnaesthesia(e.target.value), clear("anaesthesia"))} />}
+        </Field>
+        <Field label={t("surgeryAt")} error={checks.error("surgery_at")}>
+          {(a) => <Input {...a} type="datetime-local" value={surgeryAt} onChange={(e) => (setSurgeryAt(e.target.value), clear("surgery_at"))} />}
+        </Field>
 
         <fieldset className="flex flex-col gap-3 sm:col-span-2">
           <legend className="mb-2 font-medium">{t("surgeons")}</legend>
           {surgeons.map((s, i) => (
             <div key={s.key} className="grid gap-3 sm:grid-cols-[1fr_12rem_auto] sm:items-end">
-              <Field label={t("doctor")}>
-                {(a) => <LibraryCombobox id={a.id} kind="doctor" value={s.doctor} onChange={(d) => setSurgeons((ss) => ss.map((x) => (x.key === s.key ? { ...x, doctor: d } : x)))} />}
+              <Field label={t("doctor")} error={checks.error(`surgeons.${i}.doctor`)}>
+                {(a) => (
+                  <LibraryCombobox
+                    {...a}
+                    kind="doctor"
+                    value={s.doctor}
+                    onChange={(d) => (setSurgeons((ss) => ss.map((x) => (x.key === s.key ? { ...x, doctor: d } : x))), clear(`surgeons.${i}.doctor`))}
+                  />
+                )}
               </Field>
               <Field label={t("role")}>
                 {(a) => (
@@ -174,12 +217,24 @@ export function AdmissionForm({
           </Button>
         </fieldset>
 
-        <Field label={t("attenderName")}>{(a) => <Input {...a} maxLength={120} value={attender.name} onChange={(e) => setAttender((x) => ({ ...x, name: e.target.value }))} />}</Field>
-        <Field label={t("attenderPhone")}>{(a) => <Input {...a} type="tel" maxLength={40} value={attender.phone} onChange={(e) => setAttender((x) => ({ ...x, phone: e.target.value }))} />}</Field>
-        <Field label={t("attenderRelation")}>{(a) => <Input {...a} maxLength={40} value={attender.relation} onChange={(e) => setAttender((x) => ({ ...x, relation: e.target.value }))} />}</Field>
+        <Field label={t("attenderName")} error={checks.error("attender_name")}>
+          {(a) => <Input {...a} maxLength={120} value={attender.name} onChange={(e) => (setAttender((x) => ({ ...x, name: e.target.value })), clear("attender_name"))} />}
+        </Field>
+        <Field label={t("attenderPhone")} error={checks.error("attender_phone")}>
+          {(a) => (
+            <Input {...a} type="tel" inputMode="tel" maxLength={40} value={attender.phone}
+              onChange={(e) => (setAttender((x) => ({ ...x, phone: e.target.value })), clear("attender_phone"))} />
+          )}
+        </Field>
+        <Field label={t("attenderRelation")} error={checks.error("attender_relation")}>
+          {(a) => (
+            <Input {...a} maxLength={40} value={attender.relation}
+              onChange={(e) => (setAttender((x) => ({ ...x, relation: e.target.value })), clear("attender_relation"))} />
+          )}
+        </Field>
         {afterDischarge && (
-          <Field label={t("editReason")} className="sm:col-span-2">
-            {(a) => <Textarea {...a} rows={2} maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} />}
+          <Field label={t("editReason")} error={checks.error("reason")} className="sm:col-span-2">
+            {(a) => <Textarea {...a} rows={2} maxLength={300} value={reason} onChange={(e) => (setReason(e.target.value), clear("reason"))} />}
           </Field>
         )}
       </div>

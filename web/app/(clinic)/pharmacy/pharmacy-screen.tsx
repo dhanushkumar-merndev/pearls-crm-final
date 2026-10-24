@@ -19,7 +19,9 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Field, PageHeader } from "@/components/ui/form";
 import { newId, rpc } from "@/lib/rpc";
+import { pickPatientSchema } from "@/lib/schemas/pharmacy";
 import { useFeedback } from "@/lib/use-feedback";
+import { useZodForm } from "@/lib/use-zod-form";
 
 interface Summary {
   stock_value_paise: number;
@@ -116,8 +118,9 @@ function NewSaleDialog() {
   const { failed } = useFeedback();
   const [patient, setPatient] = useState<PatientHit | null>(null);
   const [clientId] = useState(newId);
+  const checks = useZodForm(pickPatientSchema);
   const create = useMutation({
-    mutationFn: () => rpc<{ id: string }>("create_bill", { p_type: "pharmacy_invoice", p_patient_id: patient!.id, p_links: {}, p_client_id: clientId }),
+    mutationFn: (patientId: string) => rpc<{ id: string }>("create_bill", { p_type: "pharmacy_invoice", p_patient_id: patientId, p_links: {}, p_client_id: clientId }),
     onSuccess: (b) => router.push(`/bills/${b.id}`),
     onError: failed,
   });
@@ -126,13 +129,21 @@ function NewSaleDialog() {
       title={t("newSale")}
       description={t("newSaleHint")}
       footer={
-        <Button disabled={!patient || create.isPending} onClick={() => create.mutate()}>
+        <Button
+          disabled={create.isPending}
+          onClick={() => {
+            const d = checks.validate({ patient });
+            if (d) create.mutate(d.patient);
+          }}
+        >
           <FilePlus2 aria-hidden />
           {t("startBill")}
         </Button>
       }
     >
-      <Field label={t("patient")}>{(a) => <PatientPicker id={a.id} value={patient} onChange={setPatient} />}</Field>
+      <Field label={t("patient")} error={checks.error("patient")}>
+        {(a) => <PatientPicker {...a} value={patient} onChange={(p) => (setPatient(p), checks.clear("patient"))} />}
+      </Field>
       <p className="mt-3 text-text-secondary">
         <Link href="/patients/new" className="text-link underline-offset-4 hover:underline">
           {t("registerFirst")}

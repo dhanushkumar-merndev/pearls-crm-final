@@ -16,7 +16,9 @@ import { Field, Textarea } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { newId, rpc } from "@/lib/rpc";
 import { useMe } from "@/lib/use-me";
+import { cancelSchema, rescheduleSchema } from "@/lib/schemas/appointments";
 import { useFeedback } from "@/lib/use-feedback";
+import { useZodForm } from "@/lib/use-zod-form";
 import { waLink } from "@/lib/whatsapp";
 import { NEXT, type ApptStatus } from "./status";
 
@@ -140,18 +142,26 @@ export function AppointmentActions({ appt, onChanged }: { appt: ApptCard; onChan
 function CancelDialog({ busy, onCancel }: { busy: boolean; onCancel: (reason: string) => void }) {
   const t = useTranslations("appt");
   const [reason, setReason] = useState("");
+  const checks = useZodForm(cancelSchema);
   return (
     <DialogContent
       title={t("cancelTitle")}
       footer={
-        <Button variant="danger" disabled={busy || reason.trim().length < 3} onClick={() => onCancel(reason.trim())}>
+        <Button
+          variant="danger"
+          disabled={busy}
+          onClick={() => {
+            const d = checks.validate({ reason });
+            if (d) onCancel(d.reason);
+          }}
+        >
           <CircleX aria-hidden />
           {t("to.cancelled")}
         </Button>
       }
     >
-      <Field label={t("reason")} hint={t("reasonHint")}>
-        {(a) => <Textarea {...a} rows={2} maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} />}
+      <Field label={t("reason")} hint={t("reasonHint")} error={checks.error("reason")}>
+        {(a) => <Textarea {...a} rows={2} maxLength={300} value={reason} onChange={(e) => (setReason(e.target.value), checks.clear("reason"))} />}
       </Field>
     </DialogContent>
   );
@@ -172,13 +182,21 @@ export function SlotPicker({
   date,
   value,
   onChange,
+  error,
 }: {
   doctorId: string | null;
   date: string;
   value: string | null;
   onChange: (start: string) => void;
+  /** "Please choose a time slot." etc., shown under the slots. */
+  error?: string;
 }) {
   const t = useTranslations("appt");
+  const errorEl = error ? (
+    <p id="slot-error" role="alert" className="text-[0.95rem] text-bad-text">
+      {error}
+    </p>
+  ) : null;
   const slots = useQuery({
     queryKey: ["free_slots", doctorId, date],
     enabled: Boolean(doctorId && date),
@@ -187,12 +205,25 @@ export function SlotPicker({
   if (!doctorId) return <p className="text-text-secondary">{t("pickDoctorFirst")}</p>;
   if (slots.isPending) return <p className="text-text-secondary">{t("loadingSlots")}</p>;
   const list = slots.data ?? [];
-  if (list.length === 0) return <p className="text-text-secondary">{t("noHours")}</p>;
+  if (list.length === 0)
+    return (
+      <div className="flex flex-col gap-1">
+        <p className="text-text-secondary">{t("noHours")}</p>
+        {errorEl}
+      </div>
+    );
   const reason = list.find((s) => s.blocked_reason && s.blocked_reason !== "past")?.blocked_reason;
   return (
     <div className="flex flex-col gap-2">
       {reason && <p className="text-bad-text">{t(`blocked.${reason}`)}</p>}
-      <div role="radiogroup" aria-label={t("slot")} className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+      <div
+        role="radiogroup"
+        aria-label={t("slot")}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? "slot-error" : undefined}
+        tabIndex={error ? -1 : undefined}
+        className="grid grid-cols-3 gap-2 rounded-xl sm:grid-cols-4 aria-invalid:outline aria-invalid:outline-2 aria-invalid:outline-offset-4 aria-invalid:outline-status-critical"
+      >
         {list.map((s) => {
           const disabled = Boolean(s.blocked_reason) || s.left === 0;
           const selected = value === s.start;
@@ -214,6 +245,7 @@ export function SlotPicker({
           );
         })}
       </div>
+      {errorEl}
     </div>
   );
 }
@@ -228,9 +260,10 @@ function RescheduleDialog({ appt, onDone }: { appt: ApptCard; onDone: () => void
   const [slot, setSlot] = useState<string | null>(null);
   const [reason, setReason] = useState("");
   const [clientId] = useState(newId);
+  const checks = useZodForm(rescheduleSchema);
   const move = useMutation({
-    mutationFn: () =>
-      rpc("reschedule_appointment", { p_id: appt.id, p_new_start: slot, p_doctor_id: doctor?.id ?? null, p_reason: reason || null, p_client_id: clientId }),
+    mutationFn: (d: { doctor: string; slot: string; reason: string | null }) =>
+      rpc("reschedule_appointment", { p_id: appt.id, p_new_start: d.slot, p_doctor_id: d.doctor, p_reason: d.reason, p_client_id: clientId }),
     onSuccess: () => {
       saved(t("rescheduled"));
       onDone();
@@ -242,7 +275,13 @@ function RescheduleDialog({ appt, onDone }: { appt: ApptCard; onDone: () => void
       wide
       title={t("rescheduleTitle", { name: appt.patient ?? "" })}
       footer={
-        <Button disabled={!slot || move.isPending} onClick={() => move.mutate()}>
+        <Button
+          disabled={move.isPending}
+          onClick={() => {
+            const d = checks.validate({ doctor, date, slot, reason });
+            if (d) move.mutate(d);
+          }}
+        >
           <CalendarClock aria-hidden />
           {t("moveHere")}
         </Button>
@@ -250,11 +289,17 @@ function RescheduleDialog({ appt, onDone }: { appt: ApptCard; onDone: () => void
     >
       <div className="flex flex-col gap-4">
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label={t("doctor")}>{(a) => <LibraryCombobox id={a.id} kind="doctor" value={doctor} onChange={(d) => (setDoctor(d), setSlot(null))} />}</Field>
-          <Field label={t("date")}>{(a) => <Input {...a} type="date" value={date} onChange={(e) => (setDate(e.target.value), setSlot(null))} />}</Field>
+          <Field label={t("doctor")} error={checks.error("doctor")}>
+            {(a) => <LibraryCombobox {...a} kind="doctor" value={doctor} onChange={(d) => (setDoctor(d), setSlot(null), checks.clear("doctor"))} />}
+          </Field>
+          <Field label={t("date")} error={checks.error("date")}>
+            {(a) => <Input {...a} type="date" value={date} onChange={(e) => (setDate(e.target.value), setSlot(null), checks.clear("date"))} />}
+          </Field>
         </div>
-        <SlotPicker doctorId={doctor?.id ?? null} date={date} value={slot} onChange={setSlot} />
-        <Field label={t("reason")}>{(a) => <Input {...a} maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} />}</Field>
+        <SlotPicker doctorId={doctor?.id ?? null} date={date} value={slot} onChange={(v) => (setSlot(v), checks.clear("slot"))} error={checks.error("slot")} />
+        <Field label={t("reason")} error={checks.error("reason")}>
+          {(a) => <Input {...a} maxLength={300} value={reason} onChange={(e) => (setReason(e.target.value), checks.clear("reason"))} />}
+        </Field>
       </div>
     </DialogContent>
   );

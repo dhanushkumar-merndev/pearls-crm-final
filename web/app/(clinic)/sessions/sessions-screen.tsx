@@ -13,6 +13,7 @@ import { Field, PageHeader } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
 import { rpc } from "@/lib/rpc";
+import { useDateRangeCheck } from "@/lib/use-date-range";
 
 interface Due {
   session_id: string;
@@ -36,7 +37,9 @@ export function SessionsScreen() {
   const [from, setFrom] = useState(() => istDateString(new Date()));
   const [to, setTo] = useState(() => istDateString(new Date(Date.now() + 6 * 86_400_000)));
   const [booking, setBooking] = useState<Due | null>(null);
+  const rangeCheck = useDateRangeCheck(from, to);
   const list = useInfiniteQuery({
+    enabled: rangeCheck.valid,
     queryKey: ["sessions_due", from, to],
     initialPageParam: null as string | null,
     queryFn: ({ pageParam }) => rpc<{ items: Due[]; next_cursor: string | null }>("sessions_due", { p_from: from, p_to: to, p_cursor: pageParam }),
@@ -47,8 +50,8 @@ export function SessionsScreen() {
     <div>
       <PageHeader title={t("title")} description={t("description")} />
       <div className="mb-4 flex flex-wrap gap-3">
-        <Field label={t("from")}>{(a) => <Input {...a} type="date" value={from} onChange={(e) => e.target.value && setFrom(e.target.value)} />}</Field>
-        <Field label={t("to")}>{(a) => <Input {...a} type="date" value={to} onChange={(e) => e.target.value && setTo(e.target.value)} />}</Field>
+        <Field label={t("from")} error={rangeCheck.fromError}>{(a) => <Input {...a} type="date" value={from} onChange={(e) => setFrom(e.target.value)} />}</Field>
+        <Field label={t("to")} error={rangeCheck.toError}>{(a) => <Input {...a} type="date" value={to} onChange={(e) => setTo(e.target.value)} />}</Field>
       </div>
       <Table>
         <THead>

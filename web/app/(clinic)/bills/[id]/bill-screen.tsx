@@ -20,7 +20,10 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { Table, TD, TH, THead, TR } from "@/components/ui/table";
 import { rpc } from "@/lib/rpc";
 import { useMe } from "@/lib/use-me";
+import { applyAdvanceSchema } from "@/lib/schemas/billing";
+import { reasonSchema } from "@/lib/schemas/clinical";
 import { useFeedback } from "@/lib/use-feedback";
+import { useZodForm } from "@/lib/use-zod-form";
 
 interface PrintData extends Bill {
   payments: { received_at: string; mode: string; reference: string | null; amount_paise: number }[];
@@ -209,8 +212,10 @@ function AdvanceDialog({ bill, due, onDone }: { bill: Bill; due: number; onDone:
   const t = useTranslations("bill");
   const { saved, failed } = useFeedback();
   const [amount, setAmount] = useState<number | null>(Math.min(due, bill.patient_credit_paise ?? 0));
+  const [schema] = useState(() => applyAdvanceSchema(Math.min(due, bill.patient_credit_paise ?? 0)));
+  const checks = useZodForm(schema);
   const apply = useMutation({
-    mutationFn: () => rpc("apply_advance", { p_bill_id: bill.id, p_amount_paise: amount }),
+    mutationFn: (paise: number) => rpc("apply_advance", { p_bill_id: bill.id, p_amount_paise: paise }),
     onSuccess: () => {
       saved(t("advanceUsed"));
       onDone();
@@ -222,13 +227,21 @@ function AdvanceDialog({ bill, due, onDone }: { bill: Bill; due: number; onDone:
       title={t("useAdvance")}
       description={t("advanceAvailable", { amount: formatINR(bill.patient_credit_paise ?? 0) })}
       footer={
-        <Button disabled={!amount || amount > due || apply.isPending} onClick={() => apply.mutate()}>
+        <Button
+          disabled={apply.isPending}
+          onClick={() => {
+            const d = checks.validate({ amount });
+            if (d) apply.mutate(d.amount);
+          }}
+        >
           <Wallet aria-hidden />
           {t("useAdvance")}
         </Button>
       }
     >
-      <Field label={t("amount")}>{(a) => <MoneyInput {...a} value={amount} onChange={setAmount} />}</Field>
+      <Field label={t("amount")} error={checks.error("amount")}>
+        {(a) => <MoneyInput {...a} value={amount} onChange={(v) => (setAmount(v), checks.clear("amount"))} />}
+      </Field>
     </DialogContent>
   );
 }
@@ -238,8 +251,9 @@ function CancelDialog({ bill, onDone }: { bill: Bill; onDone: () => void }) {
   const queryClient = useQueryClient();
   const { saved, failed } = useFeedback();
   const [reason, setReason] = useState("");
+  const checks = useZodForm(reasonSchema);
   const cancel = useMutation({
-    mutationFn: () => rpc("cancel_bill", { p_bill_id: bill.id, p_reason: reason }),
+    mutationFn: (r: string) => rpc("cancel_bill", { p_bill_id: bill.id, p_reason: r }),
     onSuccess: () => {
       saved(t("cancelled"));
       void queryClient.invalidateQueries({ queryKey: ["bills"] });
@@ -252,13 +266,22 @@ function CancelDialog({ bill, onDone }: { bill: Bill; onDone: () => void }) {
       title={t("cancelTitle", { no: bill.bill_no ?? "" })}
       description={t("cancelHint")}
       footer={
-        <Button variant="danger" disabled={reason.trim().length < 3 || cancel.isPending} onClick={() => cancel.mutate()}>
+        <Button
+          variant="danger"
+          disabled={cancel.isPending}
+          onClick={() => {
+            const d = checks.validate({ reason });
+            if (d) cancel.mutate(d.reason);
+          }}
+        >
           <CircleX aria-hidden />
           {t("cancelBill")}
         </Button>
       }
     >
-      <Field label={t("reason")}>{(a) => <Textarea {...a} rows={2} maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} />}</Field>
+      <Field label={t("reason")} error={checks.error("reason")}>
+        {(a) => <Textarea {...a} rows={2} maxLength={300} value={reason} onChange={(e) => (setReason(e.target.value), checks.clear("reason"))} />}
+      </Field>
     </DialogContent>
   );
 }

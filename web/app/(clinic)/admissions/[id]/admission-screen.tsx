@@ -18,8 +18,10 @@ import { Field, Select, Textarea } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
-import { newId, rpc } from "@/lib/rpc";
+import { asAppError, newId, rpc } from "@/lib/rpc";
+import { dischargeSchema, reasonSchema } from "@/lib/schemas/clinical";
 import { useFeedback } from "@/lib/use-feedback";
+import { useZodForm } from "@/lib/use-zod-form";
 
 /** One IP stay: details, discharge, the stay's bills, final bill and discharge summary. */
 export function AdmissionScreen({ initial }: { initial: Admission }) {
@@ -190,23 +192,36 @@ function DischargeDialog({ admission, onDone }: { admission: Admission; onDone: 
   const t = useTranslations("ip");
   const { saved, failed } = useFeedback();
   const [at, setAt] = useState(istDateTimeLocal(new Date()));
+  const [schema] = useState(() => dischargeSchema(admission.admitted_at));
+  const checks = useZodForm(schema);
   const discharge = useMutation({
-    mutationFn: () => rpc("discharge_patient", { p_admission_id: admission.id, p_discharged_at: fromIstDateTimeLocal(at) }),
+    mutationFn: (local: string) => rpc("discharge_patient", { p_admission_id: admission.id, p_discharged_at: fromIstDateTimeLocal(local) }),
     onSuccess: () => (saved(t("discharged")), onDone()),
-    onError: failed,
+    onError: (e) => {
+      if (asAppError(e).code === "dates_invalid") return checks.setError("at", "errors.dates_invalid");
+      failed(e);
+    },
   });
   return (
     <DialogContent
       title={t("dischargeTitle", { name: admission.patient })}
       description={t("dischargeHint")}
       footer={
-        <Button disabled={!fromIstDateTimeLocal(at) || discharge.isPending} onClick={() => discharge.mutate()}>
+        <Button
+          disabled={discharge.isPending}
+          onClick={() => {
+            const d = checks.validate({ at });
+            if (d) discharge.mutate(d.at);
+          }}
+        >
           <DoorOpen aria-hidden />
           {t("discharge")}
         </Button>
       }
     >
-      <Field label={t("dischargedAt")}>{(a) => <Input {...a} type="datetime-local" value={at} onChange={(e) => setAt(e.target.value)} />}</Field>
+      <Field label={t("dischargedAt")} error={checks.error("at")}>
+        {(a) => <Input {...a} type="datetime-local" value={at} onChange={(e) => (setAt(e.target.value), checks.clear("at"))} />}
+      </Field>
     </DialogContent>
   );
 }
@@ -215,8 +230,9 @@ function CancelDialog({ admission, onDone }: { admission: Admission; onDone: () 
   const t = useTranslations("ip");
   const { saved, failed } = useFeedback();
   const [reason, setReason] = useState("");
+  const checks = useZodForm(reasonSchema);
   const cancel = useMutation({
-    mutationFn: () => rpc("cancel_admission", { p_admission_id: admission.id, p_reason: reason }),
+    mutationFn: (r: string) => rpc("cancel_admission", { p_admission_id: admission.id, p_reason: r }),
     onSuccess: () => (saved(t("cancelled")), onDone()),
     onError: failed,
   });
@@ -225,13 +241,21 @@ function CancelDialog({ admission, onDone }: { admission: Admission; onDone: () 
       title={t("cancelTitle", { ip: admission.ip_number })}
       description={t("cancelHint")}
       footer={
-        <Button disabled={reason.trim().length < 3 || cancel.isPending} onClick={() => cancel.mutate()}>
+        <Button
+          disabled={cancel.isPending}
+          onClick={() => {
+            const d = checks.validate({ reason });
+            if (d) cancel.mutate(d.reason);
+          }}
+        >
           <CircleX aria-hidden />
           {t("cancelAdmission")}
         </Button>
       }
     >
-      <Field label={t("reason")}>{(a) => <Textarea {...a} rows={2} maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} />}</Field>
+      <Field label={t("reason")} error={checks.error("reason")}>
+        {(a) => <Textarea {...a} rows={2} maxLength={300} value={reason} onChange={(e) => (setReason(e.target.value), checks.clear("reason"))} />}
+      </Field>
     </DialogContent>
   );
 }

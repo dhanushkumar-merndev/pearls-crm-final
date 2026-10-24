@@ -12,9 +12,11 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Checkbox, Field, Select } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { newId, rpc } from "@/lib/rpc";
+import { asAppError, newId, rpc } from "@/lib/rpc";
 import { useMe } from "@/lib/use-me";
+import { billSchema } from "@/lib/schemas/billing";
 import { useFeedback } from "@/lib/use-feedback";
+import { useZodForm } from "@/lib/use-zod-form";
 import { FinalBillTools, type SuggestedLine } from "./final-bill-tools";
 import { MedicinePicker } from "./medicine-picker";
 import type { Bill, BillItem } from "./types";
@@ -145,12 +147,21 @@ export function BillEditor({
   const [reason, setReason] = useState("");
   // A patch can be a function of the line as it is now: pickers answer after a round trip,
   // and must not overwrite what was typed meanwhile.
-  const update = (key: string, patch: Partial<EditLine> | ((current: EditLine) => Partial<EditLine>)) =>
+  const schema = useMemo(() => billSchema({ taxInclusive, amend }), [taxInclusive, amend]);
+  const checks = useZodForm(schema);
+  const update = (key: string, patch: Partial<EditLine> | ((current: EditLine) => Partial<EditLine>)) => {
     setLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...(typeof patch === "function" ? patch(l) : patch) } : l)));
+    // Any edit on a line clears that line's messages (they are re-checked on save).
+    const i = lines.findIndex((l) => l.key === key);
+    for (const f of ["description", "rate_paise", "qty", "discount_amount", "discount_percent", "hsn_sac", "medicine", "batch_id"]) checks.clear(`lines.${i}.${f}`);
+  };
+  const lineError = (i: number, field: string) => checks.error(`lines.${i}.${field}`);
 
   const previews = useMemo(() => lines.map((l) => previewLine(l, taxInclusive)), [lines, taxInclusive]);
   const totals = useMemo(() => computeBillTotals(previews.map((p) => p.result).filter((r): r is LineResult => r !== null)), [previews]);
-  const problems = lines.some((l, i) => !l.description.trim() || previews[i]!.result === null || (l.kind === "pharmacy" && !l.batch_id));
+
+  /** Every line and header field checked before anything is sent. */
+  const checkAll = () => checks.validate({ doctor, referred_by: referredBy, lines, reason }) !== null;
 
   const save = useMutation({
     mutationFn: async () => {
@@ -172,7 +183,10 @@ export function BillEditor({
       router.refresh();
       return b;
     },
-    onError: failed,
+    onError: (e) => {
+      if (asAppError(e).code === "batch_required") return checks.setError("lines.0.batch_id", "errors.batch_required");
+      failed(e);
+    },
   });
 
   // Saves what is on screen (skipping untouched empty lines) plus extra lines; used by the
@@ -191,6 +205,7 @@ export function BillEditor({
   }
 
   async function saveThenFinalize() {
+    if (!checkAll()) return;
     try {
       const b = await save.mutateAsync();
       onFinalize?.(b);
@@ -212,8 +227,10 @@ export function BillEditor({
     <div className="flex flex-col gap-4">
       {!amend && (
         <Card className="grid gap-4 sm:grid-cols-3">
-          <Field label={t("doctor")}>{(a) => <LibraryCombobox id={a.id} kind="doctor" value={doctor} onChange={setDoctor} />}</Field>
-          <Field label={t("referredBy")}>{(a) => <Input {...a} maxLength={120} value={referredBy} onChange={(e) => setReferredBy(e.target.value)} />}</Field>
+          <Field label={t("doctor")} error={checks.error("doctor")}>{(a) => <LibraryCombobox {...a} kind="doctor" value={doctor} onChange={setDoctor} />}</Field>
+          <Field label={t("referredBy")} error={checks.error("referred_by")}>
+            {(a) => <Input {...a} maxLength={120} value={referredBy} onChange={(e) => (setReferredBy(e.target.value), checks.clear("referred_by"))} />}
+          </Field>
           <Checkbox className="self-end" label={t("taxInclusive")} hint={t("taxInclusiveHint")} checked={taxInclusive} onChange={(e) => setTaxInclusive(e.target.checked)} />
         </Card>
       )}
@@ -244,12 +261,12 @@ export function BillEditor({
             <li key={l.key}>
               <Card className="grid gap-3 md:grid-cols-12 md:items-end">
                 {l.kind === "pharmacy" ? (
-                  <MedicinePicker line={l} update={(patch) => update(l.key, patch)} />
+                  <MedicinePicker line={l} update={(patch) => update(l.key, patch)} errorOf={(f) => lineError(i, f)} />
                 ) : (
                   <Field label={t("item")} className="md:col-span-4">
                     {(a) => (
                       <LibraryCombobox
-                        id={a.id}
+                        {...a}
                         kind="service"
                         allowCreate
                         createDefaults={{ price_paise: l.rate_paise ?? 0 }}
@@ -270,7 +287,11 @@ export function BillEditor({
                     )}
                   </Field>
                 )}
-                <Field label={t("description")} className="md:col-span-4" error={!l.description.trim() && l.rate_paise !== null ? t("needDescription") : undefined}>
+                <Field
+                  label={t("description")}
+                  className="md:col-span-4"
+                  error={lineError(i, "description") ?? (!l.description.trim() && l.rate_paise !== null ? t("needDescription") : undefined)}
+                >
                   {(a) => <Input {...a} maxLength={300} value={l.description} onChange={(e) => update(l.key, { description: e.target.value })} />}
                 </Field>
                 {l.kind !== "pharmacy" && (
@@ -278,11 +299,21 @@ export function BillEditor({
                     {(a) => <LibraryCombobox id={a.id} kind="bill_category" value={l.category} onChange={(c) => update(l.key, { category: c })} />}
                   </Field>
                 )}
-                <Field label={t("rate")} className="md:col-span-2">{(a) => <MoneyInput {...a} value={l.rate_paise} onChange={(v) => update(l.key, { rate_paise: v })} />}</Field>
-                <Field label={t("qty")} className="md:col-span-1" error={p.error === "invalid_quantity" ? t("badQty") : undefined}>
+                <Field label={t("rate")} className="md:col-span-2" error={lineError(i, "rate_paise")}>
+                  {(a) => <MoneyInput {...a} value={l.rate_paise} onChange={(v) => update(l.key, { rate_paise: v })} />}
+                </Field>
+                <Field label={t("qty")} className="md:col-span-1" error={lineError(i, "qty") ?? (p.error === "invalid_quantity" ? t("badQty") : undefined)}>
                   {(a) => <Input {...a} inputMode="decimal" value={l.qty} onChange={(e) => update(l.key, { qty: e.target.value })} />}
                 </Field>
-                <Field label={t("discount")} className="md:col-span-3" error={p.error === "discount_exceeds_gross" ? t("discountTooBig") : undefined}>
+                <Field
+                  label={t("discount")}
+                  className="md:col-span-3"
+                  error={
+                    lineError(i, "discount_amount") ??
+                    lineError(i, "discount_percent") ??
+                    (p.error === "discount_exceeds_gross" ? t("discountTooBig") : undefined)
+                  }
+                >
                   {(a) => (
                     <div className="flex gap-2">
                       <Select aria-label={t("discountUnit")} className="w-20" value={l.discount_type} onChange={(e) => update(l.key, { discount_type: e.target.value as DiscountType })}>
@@ -328,10 +359,15 @@ export function BillEditor({
           );
         })}
       </ol>
-      <Button variant="secondary" className="self-start" onClick={() => setLines((ls) => [...ls, emptyLine(lineKind)])}>
+      <Button variant="secondary" className="self-start" onClick={() => (setLines((ls) => [...ls, emptyLine(lineKind)]), checks.clear("lines"))}>
         <CirclePlus aria-hidden />
         {t("addLine")}
       </Button>
+      {checks.error("lines") && (
+        <p role="alert" className="text-bad-text">
+          {checks.error("lines")}
+        </p>
+      )}
 
       <Card className="ml-auto grid w-full max-w-md grid-cols-2 gap-x-6 gap-y-1 tabular-nums">
         <span className="text-text-secondary">{t("gross")}</span>
@@ -357,10 +393,10 @@ export function BillEditor({
 
       {amend ? (
         <div className="flex flex-wrap items-end justify-end gap-3">
-          <Field label={t("amendReason")} className="min-w-72">
-            {(a) => <Input {...a} maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} />}
+          <Field label={t("amendReason")} className="min-w-72" error={checks.error("reason")}>
+            {(a) => <Input {...a} maxLength={300} value={reason} onChange={(e) => (setReason(e.target.value), checks.clear("reason"))} />}
           </Field>
-          <Button disabled={problems || reason.trim().length < 3 || save.isPending} onClick={() => save.mutate()}>
+          <Button disabled={save.isPending} onClick={() => checkAll() && save.mutate()}>
             <Save aria-hidden />
             {t("saveAmendment")}
           </Button>
@@ -371,11 +407,11 @@ export function BillEditor({
             <X aria-hidden />
             {t("discardDraft")}
           </Button>
-          <Button variant="secondary" disabled={problems || save.isPending} onClick={() => save.mutate()}>
+          <Button variant="secondary" disabled={save.isPending} onClick={() => checkAll() && save.mutate()}>
             <Save aria-hidden />
             {t("saveDraft")}
           </Button>
-          <Button disabled={problems || save.isPending} onClick={() => void saveThenFinalize()}>
+          <Button disabled={save.isPending} onClick={() => void saveThenFinalize()}>
             <CheckCheck aria-hidden />
             {t("finalize")}
           </Button>

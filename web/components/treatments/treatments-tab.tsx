@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarPlus, Check, CirclePlus, Pencil, Play, Save, Trash2, Undo2, UserX } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
+import type { z } from "zod";
 import { toast } from "sonner";
 import { formatDate, formatINR, formatTime, istDateString } from "@pearl/shared";
 import { BookDialog } from "@/components/appointments/book-dialog";
@@ -17,7 +18,9 @@ import { Field, Select, Textarea } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { newId, rpc } from "@/lib/rpc";
+import { editTreatmentSchema, removeSessionSchema, startTreatmentSchema } from "@/lib/schemas/clinical";
 import { useFeedback } from "@/lib/use-feedback";
+import { useZodForm } from "@/lib/use-zod-form";
 import type { StatusKind } from "@pearl/shared";
 
 type SessionStatus = "planned" | "booked" | "done" | "missed" | "skipped";
@@ -205,7 +208,6 @@ function TreatmentCard({ treatment: tr, patient }: { treatment: Treatment; patie
   );
 }
 
-const parseGaps = (text: string) => text.split(/[,\s]+/).filter(Boolean).map(Number);
 
 function StartDialog({ patient, onDone }: { patient: PatientHit; onDone: () => void }) {
   const t = useTranslations("treatments");
@@ -224,23 +226,26 @@ function StartDialog({ patient, onDone }: { patient: PatientHit; onDone: () => v
     setForm((f) => ({ ...f, name: item.label, sessions: String(d.sessions ?? 1), gaps: (d.gap_days ?? [0]).join(", "), pricing: d.pricing ?? "package" }));
     setPrice(d.price_paise ?? 0);
   }
-  const gaps = parseGaps(form.gaps);
-  const valid = form.name.trim() && Number(form.sessions) >= 1 && gaps.length > 0 && gaps.every((g) => Number.isInteger(g) && g >= 0);
+  const checks = useZodForm(startTreatmentSchema);
+  const setField = (key: keyof typeof form, value: string) => {
+    setForm((f) => ({ ...f, [key]: value }));
+    checks.clear(key);
+  };
   const start = useMutation({
-    mutationFn: () =>
+    mutationFn: (d: z.output<typeof startTreatmentSchema>) =>
       rpc("start_treatment", {
         p_treatment: {
           patient_id: patient.id,
-          template_id: template?.id ?? null,
-          name: form.name,
-          doctor_id: doctor?.id ?? null,
-          start_date: form.start,
-          sessions: Number(form.sessions),
-          gap_days: gaps,
-          pricing: form.pricing,
-          price_paise: price ?? 0,
-          agreed_price_paise: agreed,
-          notes: form.notes,
+          template_id: d.template,
+          name: d.name,
+          doctor_id: d.doctor,
+          start_date: d.start,
+          sessions: d.sessions,
+          gap_days: d.gaps,
+          pricing: d.pricing,
+          price_paise: d.price,
+          agreed_price_paise: d.agreed,
+          notes: d.notes,
         },
         p_client_id: clientId,
       }),
@@ -256,35 +261,51 @@ function StartDialog({ patient, onDone }: { patient: PatientHit; onDone: () => v
       wide
       title={t("startTitle", { name: patient.title })}
       footer={
-        <Button disabled={!valid || start.isPending} onClick={() => start.mutate()}>
+        <Button
+          disabled={start.isPending}
+          onClick={() => {
+            const d = checks.validate({ ...form, template, doctor, price, agreed });
+            if (d) start.mutate(d);
+          }}
+        >
           <Play aria-hidden />
           {t("start")}
         </Button>
       }
     >
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label={t("template")} hint={t("templateHint")} className="sm:col-span-2">
-          {(a) => <LibraryCombobox id={a.id} kind="treatment_template" allowCreate value={template} onChange={chooseTemplate} />}
+        <Field label={t("template")} hint={t("templateHint")} error={checks.error("template")} className="sm:col-span-2">
+          {(a) => <LibraryCombobox {...a} kind="treatment_template" allowCreate value={template} onChange={(v) => (chooseTemplate(v), checks.clearAll())} />}
         </Field>
-        <Field label={t("name")}>{(a) => <Input {...a} maxLength={200} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />}</Field>
-        <Field label={t("doctor")}>{(a) => <LibraryCombobox id={a.id} kind="doctor" value={doctor} onChange={setDoctor} />}</Field>
-        <Field label={t("startDate")}>{(a) => <Input {...a} type="date" value={form.start} onChange={(e) => setForm({ ...form, start: e.target.value })} />}</Field>
-        <Field label={t("sessions")}>{(a) => <Input {...a} type="number" min={1} max={100} value={form.sessions} onChange={(e) => setForm({ ...form, sessions: e.target.value })} />}</Field>
-        <Field label={t("gaps")} hint={t("gapsHint")} className="sm:col-span-2">
-          {(a) => <Input {...a} inputMode="numeric" value={form.gaps} onChange={(e) => setForm({ ...form, gaps: e.target.value })} />}
+        <Field label={t("name")} error={checks.error("name")}>
+          {(a) => <Input {...a} maxLength={200} value={form.name} onChange={(e) => setField("name", e.target.value)} />}
         </Field>
-        <Field label={t("pricing")}>
+        <Field label={t("doctor")} error={checks.error("doctor")}>
+          {(a) => <LibraryCombobox {...a} kind="doctor" value={doctor} onChange={setDoctor} />}
+        </Field>
+        <Field label={t("startDate")} error={checks.error("start")}>
+          {(a) => <Input {...a} type="date" value={form.start} onChange={(e) => setField("start", e.target.value)} />}
+        </Field>
+        <Field label={t("sessions")} error={checks.error("sessions")}>
+          {(a) => <Input {...a} type="number" min={1} max={100} value={form.sessions} onChange={(e) => setField("sessions", e.target.value)} />}
+        </Field>
+        <Field label={t("gaps")} hint={t("gapsHint")} error={checks.error("gaps")} className="sm:col-span-2">
+          {(a) => <Input {...a} inputMode="numeric" value={form.gaps} onChange={(e) => setField("gaps", e.target.value)} />}
+        </Field>
+        <Field label={t("pricing")} error={checks.error("pricing")}>
           {(a) => (
-            <Select {...a} value={form.pricing} onChange={(e) => setForm({ ...form, pricing: e.target.value })}>
+            <Select {...a} value={form.pricing} onChange={(e) => setField("pricing", e.target.value)}>
               <option value="package">{t("pricingPackage")}</option>
               <option value="per_session">{t("pricingPerSession")}</option>
             </Select>
           )}
         </Field>
-        <Field label={t("price")}>{(a) => <MoneyInput {...a} value={price} onChange={setPrice} />}</Field>
-        <Field label={t("agreedPrice")} hint={t("agreedHint")}>{(a) => <MoneyInput {...a} value={agreed} onChange={setAgreed} />}</Field>
-        <Field label={t("notes")} className="sm:col-span-2">
-          {(a) => <Textarea {...a} rows={2} maxLength={4000} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />}
+        <Field label={t("price")} error={checks.error("price")}>{(a) => <MoneyInput {...a} value={price} onChange={(v) => (setPrice(v), checks.clear("price"))} />}</Field>
+        <Field label={t("agreedPrice")} hint={t("agreedHint")} error={checks.error("agreed")}>
+          {(a) => <MoneyInput {...a} value={agreed} onChange={(v) => (setAgreed(v), checks.clear("agreed"))} />}
+        </Field>
+        <Field label={t("notes")} error={checks.error("notes")} className="sm:col-span-2">
+          {(a) => <Textarea {...a} rows={2} maxLength={4000} value={form.notes} onChange={(e) => setField("notes", e.target.value)} />}
         </Field>
       </div>
     </DialogContent>
@@ -302,15 +323,19 @@ function EditDialog({ treatment: tr, onDone }: { treatment: Treatment; onDone: (
   const [agreed, setAgreed] = useState<number | null>(tr.agreed_price_paise);
   const priceChanged = price !== tr.package_price_paise || agreed !== tr.agreed_price_paise;
   const closing = form.status === "closed" || form.status === "cancelled";
-  const needsReason = (priceChanged || (closing && form.status !== tr.status)) && form.reason.trim().length < 3;
+  const [schema] = useState(() => editTreatmentSchema(tr));
+  const checks = useZodForm(schema);
+  const setField = (key: keyof typeof form, value: string) => {
+    setForm((f) => ({ ...f, [key]: value }));
+    checks.clear(key);
+  };
   const save = useMutation({
-    mutationFn: () => {
-      const gaps = parseGaps(form.gaps);
-      const patch: Record<string, unknown> = { name: form.name, status: form.status, notes: form.notes, doctor_id: doctor?.id ?? null };
-      if (gaps.join(",") !== tr.gap_days.join(",")) patch.gap_days = gaps;
-      if (price !== tr.package_price_paise) patch.price_paise = price ?? 0;
-      if (agreed !== tr.agreed_price_paise) patch.agreed_price_paise = agreed;
-      return rpc("update_treatment", { p_id: tr.id, p_patch: patch, p_version: tr.version, p_reason: form.reason || null });
+    mutationFn: (d: z.output<typeof schema>) => {
+      const patch: Record<string, unknown> = { name: d.name, status: d.status, notes: d.notes, doctor_id: d.doctor };
+      if (d.gaps.join(",") !== tr.gap_days.join(",")) patch.gap_days = d.gaps;
+      if (d.price !== tr.package_price_paise) patch.price_paise = d.price;
+      if (d.agreed !== tr.agreed_price_paise) patch.agreed_price_paise = d.agreed;
+      return rpc("update_treatment", { p_id: tr.id, p_patch: patch, p_version: tr.version, p_reason: d.reason });
     },
     onSuccess: () => {
       saved();
@@ -324,23 +349,33 @@ function EditDialog({ treatment: tr, onDone }: { treatment: Treatment; onDone: (
       title={t("editTitle", { name: tr.name })}
       description={t("editHint")}
       footer={
-        <Button disabled={needsReason || save.isPending} onClick={() => save.mutate()}>
+        <Button
+          disabled={save.isPending}
+          onClick={() => {
+            const d = checks.validate({ ...form, doctor, price, agreed });
+            if (d) save.mutate(d);
+          }}
+        >
           <Save aria-hidden />
           {t("save")}
         </Button>
       }
     >
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label={t("name")}>{(a) => <Input {...a} maxLength={200} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />}</Field>
-        <Field label={t("doctor")}>{(a) => <LibraryCombobox id={a.id} kind="doctor" value={doctor} onChange={setDoctor} />}</Field>
-        <Field label={t("gaps")} hint={t("replanHint")} className="sm:col-span-2">
-          {(a) => <Input {...a} inputMode="numeric" value={form.gaps} onChange={(e) => setForm({ ...form, gaps: e.target.value })} />}
+        <Field label={t("name")} error={checks.error("name")}>
+          {(a) => <Input {...a} maxLength={200} value={form.name} onChange={(e) => setField("name", e.target.value)} />}
         </Field>
-        <Field label={t("price")}>{(a) => <MoneyInput {...a} value={price} onChange={setPrice} />}</Field>
-        <Field label={t("agreedPrice")}>{(a) => <MoneyInput {...a} value={agreed} onChange={setAgreed} />}</Field>
-        <Field label={t("statusLabel")}>
+        <Field label={t("doctor")} error={checks.error("doctor")}>{(a) => <LibraryCombobox {...a} kind="doctor" value={doctor} onChange={setDoctor} />}</Field>
+        <Field label={t("gaps")} hint={t("replanHint")} error={checks.error("gaps")} className="sm:col-span-2">
+          {(a) => <Input {...a} inputMode="numeric" value={form.gaps} onChange={(e) => setField("gaps", e.target.value)} />}
+        </Field>
+        <Field label={t("price")} error={checks.error("price")}>{(a) => <MoneyInput {...a} value={price} onChange={(v) => (setPrice(v), checks.clear("price"))} />}</Field>
+        <Field label={t("agreedPrice")} error={checks.error("agreed")}>
+          {(a) => <MoneyInput {...a} value={agreed} onChange={(v) => (setAgreed(v), checks.clear("agreed"))} />}
+        </Field>
+        <Field label={t("statusLabel")} error={checks.error("status")}>
           {(a) => (
-            <Select {...a} value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as TreatmentStatus })}>
+            <Select {...a} value={form.status} onChange={(e) => setField("status", e.target.value as TreatmentStatus)}>
               {(["active", "on_hold", "completed", "closed", "cancelled"] as const).map((s) => (
                 <option key={s} value={s}>
                   {t(`status.${s}`)}
@@ -349,11 +384,11 @@ function EditDialog({ treatment: tr, onDone }: { treatment: Treatment; onDone: (
             </Select>
           )}
         </Field>
-        <Field label={t("reason")} hint={priceChanged || closing ? t("reasonNeeded") : t("reasonOptional")} error={needsReason ? t("reasonNeeded") : undefined}>
-          {(a) => <Input {...a} maxLength={300} value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} />}
+        <Field label={t("reason")} hint={priceChanged || closing ? t("reasonNeeded") : t("reasonOptional")} error={checks.error("reason")}>
+          {(a) => <Input {...a} maxLength={300} value={form.reason} onChange={(e) => setField("reason", e.target.value)} />}
         </Field>
-        <Field label={t("notes")} className="sm:col-span-2">
-          {(a) => <Textarea {...a} rows={2} maxLength={4000} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />}
+        <Field label={t("notes")} error={checks.error("notes")} className="sm:col-span-2">
+          {(a) => <Textarea {...a} rows={2} maxLength={4000} value={form.notes} onChange={(e) => setField("notes", e.target.value)} />}
         </Field>
       </div>
     </DialogContent>
@@ -364,8 +399,9 @@ function RemoveDialog({ session, onDone }: { session: Session; onDone: () => voi
   const t = useTranslations("treatments");
   const { saved, failed } = useFeedback();
   const [reason, setReason] = useState("");
+  const checks = useZodForm(removeSessionSchema);
   const remove = useMutation({
-    mutationFn: () => rpc("remove_session", { p_session_id: session.id, p_reason: reason }),
+    mutationFn: (r: string) => rpc("remove_session", { p_session_id: session.id, p_reason: r }),
     onSuccess: () => {
       saved(t("removed"));
       onDone();
@@ -376,13 +412,22 @@ function RemoveDialog({ session, onDone }: { session: Session; onDone: () => voi
     <DialogContent
       title={t("removeTitle", { n: session.seq })}
       footer={
-        <Button variant="danger" disabled={reason.trim().length < 3 || remove.isPending} onClick={() => remove.mutate()}>
+        <Button
+          variant="danger"
+          disabled={remove.isPending}
+          onClick={() => {
+            const d = checks.validate({ reason });
+            if (d) remove.mutate(d.reason);
+          }}
+        >
           <Trash2 aria-hidden />
           {t("remove")}
         </Button>
       }
     >
-      <Field label={t("reason")}>{(a) => <Textarea {...a} rows={2} maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} />}</Field>
+      <Field label={t("reason")} error={checks.error("reason")}>
+        {(a) => <Textarea {...a} rows={2} maxLength={300} value={reason} onChange={(e) => (setReason(e.target.value), checks.clear("reason"))} />}
+      </Field>
     </DialogContent>
   );
 }

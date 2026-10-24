@@ -5,7 +5,8 @@ import { Download, UserCheck } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
-import { formatDate, formatDateTime, formatINR, fromIstDateTimeLocal, istDateString, istDateTimeLocal, toCsv } from "@pearl/shared";
+import { z } from "zod";
+import { dateRangeSchema, requiredId, formatDate, formatDateTime, formatINR, fromIstDateTimeLocal, istDateString, istDateTimeLocal, toCsv } from "@pearl/shared";
 import { LibraryCombobox, useDebounced, type LibraryItem } from "@/components/library-combobox";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
@@ -15,6 +16,7 @@ import { Pager } from "@/components/ui/pager";
 import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
 import { rpc } from "@/lib/rpc";
 import { useFeedback } from "@/lib/use-feedback";
+import { useZodForm } from "@/lib/use-zod-form";
 import { StageBadge } from "./stage-badge";
 import { StageDialog } from "./stage-dialog";
 import { LEAD_STAGES, type Lead, type LeadStage } from "./types";
@@ -27,6 +29,7 @@ interface Page {
 const LIMIT = 25;
 const SORTS = ["lead_date", "sl_no", "name", "stage", "next_followup_at", "last_activity_at", "amount_finalised_paise", "assigned"] as const;
 const day = (iso: string) => new Date(`${iso}T00:00:00+05:30`);
+const bulkAssignSchema = z.object({ to: requiredId() });
 
 /** Managers' leads table: filters, server paging (exact count), inline stage / owner / due date, bulk assign, CSV export. */
 export function LeadsTable({ canAssign }: { canAssign: boolean }) {
@@ -51,6 +54,10 @@ export function LeadsTable({ canAssign }: { canAssign: boolean }) {
   const [stageFor, setStageFor] = useState<{ lead: Lead; stage: LeadStage } | null>(null);
   const [exporting, setExporting] = useState(false);
   const q = useDebounced(filters.q.trim(), 300);
+  // The date filter is checked as it changes; an impossible range shows a message and loads nothing.
+  const range = dateRangeSchema.safeParse({ from: filters.from, to: filters.to });
+  const rangeChecks = useZodForm(dateRangeSchema);
+  const bulkChecks = useZodForm(bulkAssignSchema);
 
   const pFilters = {
     from: filters.from,
@@ -63,14 +70,17 @@ export function LeadsTable({ canAssign }: { canAssign: boolean }) {
   };
   const list = useQuery({
     queryKey: ["leads_table", pFilters, sort, offset],
+    enabled: range.success,
     placeholderData: keepPreviousData,
     queryFn: () =>
       rpc<Page>("leads_table", { p_filters: pFilters, p_sort: sort, p_desc: sort !== "name" && sort !== "next_followup_at", p_offset: offset, p_limit: LIMIT }),
   });
   const set = (k: keyof typeof filters, v: string) => {
-    setFilters((f) => ({ ...f, [k]: v }));
+    const next = { ...filters, [k]: v };
+    setFilters(next);
     setOffset(0);
     setSelected([]);
+    if (k === "from" || k === "to") rangeChecks.validate({ from: next.from, to: next.to });
   };
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: ["leads_table"] });
@@ -133,8 +143,12 @@ export function LeadsTable({ canAssign }: { canAssign: boolean }) {
         <Field label={t("searchLabel")} className="min-w-56 flex-1">
           {(a) => <Input {...a} type="search" placeholder={t("searchPlaceholder")} value={filters.q} onChange={(e) => set("q", e.target.value)} />}
         </Field>
-        <Field label={t("from")}>{(a) => <Input {...a} type="date" value={filters.from} onChange={(e) => e.target.value && set("from", e.target.value)} />}</Field>
-        <Field label={t("to")}>{(a) => <Input {...a} type="date" value={filters.to} onChange={(e) => e.target.value && set("to", e.target.value)} />}</Field>
+        <Field label={t("from")} error={rangeChecks.error("from")}>
+          {(a) => <Input {...a} type="date" value={filters.from} onChange={(e) => set("from", e.target.value)} />}
+        </Field>
+        <Field label={t("to")} error={rangeChecks.error("to")}>
+          {(a) => <Input {...a} type="date" value={filters.to} onChange={(e) => set("to", e.target.value)} />}
+        </Field>
         <Field label={t("f.stage")}>
           {(a) => (
             <Select {...a} value={filters.stage} onChange={(e) => set("stage", e.target.value)}>
@@ -186,7 +200,7 @@ export function LeadsTable({ canAssign }: { canAssign: boolean }) {
             </Select>
           )}
         </Field>
-        <Button variant="secondary" disabled={exporting || !list.data?.total} onClick={() => void exportCsv()}>
+        <Button variant="secondary" disabled={exporting || !range.success || !list.data?.total} onClick={() => void exportCsv()}>
           <Download aria-hidden />
           {exporting ? t("exporting") : t("export")}
         </Button>
@@ -196,9 +210,9 @@ export function LeadsTable({ canAssign }: { canAssign: boolean }) {
       {canAssign && selected.length > 0 && (
         <div role="region" aria-label={t("bulkLabel")} className="flex flex-wrap items-end gap-3 rounded-2xl border border-border bg-card p-3">
           <p className="self-center font-medium">{t("selected", { n: selected.length })}</p>
-          <Field label={t("assignTo")}>
+          <Field label={t("assignTo")} error={bulkChecks.error("to")}>
             {(a) => (
-              <Select {...a} value={assignTo} onChange={(e) => setAssignTo(e.target.value)}>
+              <Select {...a} value={assignTo} onChange={(e) => (setAssignTo(e.target.value), bulkChecks.clear("to"))}>
                 <option value="">{t("choose")}</option>
                 {staff.data?.map((s) => (
                   <option key={s.id} value={s.id}>
@@ -208,7 +222,13 @@ export function LeadsTable({ canAssign }: { canAssign: boolean }) {
               </Select>
             )}
           </Field>
-          <Button disabled={!assignTo || assign.isPending} onClick={() => assign.mutate({ ids: selected, to: assignTo })}>
+          <Button
+            disabled={assign.isPending}
+            onClick={() => {
+              const d = bulkChecks.validate({ to: assignTo });
+              if (d) assign.mutate({ ids: selected, to: d.to });
+            }}
+          >
             <UserCheck aria-hidden />
             {t("assign", { n: selected.length })}
           </Button>

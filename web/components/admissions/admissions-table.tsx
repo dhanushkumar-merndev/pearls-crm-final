@@ -11,6 +11,7 @@ import { Pager } from "@/components/ui/pager";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
 import { rpc } from "@/lib/rpc";
+import { useDateRangeCheck } from "@/lib/use-date-range";
 import type { AdmissionStatus } from "./types";
 
 interface Row {
@@ -37,7 +38,9 @@ export function AdmissionsTable({ patientId }: { patientId?: string }) {
   const [status, setStatus] = useState<"" | AdmissionStatus>(patientId ? "" : "admitted");
   const [range, setRange] = useState(() => ({ from: istDateString(new Date(Date.now() - 90 * 86_400_000)), to: istDateString(new Date()) }));
   const [offset, setOffset] = useState(0);
+  const rangeCheck = useDateRangeCheck(range.from, range.to);
   const list = useQuery({
+    enabled: Boolean(patientId) || rangeCheck.valid,
     queryKey: ["admissions", patientId ?? "all", status, range, offset],
     placeholderData: keepPreviousData,
     queryFn: () =>
@@ -62,8 +65,12 @@ export function AdmissionsTable({ patientId }: { patientId?: string }) {
         </Field>
         {!patientId && status !== "admitted" && (
           <>
-            <Field label={t("from")}>{(a) => <Input {...a} type="date" value={range.from} onChange={(e) => e.target.value && (setRange((r) => ({ ...r, from: e.target.value })), setOffset(0))} />}</Field>
-            <Field label={t("to")}>{(a) => <Input {...a} type="date" value={range.to} onChange={(e) => e.target.value && (setRange((r) => ({ ...r, to: e.target.value })), setOffset(0))} />}</Field>
+            <Field label={t("from")} error={rangeCheck.fromError}>
+              {(a) => <Input {...a} type="date" value={range.from} onChange={(e) => (setRange((r) => ({ ...r, from: e.target.value })), setOffset(0))} />}
+            </Field>
+            <Field label={t("to")} error={rangeCheck.toError}>
+              {(a) => <Input {...a} type="date" value={range.to} onChange={(e) => (setRange((r) => ({ ...r, to: e.target.value })), setOffset(0))} />}
+            </Field>
           </>
         )}
       </div>

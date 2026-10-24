@@ -4,7 +4,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { KeyRound, Pencil, Plus, Power, Save, Search, UserCheck } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState, type FormEvent } from "react";
-import { isValidUsername, normalizePhone, normalizeUsername, STAFF_ROLES, type StaffRole } from "@pearl/shared";
+import { STAFF_ROLES, type StaffRole } from "@pearl/shared";
 import { useDebounced } from "@/components/library-combobox";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -13,10 +13,11 @@ import { Input } from "@/components/ui/input";
 import { Pager } from "@/components/ui/pager";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
-import { isStrongEnough } from "@/lib/password";
-import { callFunction, unwrap } from "@/lib/rpc";
+import { asAppError, callFunction, unwrap } from "@/lib/rpc";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
+import { createStaffSchema, deactivateSchema, editStaffSchema, setPasswordSchema } from "@/lib/schemas/admin";
 import { useFeedback } from "@/lib/use-feedback";
+import { useZodForm } from "@/lib/use-zod-form";
 
 interface StaffRow {
   id: string;
@@ -167,37 +168,27 @@ function CreateDialog({ onDone }: { onDone: () => void }) {
   const c = useTranslations("common");
   const { saved, failed } = useFeedback();
   const [form, setForm] = useState({ full_name: "", role: "receptionist" as StaffRole, username: "", email: "", phone: "", password: "" });
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const checks = useZodForm(createStaffSchema);
+  const set = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) => {
+    setForm((f) => ({ ...f, [key]: value }));
+    checks.clear(key);
+  };
   const create = useMutation({
-    mutationFn: () => {
-      const phone = form.phone.trim() ? normalizePhone(form.phone) : null;
-      return callFunction("admin-users", {
-        action: "create",
-        full_name: form.full_name.trim(),
-        role: form.role,
-        username: normalizeUsername(form.username),
-        ...(form.email.trim() ? { email: form.email.trim().toLowerCase() } : {}),
-        ...(phone ? { phone_e164: phone.e164 } : {}),
-        password: form.password,
-      });
-    },
+    mutationFn: (request: Record<string, unknown>) => callFunction("admin-users", request),
     onSuccess: () => {
       saved(t("created"));
       onDone();
     },
-    onError: failed,
+    onError: (e) => {
+      if (asAppError(e).code === "duplicate") return checks.setError("username", "users.usernameTaken");
+      failed(e);
+    },
   });
 
   function submit(e: FormEvent) {
     e.preventDefault();
-    const next: Record<string, string> = {};
-    if (!form.full_name.trim()) next.full_name = c("required");
-    if (!isValidUsername(form.username)) next.username = t("badUsername");
-    if (form.email.trim() && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.trim())) next.email = t("badEmail");
-    if (form.phone.trim() && !normalizePhone(form.phone)) next.phone = t("badPhone");
-    if (!isStrongEnough(form.password)) next.password = t("weakPassword");
-    setErrors(next);
-    if (Object.keys(next).length === 0) create.mutate();
+    const request = checks.validate(form);
+    if (request) create.mutate(request);
   }
 
   return (
@@ -212,24 +203,24 @@ function CreateDialog({ onDone }: { onDone: () => void }) {
       }
     >
       <form id="create-staff" onSubmit={submit} className="flex flex-col gap-4" noValidate>
-        <Field label={t("name")} error={errors.full_name}>
-          {(a) => <Input {...a} autoComplete="off" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} />}
+        <Field label={t("name")} error={checks.error("full_name")}>
+          {(a) => <Input {...a} autoComplete="off" maxLength={120} value={form.full_name} onChange={(e) => set("full_name", e.target.value)} />}
         </Field>
-        <Field label={t("role")}>{(a) => <RoleSelect a={a} value={form.role} onChange={(role) => setForm({ ...form, role })} />}</Field>
-        <Field label={t("username")} hint={t("usernameHint")} error={errors.username}>
+        <Field label={t("role")} error={checks.error("role")}>{(a) => <RoleSelect a={a} value={form.role} onChange={(role) => set("role", role)} />}</Field>
+        <Field label={t("username")} hint={t("usernameHint")} error={checks.error("username")}>
           {(a) => (
-            <Input {...a} autoComplete="off" autoCapitalize="none" spellCheck={false} value={form.username}
-              onChange={(e) => setForm({ ...form, username: e.target.value })} />
+            <Input {...a} autoComplete="off" autoCapitalize="none" spellCheck={false} maxLength={32} value={form.username}
+              onChange={(e) => set("username", e.target.value)} />
           )}
         </Field>
-        <Field label={t("phone")} error={errors.phone}>
-          {(a) => <Input {...a} type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />}
+        <Field label={t("phone")} error={checks.error("phone")}>
+          {(a) => <Input {...a} type="tel" inputMode="tel" maxLength={20} value={form.phone} onChange={(e) => set("phone", e.target.value)} />}
         </Field>
-        <Field label={t("contactEmail")} hint={t("contactEmailHint")} error={errors.email}>
-          {(a) => <Input {...a} type="email" autoComplete="off" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />}
+        <Field label={t("contactEmail")} hint={t("contactEmailHint")} error={checks.error("email")}>
+          {(a) => <Input {...a} type="email" autoComplete="off" maxLength={200} value={form.email} onChange={(e) => set("email", e.target.value)} />}
         </Field>
-        <Field label={t("firstPassword")} hint={t("passwordRules")} error={errors.password}>
-          {(a) => <Input {...a} type="text" autoComplete="new-password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />}
+        <Field label={t("firstPassword")} hint={t("passwordRules")} error={checks.error("password")}>
+          {(a) => <Input {...a} type="text" autoComplete="new-password" maxLength={72} value={form.password} onChange={(e) => set("password", e.target.value)} />}
         </Field>
       </form>
     </DialogContent>
@@ -247,22 +238,24 @@ function EditDialog({ row, isMe, onDone }: { row: StaffRow; isMe: boolean; onDon
     bdm_start_anywhere: row.bdm_start_anywhere,
     reason: "",
   });
-  const [error, setError] = useState<string>();
+  const checks = useZodForm(editStaffSchema);
+  const set = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) => {
+    setForm((f) => ({ ...f, [key]: value }));
+    checks.clear(key);
+  };
   const update = useMutation({
-    mutationFn: () => {
-      const phone = form.phone.trim() ? normalizePhone(form.phone) : null;
-      return callFunction("admin-users", {
+    mutationFn: (d: { full_name: string; role: StaffRole; phone: string | null; bdm_start_anywhere: boolean; reason: string | null }) =>
+      callFunction("admin-users", {
         action: "update",
         staff_id: row.id,
         patch: {
-          full_name: form.full_name.trim(),
-          ...(isMe ? {} : { role: form.role }),
-          phone_e164: phone?.e164 ?? null,
-          bdm_start_anywhere: form.bdm_start_anywhere,
+          full_name: d.full_name,
+          ...(isMe ? {} : { role: d.role }),
+          phone_e164: d.phone,
+          bdm_start_anywhere: d.bdm_start_anywhere,
         },
-        reason: form.reason.trim() || undefined,
-      });
-    },
+        reason: d.reason ?? undefined,
+      }),
     onSuccess: () => {
       saved();
       onDone();
@@ -271,8 +264,8 @@ function EditDialog({ row, isMe, onDone }: { row: StaffRow; isMe: boolean; onDon
   });
   function submit(e: FormEvent) {
     e.preventDefault();
-    if (form.phone.trim() && !normalizePhone(form.phone)) return setError(t("badPhone"));
-    update.mutate();
+    const d = checks.validate(form);
+    if (d) update.mutate(d);
   }
   return (
     <DialogContent
@@ -285,25 +278,25 @@ function EditDialog({ row, isMe, onDone }: { row: StaffRow; isMe: boolean; onDon
       }
     >
       <form id="edit-staff" onSubmit={submit} className="flex flex-col gap-4" noValidate>
-        <Field label={t("name")}>
-          {(a) => <Input {...a} value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} />}
+        <Field label={t("name")} error={checks.error("full_name")}>
+          {(a) => <Input {...a} maxLength={120} value={form.full_name} onChange={(e) => set("full_name", e.target.value)} />}
         </Field>
-        <Field label={t("role")} hint={isMe ? t("ownRole") : undefined}>
-          {(a) => <RoleSelect a={{ ...a, disabled: isMe }} value={form.role} onChange={(role) => setForm({ ...form, role })} />}
+        <Field label={t("role")} hint={isMe ? t("ownRole") : undefined} error={checks.error("role")}>
+          {(a) => <RoleSelect a={{ ...a, disabled: isMe }} value={form.role} onChange={(role) => set("role", role)} />}
         </Field>
-        <Field label={t("phone")} error={error}>
-          {(a) => <Input {...a} type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />}
+        <Field label={t("phone")} error={checks.error("phone")}>
+          {(a) => <Input {...a} type="tel" inputMode="tel" maxLength={20} value={form.phone} onChange={(e) => set("phone", e.target.value)} />}
         </Field>
         {form.role === "bdm" && (
           <Checkbox
             label={t("startAnywhere")}
             hint={t("startAnywhereHint")}
             checked={form.bdm_start_anywhere}
-            onChange={(e) => setForm({ ...form, bdm_start_anywhere: e.target.checked })}
+            onChange={(e) => set("bdm_start_anywhere", e.target.checked)}
           />
         )}
-        <Field label={t("reason")} hint={t("reasonHint")}>
-          {(a) => <Input {...a} maxLength={300} value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} />}
+        <Field label={t("reason")} hint={t("reasonHint")} error={checks.error("reason")}>
+          {(a) => <Input {...a} maxLength={300} value={form.reason} onChange={(e) => set("reason", e.target.value)} />}
         </Field>
       </form>
     </DialogContent>
@@ -315,9 +308,9 @@ function PasswordDialog({ row, onDone }: { row: StaffRow; onDone: () => void }) 
   const c = useTranslations("common");
   const { saved, failed } = useFeedback();
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string>();
+  const checks = useZodForm(setPasswordSchema);
   const set = useMutation({
-    mutationFn: () => callFunction("admin-users", { action: "set_password", staff_id: row.id, password }),
+    mutationFn: (p: string) => callFunction("admin-users", { action: "set_password", staff_id: row.id, password: p }),
     onSuccess: () => {
       saved(t("passwordSet"));
       onDone();
@@ -339,13 +332,25 @@ function PasswordDialog({ row, onDone }: { row: StaffRow; onDone: () => void }) 
         id="set-password"
         onSubmit={(e) => {
           e.preventDefault();
-          if (!isStrongEnough(password)) return setError(t("weakPassword"));
-          set.mutate();
+          const d = checks.validate({ password });
+          if (d) set.mutate(d.password);
         }}
         noValidate
       >
-        <Field label={t("newPassword")} hint={t("passwordRules")} error={error}>
-          {(a) => <Input {...a} type="text" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />}
+        <Field label={t("newPassword")} hint={t("passwordRules")} error={checks.error("password")}>
+          {(a) => (
+            <Input
+              {...a}
+              type="text"
+              autoComplete="new-password"
+              maxLength={72}
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                checks.clear("password");
+              }}
+            />
+          )}
         </Field>
       </form>
     </DialogContent>
@@ -356,9 +361,9 @@ function DeactivateDialog({ row, onDone }: { row: StaffRow; onDone: () => void }
   const t = useTranslations("users");
   const { saved, failed } = useFeedback();
   const [reason, setReason] = useState("");
-  const [error, setError] = useState<string>();
+  const checks = useZodForm(deactivateSchema);
   const deactivate = useMutation({
-    mutationFn: () => callFunction("admin-users", { action: "deactivate", staff_id: row.id, reason: reason.trim() }),
+    mutationFn: (r: string) => callFunction("admin-users", { action: "deactivate", staff_id: row.id, reason: r }),
     onSuccess: () => {
       saved(t("deactivated"));
       onDone();
@@ -380,13 +385,23 @@ function DeactivateDialog({ row, onDone }: { row: StaffRow; onDone: () => void }
         id="deactivate"
         onSubmit={(e) => {
           e.preventDefault();
-          if (reason.trim().length < 3) return setError(t("reasonNeeded"));
-          deactivate.mutate();
+          const d = checks.validate({ reason });
+          if (d) deactivate.mutate(d.reason);
         }}
         noValidate
       >
-        <Field label={t("reason")} error={error}>
-          {(a) => <Textarea {...a} maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} />}
+        <Field label={t("reason")} error={checks.error("reason")}>
+          {(a) => (
+            <Textarea
+              {...a}
+              maxLength={300}
+              value={reason}
+              onChange={(e) => {
+                setReason(e.target.value);
+                checks.clear("reason");
+              }}
+            />
+          )}
         </Field>
       </form>
     </DialogContent>

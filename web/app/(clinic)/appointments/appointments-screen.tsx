@@ -21,6 +21,7 @@ import { useLiveAppointments } from "@/lib/realtime";
 import { rpc } from "@/lib/rpc";
 import { useFeedback } from "@/lib/use-feedback";
 import { cn } from "@/lib/utils";
+import { useDateRangeCheck } from "@/lib/use-date-range";
 
 interface BoardSlot {
   start: string;
@@ -216,7 +217,9 @@ function TableView() {
     p_offset: o,
     p_limit: limit,
   });
+  const rangeCheck = useDateRangeCheck(filters.from, filters.to);
   const list = useQuery({
+    enabled: rangeCheck.valid,
     queryKey: ["appointments_table", filters, sort, offset],
     placeholderData: keepPreviousData,
     queryFn: () => rpc<{ total: number; rows: TableRow[] }>("appointments_table", args(offset, LIMIT)),
@@ -252,8 +255,12 @@ function TableView() {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-end gap-3">
-        <Field label={t("from")}>{(f) => <Input {...f} type="date" value={filters.from} onChange={(e) => (setFilters({ ...filters, from: e.target.value }), setOffset(0))} />}</Field>
-        <Field label={t("to")}>{(f) => <Input {...f} type="date" value={filters.to} onChange={(e) => (setFilters({ ...filters, to: e.target.value }), setOffset(0))} />}</Field>
+        <Field label={t("from")} error={rangeCheck.fromError}>
+          {(f) => <Input {...f} type="date" value={filters.from} onChange={(e) => (setFilters({ ...filters, from: e.target.value }), setOffset(0))} />}
+        </Field>
+        <Field label={t("to")} error={rangeCheck.toError}>
+          {(f) => <Input {...f} type="date" value={filters.to} onChange={(e) => (setFilters({ ...filters, to: e.target.value }), setOffset(0))} />}
+        </Field>
         <Field label={t("status")}>
           {(f) => (
             <Select {...f} value={filters.status} onChange={(e) => (setFilters({ ...filters, status: e.target.value }), setOffset(0))}>

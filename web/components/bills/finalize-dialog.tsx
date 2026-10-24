@@ -3,7 +3,8 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CheckCheck, CirclePlus, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import type { z } from "zod";
 import { formatINR } from "@pearl/shared";
 import { MoneyInput } from "@/components/forms/money-input";
 import { LibraryCombobox, type LibraryItem } from "@/components/library-combobox";
@@ -12,7 +13,9 @@ import { DialogContent } from "@/components/ui/dialog";
 import { Field, Textarea } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { asAppError, newId, rpc } from "@/lib/rpc";
+import { finalizeSchema } from "@/lib/schemas/billing";
 import { useFeedback } from "@/lib/use-feedback";
+import { useZodForm } from "@/lib/use-zod-form";
 import { payable, type Bill } from "./types";
 
 interface PayRow {
@@ -36,17 +39,22 @@ export function FinalizeDialog({ bill, onDone }: { bill: Bill; onDone: () => voi
   const [reason, setReason] = useState("");
   const [needsReason, setNeedsReason] = useState(false);
   const paid = rows.reduce((s, r) => s + (r.amount ?? 0), 0) + (useAdvance ?? 0);
-  const valid = rows.every((r) => (r.amount ?? 0) === 0 || r.mode) && paid <= due && (useAdvance ?? 0) <= credit;
+  const schema = useMemo(() => finalizeSchema({ due, credit, needsReason }), [due, credit, needsReason]);
+  const checks = useZodForm(schema);
+  const setRow = (i: number, key: string, patch: Partial<PayRow>) => {
+    setRows((rs) => rs.map((x) => (x.key === key ? { ...x, ...patch } : x)));
+    for (const f of Object.keys(patch)) checks.clear(`rows.${i}.${f}`);
+  };
   const finalize = useMutation({
-    mutationFn: () =>
+    mutationFn: (d: z.output<typeof schema>) =>
       rpc<Bill>("finalize_bill", {
         p_bill_id: bill.id,
         p_version: bill.version,
-        p_payments: rows
+        p_payments: d.rows
           .filter((r) => (r.amount ?? 0) > 0)
-          .map((r) => ({ client_id: r.key, mode_id: r.mode!.id, amount_paise: r.amount, reference: r.reference })),
-        p_use_advance_paise: useAdvance ?? 0,
-        p_below_agreed_reason: reason || null,
+          .map((r) => ({ client_id: r.key, mode_id: r.mode, amount_paise: r.amount, reference: r.reference })),
+        p_use_advance_paise: d.use_advance ?? 0,
+        p_below_agreed_reason: d.reason,
       }),
     onSuccess: (b) => {
       saved(t("finalized", { no: b.bill_no ?? "" }));
@@ -55,7 +63,10 @@ export function FinalizeDialog({ bill, onDone }: { bill: Bill; onDone: () => voi
       onDone();
     },
     onError: (e) => {
-      if (asAppError(e).code === "below_agreed_price") setNeedsReason(true);
+      if (asAppError(e).code === "below_agreed_price") {
+        setNeedsReason(true);
+        return checks.setError("reason", "errors.below_agreed_price");
+      }
       failed(e);
     },
   });
@@ -65,7 +76,13 @@ export function FinalizeDialog({ bill, onDone }: { bill: Bill; onDone: () => voi
       title={t("finalizeTitle")}
       description={t("finalizeHint", { total: formatINR(total) }) + (bill.received_paise > 0 ? ` ${t("alreadyReceived", { amount: formatINR(bill.received_paise), due: formatINR(due) })}` : "")}
       footer={
-        <Button disabled={!valid || finalize.isPending || (needsReason && reason.trim().length < 3)} onClick={() => finalize.mutate()}>
+        <Button
+          disabled={finalize.isPending}
+          onClick={() => {
+            const d = checks.validate({ use_advance: useAdvance, rows, reason });
+            if (d) finalize.mutate(d);
+          }}
+        >
           <CheckCheck aria-hidden />
           {paid >= due ? t("finalizePaid") : paid > 0 ? t("finalizePart", { left: formatINR(due - paid) }) : t("finalizeUnpaid")}
         </Button>
@@ -73,23 +90,23 @@ export function FinalizeDialog({ bill, onDone }: { bill: Bill; onDone: () => voi
     >
       <div className="flex flex-col gap-4">
         {credit > 0 && (
-          <Field label={t("useAdvance")} hint={t("advanceAvailable", { amount: formatINR(credit) })}>
-            {(a) => <MoneyInput {...a} value={useAdvance} onChange={setUseAdvance} />}
+          <Field label={t("useAdvance")} hint={t("advanceAvailable", { amount: formatINR(credit) })} error={checks.error("use_advance")}>
+            {(a) => <MoneyInput {...a} value={useAdvance} onChange={(v) => (setUseAdvance(v), checks.clear("use_advance"))} />}
           </Field>
         )}
         <p className="font-medium">{t("paymentsNow")}</p>
-        {rows.map((r) => (
-          <div key={r.key} className="grid gap-3 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-end">
-            <Field label={t("mode")}>
-              {(a) => <LibraryCombobox id={a.id} kind="payment_mode" value={r.mode} onChange={(m) => setRows((rs) => rs.map((x) => (x.key === r.key ? { ...x, mode: m } : x)))} />}
+        {rows.map((r, i) => (
+          <div key={r.key} className="grid gap-3 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-start">
+            <Field label={t("mode")} error={checks.error(`rows.${i}.mode`)}>
+              {(a) => <LibraryCombobox {...a} kind="payment_mode" value={r.mode} onChange={(m) => setRow(i, r.key, { mode: m })} />}
             </Field>
-            <Field label={t("amount")}>
-              {(a) => <MoneyInput {...a} value={r.amount} onChange={(v) => setRows((rs) => rs.map((x) => (x.key === r.key ? { ...x, amount: v } : x)))} />}
+            <Field label={t("amount")} error={checks.error(`rows.${i}.amount`)}>
+              {(a) => <MoneyInput {...a} value={r.amount} onChange={(v) => setRow(i, r.key, { amount: v })} />}
             </Field>
-            <Field label={t("reference")} hint={t("referenceHint")}>
-              {(a) => <Input {...a} maxLength={80} value={r.reference} onChange={(e) => setRows((rs) => rs.map((x) => (x.key === r.key ? { ...x, reference: e.target.value } : x)))} />}
+            <Field label={t("reference")} hint={t("referenceHint")} error={checks.error(`rows.${i}.reference`)}>
+              {(a) => <Input {...a} maxLength={80} value={r.reference} onChange={(e) => setRow(i, r.key, { reference: e.target.value })} />}
             </Field>
-            <Button variant="ghost" aria-label={t("removePayment")} disabled={rows.length === 1} onClick={() => setRows((rs) => rs.filter((x) => x.key !== r.key))}>
+            <Button variant="ghost" className="sm:mt-7" aria-label={t("removePayment")} disabled={rows.length === 1} onClick={() => setRows((rs) => rs.filter((x) => x.key !== r.key))}>
               <Trash2 aria-hidden />
             </Button>
           </div>
@@ -98,10 +115,10 @@ export function FinalizeDialog({ bill, onDone }: { bill: Bill; onDone: () => voi
           <CirclePlus aria-hidden />
           {t("splitPayment")}
         </Button>
-        {paid > due && <p className="text-bad-text">{t("overpaid")}</p>}
+        {paid > due && !checks.hasErrors && <p className="text-bad-text">{t("overpaid")}</p>}
         {(needsReason || (bill.bill_type === "final_bill" && bill.agreed_price_paise !== null)) && (
-          <Field label={t("belowAgreedReason")} hint={t("belowAgreedHint", { agreed: formatINR(bill.agreed_price_paise ?? 0) })}>
-            {(a) => <Textarea {...a} rows={2} maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} />}
+          <Field label={t("belowAgreedReason")} hint={t("belowAgreedHint", { agreed: formatINR(bill.agreed_price_paise ?? 0) })} error={checks.error("reason")}>
+            {(a) => <Textarea {...a} rows={2} maxLength={300} value={reason} onChange={(e) => (setReason(e.target.value), checks.clear("reason"))} />}
           </Field>
         )}
       </div>

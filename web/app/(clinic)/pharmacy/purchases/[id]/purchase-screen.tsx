@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
+import type { z } from "zod";
 import { formatDate, formatINR, istDateString } from "@pearl/shared";
 import { GST_RATES_BP, MoneyInput } from "@/components/forms/money-input";
 import { LibraryCombobox, type LibraryItem } from "@/components/library-combobox";
@@ -17,8 +18,10 @@ import { Field, Select, Textarea } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Table, TD, TH, THead, TR } from "@/components/ui/table";
-import { newId, rpc } from "@/lib/rpc";
+import { asAppError, newId, rpc } from "@/lib/rpc";
+import { purchaseSchema } from "@/lib/schemas/pharmacy";
 import { useFeedback } from "@/lib/use-feedback";
+import { useZodForm } from "@/lib/use-zod-form";
 
 interface PurchaseLine {
   id: string;
@@ -106,27 +109,32 @@ export function PurchaseScreen({ initial }: { initial: Purchase | null }) {
   const [confirming, setConfirming] = useState(false);
   // A patch can be a function of the line as it is now: pickers answer after a round trip,
   // and must not overwrite what was typed meanwhile.
-  const update = (key: string, patch: Partial<Line> | ((current: Line) => Partial<Line>)) =>
+  const checks = useZodForm(purchaseSchema);
+  const update = (key: string, patch: Partial<Line> | ((current: Line) => Partial<Line>)) => {
     setLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...(typeof patch === "function" ? patch(l) : patch) } : l)));
+    const i = lines.findIndex((l) => l.key === key);
+    for (const f of ["item", "batch_no", "expiry", "qty", "free_qty", "purchase_price_paise", "mrp_paise", "selling_price_paise"]) checks.clear(`lines.${i}.${f}`);
+  };
+  const lineError = (i: number, f: string) => checks.error(`lines.${i}.${f}`);
   const totals = useMemo(() => lines.map(lineTotal), [lines]);
   const total = totals.reduce<number>((s, x) => s + (x ?? 0), 0);
-  const lineOk = (l: Line, i: number) => l.item && l.batch_no.trim() && /^\d{4}-\d{2}$/.test(l.expiry) && totals[i] !== null;
-  const valid = Boolean(supplier && invoiceNo.trim()) && lines.length > 0 && lines.every(lineOk);
+  type Checked = z.output<typeof purchaseSchema>;
+  const checkAll = () => checks.validate({ supplier, invoice_no: invoiceNo, invoice_date: invoiceDate, notes, lines });
 
   const save = useMutation({
-    mutationFn: () =>
+    mutationFn: (d: Checked) =>
       rpc<Purchase>("save_purchase", {
         p_purchase: {
-          supplier_id: supplier!.id,
-          invoice_no: invoiceNo.trim(),
-          invoice_date: invoiceDate,
-          notes,
-          items: lines.map((l) => ({
-            item_id: l.item!.id,
-            batch_no: l.batch_no.trim(),
+          supplier_id: d.supplier,
+          invoice_no: d.invoice_no,
+          invoice_date: d.invoice_date,
+          notes: d.notes,
+          items: d.lines.map((l) => ({
+            item_id: l.item,
+            batch_no: l.batch_no.toUpperCase(),
             expiry_date: `${l.expiry}-01`,
-            qty: Number(l.qty),
-            free_qty: Number(l.free_qty || 0),
+            qty: l.qty,
+            free_qty: l.free_qty ?? 0,
             purchase_price_paise: l.purchase_price_paise,
             mrp_paise: l.mrp_paise ?? 0,
             selling_price_paise: l.selling_price_paise ?? 0,
@@ -141,11 +149,14 @@ export function PurchaseScreen({ initial }: { initial: Purchase | null }) {
       if (!initial) router.replace(`/pharmacy/purchases/${p.id}`, { scroll: false });
       return p;
     },
-    onError: failed,
+    onError: (e) => {
+      if (asAppError(e).code === "duplicate") return checks.setError("invoice_no", "pharmacy.duplicateInvoice");
+      failed(e);
+    },
   });
   const post = useMutation({
-    mutationFn: async () => {
-      const p = await save.mutateAsync();
+    mutationFn: async (d: Checked) => {
+      const p = await save.mutateAsync(d);
       return rpc<Purchase>("post_purchase", { p_purchase_id: p.id, p_version: p.version });
     },
     onSuccess: (p) => {
@@ -178,19 +189,25 @@ export function PurchaseScreen({ initial }: { initial: Purchase | null }) {
       </div>
 
       <Card className="grid gap-4 sm:grid-cols-3">
-        <Field label={t("col.supplier")}>{(a) => <LibraryCombobox id={a.id} kind="supplier" allowCreate value={supplier} onChange={setSupplier} />}</Field>
-        <Field label={t("invoiceNo")}>{(a) => <Input {...a} maxLength={60} value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} />}</Field>
-        <Field label={t("invoiceDate")}>{(a) => <Input {...a} type="date" value={invoiceDate} onChange={(e) => e.target.value && setInvoiceDate(e.target.value)} />}</Field>
+        <Field label={t("col.supplier")} error={checks.error("supplier")}>
+          {(a) => <LibraryCombobox {...a} kind="supplier" allowCreate value={supplier} onChange={(v) => (setSupplier(v), checks.clear("supplier"))} />}
+        </Field>
+        <Field label={t("invoiceNo")} error={checks.error("invoice_no")}>
+          {(a) => <Input {...a} maxLength={60} value={invoiceNo} onChange={(e) => (setInvoiceNo(e.target.value), checks.clear("invoice_no"))} />}
+        </Field>
+        <Field label={t("invoiceDate")} error={checks.error("invoice_date")}>
+          {(a) => <Input {...a} type="date" value={invoiceDate} onChange={(e) => (setInvoiceDate(e.target.value), checks.clear("invoice_date"))} />}
+        </Field>
       </Card>
 
       <ol className="flex flex-col gap-3">
         {lines.map((l, i) => (
           <li key={l.key}>
             <Card className="grid gap-3 md:grid-cols-12 md:items-end">
-              <Field label={t("col.medicine")} className="md:col-span-4">
+              <Field label={t("col.medicine")} className="md:col-span-4" error={lineError(i, "item")}>
                 {(a) => (
                   <LibraryCombobox
-                    id={a.id}
+                    {...a}
                     kind="pharmacy_item"
                     allowCreate
                     value={l.item}
@@ -206,25 +223,25 @@ export function PurchaseScreen({ initial }: { initial: Purchase | null }) {
                   />
                 )}
               </Field>
-              <Field label={t("col.batch")} className="md:col-span-2">
+              <Field label={t("col.batch")} className="md:col-span-2" error={lineError(i, "batch_no")}>
                 {(a) => <Input {...a} maxLength={40} value={l.batch_no} onChange={(e) => update(l.key, { batch_no: e.target.value.toUpperCase() })} />}
               </Field>
-              <Field label={t("col.expiry")} className="md:col-span-2">
+              <Field label={t("col.expiry")} className="md:col-span-2" error={lineError(i, "expiry")}>
                 {(a) => <Input {...a} type="month" value={l.expiry} onChange={(e) => update(l.key, { expiry: e.target.value })} />}
               </Field>
-              <Field label={t("col.qty")} className="md:col-span-2" hint={l.item ? t("inUnits") : undefined}>
+              <Field label={t("col.qty")} className="md:col-span-2" hint={l.item ? t("inUnits") : undefined} error={lineError(i, "qty")}>
                 {(a) => <Input {...a} inputMode="decimal" value={l.qty} onChange={(e) => update(l.key, { qty: e.target.value })} />}
               </Field>
-              <Field label={t("freeQty")} className="md:col-span-2">
+              <Field label={t("freeQty")} className="md:col-span-2" error={lineError(i, "free_qty")}>
                 {(a) => <Input {...a} inputMode="decimal" value={l.free_qty} onChange={(e) => update(l.key, { free_qty: e.target.value })} />}
               </Field>
-              <Field label={t("purchasePrice")} className="md:col-span-3" hint={t("purchasePriceHint")}>
+              <Field label={t("purchasePrice")} className="md:col-span-3" hint={t("purchasePriceHint")} error={lineError(i, "purchase_price_paise")}>
                 {(a) => <MoneyInput {...a} value={l.purchase_price_paise} onChange={(v) => update(l.key, { purchase_price_paise: v })} />}
               </Field>
-              <Field label={t("col.mrp")} className="md:col-span-3">
+              <Field label={t("col.mrp")} className="md:col-span-3" error={lineError(i, "mrp_paise")}>
                 {(a) => <MoneyInput {...a} value={l.mrp_paise} onChange={(v) => update(l.key, { mrp_paise: v })} />}
               </Field>
-              <Field label={t("sellingPrice")} className="md:col-span-2" hint={t("sellingPriceHint")}>
+              <Field label={t("sellingPrice")} className="md:col-span-2" hint={t("sellingPriceHint")} error={lineError(i, "selling_price_paise")}>
                 {(a) => <MoneyInput {...a} value={l.selling_price_paise} onChange={(v) => update(l.key, { selling_price_paise: v })} />}
               </Field>
               <Field label={t("gst")} className="md:col-span-2">
@@ -248,13 +265,20 @@ export function PurchaseScreen({ initial }: { initial: Purchase | null }) {
           </li>
         ))}
       </ol>
-      <Button variant="secondary" className="self-start" onClick={() => setLines((ls) => [...ls, blank()])}>
+      <Button variant="secondary" className="self-start" onClick={() => (setLines((ls) => [...ls, blank()]), checks.clear("lines"))}>
         <CirclePlus aria-hidden />
         {t("addLine")}
       </Button>
+      {checks.error("lines") && (
+        <p role="alert" className="text-bad-text">
+          {checks.error("lines")}
+        </p>
+      )}
 
       <Card className="flex flex-col gap-3">
-        <Field label={t("notes")}>{(a) => <Textarea {...a} rows={2} maxLength={500} value={notes} onChange={(e) => setNotes(e.target.value)} />}</Field>
+        <Field label={t("notes")} error={checks.error("notes")}>
+          {(a) => <Textarea {...a} rows={2} maxLength={500} value={notes} onChange={(e) => (setNotes(e.target.value), checks.clear("notes"))} />}
+        </Field>
         <p className="text-right text-lg font-semibold tabular-nums">{t("invoiceTotal", { amount: formatINR(total) })}</p>
       </Card>
 
@@ -265,11 +289,18 @@ export function PurchaseScreen({ initial }: { initial: Purchase | null }) {
             {t("discardDraft")}
           </Button>
         )}
-        <Button variant="secondary" disabled={!valid || save.isPending} onClick={() => save.mutate(undefined, { onSuccess: () => saved(t("draftSaved")) })}>
+        <Button
+          variant="secondary"
+          disabled={save.isPending}
+          onClick={() => {
+            const d = checkAll();
+            if (d) save.mutate(d, { onSuccess: () => saved(t("draftSaved")) });
+          }}
+        >
           <Save aria-hidden />
           {t("saveDraft")}
         </Button>
-        <Button disabled={!valid || save.isPending || post.isPending} onClick={() => setConfirming(true)}>
+        <Button disabled={save.isPending || post.isPending} onClick={() => checkAll() && setConfirming(true)}>
           <PackageCheck aria-hidden />
           {t("postToStock")}
         </Button>
@@ -281,7 +312,13 @@ export function PurchaseScreen({ initial }: { initial: Purchase | null }) {
             title={t("postTitle")}
             description={t("postHint", { amount: formatINR(total) })}
             footer={
-              <Button disabled={post.isPending} onClick={() => post.mutate()}>
+              <Button
+                disabled={post.isPending}
+                onClick={() => {
+                  const d = checkAll();
+                  if (d) post.mutate(d);
+                }}
+              >
                 <PackageCheck aria-hidden />
                 {t("postToStock")}
               </Button>

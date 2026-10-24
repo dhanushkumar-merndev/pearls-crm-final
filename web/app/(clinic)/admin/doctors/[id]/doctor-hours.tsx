@@ -13,7 +13,9 @@ import { Input } from "@/components/ui/input";
 import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
 import { newId, rpc, unwrap } from "@/lib/rpc";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
+import { doctorHoursSchema, doctorLeaveSchema } from "@/lib/schemas/clinical";
 import { useFeedback } from "@/lib/use-feedback";
+import { useZodForm } from "@/lib/use-zod-form";
 
 interface Schedule {
   id: string;
@@ -98,17 +100,22 @@ export function DoctorHours({ doctorId, doctorName }: { doctorId: string; doctor
   });
 
   const [hours, setHours] = useState({ weekday: "1", start: "10:00", end: "13:00", slot: "", capacity: "" });
+  const hoursChecks = useZodForm(doctorHoursSchema);
+  const setHour = (key: keyof typeof hours, value: string) => {
+    setHours((h) => ({ ...h, [key]: value }));
+    hoursChecks.clear(key);
+  };
   const addHours = useMutation({
-    mutationFn: async () =>
+    mutationFn: async (h: { weekday: number; start: string; end: string; slot: number | null; capacity: number | null }) =>
       unwrap(
         await db.from("doctor_schedules").insert({
           id: newId(),
           doctor_id: doctorId,
-          weekday: Number(hours.weekday),
-          start_time: hours.start,
-          end_time: hours.end,
-          slot_minutes: hours.slot ? Number(hours.slot) : null,
-          capacity: hours.capacity ? Number(hours.capacity) : null,
+          weekday: h.weekday,
+          start_time: h.start,
+          end_time: h.end,
+          slot_minutes: h.slot,
+          capacity: h.capacity,
         }).select("id"),
       ),
     onSuccess: () => {
@@ -119,13 +126,19 @@ export function DoctorHours({ doctorId, doctorName }: { doctorId: string; doctor
   });
 
   const [leave, setLeave] = useState({ from: "", to: "", reason: "" });
+  const leaveChecks = useZodForm(doctorLeaveSchema);
+  const setLeaveField = (key: keyof typeof leave, value: string) => {
+    setLeave((l) => ({ ...l, [key]: value }));
+    leaveChecks.clear(key);
+    if (key !== "reason") setConflicts(null);
+  };
   // Bookings the leave would hit: shown first, so reception can move those patients.
   const [conflicts, setConflicts] = useState<Conflict[] | null>(null);
   const addLeave = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (l: { from: string; to: string; reason: string | null }) => {
       // Whole days in IST: from the start of the first day to the end of the last day.
-      const from = istDayStart(leave.from);
-      const to = new Date(istDayStart(leave.to).getTime() + 24 * 3600 * 1000);
+      const from = istDayStart(l.from);
+      const to = new Date(istDayStart(l.to).getTime() + 24 * 3600 * 1000);
       if (conflicts === null) {
         const found = await rpc<Conflict[]>("leave_conflicts", {
           p_doctor_id: doctorId, p_from: from.toISOString(), p_to: to.toISOString(),
@@ -140,7 +153,7 @@ export function DoctorHours({ doctorId, doctorName }: { doctorId: string; doctor
           id: newId(),
           doctor_id: doctorId,
           during: `[${from.toISOString()},${to.toISOString()})`,
-          reason: leave.reason.trim() || null,
+          reason: l.reason,
         }).select("id"),
       );
     },
@@ -156,12 +169,13 @@ export function DoctorHours({ doctorId, doctorName }: { doctorId: string; doctor
 
   function submitHours(e: FormEvent) {
     e.preventDefault();
-    addHours.mutate();
+    const h = hoursChecks.validate(hours);
+    if (h) addHours.mutate(h);
   }
   function submitLeave(e: FormEvent) {
     e.preventDefault();
-    if (!leave.from || !leave.to || leave.to < leave.from) return failed("invalid_input");
-    addLeave.mutate();
+    const l = leaveChecks.validate(leave);
+    if (l) addLeave.mutate(l);
   }
 
   return (
@@ -210,10 +224,10 @@ export function DoctorHours({ doctorId, doctorName }: { doctorId: string; doctor
             ))}
           </tbody>
         </Table>
-        <form onSubmit={submitHours} className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6 lg:items-end">
-          <Field label={t("day")}>
+        <form onSubmit={submitHours} className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6 lg:items-start" noValidate>
+          <Field label={t("day")} error={hoursChecks.error("weekday")}>
             {(a) => (
-              <Select {...a} value={hours.weekday} onChange={(e) => setHours({ ...hours, weekday: e.target.value })}>
+              <Select {...a} value={hours.weekday} onChange={(e) => setHour("weekday", e.target.value)}>
                 {WEEKDAYS.map((d) => (
                   <option key={d} value={d}>
                     {t(`weekday.${d}`)}
@@ -222,25 +236,25 @@ export function DoctorHours({ doctorId, doctorName }: { doctorId: string; doctor
               </Select>
             )}
           </Field>
-          <Field label={t("from")}>
-            {(a) => <Input {...a} type="time" required value={hours.start} onChange={(e) => setHours({ ...hours, start: e.target.value })} />}
+          <Field label={t("from")} error={hoursChecks.error("start")}>
+            {(a) => <Input {...a} type="time" value={hours.start} onChange={(e) => setHour("start", e.target.value)} />}
           </Field>
-          <Field label={t("to")}>
-            {(a) => <Input {...a} type="time" required value={hours.end} onChange={(e) => setHours({ ...hours, end: e.target.value })} />}
+          <Field label={t("to")} error={hoursChecks.error("end")}>
+            {(a) => <Input {...a} type="time" value={hours.end} onChange={(e) => setHour("end", e.target.value)} />}
           </Field>
-          <Field label={t("slot")}>
+          <Field label={t("slot")} error={hoursChecks.error("slot")}>
             {(a) => (
               <Input {...a} type="number" min={5} max={240} placeholder={t("default")} value={hours.slot}
-                onChange={(e) => setHours({ ...hours, slot: e.target.value })} />
+                onChange={(e) => setHour("slot", e.target.value)} />
             )}
           </Field>
-          <Field label={t("capacity")}>
+          <Field label={t("capacity")} error={hoursChecks.error("capacity")}>
             {(a) => (
               <Input {...a} type="number" min={1} max={50} placeholder={t("default")} value={hours.capacity}
-                onChange={(e) => setHours({ ...hours, capacity: e.target.value })} />
+                onChange={(e) => setHour("capacity", e.target.value)} />
             )}
           </Field>
-          <Button type="submit" disabled={addHours.isPending}>
+          <Button type="submit" className="lg:mt-8" disabled={addHours.isPending}>
             <Plus aria-hidden />
             {t("addHours")}
           </Button>
@@ -281,17 +295,17 @@ export function DoctorHours({ doctorId, doctorName }: { doctorId: string; doctor
             })}
           </tbody>
         </Table>
-        <form onSubmit={submitLeave} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-end">
-          <Field label={t("firstDay")}>
-            {(a) => <Input {...a} type="date" required value={leave.from} onChange={(e) => (setLeave({ ...leave, from: e.target.value }), setConflicts(null))} />}
+        <form onSubmit={submitLeave} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-start" noValidate>
+          <Field label={t("firstDay")} error={leaveChecks.error("from")}>
+            {(a) => <Input {...a} type="date" value={leave.from} onChange={(e) => setLeaveField("from", e.target.value)} />}
           </Field>
-          <Field label={t("lastDay")}>
-            {(a) => <Input {...a} type="date" required value={leave.to} onChange={(e) => (setLeave({ ...leave, to: e.target.value }), setConflicts(null))} />}
+          <Field label={t("lastDay")} error={leaveChecks.error("to")}>
+            {(a) => <Input {...a} type="date" value={leave.to} onChange={(e) => setLeaveField("to", e.target.value)} />}
           </Field>
-          <Field label={t("reason")}>
-            {(a) => <Input {...a} maxLength={300} value={leave.reason} onChange={(e) => setLeave({ ...leave, reason: e.target.value })} />}
+          <Field label={t("reason")} error={leaveChecks.error("reason")}>
+            {(a) => <Input {...a} maxLength={300} value={leave.reason} onChange={(e) => setLeaveField("reason", e.target.value)} />}
           </Field>
-          <Button type="submit" disabled={addLeave.isPending}>
+          <Button type="submit" className="lg:mt-8" disabled={addLeave.isPending}>
             <Plus aria-hidden />
             {conflicts ? t("addLeaveAnyway") : t("addLeave")}
           </Button>

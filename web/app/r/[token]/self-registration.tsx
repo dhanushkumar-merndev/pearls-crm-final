@@ -4,14 +4,15 @@ import { CircleCheck, LoaderCircle, Send } from "lucide-react";
 import { useTranslations } from "next-intl";
 import Script from "next/script";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import { normalizePhone } from "@pearl/shared";
+import { selfRegistrationSchema } from "@pearl/shared";
 import { ClinicMark } from "@/components/clinic-mark";
 import { GENDERS } from "@/components/patients/patient-form";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Checkbox, Field, Select, Textarea } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import { FieldError, Input } from "@/components/ui/input";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
+import { useZodForm } from "@/lib/use-zod-form";
 
 interface Info {
   clinic: { name: string | null; logo_path: string | null } | null;
@@ -57,7 +58,12 @@ export function SelfRegistration({ token, siteKey }: { token: string; siteKey: s
     city: "", pincode: "", allergies: "", chief_complaints: "", heard_from_id: "", referred_by_text: "", attender_name: "",
     attender_relation_id: "", attender_phone: "", consent_treatment: false, consent_whatsapp: false,
   });
-  const set = (k: keyof typeof form, v: string | boolean) => setForm((f) => ({ ...f, [k]: v }));
+  const checks = useZodForm(selfRegistrationSchema);
+  const set = (k: keyof typeof form, v: string | boolean) => {
+    setForm((f) => ({ ...f, [k]: v }));
+    checks.clear(k);
+  };
+  const err = (k: keyof typeof form) => checks.error(k);
 
   useEffect(() => {
     void call<Info & { valid: boolean }>({ action: "info", token }).then(({ data, error: e }) => {
@@ -82,42 +88,13 @@ export function SelfRegistration({ token, siteKey }: { token: string; siteKey: s
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    const phone = normalizePhone(form.phone);
-    if (!form.full_name.trim()) return setError(t("needName"));
-    if (!phone) return setError(t("needPhone"));
-    const whatsapp = form.whatsapp_same ? phone : normalizePhone(form.whatsapp);
-    if (!form.whatsapp_same && form.whatsapp.trim() && !whatsapp) return setError(t("badWhatsapp"));
-    if (form.pincode.trim() && !/^[1-9][0-9]{5}$/.test(form.pincode.trim())) return setError(t("badPincode"));
-    if (!form.consent_treatment) return setError(t("needConsent"));
+    // Every field is checked here first, each message under its field; nothing is sent until it's right.
+    const payload = checks.validate(form);
+    if (!payload) return setError(t("checkFields"));
     if (!captcha) return setError(t("needCaptcha"));
     setError(null);
     setBusy(true);
-    const opt = (v: string) => (v.trim() ? v.trim() : undefined);
-    const attender = form.attender_phone.trim() ? normalizePhone(form.attender_phone) : null;
-    const { error: err } = await call({
-      action: "submit",
-      token,
-      turnstile_token: captcha,
-      payload: {
-        full_name: form.full_name.trim(),
-        gender: form.gender,
-        ...(form.age_years.trim() ? { age_years: Number(form.age_years) } : {}),
-        phone_e164: phone.e164,
-        ...(whatsapp ? { whatsapp_e164: whatsapp.e164 } : {}),
-        email: opt(form.email),
-        address: opt(form.address),
-        city: opt(form.city),
-        pincode: opt(form.pincode),
-        allergies: form.allergies.split(",").map((x) => x.trim()).filter(Boolean),
-        chief_complaints: opt(form.chief_complaints),
-        heard_from_id: opt(form.heard_from_id),
-        referred_by_text: opt(form.referred_by_text),
-        attender_name: opt(form.attender_name),
-        attender_relation_id: opt(form.attender_relation_id),
-        ...(attender ? { attender_phone_e164: attender.e164 } : {}),
-        consents: { treatment: { given: form.consent_treatment }, whatsapp: { given: form.consent_whatsapp } },
-      },
-    });
+    const { error: err } = await call({ action: "submit", token, turnstile_token: captcha, payload });
     setBusy(false);
     if (!err) return setState("sent");
     window.turnstile?.reset(widgetId.current);
@@ -160,9 +137,9 @@ export function SelfRegistration({ token, siteKey }: { token: string; siteKey: s
       </header>
       <p className="text-text-secondary">{t("intro")}</p>
       <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
-        <Field label={t("name")}>{(a) => <Input {...a} autoComplete="name" maxLength={120} value={form.full_name} onChange={(e) => set("full_name", e.target.value)} />}</Field>
+        <Field label={t("name")} error={err("full_name")}>{(a) => <Input {...a} autoComplete="name" maxLength={120} value={form.full_name} onChange={(e) => set("full_name", e.target.value)} />}</Field>
         <div className="grid grid-cols-2 gap-3">
-          <Field label={t("gender")}>
+          <Field label={t("gender")} error={err("gender")}>
             {(a) => (
               <Select {...a} value={form.gender} onChange={(e) => set("gender", e.target.value)}>
                 {GENDERS.map((x) => (
@@ -173,22 +150,22 @@ export function SelfRegistration({ token, siteKey }: { token: string; siteKey: s
               </Select>
             )}
           </Field>
-          <Field label={t("age")}>{(a) => <Input {...a} inputMode="numeric" maxLength={3} value={form.age_years} onChange={(e) => set("age_years", e.target.value.replace(/\D/g, ""))} />}</Field>
+          <Field label={t("age")} error={err("age_years")}>{(a) => <Input {...a} inputMode="numeric" maxLength={3} value={form.age_years} onChange={(e) => set("age_years", e.target.value.replace(/\D/g, ""))} />}</Field>
         </div>
-        <Field label={t("phone")}>{(a) => <Input {...a} type="tel" autoComplete="tel" maxLength={20} value={form.phone} onChange={(e) => set("phone", e.target.value)} />}</Field>
+        <Field label={t("phone")} error={err("phone")}>{(a) => <Input {...a} type="tel" autoComplete="tel" maxLength={20} value={form.phone} onChange={(e) => set("phone", e.target.value)} />}</Field>
         <Checkbox label={t("whatsappSame")} checked={form.whatsapp_same} onChange={(e) => set("whatsapp_same", e.target.checked)} />
         {!form.whatsapp_same && (
-          <Field label={t("whatsapp")}>{(a) => <Input {...a} type="tel" maxLength={20} value={form.whatsapp} onChange={(e) => set("whatsapp", e.target.value)} />}</Field>
+          <Field label={t("whatsapp")} error={err("whatsapp")}>{(a) => <Input {...a} type="tel" maxLength={20} value={form.whatsapp} onChange={(e) => set("whatsapp", e.target.value)} />}</Field>
         )}
-        <Field label={t("email")}>{(a) => <Input {...a} type="email" autoComplete="email" maxLength={200} value={form.email} onChange={(e) => set("email", e.target.value)} />}</Field>
-        <Field label={t("address")}>{(a) => <Input {...a} autoComplete="street-address" maxLength={500} value={form.address} onChange={(e) => set("address", e.target.value)} />}</Field>
+        <Field label={t("email")} error={err("email")}>{(a) => <Input {...a} type="email" autoComplete="email" maxLength={200} value={form.email} onChange={(e) => set("email", e.target.value)} />}</Field>
+        <Field label={t("address")} error={err("address")}>{(a) => <Input {...a} autoComplete="street-address" maxLength={500} value={form.address} onChange={(e) => set("address", e.target.value)} />}</Field>
         <div className="grid grid-cols-2 gap-3">
-          <Field label={t("city")}>{(a) => <Input {...a} maxLength={80} value={form.city} onChange={(e) => set("city", e.target.value)} />}</Field>
-          <Field label={t("pincode")}>{(a) => <Input {...a} inputMode="numeric" maxLength={6} value={form.pincode} onChange={(e) => set("pincode", e.target.value)} />}</Field>
+          <Field label={t("city")} error={err("city")}>{(a) => <Input {...a} maxLength={80} value={form.city} onChange={(e) => set("city", e.target.value)} />}</Field>
+          <Field label={t("pincode")} error={err("pincode")}>{(a) => <Input {...a} inputMode="numeric" maxLength={6} value={form.pincode} onChange={(e) => set("pincode", e.target.value)} />}</Field>
         </div>
-        <Field label={t("allergies")} hint={t("allergiesHint")}>{(a) => <Input {...a} maxLength={300} value={form.allergies} onChange={(e) => set("allergies", e.target.value)} />}</Field>
-        <Field label={t("complaints")}>{(a) => <Textarea {...a} rows={3} maxLength={2000} value={form.chief_complaints} onChange={(e) => set("chief_complaints", e.target.value)} />}</Field>
-        <Field label={t("heardFrom")}>
+        <Field label={t("allergies")} hint={t("allergiesHint")} error={err("allergies")}>{(a) => <Input {...a} maxLength={300} value={form.allergies} onChange={(e) => set("allergies", e.target.value)} />}</Field>
+        <Field label={t("complaints")} error={err("chief_complaints")}>{(a) => <Textarea {...a} rows={3} maxLength={2000} value={form.chief_complaints} onChange={(e) => set("chief_complaints", e.target.value)} />}</Field>
+        <Field label={t("heardFrom")} error={err("heard_from_id")}>
           {(a) => (
             <Select {...a} value={form.heard_from_id} onChange={(e) => set("heard_from_id", e.target.value)}>
               <option value="">—</option>
@@ -200,11 +177,11 @@ export function SelfRegistration({ token, siteKey }: { token: string; siteKey: s
             </Select>
           )}
         </Field>
-        <Field label={t("referredBy")}>{(a) => <Input {...a} maxLength={120} value={form.referred_by_text} onChange={(e) => set("referred_by_text", e.target.value)} />}</Field>
+        <Field label={t("referredBy")} error={err("referred_by_text")}>{(a) => <Input {...a} maxLength={120} value={form.referred_by_text} onChange={(e) => set("referred_by_text", e.target.value)} />}</Field>
         <fieldset className="flex flex-col gap-3 rounded-2xl border border-border p-4">
           <legend className="px-1 font-medium">{t("attender")}</legend>
-          <Field label={t("attenderName")}>{(a) => <Input {...a} maxLength={120} value={form.attender_name} onChange={(e) => set("attender_name", e.target.value)} />}</Field>
-          <Field label={t("relation")}>
+          <Field label={t("attenderName")} error={err("attender_name")}>{(a) => <Input {...a} maxLength={120} value={form.attender_name} onChange={(e) => set("attender_name", e.target.value)} />}</Field>
+          <Field label={t("relation")} error={err("attender_relation_id")}>
             {(a) => (
               <Select {...a} value={form.attender_relation_id} onChange={(e) => set("attender_relation_id", e.target.value)}>
                 <option value="">—</option>
@@ -216,9 +193,18 @@ export function SelfRegistration({ token, siteKey }: { token: string; siteKey: s
               </Select>
             )}
           </Field>
-          <Field label={t("attenderPhone")}>{(a) => <Input {...a} type="tel" maxLength={20} value={form.attender_phone} onChange={(e) => set("attender_phone", e.target.value)} />}</Field>
+          <Field label={t("attenderPhone")} error={err("attender_phone")}>{(a) => <Input {...a} type="tel" maxLength={20} value={form.attender_phone} onChange={(e) => set("attender_phone", e.target.value)} />}</Field>
         </fieldset>
-        <Checkbox label={t("consentTreatment")} checked={form.consent_treatment} onChange={(e) => set("consent_treatment", e.target.checked)} />
+        <div className="flex flex-col gap-1">
+          <Checkbox
+            label={t("consentTreatment")}
+            checked={form.consent_treatment}
+            aria-invalid={err("consent_treatment") ? true : undefined}
+            aria-describedby={err("consent_treatment") ? "consent-error" : undefined}
+            onChange={(e) => set("consent_treatment", e.target.checked)}
+          />
+          <FieldError id="consent-error">{err("consent_treatment")}</FieldError>
+        </div>
         <Checkbox label={t("consentWhatsapp")} checked={form.consent_whatsapp} onChange={(e) => set("consent_whatsapp", e.target.checked)} />
         <div ref={widget} />
         {error && (

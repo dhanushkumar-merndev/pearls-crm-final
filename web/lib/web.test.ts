@@ -1,10 +1,9 @@
 import { IntlMessageFormat } from "intl-messageformat";
 import { describe, expect, it } from "vitest";
-import { ERROR_CODES, STAFF_ROLES, WEB_ROLES } from "@pearl/shared";
+import { ERROR_CODES, STAFF_ROLES, VALIDATION_MESSAGES, WEB_ROLES } from "@pearl/shared";
 import messages from "../messages/en.json" with { type: "json" };
 import { greetingKey } from "./greeting";
 import { isActive, navFor, PRIMARY_ACTIONS } from "./nav";
-import { isStrongEnough } from "./password";
 import { isPublicPath } from "./supabase/proxy";
 
 describe("menus per role", () => {
@@ -58,6 +57,11 @@ describe("translations", () => {
     expect(messages.errors.unknown).toBeTypeOf("string");
   });
 
+  it("every validation message a schema can use has screen text", () => {
+    const v = messages.validation as Record<string, string>;
+    for (const key of VALIDATION_MESSAGES) expect(v[key], key).toBeTypeOf("string");
+  });
+
   it("every role has a display name", () => {
     for (const role of STAFF_ROLES) expect(messages.roles[role]).toBeTypeOf("string");
   });
@@ -76,13 +80,6 @@ describe("login redirects", () => {
 });
 
 describe("small helpers", () => {
-  it("password rule matches the server (8+, letters and digits)", () => {
-    expect(isStrongEnough("Pearl2026")).toBe(true);
-    expect(isStrongEnough("short1")).toBe(false);
-    expect(isStrongEnough("lettersonly")).toBe(false);
-    expect(isStrongEnough("12345678")).toBe(false);
-  });
-
   it("greets by IST hour", () => {
     expect(greetingKey(9)).toBe("morning");
     expect(greetingKey(12)).toBe("afternoon");

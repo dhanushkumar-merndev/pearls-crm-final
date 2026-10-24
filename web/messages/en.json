@@ -213,6 +213,48 @@
     "remove": "Remove",
     "loadMore": "Load more"
   },
+  "validation": {
+    "required": "Please fill this in.",
+    "tooLong": "Too long — at most {max} characters.",
+    "invalid": "This doesn't look right.",
+    "phone": "That number doesn't look right. Type 10 digits, e.g. 98450 12345.",
+    "email": "That email doesn't look right, e.g. name@example.com.",
+    "pincode": "Six digits, not starting with 0.",
+    "url": "A web address starting with https://",
+    "date": "Choose a real date.",
+    "dateTime": "Choose a date and time.",
+    "number": "Type a number.",
+    "wholeNumber": "Use a whole number.",
+    "decimals": "Too many decimal places.",
+    "min": "At least {min}.",
+    "max": "At most {max}.",
+    "amount": "Type an amount in rupees, e.g. 1500 or 1500.50.",
+    "amountPositive": "The amount must be more than ₹0.",
+    "amountTooLarge": "That amount is too large.",
+    "choose": "Please choose one.",
+    "intList": "Use whole numbers separated by commas, e.g. 0, 14, 30.",
+    "wordList": "Too many items, or one is too long (80 characters each).",
+    "dateOrder": "The end must be after the start.",
+    "timeOrder": "The end time must be after the start time.",
+    "notFuture": "This can't be in the future.",
+    "notPast": "This can't be in the past.",
+    "passwordShort": "At least {min} characters.",
+    "passwordMismatch": "The two passwords are not the same.",
+    "username": "3–32 characters: small letters, numbers, dot, dash or underscore.",
+    "age": "Age in whole years, 0 to 120.",
+    "tooMany": "Too many — at most {max}.",
+    "duplicateValue": "This is already in the list.",
+    "gst": "Choose a GST rate.",
+    "hsn": "4 to 8 digits.",
+    "noRows": "Add at least one line.",
+    "server": "The server didn't accept this. Please check it.",
+    "summary": "Please fix the highlighted fields.",
+    "gstin": "15 characters, e.g. 29ABCDE1234F1Z5.",
+    "time": "Choose a time, e.g. 10:30.",
+    "reasonShort": "Please write a few words (at least 3 letters).",
+    "pickSlot": "Please choose a time slot.",
+    "rangeTooLong": "Choose at most one year."
+  },
   "picker": {
     "choose": "Choose…",
     "search": "Type to search…",
@@ -416,7 +458,8 @@
     "passwordSet": "Password set ✓",
     "deactivateWho": "Deactivate {name}?",
     "deactivateHint": "They are logged out everywhere and can't log in. Their records stay. You can turn the login back on later.",
-    "reasonNeeded": "Please give a reason (at least 3 letters)."
+    "reasonNeeded": "Please give a reason (at least 3 letters).",
+    "usernameTaken": "That username is already taken. Please choose another."
   },
   "account": {
     "title": "Change my password",
@@ -543,12 +586,13 @@
       "dialogHint": "Continue from your old system's last number. You can't go back to a number already used.",
       "prefix": "Prefix",
       "format": "Format",
-      "formatHint": "{prefix}, {fy} (26-27) and {n} (the number). {n} is required.",
+      "formatHint": "'{prefix}', '{fy}' (26-27) and '{n}' (the number). '{n}' is required.",
       "nextNumber": "Next number",
       "nextHint": "Last used: {used}",
       "padding": "Minimum digits",
       "paddingHint": "4 makes 7 print as 0007. 0 = no padding.",
-      "looksLike": "The next one will look like:"
+      "looksLike": "The next one will look like:",
+      "formatNeedsN": "The format must contain '{n}' (where the number goes)."
     }
   },
   "review": {
@@ -581,7 +625,8 @@
       "document_kind": "Document types",
       "quick_reply": "Quick replies",
       "break_type": "Break types"
-    }
+    },
+    "sameItem": "Choose a different item to keep — this is the one being merged."
   },
   "audit": {
     "title": "Change history",
@@ -731,14 +776,7 @@
     "consents": "Consent",
     "consent_treatment": "Agrees to examination and treatment",
     "consent_whatsapp": "Agrees to appointment messages on WhatsApp",
-    "consent_marketing": "Agrees to offers and health tips",
-    "error": {
-      "required": "Please fill this in.",
-      "badPhone": "That number doesn't look right.",
-      "badPincode": "Six digits, not starting with 0.",
-      "badEmail": "That email doesn't look right.",
-      "badAge": "Age in whole years, e.g. 34."
-    }
+    "consent_marketing": "Agrees to offers and health tips"
   },
   "register": {
     "title": "New patient",
@@ -899,10 +937,6 @@
     "consentWhatsapp": "Send me appointment messages on WhatsApp.",
     "send": "Send to reception",
     "sending": "Sending…",
-    "needName": "Please enter your name.",
-    "needPhone": "Please enter a valid mobile number.",
-    "badWhatsapp": "That WhatsApp number doesn't look right.",
-    "badPincode": "PIN code has six digits.",
     "needConsent": "Please tick the consent for examination and treatment.",
     "needCaptcha": "Please wait for the security check to finish.",
     "expired": "This link has expired. Please scan the new QR code at reception.",
@@ -1088,7 +1122,8 @@
     "walkInButton": "Add walk-in",
     "queued": "Added to the queue — number {n}",
     "walkInSlot": "Added to the current slot ✓",
-    "bookSessionTitle": "Book {what}"
+    "bookSessionTitle": "Book {what}",
+    "forLead": "For the lead {name}. Reception registers them as a patient when they arrive."
   },
   "appointments": {
     "title": "Appointments",
@@ -1384,7 +1419,8 @@
     "addCharges": "Add {n, plural, one {# charge} other {# charges}}",
     "chargesAdded": "Charges added",
     "carriedFromBill": "from bill {no}",
-    "alreadyReceived": "Already received on the included bills: {amount}. Still due: {due}."
+    "alreadyReceived": "Already received on the included bills: {amount}. Still due: {due}.",
+    "advanceTooMuch": "That is more than the advance available or the amount due."
   },
   "payment": {
     "title": "Advance or refund",
@@ -1641,7 +1677,9 @@
     "postToStock": "Post to stock",
     "postTitle": "Post this purchase to stock?",
     "postHint": "Invoice total {amount}. The batches below are added to stock. A posted purchase can't be edited; fix mistakes with a stock adjustment.",
-    "posted": "Purchase {no} posted to stock ✓"
+    "posted": "Purchase {no} posted to stock ✓",
+    "sellingAboveMrp": "The selling price can't be more than the MRP.",
+    "duplicateInvoice": "This supplier's invoice number is already entered."
   },
   "ip": {
     "title": "IP stays",
@@ -1734,7 +1772,9 @@
     "summaryStartHint": "Pick a template. Placeholders such as '{{He_She}}' are filled from the stay when you preview and finalize.",
     "startSummary": "Start",
     "defaultSection": "Summary",
-    "medsFromBills": "{n, plural, one {# medicine} other {# medicines}} from this stay's pharmacy bills will be listed."
+    "medsFromBills": "{n, plural, one {# medicine} other {# medicines}} from this stay's pharmacy bills will be listed.",
+    "surgeryBeforeAdmission": "Surgery can't be before the admission time.",
+    "dischargeBeforeAdmission": "Discharge can't be before the admission time."
   },
   "discharge": {
     "title": "Discharge summary",
@@ -1828,7 +1868,8 @@
     "templateName": "Template name",
     "createTemplate": "Create template",
     "updateTemplate": "Update template",
-    "templateSaved": "Template saved ✓"
+    "templateSaved": "Template saved ✓",
+    "needSigner": "Choose the doctor who signs the summary."
   },
   "dischargeTemplates": {
     "title": "Discharge templates",

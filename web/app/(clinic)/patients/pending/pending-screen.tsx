@@ -11,7 +11,9 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Field, PageHeader, Textarea } from "@/components/ui/form";
 import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
 import { rpc } from "@/lib/rpc";
+import { reasonSchema } from "@/lib/schemas/clinical";
 import { useFeedback } from "@/lib/use-feedback";
+import { useZodForm } from "@/lib/use-zod-form";
 
 interface Pending {
   id: string;
@@ -95,8 +97,9 @@ function DiscardDialog({ request, onDone }: { request: Pending; onDone: () => vo
   const t = useTranslations("pending");
   const { saved, failed } = useFeedback();
   const [reason, setReason] = useState("");
+  const checks = useZodForm(reasonSchema);
   const discard = useMutation({
-    mutationFn: () => rpc("discard_registration", { p_request_id: request.id, p_reason: reason }),
+    mutationFn: (r: string) => rpc("discard_registration", { p_request_id: request.id, p_reason: r }),
     onSuccess: () => {
       saved(t("discarded"));
       onDone();
@@ -107,14 +110,21 @@ function DiscardDialog({ request, onDone }: { request: Pending; onDone: () => vo
     <DialogContent
       title={t("discardTitle", { name: request.full_name })}
       footer={
-        <Button variant="danger" disabled={reason.trim().length < 3 || discard.isPending} onClick={() => discard.mutate()}>
+        <Button
+          variant="danger"
+          disabled={discard.isPending}
+          onClick={() => {
+            const d = checks.validate({ reason });
+            if (d) discard.mutate(d.reason);
+          }}
+        >
           <Trash2 aria-hidden />
           {t("discard")}
         </Button>
       }
     >
-      <Field label={t("reason")} hint={t("reasonHint")}>
-        {(a) => <Textarea {...a} rows={2} maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} />}
+      <Field label={t("reason")} hint={t("reasonHint")} error={checks.error("reason")}>
+        {(a) => <Textarea {...a} rows={2} maxLength={300} value={reason} onChange={(e) => (setReason(e.target.value), checks.clear("reason"))} />}
       </Field>
     </DialogContent>
   );

@@ -33,11 +33,15 @@ const show = (v: unknown) => (v === null || v === undefined ? "—" : typeof v =
 export function AuditScreen() {
   const t = useTranslations("audit");
   const c = useTranslations("common");
+  const v = useTranslations("validation");
   const [table, setTable] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
 
+  // Both dates are optional here; when both are given, To can't be before From.
+  const orderBad = Boolean(from && to && to < from);
   const list = useInfiniteQuery({
+    enabled: !orderBad,
     queryKey: ["audit", table, from, to],
     initialPageParam: null as string | null,
     queryFn: ({ pageParam }) =>
@@ -69,7 +73,7 @@ export function AuditScreen() {
           )}
         </Field>
         <Field label={t("from")}>{(a) => <Input {...a} type="date" value={from} onChange={(e) => setFrom(e.target.value)} />}</Field>
-        <Field label={t("to")}>{(a) => <Input {...a} type="date" value={to} onChange={(e) => setTo(e.target.value)} />}</Field>
+        <Field label={t("to")} error={orderBad ? v("dateOrder") : undefined}>{(a) => <Input {...a} type="date" value={to} onChange={(e) => setTo(e.target.value)} />}</Field>
       </div>
       <Table>
         <THead>

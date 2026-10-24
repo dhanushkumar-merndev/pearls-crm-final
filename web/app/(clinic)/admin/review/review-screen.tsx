@@ -4,7 +4,8 @@ import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-q
 import { Check, GitMerge } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
-import { formatDateTime } from "@pearl/shared";
+import { z } from "zod";
+import { formatDateTime, requiredItem } from "@pearl/shared";
 import { LibraryCombobox, type LibraryItem, type LibraryKind } from "@/components/library-combobox";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -12,6 +13,7 @@ import { Field, PageHeader } from "@/components/ui/form";
 import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
 import { rpc } from "@/lib/rpc";
 import { useFeedback } from "@/lib/use-feedback";
+import { useZodForm } from "@/lib/use-zod-form";
 
 interface Pending {
   kind: LibraryKind;
@@ -106,8 +108,12 @@ function MergeDialog({ item, onDone }: { item: Pending; onDone: () => void }) {
   const t = useTranslations("review");
   const { saved, failed } = useFeedback();
   const [into, setInto] = useState<LibraryItem | null>(null);
+  const [schema] = useState(() =>
+    z.object({ into: requiredItem().refine((id) => id !== item.id, { error: "review.sameItem" }) }),
+  );
+  const checks = useZodForm(schema);
   const merge = useMutation({
-    mutationFn: () => rpc("library_merge", { p_kind: item.kind, p_from: item.id, p_into: into!.id }),
+    mutationFn: (intoId: string) => rpc("library_merge", { p_kind: item.kind, p_from: item.id, p_into: intoId }),
     onSuccess: () => {
       saved(t("merged"));
       onDone();
@@ -119,13 +125,31 @@ function MergeDialog({ item, onDone }: { item: Pending; onDone: () => void }) {
       title={t("mergeTitle", { name: item.label })}
       description={t("mergeHint")}
       footer={
-        <Button disabled={!into || into.id === item.id || merge.isPending} onClick={() => merge.mutate()}>
+        <Button
+          disabled={merge.isPending}
+          onClick={() => {
+            const d = checks.validate({ into });
+            if (d) merge.mutate(d.into);
+          }}
+        >
           <GitMerge aria-hidden />
           {t("mergeButton")}
         </Button>
       }
     >
-      <Field label={t("keepWhich")}>{(a) => <LibraryCombobox id={a.id} kind={item.kind} value={into} onChange={setInto} />}</Field>
+      <Field label={t("keepWhich")} error={checks.error("into")}>
+        {(a) => (
+          <LibraryCombobox
+            {...a}
+            kind={item.kind}
+            value={into}
+            onChange={(v) => {
+              setInto(v);
+              checks.clear("into");
+            }}
+          />
+        )}
+      </Field>
     </DialogContent>
   );
 }

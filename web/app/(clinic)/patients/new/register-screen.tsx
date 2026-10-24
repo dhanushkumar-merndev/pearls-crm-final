@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { draftFrom, emptyDraft, PatientForm, toPayload, type DraftErrors, type PatientDraft } from "@/components/patients/patient-form";
+import { PATIENT_SERVER_FIELDS, patientDraftSchema } from "@pearl/shared";
+import { draftFrom, emptyDraft, PatientForm, toPayload, type PatientDraft } from "@/components/patients/patient-form";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -14,6 +15,7 @@ import { Checkbox, PageHeader } from "@/components/ui/form";
 import { newId, rpc, unwrap } from "@/lib/rpc";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
 import { useFeedback } from "@/lib/use-feedback";
+import { useZodForm } from "@/lib/use-zod-form";
 
 interface Match {
   id: string;
@@ -68,13 +70,13 @@ function RegisterForm({ requestId, requestStatus, initial }: { requestId: string
   const router = useRouter();
   const { failed } = useFeedback();
   const [draft, setDraft] = useState<PatientDraft>(initial);
-  const [errors, setErrors] = useState<DraftErrors>({});
+  const form = useZodForm(patientDraftSchema);
   const [matches, setMatches] = useState<Match[] | null>(null);
   const [clientId] = useState(newId);
 
   const register = useMutation({
     mutationFn: (args: { decision: "new" | "update" | "family"; targetId?: string; fields?: string[] }) => {
-      const { payload } = toPayload(draft);
+      const payload = toPayload(draft);
       return rpc<{ patient_id: string; uhid: string }>("register_patient", {
         p_payload: payload,
         p_decision: args.decision,
@@ -88,12 +90,13 @@ function RegisterForm({ requestId, requestStatus, initial }: { requestId: string
       toast.success(args.decision === "update" ? t("updated", { uhid: res.uhid }) : t("registered", { uhid: res.uhid }));
       router.push(`/patients/${res.patient_id}`);
     },
-    onError: failed,
+    onError: (e) => {
+      if (!form.fromServer(e, PATIENT_SERVER_FIELDS)) failed(e);
+    },
   });
 
   const check = useMutation({
-    mutationFn: () => {
-      const { payload } = toPayload(draft);
+    mutationFn: (payload: Record<string, unknown>) => {
       return rpc<Match[]>("find_patient_matches", {
         p_phone_e164: payload.phone_e164 ?? null,
         p_full_name: payload.full_name,
@@ -105,10 +108,10 @@ function RegisterForm({ requestId, requestStatus, initial }: { requestId: string
   });
 
   function save() {
-    const { errors: e } = toPayload(draft);
-    setErrors(e);
-    if (Object.keys(e).length) return toast.error(t("fixFields"));
-    check.mutate();
+    // Checked before anything is sent; the first bad field gets the focus.
+    const payload = form.validate(draft);
+    if (!payload) return toast.error(t("fixFields"));
+    check.mutate(payload);
   }
 
   const busy = check.isPending || register.isPending;
@@ -129,7 +132,7 @@ function RegisterForm({ requestId, requestStatus, initial }: { requestId: string
           {t("alreadyHandled")}
         </Card>
       )}
-      <PatientForm draft={draft} onChange={setDraft} errors={errors} />
+      <PatientForm draft={draft} onChange={setDraft} errors={form.errors} onEdit={form.clear} />
       <div className="mt-4 flex justify-end">
         <Button size="lg" onClick={save} disabled={busy}>
           <Save aria-hidden />
@@ -237,7 +240,7 @@ function UpdateChooser({
   });
   const diffs = useMemo(() => {
     if (!stored.data) return [];
-    const { payload } = toPayload(draft);
+    const payload = toPayload(draft);
     return Object.keys(FIELD_LABEL)
       .filter((k) => k in payload && shown(payload[k]) !== "—" && !same(payload[k], stored.data[k === "age_years" ? "age" : k]))
       .map((k) => {

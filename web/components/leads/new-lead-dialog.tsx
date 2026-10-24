@@ -6,7 +6,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
-import { formatDate, fromIstDateTimeLocal, normalizePhone } from "@pearl/shared";
+import type { z } from "zod";
+import { formatDate, fromIstDateTimeLocal, newLeadSchema } from "@pearl/shared";
 import { LibraryCombobox, type LibraryItem } from "@/components/library-combobox";
 import { Button } from "@/components/ui/button";
 import { DialogContent } from "@/components/ui/dialog";
@@ -14,6 +15,7 @@ import { Field, Select, Textarea } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { newId, rpc } from "@/lib/rpc";
 import { useFeedback } from "@/lib/use-feedback";
+import { useZodForm } from "@/lib/use-zod-form";
 import { StageBadge } from "./stage-badge";
 import type { Lead, LeadStage } from "./types";
 import { useSalesStaff } from "./use-sales-staff";
@@ -45,28 +47,27 @@ export function NewLeadDialog({ canAssign, onDone }: { canAssign: boolean; onDon
   const [treatment, setTreatment] = useState<LibraryItem | null>(null);
   const [source, setSource] = useState<LibraryItem | null>(null);
   const [duplicates, setDuplicates] = useState<Duplicate[] | null>(null);
-  const set = (k: keyof typeof f, v: string) => setF((x) => ({ ...x, [k]: v }));
-
-  const phone = normalizePhone(f.phone);
-  const alt = f.alt_phone.trim() ? normalizePhone(f.alt_phone) : null;
-  const phoneBad = f.phone.trim() !== "" && !phone;
-  const altBad = f.alt_phone.trim() !== "" && !alt;
-  const valid = f.name.trim() !== "" && Boolean(phone) && !altBad;
+  const checks = useZodForm(newLeadSchema);
+  const set = (k: keyof typeof f, v: string) => {
+    setF((x) => ({ ...x, [k]: v }));
+    checks.clear(k);
+  };
+  const values = () => ({ ...f, treatment, source });
 
   const create = useMutation({
-    mutationFn: (force: boolean) =>
+    mutationFn: ({ d, force }: { d: z.output<typeof newLeadSchema>; force: boolean }) =>
       rpc<CreateResult>("create_lead", {
         p_lead: {
-          name: f.name.trim(),
-          phone: phone!.e164,
-          ...(alt ? { alt_phone: alt.e164 } : {}),
-          ...(f.email.trim() ? { email: f.email.trim() } : {}),
-          ...(treatment ? { treatment_template_id: treatment.id } : f.treatment_text.trim() ? { treatment_text: f.treatment_text.trim() } : {}),
-          ...(source ? { source_id: source.id } : {}),
-          ...(f.referred_by_text.trim() ? { referred_by_text: f.referred_by_text.trim() } : {}),
-          ...(f.comments1.trim() ? { comments1: f.comments1.trim() } : {}),
-          ...(f.due ? { next_followup_at: fromIstDateTimeLocal(f.due) } : {}),
-          ...(canAssign && f.assigned_to ? { assigned_to: f.assigned_to } : {}),
+          name: d.name,
+          phone: d.phone,
+          ...(d.alt_phone ? { alt_phone: d.alt_phone } : {}),
+          ...(d.email ? { email: d.email } : {}),
+          ...(d.treatment ? { treatment_template_id: d.treatment } : d.treatment_text ? { treatment_text: d.treatment_text } : {}),
+          ...(d.source ? { source_id: d.source } : {}),
+          ...(d.referred_by_text ? { referred_by_text: d.referred_by_text } : {}),
+          ...(d.comments1 ? { comments1: d.comments1 } : {}),
+          ...(d.due ? { next_followup_at: fromIstDateTimeLocal(d.due) } : {}),
+          ...(canAssign && d.assigned_to ? { assigned_to: d.assigned_to } : {}),
           force,
         },
         p_client_id: clientId,
@@ -79,8 +80,14 @@ export function NewLeadDialog({ canAssign, onDone }: { canAssign: boolean; onDon
       onDone();
       router.push(`/leads/${res.lead!.id}`);
     },
-    onError: failed,
+    onError: (e) => {
+      if (!checks.fromServer(e, { name: "name", phone: "phone", assigned_to: "assigned_to" })) failed(e);
+    },
   });
+  const submit = (force: boolean) => {
+    const d = checks.validate(values());
+    if (d) create.mutate({ d, force });
+  };
 
   if (duplicates) {
     return (
@@ -93,7 +100,7 @@ export function NewLeadDialog({ canAssign, onDone }: { canAssign: boolean; onDon
             <Button variant="ghost" onClick={() => setDuplicates(null)}>
               {t("back")}
             </Button>
-            <Button variant="secondary" disabled={create.isPending} onClick={() => create.mutate(true)}>
+            <Button variant="secondary" disabled={create.isPending} onClick={() => submit(true)}>
               <Save aria-hidden />
               {t("saveAnyway")}
             </Button>
@@ -131,31 +138,37 @@ export function NewLeadDialog({ canAssign, onDone }: { canAssign: boolean; onDon
       title={t("newTitle")}
       description={t("newHint")}
       footer={
-        <Button disabled={!valid || create.isPending} onClick={() => create.mutate(false)}>
+        <Button disabled={create.isPending} onClick={() => submit(false)}>
           <UserPlus aria-hidden />
           {create.isPending ? t("saving") : t("saveLead")}
         </Button>
       }
     >
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label={t("f.name")}>{(a) => <Input {...a} autoFocus maxLength={200} value={f.name} onChange={(e) => set("name", e.target.value)} />}</Field>
-        <Field label={t("f.phone")} error={phoneBad ? t("badPhone") : undefined}>
-          {(a) => <Input {...a} inputMode="tel" value={f.phone} onChange={(e) => set("phone", e.target.value)} />}
+        <Field label={t("f.name")} error={checks.error("name")}>
+          {(a) => <Input {...a} autoFocus maxLength={200} value={f.name} onChange={(e) => set("name", e.target.value)} />}
         </Field>
-        <Field label={t("f.altPhone")} error={altBad ? t("badPhone") : undefined}>
-          {(a) => <Input {...a} inputMode="tel" value={f.alt_phone} onChange={(e) => set("alt_phone", e.target.value)} />}
+        <Field label={t("f.phone")} error={checks.error("phone")}>
+          {(a) => <Input {...a} type="tel" inputMode="tel" maxLength={20} value={f.phone} onChange={(e) => set("phone", e.target.value)} />}
         </Field>
-        <Field label={t("f.email")}>{(a) => <Input {...a} type="email" maxLength={200} value={f.email} onChange={(e) => set("email", e.target.value)} />}</Field>
+        <Field label={t("f.altPhone")} error={checks.error("alt_phone")}>
+          {(a) => <Input {...a} type="tel" inputMode="tel" maxLength={20} value={f.alt_phone} onChange={(e) => set("alt_phone", e.target.value)} />}
+        </Field>
+        <Field label={t("f.email")} error={checks.error("email")}>
+          {(a) => <Input {...a} type="email" maxLength={200} value={f.email} onChange={(e) => set("email", e.target.value)} />}
+        </Field>
         <Field label={t("f.treatment")} hint={t("treatmentHint")}>
-          {(a) => <LibraryCombobox id={a.id} kind="treatment_template" value={treatment} onChange={setTreatment} />}
+          {(a) => <LibraryCombobox {...a} kind="treatment_template" value={treatment} onChange={setTreatment} />}
         </Field>
-        <Field label={t("f.treatmentText")}>
+        <Field label={t("f.treatmentText")} error={checks.error("treatment_text")}>
           {(a) => <Input {...a} maxLength={200} disabled={Boolean(treatment)} value={f.treatment_text} onChange={(e) => set("treatment_text", e.target.value)} />}
         </Field>
-        <Field label={t("f.source")}>{(a) => <LibraryCombobox id={a.id} kind="lead_source" allowCreate value={source} onChange={setSource} />}</Field>
-        <Field label={t("f.referredBy")}>{(a) => <Input {...a} maxLength={200} value={f.referred_by_text} onChange={(e) => set("referred_by_text", e.target.value)} />}</Field>
+        <Field label={t("f.source")}>{(a) => <LibraryCombobox {...a} kind="lead_source" allowCreate value={source} onChange={setSource} />}</Field>
+        <Field label={t("f.referredBy")} error={checks.error("referred_by_text")}>
+          {(a) => <Input {...a} maxLength={200} value={f.referred_by_text} onChange={(e) => set("referred_by_text", e.target.value)} />}
+        </Field>
         {canAssign && (
-          <Field label={t("f.owner")} hint={t("ownerHint")}>
+          <Field label={t("f.owner")} hint={t("ownerHint")} error={checks.error("assigned_to")}>
             {(a) => (
               <Select {...a} value={f.assigned_to} onChange={(e) => set("assigned_to", e.target.value)}>
                 <option value="">{t("roundRobin")}</option>
@@ -168,8 +181,10 @@ export function NewLeadDialog({ canAssign, onDone }: { canAssign: boolean; onDon
             )}
           </Field>
         )}
-        <Field label={t("f.due")} hint={t("dueHint")}>{(a) => <Input {...a} type="datetime-local" value={f.due} onChange={(e) => set("due", e.target.value)} />}</Field>
-        <Field label={t("f.comments1")} className="sm:col-span-2">
+        <Field label={t("f.due")} hint={t("dueHint")} error={checks.error("due")}>
+          {(a) => <Input {...a} type="datetime-local" value={f.due} onChange={(e) => set("due", e.target.value)} />}
+        </Field>
+        <Field label={t("f.comments1")} error={checks.error("comments1")} className="sm:col-span-2">
           {(a) => <Textarea {...a} rows={2} maxLength={2000} value={f.comments1} onChange={(e) => set("comments1", e.target.value)} />}
         </Field>
       </div>

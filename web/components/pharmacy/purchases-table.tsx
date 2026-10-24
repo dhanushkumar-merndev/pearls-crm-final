@@ -11,6 +11,7 @@ import { Pager } from "@/components/ui/pager";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
 import { rpc } from "@/lib/rpc";
+import { useDateRangeCheck } from "@/lib/use-date-range";
 
 interface Row {
   id: string;
@@ -37,7 +38,9 @@ export function PurchasesTable() {
     status: "",
   }));
   const [offset, setOffset] = useState(0);
+  const rangeCheck = useDateRangeCheck(filters.from, filters.to);
   const list = useQuery({
+    enabled: rangeCheck.valid,
     queryKey: ["purchases", filters, offset],
     placeholderData: keepPreviousData,
     queryFn: () =>
@@ -51,8 +54,8 @@ export function PurchasesTable() {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-end gap-3">
-        <Field label={t("from")}>{(a) => <Input {...a} type="date" value={filters.from} onChange={(e) => e.target.value && set("from", e.target.value)} />}</Field>
-        <Field label={t("to")}>{(a) => <Input {...a} type="date" value={filters.to} onChange={(e) => e.target.value && set("to", e.target.value)} />}</Field>
+        <Field label={t("from")} error={rangeCheck.fromError}>{(a) => <Input {...a} type="date" value={filters.from} onChange={(e) => set("from", e.target.value)} />}</Field>
+        <Field label={t("to")} error={rangeCheck.toError}>{(a) => <Input {...a} type="date" value={filters.to} onChange={(e) => set("to", e.target.value)} />}</Field>
         <Field label={t("col.status")}>
           {(a) => (
             <Select {...a} value={filters.status} onChange={(e) => set("status", e.target.value)}>

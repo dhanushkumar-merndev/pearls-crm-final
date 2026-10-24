@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isUsernameLogin, isValidUsername, loginSchema, toLoginEmail } from "../src/auth";
+import { changePasswordSchema, isUsernameLogin, isValidUsername, loginSchema, newPasswordRule, toLoginEmail } from "../src/auth";
 
 describe("username logins", () => {
   it("maps a username to the reserved internal domain (trimmed, lower-case)", () => {
@@ -38,5 +38,24 @@ describe("login form check", () => {
       username: "reception2",
       password: " Pearl@2026 ",
     });
+  });
+});
+
+describe("new passwords", () => {
+  const msg = (v: unknown) => {
+    const r = newPasswordRule().safeParse(v);
+    return r.success ? null : r.error.issues[0]!.message;
+  };
+  it("same rule as the server: 8+ characters with a letter and a digit", () => {
+    expect(msg("Pearl2026")).toBeNull();
+    expect(msg("")).toBe("required");
+    expect(msg("short1")).toBe("passwordShort");
+    expect(msg("lettersonly")).toBe("account.weak");
+    expect(msg("12345678")).toBe("account.weak");
+  });
+  it("change password: the two new ones must match", () => {
+    const r = changePasswordSchema.safeParse({ current: "x", next: "Pearl2026", again: "Pearl2027" });
+    expect(r.success).toBe(false);
+    expect(r.error!.issues[0]).toMatchObject({ path: ["again"], message: "passwordMismatch" });
   });
 });

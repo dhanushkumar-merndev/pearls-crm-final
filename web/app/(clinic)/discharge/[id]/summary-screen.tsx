@@ -16,9 +16,11 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Field, Select, Textarea } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { newId, rpc } from "@/lib/rpc";
+import { asAppError, newId, rpc } from "@/lib/rpc";
 import { useMe } from "@/lib/use-me";
+import { saveTemplateSchema, summaryAmendSchema, summaryContentSchema } from "@/lib/schemas/clinical";
 import { useFeedback } from "@/lib/use-feedback";
+import { useZodForm } from "@/lib/use-zod-form";
 
 export interface Content {
   sections: Section[];
@@ -125,10 +127,13 @@ export function SummaryScreen({ initial }: { initial: Summary }) {
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- save on content changes only
   }, [content]);
+  const checks = useZodForm(amending ? summaryAmendSchema : summaryContentSchema);
   const change = (patch: Partial<Content>) => {
     setDirty(true);
     setContent((c) => ({ ...c, ...patch }));
+    for (const k of Object.keys(patch)) checks.clear(k);
   };
+  const [daysText, setDaysText] = useState(content.follow_up_days === null ? "" : String(content.follow_up_days));
 
   const finalize = useMutation({
     mutationFn: async () => {
@@ -145,7 +150,7 @@ export function SummaryScreen({ initial }: { initial: Summary }) {
     onError: failed,
   });
   const amend = useMutation({
-    mutationFn: () => rpc<Summary>("amend_discharge_summary", { p_id: s.id, p_content: content, p_reason: reason }),
+    mutationFn: (r: string) => rpc<Summary>("amend_discharge_summary", { p_id: s.id, p_content: content, p_reason: r }),
     onSuccess: (next) => {
       saved(t("amended"));
       queryClient.setQueryData(["discharge_summary", s.id], next);
@@ -183,7 +188,13 @@ export function SummaryScreen({ initial }: { initial: Summary }) {
 
       <div className="flex flex-wrap gap-2">
         {s.status === "draft" && (
-          <Button disabled={finalize.isPending} onClick={() => setDialog("finalize")}>
+          <Button
+            disabled={finalize.isPending}
+            onClick={() => {
+              // Headings, medicine names, follow-up days and the signing doctor are checked first.
+              if (checks.validate({ ...content, follow_up_days: daysText })) setDialog("finalize");
+            }}
+          >
             <CheckCheck aria-hidden />
             {t("finalize")}
           </Button>
@@ -222,26 +233,34 @@ export function SummaryScreen({ initial }: { initial: Summary }) {
       {editable ? (
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,28rem)]">
           <div className="flex flex-col gap-5">
-            <SectionsEditor sections={content.sections} onChange={(sections) => change({ sections })} />
+            <SectionsEditor sections={content.sections} onChange={(sections) => change({ sections })} errorOf={checks.error} onEdit={checks.clear} />
+            {checks.error("sections") && (
+              <p role="alert" className="text-bad-text">
+                {checks.error("sections")}
+              </p>
+            )}
             <Card className="flex flex-col gap-3">
               <CardTitle>{t("medications")}</CardTitle>
-              <MedicationsEditor meds={content.medications} onChange={(medications) => change({ medications })} />
+              <MedicationsEditor meds={content.medications} onChange={(medications) => change({ medications })} errorOf={checks.error} onEdit={checks.clear} />
             </Card>
             <Card className="grid gap-4 sm:grid-cols-2">
-              <Field label={t("followUpDays")} hint={t("followUpHint")}>
+              <Field label={t("followUpDays")} hint={t("followUpHint")} error={checks.error("follow_up_days")}>
                 {(f) => (
                   <Input
                     {...f}
                     inputMode="numeric"
-                    value={content.follow_up_days ?? ""}
-                    onChange={(e) => change({ follow_up_days: /^\d+$/.test(e.target.value) ? Number(e.target.value) : null })}
+                    value={daysText}
+                    onChange={(e) => {
+                      setDaysText(e.target.value);
+                      change({ follow_up_days: /^\d{1,4}$/.test(e.target.value.trim()) ? Number(e.target.value.trim()) : null });
+                    }}
                   />
                 )}
               </Field>
-              <Field label={t("signedBy")}>
+              <Field label={t("signedBy")} error={checks.error("doctor_id")}>
                 {(f) => (
                   <LibraryCombobox
-                    id={f.id}
+                    {...f}
                     kind="doctor"
                     value={doctor}
                     onChange={(d) => {
@@ -251,19 +270,25 @@ export function SummaryScreen({ initial }: { initial: Summary }) {
                   />
                 )}
               </Field>
-              <Field label={t("followUpNote")} className="sm:col-span-2">
+              <Field label={t("followUpNote")} error={checks.error("follow_up_note")} className="sm:col-span-2">
                 {(f) => <Textarea {...f} rows={2} maxLength={500} value={content.follow_up_note} onChange={(e) => change({ follow_up_note: e.target.value })} />}
               </Field>
             </Card>
             {amending && (
               <Card className="flex flex-wrap items-end gap-3">
-                <Field label={t("amendReason")} className="min-w-72 flex-1">
-                  {(f) => <Input {...f} maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} />}
+                <Field label={t("amendReason")} error={checks.error("reason")} className="min-w-72 flex-1">
+                  {(f) => <Input {...f} maxLength={300} value={reason} onChange={(e) => (setReason(e.target.value), checks.clear("reason"))} />}
                 </Field>
                 <Button variant="ghost" onClick={() => setAmending(false)}>
                   {t("cancelAmend")}
                 </Button>
-                <Button disabled={reason.trim().length < 3 || preview.left.length > 0 || amend.isPending} onClick={() => amend.mutate()}>
+                <Button
+                  disabled={preview.left.length > 0 || amend.isPending}
+                  onClick={() => {
+                    const d = checks.validate({ ...content, follow_up_days: daysText, reason });
+                    if (d && "reason" in d) amend.mutate((d as { reason: string }).reason);
+                  }}
+                >
                   <Save aria-hidden />
                   {t("saveAmendment")}
                 </Button>
@@ -353,25 +378,35 @@ function TemplateDialog({ summaryId, beforeSave, draft, onDone }: { summaryId: s
   });
   const [target, setTarget] = useState("");
   const [name, setName] = useState("");
+  const checks = useZodForm(saveTemplateSchema);
   const queryClient = useQueryClient();
   const go = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (d: { target: string | null; name: string | null }) => {
       if (draft) await beforeSave();
-      return rpc("save_discharge_template", { p_summary_id: summaryId, p_name: name, p_template_id: target || null });
+      return rpc("save_discharge_template", { p_summary_id: summaryId, p_name: d.name ?? "", p_template_id: d.target });
     },
     onSuccess: () => {
       saved(t("templateSaved"));
       void queryClient.invalidateQueries({ queryKey: ["discharge_templates"] });
       onDone();
     },
-    onError: failed,
+    onError: (e) => {
+      if (asAppError(e).code === "duplicate") return checks.setError("name", "errors.duplicate");
+      failed(e);
+    },
   });
   return (
     <DialogContent
       title={t("saveAsTemplate")}
       description={t("templateHint")}
       footer={
-        <Button disabled={(!target && !name.trim()) || go.isPending} onClick={() => go.mutate()}>
+        <Button
+          disabled={go.isPending}
+          onClick={() => {
+            const d = checks.validate({ target, name });
+            if (d) go.mutate(d);
+          }}
+        >
           <BookmarkPlus aria-hidden />
           {target ? t("updateTemplate") : t("createTemplate")}
         </Button>
@@ -390,7 +425,9 @@ function TemplateDialog({ summaryId, beforeSave, draft, onDone }: { summaryId: s
             </Select>
           )}
         </Field>
-        <Field label={t("templateName")}>{(a) => <Input {...a} maxLength={200} value={name} onChange={(e) => setName(e.target.value)} />}</Field>
+        <Field label={t("templateName")} error={checks.error("name")}>
+          {(a) => <Input {...a} maxLength={200} value={name} onChange={(e) => (setName(e.target.value), checks.clear("name"))} />}
+        </Field>
       </div>
     </DialogContent>
   );

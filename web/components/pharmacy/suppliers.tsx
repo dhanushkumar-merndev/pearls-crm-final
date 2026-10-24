@@ -20,7 +20,7 @@ export function Suppliers() {
     ],
     fields: [
       { key: "name", label: t("name"), type: "text", required: true, maxLength: 200 },
-      { key: "gstin", label: t("gstin"), type: "text", maxLength: 15, hint: t("gstinHint") },
+      { key: "gstin", label: t("gstin"), type: "text", maxLength: 15, hint: t("gstinHint"), format: "gstin" },
       { key: "phone", label: t("phone"), type: "tel", maxLength: 40 },
       { key: "contact_name", label: t("contact"), type: "text", maxLength: 120 },
       { key: "address", label: t("address"), type: "textarea", maxLength: 400 },

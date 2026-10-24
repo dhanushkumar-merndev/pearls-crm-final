@@ -12,7 +12,9 @@ import { Field, PageHeader, Textarea } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { newId, rpc } from "@/lib/rpc";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
+import { BILL_TYPES, clinicProfileSchema } from "@/lib/schemas/admin";
 import { useFeedback } from "@/lib/use-feedback";
+import { useZodForm } from "@/lib/use-zod-form";
 
 export interface ClinicProfile {
   name: string;
@@ -33,9 +35,6 @@ export interface ClinicProfile {
   terms: Record<string, string[]>;
 }
 
-const BILL_TYPES = ["procedure_receipt", "pharmacy_invoice", "final_bill"] as const;
-const GSTIN = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
-const lines = (text: string) => text.split("\n").map((l) => l.trim()).filter(Boolean);
 
 /** Clinic details printed on every bill and summary. Nothing here is hard-coded anywhere else. */
 export function ClinicProfileForm({ initial }: { initial: ClinicProfile | null }) {
@@ -61,8 +60,11 @@ export function ClinicProfileForm({ initial }: { initial: ClinicProfile | null }
     logo_path: initial?.logo_path ?? null,
     terms: Object.fromEntries(BILL_TYPES.map((b) => [b, (initial?.terms?.[b] ?? []).join("\n")])) as Record<string, string>,
   });
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const set = (key: string, value: string) => setForm((f) => ({ ...f, [key]: value }));
+  const checks = useZodForm(clinicProfileSchema);
+  const set = (key: string, value: string) => {
+    setForm((f) => ({ ...f, [key]: value }));
+    checks.clear(key);
+  };
 
   const upload = useMutation({
     mutationFn: async (file: File) => {
@@ -79,27 +81,7 @@ export function ClinicProfileForm({ initial }: { initial: ClinicProfile | null }
   });
 
   const save = useMutation({
-    mutationFn: () =>
-      rpc("save_clinic_profile", {
-        p_profile: {
-          name: form.name,
-          legal_name: form.legal_name,
-          gstin: form.gstin,
-          llpin: form.llpin,
-          address_lines: lines(form.address),
-          city: form.city,
-          state: form.state,
-          state_code: form.state_code,
-          pincode: form.pincode,
-          phones: lines(form.phones),
-          email: form.email,
-          website: form.website,
-          logo_path: form.logo_path,
-          letterhead_qr_url: form.letterhead_qr_url,
-          signatory_label: form.signatory_label,
-          terms: Object.fromEntries(BILL_TYPES.map((b) => [b, lines(form.terms[b] ?? "")])),
-        },
-      }),
+    mutationFn: (profile: Record<string, unknown>) => rpc("save_clinic_profile", { p_profile: profile }),
     onSuccess: () => {
       saved();
       router.refresh();
@@ -109,17 +91,12 @@ export function ClinicProfileForm({ initial }: { initial: ClinicProfile | null }
 
   function submit(e: FormEvent) {
     e.preventDefault();
-    const next: Record<string, string> = {};
-    if (!form.name.trim()) next.name = c("required");
-    if (form.gstin.trim() && !GSTIN.test(form.gstin.trim().toUpperCase())) next.gstin = t("badGstin");
-    if (form.state_code.trim() && !/^[0-9]{2}$/.test(form.state_code.trim())) next.state_code = t("badStateCode");
-    if (form.pincode.trim() && !/^[1-9][0-9]{5}$/.test(form.pincode.trim())) next.pincode = t("badPincode");
-    setErrors(next);
-    if (Object.keys(next).length === 0) save.mutate();
+    const profile = checks.validate(form);
+    if (profile) save.mutate(profile);
   }
 
   const text = (key: keyof typeof form, label: string, opts: { hint?: string; type?: string; max?: number } = {}) => (
-    <Field label={label} hint={opts.hint} error={errors[key]}>
+    <Field label={label} hint={opts.hint} error={checks.error(key)}>
       {(a) => (
         <Input {...a} type={opts.type ?? "text"} maxLength={opts.max ?? 200} value={String(form[key] ?? "")} onChange={(e) => set(key, e.target.value)} />
       )}
@@ -173,14 +150,14 @@ export function ClinicProfileForm({ initial }: { initial: ClinicProfile | null }
 
       <Card className="grid gap-4 sm:grid-cols-2">
         <CardTitle className="sm:col-span-2">{t("address")}</CardTitle>
-        <Field label={t("addressLines")} hint={t("onePerLine")} className="sm:col-span-2">
+        <Field label={t("addressLines")} hint={t("onePerLine")} error={checks.error("address")} className="sm:col-span-2">
           {(a) => <Textarea {...a} rows={3} value={form.address} onChange={(e) => set("address", e.target.value)} />}
         </Field>
         {text("city", t("city"), { max: 80 })}
         {text("state", t("state"), { max: 80 })}
         {text("state_code", t("stateCode"), { hint: t("stateCodeHint"), max: 2 })}
         {text("pincode", t("pincode"), { max: 6 })}
-        <Field label={t("phones")} hint={t("onePerLine")}>
+        <Field label={t("phones")} hint={t("onePerLine")} error={checks.error("phones")}>
           {(a) => <Textarea {...a} rows={2} value={form.phones} onChange={(e) => set("phones", e.target.value)} />}
         </Field>
         <div className="flex flex-col gap-4">
@@ -193,9 +170,17 @@ export function ClinicProfileForm({ initial }: { initial: ClinicProfile | null }
         <CardTitle>{t("terms")}</CardTitle>
         <CardDescription>{t("termsHint")}</CardDescription>
         {BILL_TYPES.map((b) => (
-          <Field key={b} label={t(`billType.${b}`)} hint={t("onePointPerLine")}>
+          <Field key={b} label={t(`billType.${b}`)} hint={t("onePointPerLine")} error={checks.error(`terms.${b}`)}>
             {(a) => (
-              <Textarea {...a} rows={4} value={form.terms[b] ?? ""} onChange={(e) => setForm((f) => ({ ...f, terms: { ...f.terms, [b]: e.target.value } }))} />
+              <Textarea
+                {...a}
+                rows={4}
+                value={form.terms[b] ?? ""}
+                onChange={(e) => {
+                  setForm((f) => ({ ...f, terms: { ...f.terms, [b]: e.target.value } }));
+                  checks.clear(`terms.${b}`);
+                }}
+              />
             )}
           </Field>
         ))}

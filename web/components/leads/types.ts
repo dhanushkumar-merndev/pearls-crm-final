@@ -1,11 +1,6 @@
-import type { StatusKind } from "@pearl/shared";
+import type { LeadStage, StatusKind } from "@pearl/shared";
 
-/** Lead stages in the order the sales team works them (PLAN.md C2). */
-export const LEAD_STAGES = [
-  "new", "contacted", "interested", "consultation_booked", "consulted", "surgery_scheduled", "converted",
-  "not_reachable", "lost", "junk",
-] as const;
-export type LeadStage = (typeof LEAD_STAGES)[number];
+export { LEAD_STAGES, type LeadStage } from "@pearl/shared";
 
 export function stageKind(stage: LeadStage): StatusKind {
   if (stage === "converted") return "good";

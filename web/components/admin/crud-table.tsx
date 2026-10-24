@@ -3,10 +3,10 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Pencil, Plus, Save, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { formatINR } from "@pearl/shared";
 import { MoneyInput, GST_RATES_BP } from "@/components/forms/money-input";
-import { LibraryCombobox, useDebounced, type LibraryItem, type LibraryKind } from "@/components/library-combobox";
+import { LibraryCombobox, useDebounced, type LibraryItem } from "@/components/library-combobox";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Checkbox, Field, Select, Textarea } from "@/components/ui/form";
@@ -17,20 +17,12 @@ import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
 import { newId, unwrap } from "@/lib/rpc";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
 import { useFeedback } from "@/lib/use-feedback";
+import { useZodForm } from "@/lib/use-zod-form";
+import { crudSchema, type FieldDef } from "./crud-schema";
+
+export type { FieldDef } from "./crud-schema";
 
 export type Row = Record<string, unknown> & { id: string };
-
-export type FieldDef =
-  | { key: string; label: string; type: "text" | "textarea" | "email" | "url" | "tel"; required?: boolean; maxLength?: number; hint?: string }
-  | { key: string; label: string; type: "number"; required?: boolean; min?: number; max?: number; step?: number; hint?: string }
-  | { key: string; label: string; type: "money"; required?: boolean; hint?: string }
-  | { key: string; label: string; type: "gst"; hint?: string }
-  | { key: string; label: string; type: "boolean"; hint?: string }
-  | { key: string; label: string; type: "select"; options: { value: string; label: string }[]; required?: boolean; hint?: string }
-  | { key: string; label: string; type: "int_list"; hint?: string }
-  | { key: string; label: string; type: "date"; required?: boolean; hint?: string }
-  /** A foreign key picked with the LibraryCombobox; labelPath reads the joined label for editing. */
-  | { key: string; label: string; type: "lookup"; kind: LibraryKind; labelPath: string; hint?: string };
 
 export interface ColumnDef {
   key: string;
@@ -199,8 +191,12 @@ function CrudForm({ config, row, title, onDone }: { config: CrudConfig; row: Row
   const t = useTranslations("common");
   const { saved, failed } = useFeedback();
   const [values, setValues] = useState(() => initialValues(config, row));
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const set = (key: string, value: unknown) => setValues((v) => ({ ...v, [key]: value }));
+  const schema = useMemo(() => crudSchema(config), [config]);
+  const form = useZodForm(schema);
+  const set = (key: string, value: unknown) => {
+    setValues((v) => ({ ...v, [key]: value }));
+    form.clear(key);
+  };
 
   const save = useMutation({
     mutationFn: async (payload: Record<string, unknown>) => {
@@ -217,26 +213,8 @@ function CrudForm({ config, row, title, onDone }: { config: CrudConfig; row: Row
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
-    const payload: Record<string, unknown> = {};
-    const nextErrors: Record<string, string> = {};
-    for (const f of config.fields) {
-      const v = values[f.key];
-      if (f.type === "lookup") payload[f.key] = (v as LibraryItem | null)?.id ?? null;
-      else if (f.type === "int_list") {
-        const parts = String(v ?? "").split(/[,\s]+/).filter(Boolean).map(Number);
-        if (parts.some((n) => !Number.isInteger(n) || n < 0)) nextErrors[f.key] = t("wholeNumbers");
-        payload[f.key] = parts.length ? parts : [0];
-      } else if (f.type === "text" || f.type === "textarea" || f.type === "email" || f.type === "url" || f.type === "tel") {
-        const text = String(v ?? "").trim();
-        payload[f.key] = text || null;
-      } else payload[f.key] = v === "" ? null : v;
-      if ("required" in f && f.required && (payload[f.key] === null || payload[f.key] === undefined)) {
-        nextErrors[f.key] = t("required");
-      }
-    }
-    if (config.hasActive) payload.active = values.active;
-    setErrors(nextErrors);
-    if (Object.keys(nextErrors).length === 0) save.mutate(payload);
+    const payload = form.validate(values);
+    if (payload) save.mutate(payload);
   }
 
   return (
@@ -256,7 +234,7 @@ function CrudForm({ config, row, title, onDone }: { config: CrudConfig; row: Row
             {f.type === "boolean" ? (
               <Checkbox label={f.label} hint={f.hint} checked={Boolean(values[f.key])} onChange={(e) => set(f.key, e.target.checked)} />
             ) : (
-              <Field label={f.label} hint={f.hint} error={errors[f.key]}>
+              <Field label={f.label} hint={f.hint} error={form.error(f.key)}>
                 {(a) => <FieldControl field={f} value={values[f.key]} onChange={(v) => set(f.key, v)} a11y={a} />}
               </Field>
             )}
@@ -301,7 +279,7 @@ function FieldControl({
           max={f.max}
           step={f.step ?? 1}
           value={value === null || value === undefined ? "" : String(value)}
-          onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
+          onChange={(e) => onChange(e.target.value)}
         />
       );
     case "money":
@@ -349,6 +327,7 @@ function FieldControl({
           {...a11y}
           type={f.type}
           maxLength={"maxLength" in f ? f.maxLength : undefined}
+          inputMode={f.type === "tel" ? "tel" : f.type === "email" ? "email" : undefined}
           value={String(value ?? "")}
           onChange={(e) => onChange(e.target.value)}
         />

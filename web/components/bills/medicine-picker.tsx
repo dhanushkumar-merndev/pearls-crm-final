@@ -21,9 +21,12 @@ interface ItemDefaults {
 export function MedicinePicker({
   line,
   update,
+  errorOf,
 }: {
   line: EditLine;
   update: (patch: Partial<EditLine> | ((current: EditLine) => Partial<EditLine>)) => void;
+  /** Messages from the bill's checks for "medicine" / "batch_id". */
+  errorOf?: (field: "medicine" | "batch_id") => string | undefined;
 }) {
   const t = useTranslations("bill");
   const queryClient = useQueryClient();
@@ -56,10 +59,10 @@ export function MedicinePicker({
 
   return (
     <>
-      <Field label={t("medicine")} className="md:col-span-4">
+      <Field label={t("medicine")} className="md:col-span-4" error={errorOf?.("medicine")}>
         {(a) => (
           <LibraryCombobox
-            id={a.id}
+            {...a}
             kind="pharmacy_item"
             value={line.medicine}
             onChange={(m) => void pickMedicine(m)}
@@ -69,7 +72,14 @@ export function MedicinePicker({
       <Field
         label={t("batch")}
         className="md:col-span-4"
-        error={line.medicine && batches.data && !batches.data.some((b) => !b.expired) ? t("noStock") : chosen && Number(line.qty) > chosen.qty_on_hand ? t("onlyLeft", { n: qtyLabel(chosen.qty_on_hand) }) : undefined}
+        error={
+          errorOf?.("batch_id") ??
+          (line.medicine && batches.data && !batches.data.some((b) => !b.expired)
+            ? t("noStock")
+            : chosen && Number(line.qty) > chosen.qty_on_hand
+              ? t("onlyLeft", { n: qtyLabel(chosen.qty_on_hand) })
+              : undefined)
+        }
       >
         {(a) => (
           <Select {...a} value={line.batch_id ?? ""} disabled={!line.medicine} onChange={(e) => {
