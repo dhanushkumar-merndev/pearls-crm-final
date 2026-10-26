@@ -17,9 +17,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
     entities = [
         LookupValueEntity::class, OutboxItem::class, SyncMarker::class,
         LeadEntity::class, FollowupEntity::class, AppointmentEntity::class, CallLogEntity::class,
-        CrmNumberEntity::class, RecordingEntity::class,
+        CrmNumberEntity::class, RecordingEntity::class, TrackPointEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -32,6 +32,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun callLogs(): CallLogDao
     abstract fun crmNumbers(): CrmNumberDao
     abstract fun recordings(): RecordingDao
+    abstract fun trackPoints(): TrackPointDao
 
     companion object {
         const val NAME = "pearl.db"
@@ -69,7 +70,15 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3)
+        /** 3 → 4 (Phase 13): the BDM's GPS points waiting to be packed into chunks. */
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS `track_points` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `day_id` TEXT NOT NULL, `t` INTEGER NOT NULL, `lat` REAL NOT NULL, `lng` REAL NOT NULL, `accuracy` REAL NOT NULL, `mock` INTEGER NOT NULL)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_track_points_day_id_t` ON `track_points` (`day_id`, `t`)")
+            }
+        }
+
+        val MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
 
         fun build(context: Context, name: String = NAME): AppDatabase =
             Room.databaseBuilder(context.applicationContext, AppDatabase::class.java, name)

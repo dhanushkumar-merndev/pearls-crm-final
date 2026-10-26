@@ -1,4 +1,4 @@
-import { AudioLines, BedDouble, CalendarDays, House, ListTodo, MessageCircle, Palette, Pill, Plus, ReceiptIndianRupee, Settings, Target, Users, type LucideIcon } from "lucide-react";
+import { AudioLines, BedDouble, Car, CalendarDays, House, ListTodo, MessageCircle, Palette, Pill, Plus, ReceiptIndianRupee, Settings, Target, Users, type LucideIcon } from "lucide-react";
 import type { StaffRole } from "@pearl/shared";
 
 export interface NavItem {
@@ -25,6 +25,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
     badge: "whatsapp",
     badgeLabelKey: "nav.whatsappWithCount",
   },
+  { href: "/bdm", labelKey: "nav.bdm", icon: Car, roles: ["admin"] },
   { href: "/recordings", labelKey: "nav.recordings", icon: AudioLines, roles: ["sales_manager", "admin"] },
   { href: "/appointments", labelKey: "nav.appointments", icon: CalendarDays, roles: ["receptionist", "admin"] },
   { href: "/patients", labelKey: "nav.patients", icon: Users, roles: ["receptionist", "admin"] },

@@ -32,6 +32,7 @@ export const requestSchema = z.discriminatedUnion("action", [
       phone_e164: z.string().regex(/^\+[1-9][0-9]{7,14}$/).nullable().optional(),
       bdm_start_anywhere: z.boolean().optional(),
       recording_upload_override: z.enum(["sync_only", "all_calls"]).nullable().optional(),
+      office_id: z.string().uuid().nullable().optional(),
     }),
     reason: z.string().trim().max(300).optional(),
   }),

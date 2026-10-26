@@ -1,6 +1,6 @@
 # Continue here
 
-Last updated 24/10/2026 (session 7). To resume, say: **"Read continue.md and carry on."**
+Last updated 26/10/2026 (session 8). To resume, say: **"Read continue.md and carry on."**
 
 ## FIRST, on another computer: pull
 Everything is pushed to GitHub (`origin/main`, plus the unmerged WIP branch). Before anything else:
@@ -38,7 +38,8 @@ Read `CLAUDE.md` and `dev-docs/PLAN.md` first (PLAN.md section G lists every dec
 | **11 Android: foundation + sales** | **DONE + deployed (session 7)**: module `:feature:sales` (Leads with swipe Call/WhatsApp + new lead, lead detail, after-call notes sheet, Follow-ups, Calls, booking with free slots, My day with Vico chart + needs-confirmation), `SalesRepository` (offline-first via the outbox), Room v2 + migration test, sales sync entities, push (migration `20261105100000_phase11_push.sql`, function `push-send`, `17_push` 10 tests). Android `./gradlew test assembleDebug lintDebug`: 93 tests pass. CI job `android`. Voice note for lost leads moved to Phase 12 |
 | **10 WhatsApp + drips** | **DONE + deployed (session 6)**: migration `20261103100000_phase10_whatsapp.sql`, functions `wa-webhook` / `wa-dispatch` / `wa-templates-sync`, Vault secrets + `EDGE_CRON_SECRET` via `pnpm supabase:configure`, pages Admin → WhatsApp / Drip campaigns, patient WhatsApp tab, lead WhatsApp card, `15_whatsapp` (31), e2e `whatsapp.db.spec.ts` (5). Owner setup: `dev-docs/SETUP_WHATSAPP.md` |
 | **12 Caller pop-up + recordings** | **DONE + deployed (session 7)**: migration `20261106100000_phase12_recordings.sql` (recordings table, upload mode, Request sync), `18_recordings` (24), web Recordings page + lead card + settings + per-person override, e2e `recordings.db.spec.ts` (2). Android: caller bubble + after-call sheet, call-log import, recordings folder + matcher + compressor + upload worker, setup checklist, lost-lead voice note; Room v3. Owner field checklist in `dev-docs/TRY_ANDROID.md` step 8 |
-| 13–15 | not started |
+| **13 BDM field day** | **DONE + deployed (session 8)**: migration `20261107100000_phase13_bdm.sql` (offices, days, visits, events, breaks, location chunks, live status, trips, watchdog + route-estimate timers), `19_bdm` (41), `20_geo_vectors` (8), function `route-estimate` (OpenRouteService, 7 Deno tests), shared `geo.ts` + `test-vectors/geo.json`, web Admin → Offices, BDM settings, menu → BDM (live map, Locate now, day sheet with playback, Excel report), e2e `bdm.db.spec.ts` (2). Android: `:feature:bdm` (My day, travel / reached / complete visit / break / end day, meeting recording, visit photo, lead from a visit), `BdmRepository` (outbox, entity key `bdm-day:<id>`), route filter + chunk upload, location foreground service, Room v4. Owner steps + field checklist: `dev-docs/TRY_ANDROID.md` steps 9–11 |
+| 14–15 | not started |
 
 ## Session 6 (owner: "all phases, tested, production ready; validation missing; import has no template")
 - DONE `cd14e32` validation on every form (shared rules `packages/shared/src/validation.ts`, hook `web/lib/use-zod-form.ts`, schemas `web/lib/schemas/*`, `packages/shared/src/{patient,lead}.ts`). New forms MUST use `useZodForm(schema)` + `Field error={checks.error(path)}`.
@@ -55,6 +56,13 @@ Read `CLAUDE.md` and `dev-docs/PLAN.md` first (PLAN.md section G lists every dec
 - DONE Phase 12 (see the table). The audio compressor (MediaCodec) can't run in JVM tests: its maths (mono, resample, size plan) is unit-tested; the real codec is on the field checklist.
 - Totals now: DB 624 (18 files), shared 207, web 63, Deno 92, Android 134, e2e recordings 2.
 - NEXT: 13 (BDM), 14 (dashboards, notifications, backup/purge incl. `job_runs`, Excel), 15.
+
+## Session 8
+- DONE Phase 13 (see the table). Timers checked live: `bdm-watchdog` and `route-estimate` run every 5/10 minutes with 200s; the ORS key works (directions 200) and is on the server.
+- Fixed: library picker "Add …" now picks the new item before refreshing the list (pharmacy e2e failed when Post was pressed during the refresh); recordings e2e picks the staff row by the exact username cell.
+- Full e2e on staging needs `--workers=3` (more parallel browsers overload the free project): 53 pass, 2 skipped.
+- Totals now: DB 673 (20 files), shared 222, web 67, Deno 98, Android 158, e2e 53.
+- NEXT: 14 (dashboards, notification rules + daily email, backup/verify/purge incl. `job_runs` > 90 days and location chunks > 30 days, full export, Excel everywhere), 15 (hardening).
 
 ## Login-form validation (from another Claude session) — now committed
 `loginSchema` (zod) in `packages/shared/src/auth.ts`, `login-form.tsx` (field errors, focus first bad field, "forgot password" link removed), `login.spec.ts` + screenshots, login keys in `en.json`. Committed as its own commit but not re-verified after the hand-off: run `pnpm test` and the login e2e once.

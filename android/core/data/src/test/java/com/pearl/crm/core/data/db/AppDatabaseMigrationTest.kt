@@ -32,7 +32,7 @@ class AppDatabaseMigrationTest {
             close()
         }
         // Validates the tables against the schema file …
-        helper.runMigrationsAndValidate(DB, 3, true, *AppDatabase.MIGRATIONS).apply {
+        helper.runMigrationsAndValidate(DB, 4, true, *AppDatabase.MIGRATIONS).apply {
             execSQL(
                 "INSERT INTO leads (id, name, phone_e164, phone_last10, stage, last_activity_at, updated_at, local_only, pending) " +
                     "VALUES ('l1', 'Test Lead', '+919800000001', '9800000001', 'new', 0, '', 0, 0)",
@@ -49,6 +49,7 @@ class AppDatabaseMigrationTest {
             assertEquals("lead_note_add", db.outbox().get("w1")?.rpc)
             assertEquals("Test Lead", db.leads().get("l1")?.name)
             assertEquals(emptyList<String>(), db.crmNumbers().allLast10())
+            assertEquals(0, db.trackPoints().count())
         } finally {
             db.close()
         }

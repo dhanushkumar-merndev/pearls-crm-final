@@ -29,6 +29,7 @@ interface StaffRow {
   active: boolean;
   bdm_start_anywhere: boolean;
   recording_upload_override: "sync_only" | "all_calls" | null;
+  office_id: string | null;
 }
 
 type Dialogs = { kind: "create" } | { kind: "edit" | "password" | "deactivate"; row: StaffRow } | null;
@@ -51,7 +52,7 @@ export function UsersScreen({ myId }: { myId: string }) {
     queryFn: async () => {
       let query = getSupabaseBrowser()
         .from("staff")
-        .select("id, full_name, role, username, email, phone_e164, active, bdm_start_anywhere, recording_upload_override", { count: "exact" });
+        .select("id, full_name, role, username, email, phone_e164, active, bdm_start_anywhere, recording_upload_override, office_id", { count: "exact" });
       if (search) query = query.ilike("full_name", `%${search.replace(/[%_\\]/g, (x) => `\\${x}`)}%`);
       const { data, error, count } = await query.order("active", { ascending: false }).order("full_name").range(offset, offset + LIMIT - 1);
       return { rows: unwrap({ data, error }) as StaffRow[], total: count ?? 0 };
@@ -238,7 +239,14 @@ function EditDialog({ row, isMe, onDone }: { row: StaffRow; isMe: boolean; onDon
     phone: row.phone_e164 ?? "",
     bdm_start_anywhere: row.bdm_start_anywhere,
     recording_upload_override: (row.recording_upload_override ?? "") as "" | "sync_only" | "all_calls",
+    office_id: row.office_id ?? "",
     reason: "",
+  });
+  const offices = useQuery({
+    queryKey: ["offices", "active"],
+    enabled: form.role === "bdm",
+    queryFn: async () =>
+      unwrap(await getSupabaseBrowser().from("offices").select("id, name").eq("active", true).order("name")) as { id: string; name: string }[],
   });
   const checks = useZodForm(editStaffSchema);
   const set = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) => {
@@ -252,6 +260,7 @@ function EditDialog({ row, isMe, onDone }: { row: StaffRow; isMe: boolean; onDon
       phone: string | null;
       bdm_start_anywhere: boolean;
       recording_upload_override: "" | "sync_only" | "all_calls";
+      office_id: string;
       reason: string | null;
     }) =>
       callFunction("admin-users", {
@@ -263,6 +272,7 @@ function EditDialog({ row, isMe, onDone }: { row: StaffRow; isMe: boolean; onDon
           phone_e164: d.phone,
           bdm_start_anywhere: d.bdm_start_anywhere,
           recording_upload_override: d.recording_upload_override || null,
+          ...(d.role === "bdm" ? { office_id: d.office_id || null } : {}),
         },
         reason: d.reason ?? undefined,
       }),
@@ -297,6 +307,20 @@ function EditDialog({ row, isMe, onDone }: { row: StaffRow; isMe: boolean; onDon
         <Field label={t("phone")} error={checks.error("phone")}>
           {(a) => <Input {...a} type="tel" inputMode="tel" maxLength={20} value={form.phone} onChange={(e) => set("phone", e.target.value)} />}
         </Field>
+        {form.role === "bdm" && (
+          <Field label={t("office")} hint={t("officeHint")} error={checks.error("office_id")}>
+            {(a) => (
+              <Select {...a} value={form.office_id} onChange={(e) => set("office_id", e.target.value)}>
+                <option value="">{t("officeNearest")}</option>
+                {(offices.data ?? []).map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.name}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
+        )}
         {form.role === "bdm" && (
           <Checkbox
             label={t("startAnywhere")}

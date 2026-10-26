@@ -103,18 +103,25 @@ class RecordingsRepository(
     }
 
     /** A voice note recorded in the app (e.g. why a lead was lost). Always uploaded. Returns its id. */
-    suspend fun addVoiceNote(leadId: String, file: File, durationS: Int, lostNote: Boolean): String {
+    suspend fun addVoiceNote(leadId: String, file: File, durationS: Int, lostNote: Boolean): String =
+        addRecording("voice_note", leadId, file, durationS, lostNote, entityKey = "lead:$leadId")
+
+    /**
+     * A recording made in the app (voice note, or a BDM's visit). Always uploaded. [entityKey]
+     * orders its registration before the call that refers to it (e.g. the visit's completion).
+     */
+    suspend fun addRecording(kind: String, leadId: String?, file: File, durationS: Int, lostNote: Boolean, entityKey: String): String {
         val row = RecordingEntity(
-            id = newClientId(), kind = "voice_note", uri = file.toURI().toString(), fileName = file.name, sizeBytes = file.length(),
+            id = newClientId(), kind = kind, uri = file.toURI().toString(), fileName = file.name, sizeBytes = file.length(),
             recordedAt = clock() - durationS * 1000L, durationS = durationS, callLogId = null, leadId = leadId, confidence = null,
             needsReview = false, status = RecordingStatus.QUEUED, fileId = null, uploadedS = null, trimmed = false, error = null,
             attempts = 0, lostNote = lostNote, createdAt = clock(),
         )
-        register(row)
+        register(row, entityKey)
         return row.id
     }
 
-    private suspend fun register(row: RecordingEntity): Boolean {
+    private suspend fun register(row: RecordingEntity, entityKey: String? = null): Boolean {
         var added = false
         db.withTransaction {
             if (recordings.insert(row) == -1L) return@withTransaction
@@ -142,7 +149,7 @@ class RecordingsRepository(
                     )
                 },
                 // After the call's own notes, so the server knows the call first.
-                entityKey = row.leadId?.let { "lead:$it" } ?: "recording:${row.id}",
+                entityKey = entityKey ?: row.leadId?.let { "lead:$it" } ?: "recording:${row.id}",
                 clientId = row.id,
             )
         }
@@ -173,13 +180,14 @@ class RecordingsRepository(
             recordings.setStatus(rec.id, RecordingStatus.UPLOADING, null)
             var prepared: File? = null
             try {
-                val plan = UploadPlan.forDuration(rec.durationS, settings.recordingMaxSeconds)
+                // Visits are kept whole (up to the visit limit); calls are cut to the clinic's setting.
+                val plan = UploadPlan.forDuration(rec.durationS, if (rec.kind == "visit") VISIT_MAX_SECONDS else settings.recordingMaxSeconds)
                 val before = audio.sha256(rec.uri)
                 prepared = audio.prepare(rec.uri, plan)
                 if (audio.sha256(rec.uri) != before) throw RpcFailure.Permanent("original_changed")
-                if (prepared.length() > UploadPlan.MAX_BYTES) throw RpcFailure.Permanent("file_too_large")
+                if (prepared.length() > maxBytes(rec.kind)) throw RpcFailure.Permanent("file_too_large")
                 val fileId = uploader.upload(
-                    purpose = if (rec.kind == "voice_note") "voice_note" else "call_recording",
+                    purpose = purposeOf(rec.kind),
                     mime = "audio/mp4",
                     file = prepared,
                     sha256 = sha256(prepared),
@@ -237,6 +245,22 @@ class RecordingsRepository(
 
     companion object {
         const val MAX_ATTEMPTS = 5
+
+        /** A visit recording at 24 kbps fits the server's 8 MB visit limit up to ~45 minutes. */
+        const val VISIT_MAX_SECONDS = 45 * 60
+
+        fun purposeOf(kind: String) = when (kind) {
+            "voice_note" -> "voice_note"
+            "visit" -> "visit_recording"
+            else -> "call_recording"
+        }
+
+        /** The server's size limits (files_begin_upload). */
+        fun maxBytes(kind: String): Long = when (kind) {
+            "voice_note" -> 1L * 1024 * 1024
+            "visit" -> 8L * 1024 * 1024
+            else -> UploadPlan.MAX_BYTES
+        }
         const val SCAN_DAYS = 2L
         private const val DAY_MS = 86_400_000L
 

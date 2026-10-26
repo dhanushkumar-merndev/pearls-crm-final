@@ -43,6 +43,9 @@ import com.pearl.crm.core.data.auth.Session
 import com.pearl.crm.core.model.StaffRole
 import com.pearl.crm.core.ui.components.StatusLabel
 import com.pearl.crm.core.ui.components.StatusTone
+import com.pearl.crm.feature.bdm.BdmDayScreen
+import com.pearl.crm.feature.bdm.BdmLeadsScreen
+import com.pearl.crm.feature.bdm.BdmVisitsScreen
 import com.pearl.crm.feature.sales.AfterCallNotes
 import com.pearl.crm.feature.sales.BookScreen
 import com.pearl.crm.feature.sales.CallSetupScreen
@@ -116,6 +119,9 @@ fun HomeScreen(container: AppContainer, session: Session) {
                     composable(tab.route) {
                         when {
                             tab == HomeTab.MyDay && sales -> SalesMyDayRoute(container, session, openLead)
+                            tab == HomeTab.MyDay && role == StaffRole.Bdm -> BdmDayRoute(container, session)
+                            tab == HomeTab.Visits -> BdmVisitsScreen(container.bdm, session.staffId)
+                            tab == HomeTab.Leads && role == StaffRole.Bdm -> BdmLeadsScreen(container.sales, container.library)
                             tab == HomeTab.MyDay -> MyDayScreen(container, session)
                             tab == HomeTab.Leads && sales -> LeadsScreen(container.sales, container.library, openLead)
                             tab == HomeTab.Followups -> FollowupsScreen(session.staffId, container.sales, container.library, openLead)
@@ -213,6 +219,20 @@ private fun MyDayScreen(container: AppContainer, session: Session) {
         if (status.offline) StatusLabel(stringResource(R.string.home_offline), StatusTone.Offline)
         Text(stringResource(R.string.coming_soon), color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
+}
+
+@Composable
+private fun BdmDayRoute(container: AppContainer, session: Session) {
+    val profile by container.profile.collectAsStateWithLifecycle()
+    BdmDayScreen(
+        name = profile?.fullName?.takeIf { it.isNotBlank() } ?: session.username,
+        bdm = container.bdm,
+        library = container.library,
+        location = container.location,
+        recorder = container.voiceRecorder,
+        photoAuthority = "${BuildConfig.APPLICATION_ID}.files",
+        onTrackingNeeded = { com.pearl.crm.bdm.BdmTrackingService.start(container.appContext) },
+    )
 }
 
 @Composable

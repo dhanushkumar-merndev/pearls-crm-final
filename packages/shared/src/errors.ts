@@ -55,6 +55,13 @@ export const ERROR_CODES = [
   "outside_window",
   "not_configured",
   "whatsapp_api",
+  // Phase 13: BDM
+  "outside_office",
+  "selfie_required",
+  "day_not_started",
+  "day_ended",
+  "visit_open",
+  "break_open",
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

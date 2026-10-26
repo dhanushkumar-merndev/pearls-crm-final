@@ -98,3 +98,55 @@ Tick each box on each model. If something fails, note the model and Android vers
 | Works the next morning (phone idle overnight) | ☐ | ☐ | ☐ |
 
 Phones that use the **Google Phone app** (Pixel, Motorola, many newer Xiaomi/OnePlus/Oppo/Realme) keep recordings inside the dialer where no app can read them. The pop-up and notes still work there; use the voice note for important calls.
+
+# Phase 13: BDM field day (office start, route, visits)
+
+Rebuild and reinstall the app (steps 2–3 above). You need one staff login with the role **BDM**.
+
+## 9. One-time setup on the web (about 5 minutes, as admin)
+1. **Admin → Offices → Add**: type the office name, then its location. To get the location: open Google Maps, long-press the office building, and copy the two numbers shown at the top (for example `12.97160, 77.59460`): the first is **Latitude**, the second **Longitude**. Leave **Circle (metres)** at 200 unless the building is large.
+2. **Admin → Users → Edit** the BDM: pick their **Office**. Tick **May start the day away from the office** only for people who start from home or a site.
+3. **Admin → Settings → BDM** (the defaults are fine to begin with):
+   - Selfie needed to start the day (on)
+   - Late start after 10:30 AM, the day ends itself at 9:00 PM
+   - "No signal from the phone" alert after 15 minutes
+   - "Long route" when the km driven is more than 1.5 × the expected km
+
+## 10. Things to try (on the BDM's phone)
+| Try this | What should happen |
+|---|---|
+| Log in as the BDM | The home tab is **My day**, with **Start your day** and **Allow location** |
+| Tap **Allow location**, choose **While using the app**, then (Android asks again) **Allow all the time** | The start button appears |
+| At the office: **Take selfie and start** | "Day started at the office." A notification "Your day is being recorded" stays while the day is on |
+| Try the same away from the office | "You're not at the office yet…" (unless the admin allowed starting anywhere) |
+| **Start travel** → type a hospital name → **Start**, then drive there | The card shows "Going to …". Km driven goes up during the day |
+| **Reached** → **Take photo** → **Mark reached** | The card shows "At …" with **Record the meeting** and **Complete visit** |
+| **Record the meeting** (tell the person first), **Stop** | "Meeting recording 0:42 ✓" |
+| **Complete visit**: what happened, the person met, tick **Add a lead from this visit** | Saved. The lead appears in **Leads** and on the web in the sales manager's pool |
+| Switch on airplane mode, do Start travel / Reached / Complete visit | Each says "Saved. It will be sent when there is signal." Switch airplane mode off: everything reaches the web within a minute |
+| **Take a break** → Lunch, 30 minutes → **End break** | Break used goes up. Going over the allowed minutes shows on the admin's day sheet |
+| **End day** | The notification goes away and the day can't be changed after this |
+| Web (admin): menu → **BDM** | A live map with each BDM as a dot: green = all well, amber = GPS switched off, red = no signal from the phone for 15 minutes, grey = day not started or ended. Beside it: state, battery, GPS off, "started away" |
+| **Locate now** on a BDM | Their phone sends its position within a minute (needs push, step 1, and signal) |
+| **Day sheet** | The day's route on the map with **Play**, every event in order, the visits with photo and meeting recording, the breaks and the km (driven and expected) |
+| **Download Excel** in "Report" | One row per BDM per day: start, end, office, visits, leads, km, breaks, flags |
+| Restart the phone in the middle of a day | A notification "Tap to keep recording your day". Tap it: recording continues |
+| Leave the day open past 9:00 PM | The day ends itself and is marked "ended automatically" |
+
+## 11. Field checklist for route recording (once on every phone model)
+Tick each box. Phone makers stop apps in the background in different ways; this finds problems before the team relies on it.
+
+| Check | Model 1: ______ | Model 2: ______ | Model 3: ______ |
+|---|---|---|---|
+| Day starts at the office (selfie, inside the office circle) | ☐ | ☐ | ☐ |
+| "Your day is being recorded" stays while the screen is off for an hour | ☐ | ☐ | ☐ |
+| A 20-minute drive shows as a smooth line on the day sheet (no zig-zags) | ☐ | ☐ | ☐ |
+| **Scripted drive**: a known route (for example office → a hospital 8 km away by Google Maps). Km driven on the day sheet is within ±5% of Google's distance | ☐ | ☐ | ☐ |
+| Standing still for 30 minutes adds almost no km | ☐ | ☐ | ☐ |
+| The admin's map shows the BDM moving (refreshes within 5 minutes) | ☐ | ☐ | ☐ |
+| Airplane mode for 30 minutes while driving, then off: the route fills in | ☐ | ☐ | ☐ |
+| Phone restarted mid-day: the "tap to keep recording" notification appears | ☐ | ☐ | ☐ |
+| Battery used by the app over a full day (Settings → Battery) is under 10% | ☐ | ☐ | ☐ |
+| Location switched off mid-day: the admin sees "GPS off" | ☐ | ☐ | ☐ |
+
+If recording stops when the screen is off, open **Settings → Set up calls and recordings → Keep the app running** and follow the steps for that brand (the same setting keeps the route going).

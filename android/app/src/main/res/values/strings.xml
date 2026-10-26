@@ -61,6 +61,13 @@
     <string name="calls_channel">After-call notes</string>
     <string name="calls_notes_title">Add notes for your call</string>
 
+    <!-- BDM route recording -->
+    <string name="tracking_channel">Day recording</string>
+    <string name="tracking_title">Your day is being recorded</string>
+    <string name="tracking_body">Your route is saved for the day sheet. It stops when you end the day.</string>
+    <string name="tracking_resume_title">Tap to keep recording your day</string>
+    <string name="tracking_resume_body">The phone restarted. Open the app so your route keeps being recorded.</string>
+
     <!-- Reception / admin on the phone -->
     <string name="use_web_title">Please use the web app</string>
     <string name="use_web_body">Your work (%1$s) happens in the web app on the clinic computer. This phone app is for sales and field staff.</string>

@@ -35,6 +35,8 @@ select is(
   'clinic_settings:UPDATE, doctor_leaves:DELETE, doctor_leaves:INSERT, doctor_leaves:UPDATE, '
   'doctor_schedules:DELETE, doctor_schedules:INSERT, doctor_schedules:UPDATE, doctors:INSERT, doctors:UPDATE, '
   'holidays:DELETE, holidays:INSERT, holidays:UPDATE, lookup_values:INSERT, lookup_values:UPDATE, '
+  -- Phase 13: offices (the BDM geofence; admin only, see 19_bdm).
+  'offices:INSERT, offices:UPDATE, '
   'pharmacy_items:INSERT, pharmacy_items:UPDATE, room_types:INSERT, room_types:UPDATE, services:INSERT, '
   'services:UPDATE, '
   -- Phase 6: suppliers (reception + admin).

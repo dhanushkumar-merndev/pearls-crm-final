@@ -53,6 +53,18 @@ export const SETTINGS_SCHEMAS = {
       )
       .default({}),
   }),
+  /** BDM field app (Phase 13). Times are IST. */
+  bdm: z.object({
+    require_selfie: z.boolean().default(true),
+    heartbeat_minutes: int(1, 30).default(5),
+    upload_minutes: int(1, 60).default(5),
+    no_heartbeat_alert_minutes: int(5, 180).default(15),
+    break_grace_minutes: int(0, 60).default(5),
+    late_start_time: hhmm.default("10:30"),
+    auto_end_time: hhmm.default("21:00"),
+    /** Actual km more than this × the estimate flags the visit ("long route"). */
+    long_route_factor: num().min(1, { error: "min" }).max(5, { error: "max" }).default(1.5),
+  }),
   /** WhatsApp Cloud API (Phase 10). Automatic messages wait for `enabled` and approved templates. */
   whatsapp: z.object({
     enabled: z.boolean().default(false),

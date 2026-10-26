@@ -116,8 +116,9 @@ export function LibraryCombobox({
         p_payload: { label: q.trim(), ...createDefaults },
         p_client_id: newId(),
       });
-      await queryClient.invalidateQueries({ queryKey: ["library", kind] });
+      // Pick it at once; the list refreshes behind (a save pressed meanwhile must see the item).
       onChange(item);
+      void queryClient.invalidateQueries({ queryKey: ["library", kind] });
       setOpen(false);
       setQ("");
     } catch (e) {

@@ -81,6 +81,7 @@ dependencies {
     implementation(project(":core:ui"))
     implementation(project(":feature:settings"))
     implementation(project(":feature:sales"))
+    implementation(project(":feature:bdm"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)

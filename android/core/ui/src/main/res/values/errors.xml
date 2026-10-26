@@ -49,5 +49,11 @@
     <string name="error_outside_window">They haven\'t written in the last 24 hours, so WhatsApp only allows an approved template. Choose a template, or open WhatsApp on your phone.</string>
     <string name="error_not_configured">This connection isn\'t set up yet. The setup guide in dev-docs explains the keys to add.</string>
     <string name="error_whatsapp_api">WhatsApp (Meta) refused the request. Check the WhatsApp keys, then try again.</string>
+    <string name="error_outside_office">You\'re not at the office yet. Start the day when you reach the office (or ask the admin to allow starting anywhere).</string>
+    <string name="error_selfie_required">Take a selfie to start the day.</string>
+    <string name="error_day_not_started">Start your day first.</string>
+    <string name="error_day_ended">Your day has already ended.</string>
+    <string name="error_visit_open">Finish the visit you started first (mark it reached and complete).</string>
+    <string name="error_break_open">End your break first.</string>
     <string name="error_unknown">Something went wrong. Please try again.</string>
 </resources>

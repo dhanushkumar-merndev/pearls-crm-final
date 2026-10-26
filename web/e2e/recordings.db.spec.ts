@@ -62,7 +62,8 @@ test.describe("admin", () => {
     // The manager's own row (username "manager"): the override is offered for sales roles.
     await open(page, "/admin/users");
     await page.getByLabel("Search staff by name").fill("");
-    const row = page.getByRole("row").filter({ hasText: "manager" }).first();
+    // Exactly the username cell: "manager" also appears in every sales manager's role column.
+    const row = page.getByRole("row").filter({ has: page.getByRole("cell", { name: "manager", exact: true }) });
     await row.getByRole("button", { name: "Edit" }).click();
     const dialog = page.getByRole("dialog");
     await expect(dialog.getByLabel("Call recordings")).toBeVisible();

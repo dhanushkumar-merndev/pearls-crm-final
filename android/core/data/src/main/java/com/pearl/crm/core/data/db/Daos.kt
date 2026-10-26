@@ -96,6 +96,10 @@ abstract class OutboxDao {
     @Query("SELECT COUNT(*) FROM outbox WHERE state = 'pending'")
     abstract suspend fun pendingCount(): Int
 
+    /** Writes still waiting (or failed) for one entity. */
+    @Query("SELECT COUNT(*) FROM outbox WHERE entity_key = :key")
+    abstract suspend fun countForEntity(key: String): Int
+
     /** What the person would lose by signing out now (crash reports don't count). */
     @Query("SELECT COUNT(*) FROM outbox WHERE kind = 'user'")
     abstract fun observeUnsentCount(): Flow<Int>

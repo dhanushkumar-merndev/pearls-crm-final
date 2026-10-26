@@ -30,7 +30,8 @@
     "leadsWithCount": "{label} ({n, plural, one {# lead waiting for an owner} other {# leads waiting for an owner}})",
     "whatsapp": "WhatsApp",
     "whatsappWithCount": "{label} ({n, plural, one {# conversation with new replies} other {# conversations with new replies}})",
-    "recordings": "Recordings"
+    "recordings": "Recordings",
+    "bdm": "BDM"
   },
   "actions": {
     "newPatient": "New patient",
@@ -193,7 +194,13 @@
     "opted_out": "This person asked not to get WhatsApp messages (they wrote STOP). They can write START to get them again.",
     "outside_window": "They haven't written in the last 24 hours, so WhatsApp only allows an approved template. Choose a template, or open WhatsApp on your phone.",
     "not_configured": "This connection isn't set up yet. The setup guide in dev-docs explains the keys to add.",
-    "whatsapp_api": "WhatsApp (Meta) refused the request. Check the WhatsApp keys, then try again."
+    "whatsapp_api": "WhatsApp (Meta) refused the request. Check the WhatsApp keys, then try again.",
+    "outside_office": "You're not at the office yet. Start the day when you reach the office (or ask the admin to allow starting anywhere).",
+    "selfie_required": "Take a selfie to start the day.",
+    "day_not_started": "Start your day first.",
+    "day_ended": "Your day has already ended.",
+    "visit_open": "Finish the visit you started first (mark it reached and complete).",
+    "break_open": "End your break first."
   },
   "common": {
     "saved": "Saved ✓",
@@ -393,8 +400,19 @@
         "title": "Holidays",
         "description": "Days the clinic is closed. Booking is blocked on these days.",
         "add": "Add holiday"
+      },
+      "offices": {
+        "title": "Offices",
+        "description": "Where BDMs start their day. The app checks they are within the circle around the office.",
+        "add": "Add office"
       }
-    }
+    },
+    "officeName": "Office name",
+    "lat": "Latitude",
+    "lng": "Longitude",
+    "latHint": "In Google Maps, long-press the office: the two numbers shown are latitude, longitude.",
+    "radius": "Circle (metres)",
+    "radiusHint": "How far from this point still counts as \"at the office\" (25–5000 m)."
   },
   "doctorHours": {
     "title": "Hours and leave — {name}",
@@ -476,7 +494,10 @@
     "deactivateWho": "Deactivate {name}?",
     "deactivateHint": "They are logged out everywhere and can't log in. Their records stay. You can turn the login back on later.",
     "reasonNeeded": "Please give a reason (at least 3 letters).",
-    "usernameTaken": "That username is already taken. Please choose another."
+    "usernameTaken": "That username is already taken. Please choose another.",
+    "office": "Office",
+    "officeHint": "Where this BDM starts the day (Admin → Offices).",
+    "officeNearest": "The nearest office"
   },
   "account": {
     "title": "Change my password",
@@ -614,6 +635,18 @@
       "paddingHint": "4 makes 7 print as 0007. 0 = no padding.",
       "looksLike": "The next one will look like:",
       "formatNeedsN": "The format must contain '{n}' (where the number goes)."
+    },
+    "bdm": {
+      "title": "BDM field work",
+      "description": "Day start, tracking and alerts for business development managers. Times are IST.",
+      "require_selfie": "A selfie is needed to start the day",
+      "heartbeat_minutes": "Phone checks in every … minutes",
+      "upload_minutes": "Route is uploaded every … minutes",
+      "no_heartbeat_alert_minutes": "Alert when a phone is silent for … minutes",
+      "break_grace_minutes": "Extra minutes before a long break is reported",
+      "late_start_time": "Alert if the day hasn't started by",
+      "auto_end_time": "Days still open are ended at",
+      "long_route_factor": "Flag a visit when km driven is more than … × the estimate"
     }
   },
   "review": {
@@ -760,6 +793,10 @@
     "drips": {
       "title": "Drip campaigns",
       "body": "Messages sent on a schedule after a lead comes in, a consultation, a treatment or a discharge."
+    },
+    "offices": {
+      "title": "Offices",
+      "body": "Where BDMs start their day (the geofence)."
     }
   },
   "patientForm": {
@@ -2820,5 +2857,144 @@
     "filterStatus": "Status",
     "filterKind": "Type",
     "any": "Any"
+  },
+  "bdm": {
+    "title": "BDM field work",
+    "description": "Where each business development manager is right now, their day sheets and the monthly report. Updates live.",
+    "mapLabel": "Map of BDMs",
+    "people": "BDMs",
+    "loading": "Loading…",
+    "nobody": "No active BDM logins.",
+    "state": {
+      "off_duty": "Off duty",
+      "in_office": "At the office",
+      "travelling": "Travelling",
+      "at_visit": "At a visit",
+      "on_break": "On a break"
+    },
+    "dayEnded": "Day ended",
+    "notStarted": "Not started today",
+    "seenNow": "Seen just now",
+    "seenAgo": "Seen {n} min ago",
+    "charging": "(charging)",
+    "gpsOff": "Location off",
+    "startedAway": "Started away from the office",
+    "flag": {
+      "started_away": "Started away from the office",
+      "mock_location": "Fake location app used",
+      "late_start": "Started late",
+      "no_heartbeat": "Phone went silent",
+      "gps_off": "Location was switched off",
+      "permission_lost": "Location permission removed",
+      "auto_ended": "Day ended automatically"
+    },
+    "daySheet": "Day sheet",
+    "locateNow": "Locate now",
+    "locateAsked": "Asked. The phone sends its location at once if it is on.",
+    "mapFailed": "The map couldn't load. The lists below show the same information.",
+    "playbackPosition": "Playback position",
+    "report": {
+      "title": "Report for Excel",
+      "description": "One row per BDM per day: start and end, office check, visits, leads, km driven and expected, breaks and flags.",
+      "from": "From",
+      "to": "To",
+      "download": "Download Excel",
+      "preparing": "Preparing…",
+      "done": "{n, plural, one {# row} other {# rows}} downloaded.",
+      "date": "Date",
+      "name": "BDM",
+      "start": "Started",
+      "end": "Ended",
+      "inOffice": "At office at start",
+      "office": "Office",
+      "visits": "Visits",
+      "leads": "Leads",
+      "kmActual": "Km driven (visits)",
+      "kmEstimated": "Km expected",
+      "kmTotal": "Km whole day",
+      "breakMinutes": "Break minutes",
+      "breakAllowed": "Break allowed",
+      "travelMinutes": "Travel minutes",
+      "meetingMinutes": "Meeting minutes",
+      "flags": "Flags",
+      "autoEnded": "ended automatically",
+      "yes": "Yes",
+      "no": "No"
+    },
+    "back": "All BDMs",
+    "sheetTitle": "{name} — day sheet",
+    "sheetDescription": "Km driven against the route estimate, the route, visits, breaks and alerts.",
+    "previousDay": "Previous day",
+    "nextDay": "Next day",
+    "date": "Date",
+    "noDay": "No day was started on this date.",
+    "summary": "Day summary",
+    "kmDriven": "Km driven to visits",
+    "kmTotalDay": "{km} the whole day",
+    "kmExpected": "Km expected",
+    "estimatesPending": "{n, plural, one {# estimate pending} other {# estimates pending}}",
+    "visits": "Visits",
+    "leads": "Leads",
+    "breakUsed": "Break used",
+    "minutesOf": "{used} of {allowed} min",
+    "timeSplit": "Time: travel {travel} min · meetings {meeting} min · break {brk} min · office {office} min",
+    "startedAt": "Started {time}",
+    "startedInOffice": "At the office {office}",
+    "startedAwayFrom": "{m} m from the office",
+    "endedAt": "Ended {time}",
+    "stillOpen": "Day still open",
+    "showSelfie": "Show selfie",
+    "selfieAlt": "Selfie taken at day start",
+    "route": "Route",
+    "routeMapLabel": "Map of the day's route",
+    "playRoute": "Play route",
+    "pause": "Pause",
+    "noRoute": "No route recorded for this day.",
+    "timeline": "What happened",
+    "event": {
+      "start_day": "Day started",
+      "office": "At the office",
+      "travel_start": "Travel started",
+      "reached": "Reached",
+      "visit_complete": "Visit completed",
+      "break_start": "Break started",
+      "break_end": "Break ended",
+      "end_day": "Day ended",
+      "gps_off": "Location switched off",
+      "gps_on": "Location back on",
+      "permission_lost": "Location permission removed",
+      "battery_saver": "Battery saver on",
+      "mock_location": "Fake location detected",
+      "no_heartbeat": "Phone went silent",
+      "auto_end": "Day ended automatically"
+    },
+    "visitsTitle": "Visits",
+    "noVisits": "No visits.",
+    "longRoute": "Longer route than expected",
+    "notCompleted": "Not completed",
+    "visitTimes": "Left {start} · reached {reached} · done {done}",
+    "kmVs": "{actual} driven · {est} expected ({minutes} min)",
+    "kmPending": "{actual} driven · estimate pending",
+    "kmNoEstimate": "{actual} driven · no estimate (route service unavailable)",
+    "gapNoSignal": "No signal {from}–{to}",
+    "gapGpsOff": "Location off {from}–{to}",
+    "interest": "Interest: {level}",
+    "interestLevel": {
+      "hot": "Hot",
+      "warm": "Warm",
+      "cold": "Cold",
+      "none": "None"
+    },
+    "leadMade": "Lead: {name}",
+    "showPhoto": "Show photo",
+    "photoAlt": "Photo at {place}",
+    "playMeeting": "Play meeting",
+    "meetingPlayer": "Meeting recording",
+    "breaks": "Breaks",
+    "break": "Break",
+    "planned": "planned {n} min",
+    "overrun": "Longer than planned",
+    "dayStart": "Day start",
+    "dayEnd": "Day end"
   }
 }

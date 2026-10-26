@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="bdm_hello">Hello, %1$s</string>
+    <string name="bdm_state_off_duty">Not started</string>
+    <string name="bdm_state_in_office">At the office</string>
+    <string name="bdm_state_travelling">Travelling</string>
+    <string name="bdm_state_at_visit">At a visit</string>
+    <string name="bdm_state_on_break">On a break</string>
+    <string name="bdm_day_ended">Your day has ended. See you tomorrow.</string>
+
+    <!-- Start -->
+    <string name="bdm_start_title">Start your day</string>
+    <string name="bdm_start_body">At the office: take a selfie, then the app checks you are at the office and starts recording your route.</string>
+    <string name="bdm_start">Take selfie and start</string>
+    <string name="bdm_start_no_selfie">Start (no selfie needed)</string>
+    <string name="bdm_location_needed">Allow location so the app can record your route. Without it the day can\'t start.</string>
+    <string name="bdm_allow_location">Allow location</string>
+    <string name="bdm_no_fix">Can\'t get your location. Switch location on and step near a window, then try again.</string>
+    <string name="bdm_started_in_office">Day started at the office.</string>
+    <string name="bdm_started_away">Day started away from the office (allowed for you). The admin can see this.</string>
+    <string name="bdm_recording_route">Your route is being recorded.</string>
+    <string name="bdm_needs_internet">Starting the day needs the internet. Everything after that works without signal.</string>
+
+    <!-- Actions -->
+    <string name="bdm_travel">Start travel</string>
+    <string name="bdm_office">I\'m at the office</string>
+    <string name="bdm_reached">Reached</string>
+    <string name="bdm_complete">Complete visit</string>
+    <string name="bdm_break">Take a break</string>
+    <string name="bdm_end_break">End break</string>
+    <string name="bdm_end_day">End day</string>
+    <string name="bdm_going_to">Going to %1$s</string>
+    <string name="bdm_at">At %1$s</string>
+    <string name="bdm_saved">Saved. It will be sent when there is signal.</string>
+
+    <!-- Travel dialog -->
+    <string name="bdm_travel_title">Where are you going?</string>
+    <string name="bdm_destination">Place (hospital, clinic, company…)</string>
+    <string name="bdm_destination_required">Type where you are going.</string>
+    <string name="bdm_purpose">Purpose (optional)</string>
+    <string name="bdm_go">Start</string>
+    <string name="bdm_cancel">Cancel</string>
+
+    <!-- Reached -->
+    <string name="bdm_reached_title">You have reached %1$s</string>
+    <string name="bdm_reached_body">Take a photo at the place as proof of the visit (optional).</string>
+    <string name="bdm_take_photo">Take photo</string>
+    <string name="bdm_photo_ready">Photo ready ✓</string>
+    <string name="bdm_confirm_reached">Mark reached</string>
+
+    <!-- Meeting audio -->
+    <string name="bdm_record_meeting">Record the meeting</string>
+    <string name="bdm_consent">Tell the person you are recording the meeting before you start.</string>
+    <string name="bdm_recording">Recording… %1$d:%2$02d</string>
+    <string name="bdm_stop_recording">Stop</string>
+    <string name="bdm_meeting_ready">Meeting recording %1$d:%2$02d ✓</string>
+
+    <!-- Complete -->
+    <string name="bdm_complete_title">How did the visit go?</string>
+    <string name="bdm_outcome">What happened</string>
+    <string name="bdm_outcome_required">Write what happened at the visit.</string>
+    <string name="bdm_contact_name">Person you met (optional)</string>
+    <string name="bdm_contact_phone">Their phone (optional)</string>
+    <string name="bdm_contact_designation">Their role (optional)</string>
+    <string name="bdm_phone_invalid">Type a valid phone number, like 98450 12345.</string>
+    <string name="bdm_interest">Interest</string>
+    <string name="bdm_interest_hot">Hot</string>
+    <string name="bdm_interest_warm">Warm</string>
+    <string name="bdm_interest_cold">Cold</string>
+    <string name="bdm_interest_none">None</string>
+    <string name="bdm_create_lead">Add a lead from this visit</string>
+    <string name="bdm_lead_name">Lead name</string>
+    <string name="bdm_lead_phone">Lead phone</string>
+    <string name="bdm_lead_treatment">Treatment (optional)</string>
+    <string name="bdm_lead_name_required">Type the lead\'s name.</string>
+    <string name="bdm_save_visit">Save visit</string>
+
+    <!-- Break -->
+    <string name="bdm_break_title">Break</string>
+    <string name="bdm_break_type">Type</string>
+    <string name="bdm_break_minutes">Minutes</string>
+    <string name="bdm_break_minutes_invalid">Between 5 and 180 minutes.</string>
+    <string name="bdm_start_break">Start break</string>
+
+    <!-- End day -->
+    <string name="bdm_end_title">End your day?</string>
+    <string name="bdm_end_body">Route recording stops. You can\'t add visits after this today.</string>
+    <string name="bdm_end_confirm">End day</string>
+
+    <!-- Tiles -->
+    <string name="bdm_tiles_visits">Visits</string>
+    <string name="bdm_tiles_km">Km driven</string>
+    <string name="bdm_tiles_km_est">Km expected</string>
+    <string name="bdm_tiles_leads">Leads</string>
+    <string name="bdm_tiles_break">Break used</string>
+    <string name="bdm_tiles_minutes">%1$d of %2$d min</string>
+    <string name="bdm_month">This month: %1$d visits · %2$d leads · %3$d converted · %4$s km</string>
+    <string name="bdm_time_split">Time: travel %1$d min · meetings %2$d min · break %3$d min · office %4$d min</string>
+    <string name="bdm_numbers_offline">Numbers need the internet. Your actions still work.</string>
+    <string name="bdm_refresh">Refresh</string>
+
+    <!-- Visits tab -->
+    <string name="bdm_visits_title">Today\'s visits</string>
+    <string name="bdm_visits_empty">No visits yet today.</string>
+    <string name="bdm_visit_km">%1$s km driven · %2$s km expected</string>
+    <string name="bdm_visit_km_pending">%1$s km driven · estimate pending</string>
+    <string name="bdm_visit_long">Longer route than expected</string>
+    <string name="bdm_visit_done">Done</string>
+    <string name="bdm_visit_open">In progress</string>
+
+    <!-- Leads tab -->
+    <string name="bdm_leads_title">My leads</string>
+    <string name="bdm_leads_empty">No leads yet. Add one after a visit, or here.</string>
+    <string name="bdm_new_lead">New lead</string>
+</resources>

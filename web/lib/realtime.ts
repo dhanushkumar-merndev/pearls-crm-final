@@ -64,3 +64,25 @@ export function useLiveWhatsApp(phone: string | null | undefined, queryKeys: unk
     };
   }, [phone, keys, queryClient, enabled, id]);
 }
+
+/** The admin's live BDM map: every heartbeat or state change reloads the given queries. */
+export function useLiveBdm(queryKeys: unknown[][]) {
+  const queryClient = useQueryClient();
+  const keys = JSON.stringify(queryKeys);
+  const id = useId();
+  useEffect(() => {
+    const supabase = getSupabaseBrowser();
+    const refresh = () => {
+      for (const key of JSON.parse(keys) as unknown[][]) void queryClient.invalidateQueries({ queryKey: key });
+    };
+    const channel = supabase
+      .channel(`bdm_live:${id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "bdm_live_status" }, refresh)
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") refresh();
+      });
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [keys, queryClient, id]);
+}

@@ -8,6 +8,8 @@ import androidx.core.content.ContextCompat
 import androidx.room.withTransaction
 import com.pearl.crm.calls.AfterCallRequest
 import com.pearl.crm.core.data.AccountRepository
+import com.pearl.crm.core.data.BdmRepository
+import com.pearl.crm.core.data.device.DeviceLocation
 import com.pearl.crm.core.data.CallLogImporter
 import com.pearl.crm.core.data.RecordingsRepository
 import com.pearl.crm.core.data.audio.AacTranscoder
@@ -84,6 +86,10 @@ class AppContainer(private val context: Context) {
         rpc, db, outbox, SignedUploader(edge, http), AacTranscoder(context, File(context.cacheDir, "recordings")), settings,
     )
     val voiceRecorder = VoiceRecorder(context, File(context.filesDir, "voice-notes"))
+    val location = DeviceLocation(context)
+    val bdm = BdmRepository(
+        rpc, db, outbox, SignedUploader(edge, http), recordings, context.getSharedPreferences("pearl.bdm", Context.MODE_PRIVATE),
+    )
 
     /** A finished CRM call waiting for its notes (set by the caller flow, shown by the home screen). */
     val pendingAfterCall = MutableStateFlow<AfterCallRequest?>(null)
@@ -134,6 +140,7 @@ class AppContainer(private val context: Context) {
             if (owner != null && owner != staffId) {
                 db.clearAllTables()
                 settings.callLogImportedUntil = 0
+                bdm.clear()
             }
             settings.databaseOwner = staffId
         }
@@ -145,12 +152,17 @@ class AppContainer(private val context: Context) {
         } catch (_: RpcFailure) {
             // Offline: the role from the login token is used until the next start.
         }
+        if (sessions.session.value?.staffRole == StaffRole.Bdm) {
+            // Today's day as the server knows it (e.g. after a reinstall or the auto-end).
+            runCatching { bdm.refreshFromServer() }
+        }
         Push.registerToken(context) { token -> scope.launch { account.registerPushToken(token, appVersion) } }
     }
 
     private fun onSignedOut() {
         scheduler.stopAll()
         RecordingWorker.cancel(context)
+        com.pearl.crm.bdm.BdmTrackingService.stop(context)
         _profile.value = null
         // A new login always sets a new PIN.
         pins.clear()
@@ -164,6 +176,16 @@ class AppContainer(private val context: Context) {
      */
     suspend fun runRecordings(): Boolean {
         val role = sessions.session.value?.staffRole ?: return false
+        if (role == StaffRole.Bdm) {
+            // Punch photos taken without signal, then visit recordings.
+            try {
+                bdm.uploadPendingPhotos()
+            } catch (_: RpcFailure.Transient) {
+                return true
+            } catch (_: RpcFailure) {
+            }
+            return recordings.uploadQueued().offline
+        }
         if (role != StaffRole.SalesExecutive && role != StaffRole.SalesManager) return false
         if (granted(Manifest.permission.READ_CALL_LOG)) runCatching { callLogImporter.import() }
         settings.recordingFolder?.let { folder ->
@@ -193,6 +215,7 @@ class AppContainer(private val context: Context) {
         scheduler.stopAll()
         sessions.signOut(SignOutReason.UserChoice)
         withContext(Dispatchers.IO) { db.clearAllTables() }
+        bdm.clear()
         settings.databaseOwner = null
     }
 }

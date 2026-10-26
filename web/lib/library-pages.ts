@@ -1,7 +1,7 @@
 // Plain module (no "use client"): server pages import these to validate the URL.
 // A constant exported from a client module reaches a server component as a reference,
 // not as the array, so it must live here.
-export const LIBRARY_PAGES = ["services", "treatments", "rooms", "medicines", "lists", "doctors", "holidays"] as const;
+export const LIBRARY_PAGES = ["services", "treatments", "rooms", "medicines", "lists", "doctors", "holidays", "offices"] as const;
 export type LibraryPage = (typeof LIBRARY_PAGES)[number];
 
 export const LOOKUP_KINDS = [

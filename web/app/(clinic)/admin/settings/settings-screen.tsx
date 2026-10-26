@@ -17,7 +17,7 @@ import { numberSeriesSchema } from "@/lib/schemas/admin";
 import { useFeedback } from "@/lib/use-feedback";
 import { useZodForm } from "@/lib/use-zod-form";
 
-type FieldKind = "int" | "bool" | "time" | "weekdays" | "percent_bp" | "int_list" | { options: string[] };
+type FieldKind = "int" | "decimal" | "bool" | "time" | "weekdays" | "percent_bp" | "int_list" | { options: string[] };
 const SECTIONS: { section: SettingsSection; fields: Record<string, FieldKind> }[] = [
   {
     section: "appointments",
@@ -51,6 +51,19 @@ const SECTIONS: { section: SettingsSection; fields: Record<string, FieldKind> }[
       reception_can_play_recordings: "bool",
       recording_upload_mode: { options: ["sync_only", "all_calls"] },
       recording_max_minutes: "int",
+    },
+  },
+  {
+    section: "bdm",
+    fields: {
+      require_selfie: "bool",
+      heartbeat_minutes: "int",
+      upload_minutes: "int",
+      no_heartbeat_alert_minutes: "int",
+      break_grace_minutes: "int",
+      late_start_time: "time",
+      auto_end_time: "time",
+      long_route_factor: "decimal",
     },
   },
   { section: "notifications", fields: { daily_summary_enabled: "bool", daily_summary_time: "time" } },
@@ -190,6 +203,15 @@ function SectionForm({
                       step={0.5}
                       value={Number.isNaN(Number(form[key])) ? "" : Number(form[key] ?? 0) / 100}
                       onChange={(e) => set(key, Math.round(toNumber(e.target.value) * 100))}
+                    />
+                  ) : kind === "decimal" ? (
+                    <Input
+                      {...a}
+                      type="number"
+                      inputMode="decimal"
+                      step={0.1}
+                      value={Number.isNaN(form[key]) ? "" : String(form[key] ?? "")}
+                      onChange={(e) => set(key, toNumber(e.target.value))}
                     />
                   ) : (
                     <Input

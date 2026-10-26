@@ -194,5 +194,6 @@ class BootReceiver : BroadcastReceiver() {
         container.scheduler.startPeriodic()
         container.scheduler.syncSoon()
         RecordingWorker.schedule(context)
+        if (container.bdm.day.value.open) com.pearl.crm.bdm.BdmTrackingService.askToResume(context)
     }
 }

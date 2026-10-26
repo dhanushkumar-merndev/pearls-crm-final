@@ -17,7 +17,19 @@ class PearlMessagingService : FirebaseMessagingService() {
         val title = message.notification?.title ?: message.data["title"] ?: return
         val body = message.notification?.body ?: message.data["body"].orEmpty()
         Push.show(this, message.messageId?.hashCode() ?: title.hashCode(), title, body)
+        val container = (application as PearlApplication).container
         // The message may mean "something changed for you": pull it now.
-        (application as PearlApplication).container.scheduler.syncSoon()
+        container.scheduler.syncSoon()
+        if (message.data["type"] == "locate_now") {
+            // The admin asked where the BDM is: answer with a fresh location.
+            container.scope.launch {
+                val fix = container.location.current()
+                runCatching {
+                    container.bdm.heartbeat(
+                        com.pearl.crm.core.data.PhoneStatus(fix, null, null, container.location.enabled(), null, container.appVersion),
+                    )
+                }
+            }
+        }
     }
 }

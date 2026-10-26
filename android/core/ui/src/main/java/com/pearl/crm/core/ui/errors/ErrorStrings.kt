@@ -53,5 +53,11 @@ internal val ERROR_STRINGS: Map<String, Int> = mapOf(
     "outside_window" to R.string.error_outside_window,
     "not_configured" to R.string.error_not_configured,
     "whatsapp_api" to R.string.error_whatsapp_api,
+    "outside_office" to R.string.error_outside_office,
+    "selfie_required" to R.string.error_selfie_required,
+    "day_not_started" to R.string.error_day_not_started,
+    "day_ended" to R.string.error_day_ended,
+    "visit_open" to R.string.error_visit_open,
+    "break_open" to R.string.error_break_open,
     "unknown" to R.string.error_unknown,
 )

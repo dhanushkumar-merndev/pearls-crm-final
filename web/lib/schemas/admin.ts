@@ -76,6 +76,8 @@ export const editStaffSchema = z.object({
   bdm_start_anywhere: z.boolean(),
   /** "" = follow the clinic setting (Settings → Sales). */
   recording_upload_override: z.enum(["", "sync_only", "all_calls"]),
+  /** "" = no office (the nearest one is used). */
+  office_id: z.string(),
   reason: optionalText(300),
 });
 

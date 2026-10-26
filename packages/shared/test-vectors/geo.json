@@ -1,0 +1,162 @@
+{
+  "$comment": "Golden vectors for geo maths (metres, mean Earth radius 6371000 m; Google polyline, precision 5). Used by Vitest (packages/shared), pgTAP (geofence and distance in SQL) and the Android unit tests. Change all three together.",
+  "radius_m": 6371000.0,
+  "distance": [
+    {
+      "name": "same point",
+      "a": [
+        12.9716,
+        77.5946
+      ],
+      "b": [
+        12.9716,
+        77.5946
+      ],
+      "m": 0.0
+    },
+    {
+      "name": "MG Road → Majestic (Bengaluru)",
+      "a": [
+        12.9756,
+        77.6066
+      ],
+      "b": [
+        12.9767,
+        77.5713
+      ],
+      "m": 3826.9
+    },
+    {
+      "name": "Bengaluru → Mysuru",
+      "a": [
+        12.9716,
+        77.5946
+      ],
+      "b": [
+        12.2958,
+        76.6394
+      ],
+      "m": 128016.9
+    },
+    {
+      "name": "100 m north",
+      "a": [
+        12.9716,
+        77.5946
+      ],
+      "b": [
+        12.97249932157878,
+        77.5946
+      ],
+      "m": 100.0
+    },
+    {
+      "name": "across the equator",
+      "a": [
+        0.5,
+        10.0
+      ],
+      "b": [
+        -0.5,
+        10.0
+      ],
+      "m": 111194.9
+    }
+  ],
+  "geofence": [
+    {
+      "name": "inside",
+      "office": [
+        12.9716,
+        77.5946
+      ],
+      "radius_m": 200,
+      "point": [
+        12.9725,
+        77.5946
+      ],
+      "inside": true,
+      "m": 100.1
+    },
+    {
+      "name": "just outside",
+      "office": [
+        12.9716,
+        77.5946
+      ],
+      "radius_m": 200,
+      "point": [
+        12.9736,
+        77.5946
+      ],
+      "inside": false,
+      "m": 222.4
+    },
+    {
+      "name": "on the edge counts as inside",
+      "office": [
+        12.9716,
+        77.5946
+      ],
+      "radius_m": 200.2,
+      "point": [
+        12.9734,
+        77.5946
+      ],
+      "inside": true,
+      "m": 200.2
+    }
+  ],
+  "polyline": [
+    {
+      "name": "Google's example",
+      "points": [
+        [
+          38.5,
+          -120.2
+        ],
+        [
+          40.7,
+          -120.95
+        ],
+        [
+          43.252,
+          -126.453
+        ]
+      ],
+      "encoded": "_p~iF~ps|U_ulLnnqC_mqNvxq`@"
+    },
+    {
+      "name": "one point",
+      "points": [
+        [
+          12.9716,
+          77.5946
+        ]
+      ],
+      "encoded": "oodnAgerxM"
+    },
+    {
+      "name": "Bengaluru walk",
+      "points": [
+        [
+          12.9716,
+          77.5946
+        ],
+        [
+          12.9717,
+          77.5948
+        ],
+        [
+          12.9715,
+          77.595
+        ],
+        [
+          12.9716,
+          77.5946
+        ]
+      ],
+      "encoded": "oodnAgerxMSg@f@g@SnA"
+    }
+  ]
+}

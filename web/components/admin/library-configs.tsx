@@ -190,6 +190,27 @@ export function useLibraryConfig(page: LibraryPage, lookupKind: LookupKind = "pa
           </Button>
         ),
       };
+    case "offices":
+      // The BDM day-start geofence (PLAN.md C2). Coordinates as Google Maps shows them.
+      return {
+        table: "offices",
+        select: "*",
+        searchColumn: "name",
+        order: [{ column: "name" }],
+        hasActive: true,
+        columns: [
+          { key: "name", label: t("officeName") },
+          { key: "lat", label: t("lat"), render: (r) => `${r.lat}, ${r.lng}`, className: "tabular-nums" },
+          { key: "radius_m", label: t("radius"), render: (r) => `${r.radius_m} m`, className: "text-right tabular-nums" },
+        ],
+        fields: [
+          { key: "name", label: t("officeName"), type: "text", required: true, maxLength: 120 },
+          { key: "lat", label: t("lat"), type: "number", required: true, min: -90, max: 90, step: 0.000001, decimals: 6, hint: t("latHint") },
+          { key: "lng", label: t("lng"), type: "number", required: true, min: -180, max: 180, step: 0.000001, decimals: 6 },
+          { key: "radius_m", label: t("radius"), type: "number", required: true, min: 25, max: 5000, hint: t("radiusHint") },
+        ],
+        defaults: { radius_m: 200 },
+      };
     case "holidays":
       return {
         table: "holidays",

@@ -14,10 +14,12 @@ test("purchase a new medicine, sell 3 on a pharmacy bill, write off 1", async ({
   await page.getByRole("combobox", { name: "Supplier" }).click();
   await page.getByPlaceholder("Type to search…").fill(`E2E Supplier ${stamp}`);
   await page.getByRole("option", { name: `Add “E2E Supplier ${stamp}”` }).click();
+  await expect(page.getByRole("combobox", { name: "Supplier" })).toHaveText(`E2E Supplier ${stamp}`);
   await page.getByLabel("Supplier invoice no.").fill(`E2E-${stamp}`);
   await page.getByRole("combobox", { name: "Medicine" }).click();
   await page.getByPlaceholder("Type to search…").fill(medicine);
   await page.getByRole("option", { name: `Add “${medicine}”` }).click();
+  await expect(page.getByRole("combobox", { name: "Medicine" })).toHaveText(medicine);
   await page.getByLabel("Batch", { exact: true }).fill("E2EB1");
   await page.getByLabel("Expiry", { exact: true }).fill("2030-12");
   await page.getByLabel("Qty", { exact: true }).fill("10");

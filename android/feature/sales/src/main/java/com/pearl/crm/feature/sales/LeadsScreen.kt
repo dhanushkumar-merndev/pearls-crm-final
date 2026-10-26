@@ -285,7 +285,7 @@ fun validateNewLead(name: String, phone: String): Map<String, Int> = buildMap {
 }
 
 @Composable
-private fun NewLeadDialog(sales: SalesRepository, library: LibrarySource, onClose: (String?) -> Unit) {
+fun NewLeadDialog(sales: SalesRepository, library: LibrarySource, onClose: (String?) -> Unit) {
     var name by rememberSaveable { mutableStateOf("") }
     var phone by rememberSaveable { mutableStateOf("") }
     var treatment by rememberSaveable { mutableStateOf("") }

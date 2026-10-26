@@ -34,7 +34,7 @@ export type FieldDef =
       /** A fixed shape the database also checks: HSN/SAC codes, GSTIN. */
       format?: "hsn_sac" | "gstin";
     }
-  | { key: string; label: string; type: "number"; required?: boolean; min?: number; max?: number; step?: number; hint?: string }
+  | { key: string; label: string; type: "number"; required?: boolean; min?: number; max?: number; step?: number; decimals?: number; hint?: string }
   | { key: string; label: string; type: "money"; required?: boolean; hint?: string }
   | { key: string; label: string; type: "gst"; hint?: string }
   | { key: string; label: string; type: "boolean"; hint?: string }
@@ -76,8 +76,8 @@ export function crudSchema(config: { fields: FieldDef[]; hasActive?: boolean }) 
         const decimals = f.step !== undefined && f.step < 1;
         shape[f.key] = decimals
           ? f.required
-            ? requiredDecimal(min, max)
-            : optionalDecimal(min, max)
+            ? requiredDecimal(min, max, f.decimals)
+            : optionalDecimal(min, max, f.decimals)
           : f.required
             ? requiredInt(min, max)
             : optionalInt(min, max);

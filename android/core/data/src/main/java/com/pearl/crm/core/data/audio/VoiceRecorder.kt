@@ -17,7 +17,7 @@ class VoiceRecorder(private val context: Context, private val dir: File) {
 
     val isRecording: Boolean get() = recorder != null
 
-    fun start(): File {
+    fun start(maxMs: Int = MAX_MS): File {
         stopAndDiscard()
         dir.mkdirs()
         val out = File(dir, "voice-${System.currentTimeMillis()}.m4a")
@@ -28,7 +28,7 @@ class VoiceRecorder(private val context: Context, private val dir: File) {
         r.setAudioChannels(1)
         r.setAudioSamplingRate(UploadPlan.SAMPLE_RATE)
         r.setAudioEncodingBitRate(UploadPlan.BIT_RATE)
-        r.setMaxDuration(MAX_MS)
+        r.setMaxDuration(maxMs)
         r.setOutputFile(out.path)
         r.prepare()
         r.start()
@@ -61,5 +61,8 @@ class VoiceRecorder(private val context: Context, private val dir: File) {
     companion object {
         /** Voice notes are short: 3 minutes at most (the server's voice note limit is 1 MB). */
         const val MAX_MS = 3 * 60_000
+
+        /** A BDM's visit: up to 45 minutes (the server's visit limit is 8 MB). */
+        const val VISIT_MAX_MS = 45 * 60_000
     }
 }
