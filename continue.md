@@ -71,6 +71,7 @@ Read `CLAUDE.md` and `dev-docs/PLAN.md` first (PLAN.md section G lists every dec
 - DONE Phase 15 (see the table). Perf seed results (p95): search ≤ 23 ms, lists ≤ 74 ms, dashboards ≤ 204 ms; advisors: 0 not accepted; axe: 0 serious on 45 pages; restore drill: 81 tables in 8 s, value for value; release APK checked on the emulator (login, PIN, My day, lead saved to staging as `R8 Release Check`).
 - **Staging disk:** the free project goes read-only above 500 MB. Repeated perf seeds (rolled back, but dead rows stay on disk) took it to 762 MB on 26/10/2026; fixed with `vacuum (full)`. `pnpm perf` now compacts after itself and refuses to start above 150 MB. Any other bulk load on staging must clean up the same way.
 - Totals now: DB 756 (23 files), shared 235, web 85, Deno 115, Android 161, e2e 103 (+2 skipped; scanning phone / WhatsApp admin flaky only under load).
+- Logo (owner's file, 26/10/2026): the round mark is the favicon (16/32/48 .ico), tab icon 192, Apple icon 180, web-app manifest 192/512/maskable, and the Android launcher icon (adaptive, all densities, themed layer). In the app it is the Clinic profile logo (uploaded on staging). Source is only 155 px: a 512 px+ or SVG original would sharpen the big icons.
 - NEXT: nothing to build. The owner works through `dev-docs/GO_LIVE.md`; monthly `pnpm restore:drill`.
 
 ## Login-form validation (from another Claude session) — now committed
