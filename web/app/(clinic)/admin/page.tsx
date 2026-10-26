@@ -1,5 +1,5 @@
 import {
-  BedDouble, Building2, MapPin, FileInput, FileText, Megaphone, MessageCircle, Repeat, PackageOpen, CalendarOff, ClipboardList, History, Inbox, ListChecks, Pill, Settings,
+  BedDouble, Bell, Building2, Goal, HardDrive, MapPin, FileInput, FileText, Megaphone, MessageCircle, Repeat, PackageOpen, CalendarOff, ClipboardList, History, Inbox, ListChecks, Pill, Settings,
   Stethoscope, Syringe, Target, Users, type LucideIcon,
 } from "lucide-react";
 import type { Metadata } from "next";
@@ -30,6 +30,9 @@ const LINKS: { href: string; key: string; icon: LucideIcon }[] = [
   { href: "/admin/meta-leads", key: "metaLeads", icon: Megaphone },
   { href: "/admin/whatsapp", key: "whatsapp", icon: MessageCircle },
   { href: "/admin/drips", key: "drips", icon: Repeat },
+  { href: "/admin/backup", key: "backup", icon: HardDrive },
+  { href: "/admin/notifications", key: "notifications", icon: Bell },
+  { href: "/targets", key: "targets", icon: Goal },
   { href: "/admin/audit", key: "audit", icon: History },
 ];
 

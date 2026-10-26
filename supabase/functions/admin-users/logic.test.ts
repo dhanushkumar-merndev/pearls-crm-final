@@ -1,6 +1,6 @@
 // deno-lint-ignore-file require-await -- fakes implement async interfaces without awaiting
 import { assertEquals } from "@std/assert";
-import { adminUsers, type Deps } from "./logic.ts";
+import { adminUsers, requestSchema, type Deps } from "./logic.ts";
 
 const STAFF = "11111111-0000-4000-a000-0000000000b1";
 
@@ -114,3 +114,12 @@ Deno.test("update: a person's recording upload mode is set or cleared; nothing e
   const bad = await adminUsers({ action: "update", staff_id: STAFF, patch: { recording_upload_override: "everything" } }, deps);
   assertEquals(bad.status, 400);
 });
+
+Deno.test("update: a contact email can be set (lower-cased) or cleared; a bad one is refused", async () => {
+  const id = "11111111-0000-4000-a000-000000000001";
+  const ok = requestSchema.safeParse({ action: "update", staff_id: id, patch: { email: " Owner@Example.COM " } });
+  assertEquals(ok.success && ok.data.action === "update" ? ok.data.patch.email : "x", "owner@example.com");
+  assertEquals(requestSchema.safeParse({ action: "update", staff_id: id, patch: { email: null } }).success, true);
+  assertEquals(requestSchema.safeParse({ action: "update", staff_id: id, patch: { email: "not-an-email" } }).success, false);
+});
+

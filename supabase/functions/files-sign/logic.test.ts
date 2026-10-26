@@ -115,3 +115,17 @@ Deno.test("discard: a refused call removes nothing", async () => {
   assertEquals(res, { status: 403, body: { error: "not_allowed" } });
   assertEquals(calls, ["rpc files_discard"]);
 });
+
+Deno.test("purge: removes the objects the database released after checking the backup", async () => {
+  const { deps, calls } = fakeDeps({ rpc: { files_purge: { data: [{ id: FILE, object_key: "call_recording/r1.m4a" }] } } });
+  const res = await filesSign({ op: "purge", file_ids: [FILE] }, deps);
+  assertEquals(res.body, { removed: [FILE] });
+  assertEquals(calls, ["rpc files_purge", "remove call_recording/r1.m4a"]);
+});
+
+Deno.test("purge: without a verified backup nothing is removed", async () => {
+  const { deps, calls } = fakeDeps({ rpc: { files_purge: { error: { message: "not_backed_up" } } } });
+  const res = await filesSign({ op: "purge", file_ids: [FILE] }, deps);
+  assertEquals(res, { status: 400, body: { error: "not_backed_up" } });
+  assertEquals(calls, ["rpc files_purge"]);
+});

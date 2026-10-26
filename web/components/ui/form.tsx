@@ -9,12 +9,15 @@ export function Field({
   error,
   children,
   className,
+  labelClassName,
 }: {
   label: ReactNode;
   hint?: ReactNode;
   error?: ReactNode;
   children: (props: { id: string; "aria-describedby"?: string; "aria-invalid"?: boolean }) => ReactNode;
   className?: string;
+  /** e.g. "sr-only" inside a table, where the column header already says what it is. */
+  labelClassName?: string;
 }) {
   const id = useId();
   const hintId = hint ? `${id}-hint` : undefined;
@@ -22,7 +25,9 @@ export function Field({
   const describedBy = [hintId, errorId].filter(Boolean).join(" ") || undefined;
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>
-      <Label htmlFor={id}>{label}</Label>
+      <Label htmlFor={id} className={labelClassName}>
+        {label}
+      </Label>
       {children({ id, "aria-describedby": describedBy, "aria-invalid": error ? true : undefined })}
       {hint && (
         <p id={hintId} className="text-[0.9rem] text-text-secondary">

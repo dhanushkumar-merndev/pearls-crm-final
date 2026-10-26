@@ -4,6 +4,7 @@ import { clinicProfileSchema, createStaffSchema, numberSeriesSchema } from "./ad
 import { bookSchema, cancelSchema } from "./appointments";
 import { billSchema, finalizeSchema, paymentSchema } from "./billing";
 import { admissionSchema, doctorHoursSchema, doctorLeaveSchema, editTreatmentSchema, followupSchema, startTreatmentSchema } from "./clinical";
+import { backupSchema, purgeSchema, targetSchema } from "./ops";
 import { adjustStockSchema, purchaseSchema } from "./pharmacy";
 import { dripCampaignSchema, dripEnrollSchema, templateSchema, waTemplateSendSchema, waTextSchema } from "./whatsapp";
 
@@ -166,5 +167,23 @@ describe("whatsapp", () => {
     expect(errs(waTextSchema, { text: "x".repeat(4097) })).toEqual({ text: "tooLong" });
     expect(waTextSchema.parse({ text: " Hi " })).toEqual({ text: "Hi" });
     expect(errs(dripEnrollSchema, { campaign_id: "nope" })).toEqual({ campaign_id: "choose" });
+  });
+});
+
+describe("backup centre and targets", () => {
+  it("backup: at least one kind; the date is optional and not in the future", () => {
+    expect(errs(backupSchema, { purposes: [], before: "" })).toEqual({ purposes: "choose" });
+    expect(errs(backupSchema, { purposes: ["prescription"], before: "2199-01-01" })).toEqual({ before: "notFuture" });
+    expect(backupSchema.parse({ purposes: ["prescription"], before: "" })).toEqual({ purposes: ["prescription"], before: null });
+  });
+  it("purge: recordings and photos only, with a date", () => {
+    expect(errs(purgeSchema, { purposes: ["prescription"], before: "2026-01-01" })).toEqual({ "purposes.0": "choose" });
+    expect(errs(purgeSchema, { purposes: ["call_recording"], before: "" })).toEqual({ before: "required" });
+    expect(purgeSchema.safeParse({ purposes: ["call_recording", "selfie"], before: "2026-01-01" }).success).toBe(true);
+  });
+  it("targets are whole numbers or empty", () => {
+    expect(errs(targetSchema, { value: "12.5" })).toEqual({ value: "wholeNumber" });
+    expect(targetSchema.safeParse({ value: "" }).success).toBe(true);
+    expect(targetSchema.safeParse({ value: " 40 " }).success).toBe(true);
   });
 });

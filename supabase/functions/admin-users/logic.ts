@@ -30,6 +30,8 @@ export const requestSchema = z.discriminatedUnion("action", [
       role: z.enum(roles).optional(),
       full_name: z.string().trim().min(1).max(120).optional(),
       phone_e164: z.string().regex(/^\+[1-9][0-9]{7,14}$/).nullable().optional(),
+      // Contact only (daily summary, alert emails); logins never use it.
+      email: z.string().trim().toLowerCase().email().nullable().optional(),
       bdm_start_anywhere: z.boolean().optional(),
       recording_upload_override: z.enum(["sync_only", "all_calls"]).nullable().optional(),
       office_id: z.string().uuid().nullable().optional(),

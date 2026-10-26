@@ -82,6 +82,16 @@ export const SETTINGS_SCHEMAS = {
   notifications: z.object({
     daily_summary_enabled: z.boolean().default(true),
     daily_summary_time: hhmm.default("20:00"),
+    /** Besides every admin with an email address (Admin → Users). */
+    extra_recipients: z.array(z.email({ error: "email" })).max(5, { error: "tooMany" }).default([]),
+  }),
+  /** What the storage meter measures against (PLAN.md F2 free tiers; raise after upgrading). */
+  storage: z.object({
+    db_limit_mb: int(100, 1_000_000).default(500),
+    files_limit_gb: int(1, 100_000).default(5),
+    monthly_writes_limit: int(1000, 100_000_000).default(10000),
+    /** Monday 10:00 IST: remind the admins when the last full export is a week old. */
+    backup_reminder: z.boolean().default(true),
   }),
 } as const;
 

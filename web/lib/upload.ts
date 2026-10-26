@@ -1,13 +1,11 @@
 import { AppError, callFunction, newId } from "./rpc";
+import { sha256Hex } from "./sha256";
 
 export type FilePurpose =
   | "prescription" | "document" | "registration_form" | "patient_photo" | "call_recording" | "visit_recording"
   | "voice_note" | "punch_photo" | "selfie" | "doctor_signature" | "pdf" | "thumbnail";
 
-export async function sha256Hex(blob: Blob): Promise<string> {
-  const digest = await crypto.subtle.digest("SHA-256", await blob.arrayBuffer());
-  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
-}
+export { sha256Hex };
 
 interface PutResponse {
   file_id: string;

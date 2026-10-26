@@ -43,4 +43,13 @@ describe("settings", () => {
     // Overnight and equal times are both fine (equal = no quiet hours).
     expect(validateSettings("whatsapp", { quiet_start: "09:00", quiet_end: "09:00" }).ok).toBe(true);
   });
+
+  it("storage meter limits and the daily summary's extra addresses", () => {
+    expect(readSettings("storage", {})).toEqual({ db_limit_mb: 500, files_limit_gb: 5, monthly_writes_limit: 10000, backup_reminder: true });
+    expect(validateSettings("storage", { db_limit_mb: 0 })).toEqual({ ok: false, field: "db_limit_mb" });
+    expect(readSettings("notifications", {}).extra_recipients).toEqual([]);
+    expect(validateSettings("notifications", { extra_recipients: ["owner@example.com"] }).ok).toBe(true);
+    expect(validateSettings("notifications", { extra_recipients: ["not an email"] })).toEqual({ ok: false, field: "extra_recipients.0" });
+    expect(validateSettings("notifications", { extra_recipients: Array.from({ length: 6 }, (_, i) => `a${i}@example.com`) }).ok).toBe(false);
+  });
 });

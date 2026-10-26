@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import writeXlsxFile from "write-excel-file/node";
 import { choose, open, STATE, uniquePhone } from "./helpers";
 
 // Phase 9: leads for the sales manager, the reception hand-over, import. Needs a backend (E2E_DB=1).
@@ -97,7 +98,7 @@ test.describe("sales manager", () => {
 
     const good = uniquePhone();
     const csv = `Name,Mobile,Status\r\nE2E Import ${Date.now()},${good},New\r\n,12345,Maybe\r\n`;
-    await page.getByLabel("CSV file").setInputFiles({ name: "leads.csv", mimeType: "text/csv", buffer: Buffer.from(csv) });
+    await page.getByLabel("Excel or CSV file").setInputFiles({ name: "leads.csv", mimeType: "text/csv", buffer: Buffer.from(csv) });
     await expect(page.getByText("1 row has problems — see the list below.")).toBeVisible();
     await expect(page.getByRole("cell", { name: "The mobile number doesn't look right (10 digits, e.g. 98450 12345)." })).toBeVisible();
     await page.getByLabel(/Leave out the 1 row with problems/).check();
@@ -106,10 +107,28 @@ test.describe("sales manager", () => {
     await expect(page.getByText(/Imported 1\. 1 rows with problems were left out\./)).toBeVisible();
   });
 
-  test("an Excel file gets Save-As-CSV steps instead of an error", async ({ page }) => {
+  test("an Excel file is read as it is; an old .xls gets Save-As steps", async ({ page }) => {
     await open(page, "/leads/import");
-    await page.getByLabel("CSV file").setInputFiles({ name: "leads.xlsx", mimeType: "application/octet-stream", buffer: Buffer.from("PK") });
-    await expect(page.getByText(/This is an Excel file/)).toBeVisible();
+    const download = page.waitForEvent("download");
+    await page.getByRole("button", { name: "Download template (Excel)" }).click();
+    expect((await download).suggestedFilename()).toBe("leads-template.xlsx");
+
+    // Mobile typed as a number in Excel (no leading zero, no quotes) still reads as a phone.
+    const sheet = await writeXlsxFile([
+      [{ value: "Name" }, { value: "Mobile" }, { value: "Status" }],
+      [{ value: `E2E Excel ${Date.now()}` }, { type: Number, value: Number(uniquePhone()) }, { value: "New" }],
+    ]).toBuffer();
+    await page.getByLabel("Excel or CSV file").setInputFiles({
+      name: "leads.xlsx",
+      mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      buffer: sheet,
+    });
+    await expect(page.getByText("leads.xlsx: 1 rows found.")).toBeVisible();
+    await page.getByRole("button", { name: "Check the file" }).click();
+    await expect(page.getByText("No problems found. You can import now.")).toBeVisible();
+
+    await page.getByLabel("Excel or CSV file").setInputFiles({ name: "leads.xls", mimeType: "application/vnd.ms-excel", buffer: Buffer.from("x") });
+    await expect(page.getByText(/This is an old Excel file/)).toBeVisible();
   });
 
   test("home is the sales dashboard", async ({ page }) => {

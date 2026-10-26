@@ -55,5 +55,7 @@
     <string name="error_day_ended">Your day has already ended.</string>
     <string name="error_visit_open">Finish the visit you started first (mark it reached and complete).</string>
     <string name="error_break_open">End your break first.</string>
+    <string name="error_not_backed_up">Some of these files have no checked backup yet. Back them up first (Backup centre), then purge.</string>
+    <string name="error_not_purgeable">Only recordings and visit photos can be removed from the cloud. Patient records are always kept.</string>
     <string name="error_unknown">Something went wrong. Please try again.</string>
 </resources>

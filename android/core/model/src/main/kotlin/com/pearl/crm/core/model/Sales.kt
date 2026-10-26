@@ -56,13 +56,33 @@ data class FreeSlot(
     val bookable: Boolean get() = left > 0 && blockedReason == null
 }
 
-/** `dashboard_sales_exec()`: today's numbers and calls per day for the last 14 days. */
+/** `dashboard_sales_exec()`: today's numbers, calls per day for the last 14 days, and this month's targets. */
 @Serializable
 data class SalesDashboard(
     val date: String? = null,
     val today: SalesToday = SalesToday(),
     @SerialName("calls_per_day") val callsPerDay: List<CallsOnDay> = emptyList(),
+    /** Null when the clinic doesn't use targets (Admin → Settings → Sales). */
+    val target: SalesTarget? = null,
 )
+
+/** One month's targets (Admin → Sales targets); a metric without a target has `target = null`. */
+@Serializable
+data class SalesTarget(
+    val month: String? = null,
+    val converted: TargetProgress = TargetProgress(),
+    @SerialName("agreed_paise") val agreedPaise: TargetProgress = TargetProgress(),
+    val calls: TargetProgress = TargetProgress(),
+) {
+    val hasAny: Boolean get() = listOf(converted, agreedPaise, calls).any { it.target != null }
+}
+
+@Serializable
+data class TargetProgress(val target: Long? = null, val actual: Long = 0) {
+    /** 0..1 for the meter (past the target stays full). */
+    val fraction: Float get() = if (target == null || target <= 0) 0f else (actual.toFloat() / target).coerceIn(0f, 1f)
+    val percent: Int get() = if (target == null || target <= 0) 0 else ((actual * 100) / target).toInt()
+}
 
 @Serializable
 data class SalesToday(

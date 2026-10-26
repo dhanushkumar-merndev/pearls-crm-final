@@ -4,7 +4,7 @@ A phase is finished only when all of these pass (PLAN.md E1).
 
 | Command | What it checks | Needs the database? |
 |---|---|---|
-| `pnpm test` | Shared maths (money, GST, amount in words, IST dates, phones), design colours (contrast + colour-blind checks), web logic, Edge Function logic | No |
+| `pnpm test` | Shared maths (money, GST, amount in words, IST dates, phones, map distances, backup file names), design colours (contrast + colour-blind checks), web logic (incl. the backup engine against an in-memory folder: resume without duplicates, corrupted copy caught), Edge Function logic | No |
 | `pnpm typecheck` | TypeScript in shared, web and Edge Functions | No |
 | `pnpm lint` | ESLint (web) + Deno lint (Edge Functions) | No |
 | `pnpm build` | Production build of the web app | No |

@@ -5,13 +5,14 @@ import { Download } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
-import { formatDate, formatINR, istDateString, toCsv } from "@pearl/shared";
+import { formatDate, formatINR, istDateString } from "@pearl/shared";
 import { Button } from "@/components/ui/button";
 import { Field, Select } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Pager } from "@/components/ui/pager";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
+import { downloadExcel } from "@/lib/excel";
 import { rpc } from "@/lib/rpc";
 import { useFeedback } from "@/lib/use-feedback";
 import { useDateRangeCheck } from "@/lib/use-date-range";
@@ -72,7 +73,7 @@ export function BillsTable({ patientId }: { patientId?: string }) {
     setOffset(0);
   };
 
-  async function exportCsv() {
+  async function exportExcel() {
     setExporting(true);
     try {
       const rows: Row[] = [];
@@ -81,23 +82,21 @@ export function BillsTable({ patientId }: { patientId?: string }) {
         rows.push(...page.rows);
         if (rows.length >= page.total || page.rows.length === 0) break;
       }
-      const csv = toCsv([
+      await downloadExcel(
+        `bills-${filters.from}-to-${filters.to}.xlsx`,
         [t("col.no"), t("col.date"), t("col.type"), t("col.patient"), "UHID", t("col.status"), t("col.total"), t("col.received"), t("col.balance")],
-        ...rows.map((r) => [
+        rows.map((r) => [
           r.bill_no ?? "",
           formatDate(new Date(r.bill_at ?? r.created_at)),
           b(`type.${r.bill_type}`),
           r.patient,
           r.uhid,
           b(`status.${r.status}`),
-          (r.total_paise / 100).toFixed(2),
-          (r.received_paise / 100).toFixed(2),
-          ((r.status === "finalized" ? r.total_paise - r.received_paise : 0) / 100).toFixed(2),
+          r.total_paise / 100,
+          r.received_paise / 100,
+          (r.status === "finalized" ? r.total_paise - r.received_paise : 0) / 100,
         ]),
-      ]);
-      const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-      Object.assign(document.createElement("a"), { href: url, download: `bills-${filters.from}-to-${filters.to}.csv` }).click();
-      URL.revokeObjectURL(url);
+      );
     } catch (e) {
       failed(e);
     } finally {
@@ -139,7 +138,7 @@ export function BillsTable({ patientId }: { patientId?: string }) {
           )}
         </Field>
         {!patientId && (
-          <Button variant="secondary" disabled={exporting || !list.data?.total} onClick={() => void exportCsv()}>
+          <Button variant="secondary" disabled={exporting || !list.data?.total} onClick={() => void exportExcel()}>
             <Download aria-hidden />
             {exporting ? t("exporting") : t("export")}
           </Button>

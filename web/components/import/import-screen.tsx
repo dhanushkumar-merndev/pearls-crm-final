@@ -13,7 +13,6 @@ import {
   mapStockColumns,
   mapStockRow,
   parseCsv,
-  toCsv,
   type ImportKind,
   type MappedRow,
 } from "@pearl/shared";
@@ -22,6 +21,7 @@ import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Checkbox, Field, PageHeader } from "@/components/ui/form";
 import { FieldError, Input } from "@/components/ui/input";
 import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
+import { downloadExcel, isXlsx, readExcelRows } from "@/lib/excel";
 import { rpc } from "@/lib/rpc";
 import { useFeedback } from "@/lib/use-feedback";
 
@@ -103,6 +103,11 @@ export function ImportScreen({ kind = "patients" }: { kind?: ImportKind }) {
     download(importTemplateCsv(kind), `${kind}-template.csv`);
   }
 
+  function downloadExcelTemplate() {
+    const tpl = IMPORT_TEMPLATES[kind];
+    void downloadExcel(`${kind}-template.xlsx`, tpl.headers, tpl.examples).catch(failed);
+  }
+
   function reset() {
     setFileError(null);
     setColumns(null);
@@ -118,12 +123,14 @@ export function ImportScreen({ kind = "patients" }: { kind?: ImportKind }) {
     setFileName(file.name);
     const lower = file.name.toLowerCase();
     // Checked in the browser first: wrong type, too big, empty or missing columns never reach the server.
-    if (/\.(xlsx|xls|xlsm|ods)$/.test(lower)) return setFileError(t("excelFile"));
-    if (!lower.endsWith(".csv") && file.type !== "text/csv") return setFileError(t("notCsv"));
+    // Old Excel (.xls) and OpenDocument can't be read here; .xlsx and CSV can.
+    if (/\.(xls|ods)$/.test(lower)) return setFileError(t("oldExcel"));
+    const excel = isXlsx(lower);
+    if (!excel && !lower.endsWith(".csv") && file.type !== "text/csv") return setFileError(t("notCsv"));
     if (file.size > MAX_BYTES) return setFileError(t("fileTooBig"));
     let cells: string[][];
     try {
-      cells = parseCsv(await file.text());
+      cells = excel ? await readExcelRows(file) : parseCsv(await file.text());
     } catch {
       return setFileError(t("unreadable"));
     }
@@ -191,11 +198,11 @@ export function ImportScreen({ kind = "patients" }: { kind?: ImportKind }) {
 
   function downloadReport() {
     const byLine = new Map(rows.map((r) => [r.line, r.cells]));
-    const csv = toCsv([
+    void downloadExcel(
+      `${kind}-problems.xlsx`,
       [t("row"), t("field"), t("problem"), ...header],
-      ...problems.map((p) => [p.line, colLabel(p.field), message(p), ...(byLine.get(p.line) ?? [])]),
-    ]);
-    download(csv, `${kind}-problems.csv`);
+      problems.map((p) => [p.line, colLabel(p.field), message(p), ...(byLine.get(p.line) ?? [])]),
+    ).catch(failed);
   }
 
   const canImport =
@@ -211,10 +218,16 @@ export function ImportScreen({ kind = "patients" }: { kind?: ImportKind }) {
         <p className="text-[0.95rem] text-text-secondary">
           {t("requiredColumns", { list: required.map((f) => colLabel(f)).join(", ") })}
         </p>
-        <Button variant="secondary" className="self-start" onClick={downloadTemplate}>
-          <FileDown aria-hidden />
-          {t("downloadTemplate")}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" onClick={downloadExcelTemplate}>
+            <FileDown aria-hidden />
+            {t("downloadTemplateExcel")}
+          </Button>
+          <Button variant="ghost" onClick={downloadTemplate}>
+            <FileDown aria-hidden />
+            {t("downloadTemplate")}
+          </Button>
+        </div>
       </Card>
 
       <Card className="flex flex-col gap-3">
@@ -225,7 +238,7 @@ export function ImportScreen({ kind = "patients" }: { kind?: ImportKind }) {
             <Input
               {...a}
               type="file"
-              accept=".csv,text/csv"
+              accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
               className="py-2.5"
               onChange={(e) => {
                 const file = e.target.files?.[0];

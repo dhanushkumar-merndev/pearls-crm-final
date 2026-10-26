@@ -17,6 +17,7 @@ import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.TableRows
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -50,8 +51,11 @@ import com.patrykandpatrick.vico.compose.m3.common.rememberM3VicoTheme
 import com.pearl.crm.core.data.SalesRepository
 import com.pearl.crm.core.model.CallsOnDay
 import com.pearl.crm.core.model.IstDates
+import com.pearl.crm.core.model.Money
 import com.pearl.crm.core.model.RpcFailure
 import com.pearl.crm.core.model.SalesDashboard
+import com.pearl.crm.core.model.SalesTarget
+import com.pearl.crm.core.model.TargetProgress
 import com.pearl.crm.core.ui.components.ButtonKind
 import com.pearl.crm.core.ui.components.PearlButton
 import com.pearl.crm.core.ui.components.StatusLabel
@@ -106,6 +110,7 @@ fun MyDayScreen(
                     Tile(stringResource(R.string.myday_booked), d.today.booked)
                     Tile(stringResource(R.string.myday_pending), d.today.pendingConfirmations)
                 }
+                d.target?.takeIf { it.hasAny }?.let { TargetsSection(it) }
                 CallsChart(d.callsPerDay)
             }
             failure is RpcFailure.Transient -> Muted(stringResource(R.string.myday_offline_numbers))
@@ -154,6 +159,29 @@ private fun Tile(label: String, value: Int) {
             Text(label, color = Pearl.palette.textSecondary, style = MaterialTheme.typography.bodyMedium)
             Text(value.toString(), style = MaterialTheme.typography.headlineSmall)
         }
+    }
+}
+
+/** This month's targets: a meter per metric that has one (the number is written out too). */
+@Composable
+fun TargetsSection(target: SalesTarget) {
+    Section(stringResource(R.string.myday_targets)) {
+        TargetRow(stringResource(R.string.myday_target_converted), target.converted) { it.toString() }
+        TargetRow(stringResource(R.string.myday_target_agreed), target.agreedPaise, Money::formatInr)
+        TargetRow(stringResource(R.string.myday_target_calls), target.calls) { it.toString() }
+    }
+}
+
+@Composable
+private fun TargetRow(label: String, p: TargetProgress, show: (Long) -> String) {
+    val target = p.target ?: return
+    val text = stringResource(R.string.myday_target_progress, show(p.actual), show(target), p.percent)
+    Column(Modifier.fillMaxWidth().semantics(mergeDescendants = true) {}.testTag("target-$label"), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(label)
+            Text(text, color = Pearl.palette.textSecondary)
+        }
+        LinearProgressIndicator(progress = { p.fraction }, modifier = Modifier.fillMaxWidth().height(8.dp))
     }
 }
 

@@ -17,7 +17,7 @@ import { numberSeriesSchema } from "@/lib/schemas/admin";
 import { useFeedback } from "@/lib/use-feedback";
 import { useZodForm } from "@/lib/use-zod-form";
 
-type FieldKind = "int" | "decimal" | "bool" | "time" | "weekdays" | "percent_bp" | "int_list" | { options: string[] };
+type FieldKind = "int" | "decimal" | "bool" | "time" | "weekdays" | "percent_bp" | "int_list" | "email_list" | { options: string[] };
 const SECTIONS: { section: SettingsSection; fields: Record<string, FieldKind> }[] = [
   {
     section: "appointments",
@@ -66,7 +66,8 @@ const SECTIONS: { section: SettingsSection; fields: Record<string, FieldKind> }[
       long_route_factor: "decimal",
     },
   },
-  { section: "notifications", fields: { daily_summary_enabled: "bool", daily_summary_time: "time" } },
+  { section: "notifications", fields: { daily_summary_enabled: "bool", daily_summary_time: "time", extra_recipients: "email_list" } },
+  { section: "storage", fields: { db_limit_mb: "int", files_limit_gb: "int", monthly_writes_limit: "int", backup_reminder: "bool" } },
 ];
 
 export function SettingsScreen() {
@@ -112,7 +113,9 @@ function SectionForm({
   const [form, setForm] = useState<Record<string, unknown>>(() => {
     const v = { ...readSettings(section, value) } as Record<string, unknown>;
     // Lists are edited as text ("90, 60, 30") and read back on save.
-    for (const [k, kind] of Object.entries(fields)) if (kind === "int_list") v[k] = ((v[k] as number[]) ?? []).join(", ");
+    for (const [k, kind] of Object.entries(fields)) {
+      if (kind === "int_list" || kind === "email_list") v[k] = ((v[k] as (number | string)[]) ?? []).join(", ");
+    }
     return v;
   });
   const checks = useZodForm(SETTINGS_SCHEMAS[section]);
@@ -137,6 +140,7 @@ function SectionForm({
     const value: Record<string, unknown> = { ...form };
     for (const [k, kind] of Object.entries(fields)) {
       if (kind === "int_list") value[k] = String(form[k] ?? "").split(/[,\s]+/).filter(Boolean).map(Number);
+      if (kind === "email_list") value[k] = String(form[k] ?? "").split(/[,;\s]+/).filter(Boolean);
     }
     const clean = checks.validate(value);
     if (clean) save.mutate(clean);
@@ -152,7 +156,8 @@ function SectionForm({
         <div className="grid gap-4 sm:grid-cols-2">
           {Object.entries(fields).map(([key, kind]) => {
             const label = t(`${section}.${key}`);
-            const err = checks.error(key) ?? checks.error(`${key}.0`);
+            // A list's message sits on the bad entry ("extra_recipients.2"); show the first one.
+            const err = checks.error(key) ?? [0, 1, 2, 3, 4, 5].map((i) => checks.error(`${key}.${i}`)).find(Boolean);
             if (kind === "bool")
               return <Checkbox key={key} label={label} checked={Boolean(form[key])} onChange={(e) => set(key, e.target.checked)} className="sm:col-span-2" />;
             if (kind === "weekdays")
@@ -194,6 +199,8 @@ function SectionForm({
                     <Input {...a} type="time" value={String(form[key] ?? "")} onChange={(e) => set(key, e.target.value)} />
                   ) : kind === "int_list" ? (
                     <Input {...a} inputMode="numeric" value={String(form[key] ?? "")} onChange={(e) => set(key, e.target.value)} />
+                  ) : kind === "email_list" ? (
+                    <Input {...a} type="text" inputMode="email" autoComplete="off" value={String(form[key] ?? "")} onChange={(e) => set(key, e.target.value)} />
                   ) : kind === "percent_bp" ? (
                     <Input
                       {...a}

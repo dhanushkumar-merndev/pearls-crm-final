@@ -217,6 +217,11 @@
     <string name="myday_confirm_none">All bookings are confirmed.</string>
     <string name="myday_confirm">Confirmed</string>
     <string name="myday_refresh">Refresh</string>
+    <string name="myday_targets">This month\'s targets</string>
+    <string name="myday_target_converted">Converted</string>
+    <string name="myday_target_agreed">Agreed amount</string>
+    <string name="myday_target_calls">Calls</string>
+    <string name="myday_target_progress">%1$s of %2$s (%3$d%%)</string>
     <string name="myday_unsent_failed">Some changes couldn\'t be saved on the server. Open Settings to see them.</string>
     <string name="myday_offline">Offline. Your work is saved on this phone.</string>
 </resources>

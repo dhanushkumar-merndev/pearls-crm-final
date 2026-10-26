@@ -31,7 +31,9 @@
     "whatsapp": "WhatsApp",
     "whatsappWithCount": "{label} ({n, plural, one {# conversation with new replies} other {# conversations with new replies}})",
     "recordings": "Recordings",
-    "bdm": "BDM"
+    "bdm": "BDM",
+    "dashboard": "Dashboard",
+    "targets": "Targets"
   },
   "actions": {
     "newPatient": "New patient",
@@ -200,7 +202,9 @@
     "day_not_started": "Start your day first.",
     "day_ended": "Your day has already ended.",
     "visit_open": "Finish the visit you started first (mark it reached and complete).",
-    "break_open": "End your break first."
+    "break_open": "End your break first.",
+    "not_backed_up": "Some of these files have no checked backup yet. Back them up first (Backup centre), then purge.",
+    "not_purgeable": "Only recordings and visit photos can be removed from the cloud. Patient records are always kept."
   },
   "common": {
     "saved": "Saved ✓",
@@ -472,6 +476,7 @@
     "phone": "Mobile number",
     "contactEmail": "Email (optional)",
     "contactEmailHint": "Only for contact. Logins never use email.",
+    "contactEmailEditHint": "Daily summary and alert emails go here (Admin → Notifications). Logins never use email.",
     "usernameHint": "e.g. rekha or rekha.r — small letters, no spaces.",
     "firstPassword": "First password",
     "passwordRules": "At least 8 characters, with letters and numbers.",
@@ -609,7 +614,8 @@
       "title": "Daily summary",
       "description": "Evening email to the admin.",
       "daily_summary_enabled": "Send the daily summary",
-      "daily_summary_time": "Send at"
+      "daily_summary_time": "Send at",
+      "extra_recipients": "Also email the summary to (comma-separated)"
     },
     "series": {
       "title": "Bill and patient numbers",
@@ -647,6 +653,14 @@
       "late_start_time": "Alert if the day hasn't started by",
       "auto_end_time": "Days still open are ended at",
       "long_route_factor": "Flag a visit when km driven is more than … × the estimate"
+    },
+    "storage": {
+      "title": "Storage limits",
+      "description": "What the storage meter measures against. Free plans: database 500 MB, files 5 GB, 10,000 uploads a month. Raise these after upgrading.",
+      "db_limit_mb": "Database limit (MB)",
+      "files_limit_gb": "File storage limit (GB)",
+      "monthly_writes_limit": "File uploads per month",
+      "backup_reminder": "Remind the admins on Monday when the weekly export is due"
     }
   },
   "review": {
@@ -797,6 +811,18 @@
     "offices": {
       "title": "Offices",
       "body": "Where BDMs start their day (the geofence)."
+    },
+    "backup": {
+      "title": "Backup centre",
+      "body": "Copy files to a folder, export the database, free up cloud space."
+    },
+    "notifications": {
+      "title": "Notifications",
+      "body": "Which alerts ring phones and which are emailed."
+    },
+    "targets": {
+      "title": "Sales targets",
+      "body": "Monthly targets per salesperson (optional)."
     }
   },
   "patientForm": {
@@ -1069,8 +1095,8 @@
     "title": "Import patients",
     "description": "Bring patients over from DocPulse or any spreadsheet. Nothing is overwritten: rows whose UHID already exists are reported, not changed.",
     "step1": "2. Choose the file",
-    "step1Hint": "In Excel: File → Save As → CSV (Comma delimited). The first row must be column names such as Name, Mobile, Gender, DOB, Age, UHID, Email, Address, City, Pincode.",
-    "file": "CSV file",
+    "step1Hint": "Excel (.xlsx) or CSV. The first row must be column names such as Name, Mobile, Gender, DOB, Age, UHID, Email, Address, City, Pincode.",
+    "file": "Excel or CSV file",
     "found": "{n} rows found.",
     "missingColumns": "Not found in the file: {list}.",
     "step2": "3. Check, then import",
@@ -1107,7 +1133,7 @@
     "stock": {
       "title": "Import opening stock",
       "description": "Bring medicines and their current stock over from DocPulse or any spreadsheet. Each batch's opening stock can be entered once.",
-      "step1Hint": "In Excel: File → Save As → CSV. Columns such as Item Name, Strength, Form, Manufacturer, HSN, GST %, MRP, Selling Price, Purchase Price, Batch No, Expiry (e.g. 03/2027), Qty, Reorder Level, Rack.",
+      "step1Hint": "Excel (.xlsx) or CSV. Columns such as Item Name, Strength, Form, Manufacturer, HSN, GST %, MRP, Selling Price, Purchase Price, Batch No, Expiry (e.g. 03/2027), Qty, Reorder Level, Rack.",
       "import": "Import {n} rows",
       "done": "Imported {n} batches ✓",
       "seriesHint": "Check the Pharmacy page: the stock and alerts are up to date.",
@@ -1134,20 +1160,20 @@
       }
     },
     "step0": "1. Get the template",
-    "templateHint": "A ready sheet with the right column names and two sample rows. Open it in Excel, delete the sample rows, type or paste yours, then File → Save As → CSV (Comma delimited).",
+    "templateHint": "A ready sheet with the right column names and two sample rows. Open it in Excel, delete the sample rows, type or paste yours, save, then choose it below.",
     "requiredColumns": "Columns that must be filled: {list}. All others are optional.",
+    "downloadTemplateExcel": "Download template (Excel)",
     "downloadTemplate": "Download template (CSV)",
-    "excelFile": "This is an Excel file. In Excel: File → Save As → CSV (Comma delimited), then choose that CSV file.",
-    "notCsv": "Please choose a CSV file. In Excel: File → Save As → CSV (Comma delimited).",
+    "notCsv": "Please choose an Excel (.xlsx) or CSV file.",
     "fileTooBig": "This file is too big (more than 5 MB). Split it into smaller files.",
-    "unreadable": "This file couldn't be read. Save it again as CSV and try once more.",
+    "unreadable": "This file couldn't be read. Save it again (Excel Workbook or CSV) and try once more.",
     "emptyFile": "The file has no rows under the column names.",
     "tooManyRows": "At most {max} rows in one file. Split it into smaller files.",
     "missingRequired": "These columns are needed and weren't found: {list}. Use the template's column names in the first row.",
     "rowsWithProblems": "{n, plural, one {# row has} other {# rows have}} problems — see the list below.",
     "skipBad": "Leave out the {n, plural, one {# row} other {# rows}} with problems",
     "skipBadHint": "The other {n} rows are imported; download the problem list to fix and import the rest later.",
-    "downloadReport": "Download the problem list (CSV)",
+    "downloadReport": "Download the problem list (Excel)",
     "importedLeft": "Imported {n}. {m} rows with problems were left out.",
     "fixOrSkip": "Fix the rows below in the sheet and choose it again, or tick “Leave out the rows with problems”.",
     "first200": "Showing the first 200 of {n} problems. Download the problem list to see them all.",
@@ -1172,7 +1198,7 @@
     "leads": {
       "title": "Import leads",
       "description": "Bring leads over from the sales team's sheet or a Meta / website export. Numbers that already have a lead are reported, never merged or overwritten.",
-      "step1Hint": "In Excel: File → Save As → CSV. Source, Assigned To and Lost Reason must match names already in the CRM (Admin → Lists, Users); Assigned To can be left empty to share leads round-robin.",
+      "step1Hint": "Excel (.xlsx) or CSV. Source, Assigned To and Lost Reason must match names already in the CRM (Admin → Lists, Users); Assigned To can be left empty to share leads round-robin.",
       "import": "Import {n} leads",
       "done": "Imported {n} leads ✓",
       "seriesHint": "New leads are on the Leads page; each owner has a call task for today.",
@@ -1202,7 +1228,8 @@
         "alt_phone_e164": "Alternate mobile",
         "phone_e164": "Mobile"
       }
-    }
+    },
+    "oldExcel": "This is an old Excel file (.xls) or an OpenDocument sheet. In Excel: File → Save As → Excel Workbook (.xlsx), then choose that file."
   },
   "appt": {
     "status": {
@@ -1315,7 +1342,7 @@
       "doctor": "Doctor",
       "status": "Status"
     },
-    "export": "Export (CSV)",
+    "export": "Download Excel",
     "exporting": "Exporting…",
     "rangeTooWide": "Choose a range of at most one year.",
     "none": "No appointments in this range.",
@@ -1621,7 +1648,7 @@
     "rangeTooWide": "Pick a range of one year or less",
     "none": "No bills for these filters.",
     "sum": "{n, plural, one {# bill} other {# bills}} · {amount}",
-    "export": "Export CSV",
+    "export": "Download Excel",
     "exporting": "Exporting…",
     "col": {
       "date": "Date",
@@ -2234,7 +2261,7 @@
     "dueSaved": "Next call saved ✓",
     "dupHint": "These leads have the same number. Open one of them, or save a new lead linked to them.",
     "dupTitle": "This number already has a lead",
-    "export": "Export (CSV)",
+    "export": "Download Excel",
     "exporting": "Exporting…",
     "f": {
       "name": "Name",
@@ -2996,5 +3023,273 @@
     "overrun": "Longer than planned",
     "dayStart": "Day start",
     "dayEnd": "Day end"
+  },
+  "adminDash": {
+    "title": "Dashboard",
+    "description": "The whole clinic in numbers. Today is live; earlier days come from the nightly summary.",
+    "loading": "Loading…",
+    "money": "Headline numbers",
+    "revenue": "Revenue",
+    "collected": "Collected",
+    "outstanding": "Outstanding",
+    "discounts": "Discounts",
+    "newPatients": "New patients",
+    "returningPatients": "Returning patients",
+    "noShowRate": "No-show rate",
+    "admissions": "IP admissions",
+    "admissionsValue": "{n} · avg {days} days",
+    "pharmacySales": "Pharmacy sales",
+    "pharmacyMargin": "Pharmacy margin",
+    "stockValue": "Stock value (at cost)",
+    "nearExpiry": "Stock expiring in 90 days",
+    "whatsapp": "WhatsApp sent",
+    "whatsappValue": "{sent} · {delivered}% delivered · {read}% read",
+    "whatsappCost": "WhatsApp cost (estimate)",
+    "bdmsOnDuty": "BDMs on duty now",
+    "ofTotal": "{n} of {total}",
+    "bills": "Bills",
+    "trendTitle": "Revenue and collections",
+    "billTypeTitle": "Revenue by bill type",
+    "billType": "Bill type",
+    "categoryTitle": "Revenue by category",
+    "category": "Category",
+    "uncategorised": "No category",
+    "modesTitle": "Payment modes",
+    "mode": "Mode",
+    "ageingTitle": "Outstanding by age",
+    "ageingHint": "{n, plural, one {# patient owes} other {# patients owe}} money now, by the age of their oldest unpaid bill.",
+    "age": {
+      "title": "Age",
+      "0_30": "0–30 days",
+      "31_60": "31–60 days",
+      "61_90": "61–90 days",
+      "90_plus": "Over 90 days"
+    },
+    "patients": "Patients",
+    "sessionsTitle": "Session adherence",
+    "sessionsHint": "Treatment sessions planned in this period.",
+    "sessions": "Sessions",
+    "sessionState": "State",
+    "session": {
+      "on_time": "On time",
+      "late": "Late (over 3 days)",
+      "missed": "Missed",
+      "overdue": "Overdue",
+      "upcoming": "Upcoming"
+    },
+    "sourceTitle": "Revenue by lead source",
+    "sourceHint": "Billed amount by where the patient first came from.",
+    "direct": "Walk-in / direct",
+    "doctorsTitle": "Doctors",
+    "doctor": "Doctor",
+    "appointments": "Appointments",
+    "nothing": "Nothing in this period.",
+    "medicinesTitle": "Top medicines",
+    "medicine": "Medicine",
+    "qty": "Qty",
+    "sales": "Sales",
+    "bdmTitle": "BDM summary",
+    "days": "Days",
+    "visits": "Visits",
+    "km": "Km",
+    "systemTitle": "Storage, backups and connections",
+    "backupCentre": "Backup centre",
+    "lastBackup": "Files last backed up {when}",
+    "noBackup": "Files never backed up",
+    "lastExport": "database exported {when}",
+    "noExport": "database never exported",
+    "integrations": "Connections",
+    "integration": {
+      "whatsapp": "WhatsApp",
+      "meta_leads": "Meta lead ads",
+      "brevo": "Email",
+      "ors": "Route estimates",
+      "fcm": "Push",
+      "tigris": "File storage"
+    },
+    "state": {
+      "ok": "working",
+      "error": "error",
+      "unknown": "not checked",
+      "off": "off"
+    }
+  },
+  "storage": {
+    "db": "Database",
+    "files": "Files (recordings, scans, photos)",
+    "writes": "File uploads this month",
+    "usedOf": "{used} of {limit} ({pct}%)",
+    "level": {
+      "good": "Storage fine (fullest at {pct}%)",
+      "warning": "Storage {pct}% full",
+      "serious": "Storage {pct}% full: back up and purge soon",
+      "critical": "Storage {pct}% full: act now"
+    }
+  },
+  "backup": {
+    "title": "Backup centre",
+    "description": "Copy patient files and recordings to a folder on this computer or a USB drive, check the copies, export the whole database, and free up cloud space once files are safely copied.",
+    "unsupported": "The Backup centre needs Chrome or Microsoft Edge on a computer (it saves into a folder you choose). Please open this page there.",
+    "folderFailed": "That folder can't be used. Choose another one, for example a folder on a USB drive.",
+    "storageTitle": "Storage",
+    "statusTitle": "Backups",
+    "lastFiles": "Files last backed up {when}.",
+    "noFiles": "No files backed up yet.",
+    "lastExport": "Database last exported {when}.",
+    "noExport": "The database has never been exported.",
+    "notBackedUp": "Not backed up yet",
+    "allBackedUp": "Every file has a checked copy.",
+    "filesAndSize": "{n, plural, one {# file} other {# files}} · {size}",
+    "step1": "1. Choose the backup folder",
+    "step1Hint": "Pick a folder on this computer or a USB drive. The browser asks once to allow saving there. Use the same folder each time.",
+    "chooseFolder": "Choose folder",
+    "changeFolder": "Change folder",
+    "folderChosen": "Saving into “{name}”",
+    "step2": "2. Copy files",
+    "step2Hint": "Each file is downloaded, saved by kind and month, read back and checked (SHA-256). Only checked copies count. You can stop and carry on later; nothing is copied twice.",
+    "kinds": "Kinds of files",
+    "before": "Only files stored before (optional)",
+    "beforeHint": "Leave empty to copy everything not yet backed up.",
+    "start": "Start backup",
+    "resume": "Carry on with the backup",
+    "resumeHint": "A backup is unfinished: {done} of {total} files copied. Carry on to copy the rest.",
+    "stop": "Stop",
+    "abandon": "Give up this backup",
+    "progressLabel": "Backup progress",
+    "progress": "{done} of {total} files · {size} of {of}",
+    "failedN": "{n} not copied",
+    "copied": "{n, plural, one {# file copied} other {# files copied}} and checked ✓",
+    "copiedSome": "{n} files copied; {failed} couldn't be copied. Run it again to retry them.",
+    "step3": "3. Check the copies",
+    "step3Hint": "Reads every file of the last backup back from the folder. A copy that changed or went missing loses its “backed up” mark, so it is copied again next time and can't be purged.",
+    "check": "Check the folder",
+    "checking": "Checking… {n} files",
+    "checkGood": "All {n} copies are fine ✓",
+    "checkBad": "{ok} copies fine, {bad} changed or missing. Run the backup again.",
+    "exportTitle": "Export the database",
+    "exportHint": "Saves every table (patients, bills, stock, leads…) into the folder, under database and then the date. Do this every week; on Monday morning you get a reminder if you haven't.",
+    "export": "Export the database",
+    "exporting": "Exporting {table} ({n} of {of})…",
+    "exported": "Database exported: {n} tables ✓",
+    "purgeTitle": "Free up cloud space",
+    "purgeHint": "Removes old recordings and visit photos from the cloud: only files with a checked copy in a backup. Patient records, scans and bills are never removed.",
+    "purgeBefore": "Stored before",
+    "preview": "Show what can be removed",
+    "kind": "Kind",
+    "ready": "Can be removed",
+    "blocked": "Not backed up (kept)",
+    "blockedHint": "Files without a checked copy are kept. Back them up first, then come back.",
+    "nothingToPurge": "Nothing of these kinds stored before that date.",
+    "purge": "Remove {n, plural, one {# file} other {# files}} from the cloud",
+    "confirmTitle": "Remove {n, plural, one {# file} other {# files}} from the cloud?",
+    "confirmHint": "They stay in your backup folder.",
+    "confirmBody": "After this, these recordings and photos can't be played on the web or the phone. Your backup folder still has them. This can't be undone.",
+    "purging": "Removing… {n}",
+    "purged": "{n, plural, one {# file} other {# files}} removed from the cloud ✓",
+    "history": "Recent backups",
+    "when": "Started",
+    "what": "What",
+    "state": "State",
+    "files": "Files",
+    "by": "By",
+    "kindDatabase": "Database export",
+    "status": {
+      "running": "Unfinished",
+      "done": "Done",
+      "abandoned": "Given up"
+    },
+    "purpose": {
+      "prescription": "Prescriptions",
+      "document": "Documents",
+      "registration_form": "Registration forms",
+      "patient_photo": "Patient photos",
+      "doctor_signature": "Doctor signatures",
+      "pdf": "PDFs",
+      "call_recording": "Call recordings",
+      "visit_recording": "Visit recordings",
+      "voice_note": "Voice notes",
+      "punch_photo": "Visit photos",
+      "selfie": "Day-start selfies",
+      "thumbnail": "Thumbnails"
+    }
+  },
+  "notifyRules": {
+    "title": "Notifications",
+    "description": "Every alert always appears in the bell. Choose which also ring the phone (Android app) and which are also emailed.",
+    "kind": "Alert",
+    "push": "Ring the phone",
+    "email": "Email",
+    "pushShort": "Phone",
+    "emailShort": "Email",
+    "pushFor": "Ring the phone for: {kind}",
+    "emailFor": "Email for: {kind}",
+    "emailHint": "Emails go to the person's email address in Admin → Users. People without one get only the bell (and the phone).",
+    "summaryLink": "Daily summary time: Admin → Settings",
+    "usersLink": "Email addresses: Admin → Users",
+    "type": {
+      "registration_pending": {
+        "title": "New self-registration",
+        "who": "Reception and admins"
+      },
+      "stock_alert": {
+        "title": "Pharmacy alerts",
+        "who": "Reception and admins"
+      },
+      "lead_assigned": {
+        "title": "Lead assigned to you",
+        "who": "The salesperson"
+      },
+      "lead_unassigned": {
+        "title": "Lead with nobody to call it",
+        "who": "Sales managers and admins"
+      },
+      "lead_enquired_again": {
+        "title": "A lead enquired again",
+        "who": "The salesperson"
+      },
+      "whatsapp_reply": {
+        "title": "WhatsApp reply",
+        "who": "Whoever looks after the patient or lead"
+      },
+      "recording_sync": {
+        "title": "Please sync a call recording",
+        "who": "The salesperson asked"
+      },
+      "bdm_alert": {
+        "title": "BDM alerts (no signal, late start, long break)",
+        "who": "Admins"
+      },
+      "storage_alert": {
+        "title": "Storage filling up",
+        "who": "Admins"
+      },
+      "backup_reminder": {
+        "title": "Weekly backup reminder",
+        "who": "Admins"
+      },
+      "daily_summary": {
+        "title": "Daily summary",
+        "who": "Admins"
+      }
+    }
+  },
+  "targets": {
+    "title": "Sales targets",
+    "description": "Set each salesperson's monthly targets. Leave a box empty for no target. They see their progress in the app's My day.",
+    "descriptionManager": "Each salesperson's targets for the month and how far they have got.",
+    "off": "Targets are switched off, so salespeople don't see them yet.",
+    "turnOn": "Switch on: Admin → Settings → Sales",
+    "month": "Month",
+    "person": "Person",
+    "metric": {
+      "converted": "Converted",
+      "agreed_paise": "Agreed amount (₹)",
+      "calls": "Calls"
+    },
+    "nobody": "No active salespeople.",
+    "progress": "{actual} of {target} ({pct}%)",
+    "actualOnly": "{actual} so far, no target",
+    "targetFor": "{metric} target for {name}",
+    "saveFor": "Save the {metric} target for {name}"
   }
 }

@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { z } from "zod";
-import { dateRangeSchema, requiredId, formatDate, formatDateTime, formatINR, fromIstDateTimeLocal, istDateString, istDateTimeLocal, toCsv } from "@pearl/shared";
+import { dateRangeSchema, requiredId, formatDate, formatDateTime, formatINR, fromIstDateTimeLocal, istDateString, istDateTimeLocal } from "@pearl/shared";
 import { LibraryCombobox, useDebounced, type LibraryItem } from "@/components/library-combobox";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
@@ -14,6 +14,7 @@ import { Field, Select } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Pager } from "@/components/ui/pager";
 import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
+import { downloadExcel } from "@/lib/excel";
 import { rpc } from "@/lib/rpc";
 import { useFeedback } from "@/lib/use-feedback";
 import { useZodForm } from "@/lib/use-zod-form";
@@ -103,7 +104,7 @@ export function LeadsTable({ canAssign }: { canAssign: boolean }) {
     onError: (e) => (failed(e), refresh()),
   });
 
-  async function exportCsv() {
+  async function exportExcel() {
     setExporting(true);
     try {
       const rows: Record<string, unknown>[] = [];
@@ -115,18 +116,19 @@ export function LeadsTable({ canAssign }: { canAssign: boolean }) {
       } while (cursor !== null && rows.length < 50_000);
       const cols = ["sl_no", "lead_date", "name", "phone", "alt_phone", "email", "treatment", "source", "assigned", "doctor", "referred_by",
         "stage", "lost_reason", "next_followup_at", "amount_quoted_paise", "amount_finalised_paise", "comments1", "comments2", "uhid"] as const;
-      const cell = (k: (typeof cols)[number], v: unknown) => {
+      const cell = (k: (typeof cols)[number], v: unknown): string | number => {
         if (v === null || v === undefined) return "";
-        if (k === "amount_quoted_paise" || k === "amount_finalised_paise") return (Number(v) / 100).toFixed(2);
+        if (k === "amount_quoted_paise" || k === "amount_finalised_paise") return Number(v) / 100;
         if (k === "lead_date") return formatDate(day(String(v)));
         if (k === "next_followup_at") return formatDateTime(new Date(String(v)));
         if (k === "stage") return t(`stage.${v as LeadStage}`);
-        return v;
+        return typeof v === "number" ? v : String(v);
       };
-      const csv = toCsv([cols.map((k) => t(`csv.${k}`)), ...rows.map((r) => cols.map((k) => cell(k, r[k])))]);
-      const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-      Object.assign(document.createElement("a"), { href: url, download: `leads-${filters.from}-to-${filters.to}.csv` }).click();
-      URL.revokeObjectURL(url);
+      await downloadExcel(
+        `leads-${filters.from}-to-${filters.to}.xlsx`,
+        cols.map((k) => t(`csv.${k}`)),
+        rows.map((r) => cols.map((k) => cell(k, r[k]))),
+      );
     } catch (e) {
       failed(e);
     } finally {
@@ -200,7 +202,7 @@ export function LeadsTable({ canAssign }: { canAssign: boolean }) {
             </Select>
           )}
         </Field>
-        <Button variant="secondary" disabled={exporting || !range.success || !list.data?.total} onClick={() => void exportCsv()}>
+        <Button variant="secondary" disabled={exporting || !range.success || !list.data?.total} onClick={() => void exportExcel()}>
           <Download aria-hidden />
           {exporting ? t("exporting") : t("export")}
         </Button>

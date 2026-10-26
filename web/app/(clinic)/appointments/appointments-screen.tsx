@@ -5,7 +5,7 @@ import { CalendarPlus, ChevronLeft, ChevronRight, Download, Footprints, Plus } f
 import { useTranslations } from "next-intl";
 import { Tabs } from "radix-ui";
 import { useState } from "react";
-import { formatDate, formatTime, istDateString, istDayStart, toCsv } from "@pearl/shared";
+import { formatDate, formatTime, istDateString, istDayStart } from "@pearl/shared";
 import { AppointmentActions, type ApptCard } from "@/components/appointments/appointment-actions";
 import { BookDialog, WalkInDialog } from "@/components/appointments/book-dialog";
 import { ApptStatusBadge, type ApptStatus } from "@/components/appointments/status";
@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Pager } from "@/components/ui/pager";
 import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
 import { useLiveAppointments } from "@/lib/realtime";
+import { downloadExcel } from "@/lib/excel";
 import { rpc } from "@/lib/rpc";
 import { useFeedback } from "@/lib/use-feedback";
 import { cn } from "@/lib/utils";
@@ -225,7 +226,7 @@ function TableView() {
     queryFn: () => rpc<{ total: number; rows: TableRow[] }>("appointments_table", args(offset, LIMIT)),
   });
 
-  async function exportCsv() {
+  async function exportExcel() {
     setExporting(true);
     try {
       const rows: TableRow[] = [];
@@ -234,17 +235,14 @@ function TableView() {
         rows.push(...page.rows);
         if (rows.length >= page.total || page.rows.length === 0) break;
       }
-      const csv = toCsv([
+      await downloadExcel(
+        `appointments-${filters.from}-to-${filters.to}.xlsx`,
         [t("col.when"), t("col.patient"), "UHID", t("col.phone"), t("col.doctor"), t("col.type"), t("col.status")],
-        ...rows.map((r) => [
+        rows.map((r) => [
           r.slot_start ? `${formatDate(new Date(r.slot_start))} ${formatTime(new Date(r.slot_start))}` : t("walkInQueue", { n: r.queue_no ?? 0 }),
           r.patient, r.uhid, r.phone, r.doctor, a(`types.${r.type}`), a(`status.${r.status}`),
         ]),
-      ]);
-      const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-      const link = Object.assign(document.createElement("a"), { href: url, download: `appointments-${filters.from}-to-${filters.to}.csv` });
-      link.click();
-      URL.revokeObjectURL(url);
+      );
     } catch (e) {
       failed(e);
     } finally {
@@ -284,7 +282,7 @@ function TableView() {
             </Select>
           )}
         </Field>
-        <Button variant="secondary" disabled={exporting || !list.data?.total} onClick={() => void exportCsv()}>
+        <Button variant="secondary" disabled={exporting || !list.data?.total} onClick={() => void exportExcel()}>
           <Download aria-hidden />
           {exporting ? t("exporting") : t("export")}
         </Button>

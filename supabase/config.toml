@@ -473,3 +473,11 @@ import_map = "./functions/deno.json"
 [functions.route-estimate]
 verify_jwt = false
 import_map = "./functions/deno.json"
+
+[functions.notify-email]
+verify_jwt = false
+import_map = "./functions/deno.json"
+
+[functions.daily-summary]
+verify_jwt = false
+import_map = "./functions/deno.json"

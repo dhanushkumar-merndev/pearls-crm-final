@@ -237,6 +237,7 @@ function EditDialog({ row, isMe, onDone }: { row: StaffRow; isMe: boolean; onDon
     full_name: row.full_name,
     role: row.role,
     phone: row.phone_e164 ?? "",
+    email: row.email ?? "",
     bdm_start_anywhere: row.bdm_start_anywhere,
     recording_upload_override: (row.recording_upload_override ?? "") as "" | "sync_only" | "all_calls",
     office_id: row.office_id ?? "",
@@ -258,6 +259,7 @@ function EditDialog({ row, isMe, onDone }: { row: StaffRow; isMe: boolean; onDon
       full_name: string;
       role: StaffRole;
       phone: string | null;
+      email: string | null;
       bdm_start_anywhere: boolean;
       recording_upload_override: "" | "sync_only" | "all_calls";
       office_id: string;
@@ -270,6 +272,7 @@ function EditDialog({ row, isMe, onDone }: { row: StaffRow; isMe: boolean; onDon
           full_name: d.full_name,
           ...(isMe ? {} : { role: d.role }),
           phone_e164: d.phone,
+          email: d.email,
           bdm_start_anywhere: d.bdm_start_anywhere,
           recording_upload_override: d.recording_upload_override || null,
           ...(d.role === "bdm" ? { office_id: d.office_id || null } : {}),
@@ -306,6 +309,9 @@ function EditDialog({ row, isMe, onDone }: { row: StaffRow; isMe: boolean; onDon
         </Field>
         <Field label={t("phone")} error={checks.error("phone")}>
           {(a) => <Input {...a} type="tel" inputMode="tel" maxLength={20} value={form.phone} onChange={(e) => set("phone", e.target.value)} />}
+        </Field>
+        <Field label={t("contactEmail")} hint={t("contactEmailEditHint")} error={checks.error("email")}>
+          {(a) => <Input {...a} type="email" autoComplete="off" maxLength={200} value={form.email} onChange={(e) => set("email", e.target.value)} />}
         </Field>
         {form.role === "bdm" && (
           <Field label={t("office")} hint={t("officeHint")} error={checks.error("office_id")}>

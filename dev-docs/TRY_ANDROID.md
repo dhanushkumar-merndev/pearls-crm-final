@@ -150,3 +150,8 @@ Tick each box. Phone makers stop apps in the background in different ways; this 
 | Location switched off mid-day: the admin sees "GPS off" | ☐ | ☐ | ☐ |
 
 If recording stops when the screen is off, open **Settings → Set up calls and recordings → Keep the app running** and follow the steps for that brand (the same setting keeps the route going).
+
+# Phase 14: sales targets on My day
+
+If the admin switches on targets (website: Admin → Settings → Sales → **Use monthly sales targets**) and types some on the **Targets** page, each salesperson's **My day** shows "This month's targets": a bar for converted leads, agreed amount and calls, with "3 of 5 (60%)" written next to it. Without targets nothing changes. Everything else for Phase 14 is on the website: see `dev-docs/OPERATIONS.md`.
+

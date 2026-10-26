@@ -62,6 +62,9 @@ export const ERROR_CODES = [
   "day_ended",
   "visit_open",
   "break_open",
+  // Phase 14: backup and purge
+  "not_backed_up",
+  "not_purgeable",
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];
