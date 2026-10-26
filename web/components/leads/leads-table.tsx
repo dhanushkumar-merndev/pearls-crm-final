@@ -316,7 +316,7 @@ export function LeadsTable({ canAssign }: { canAssign: boolean }) {
                 <button
                   type="button"
                   className="rounded-full focus-visible:outline-2"
-                  aria-label={t("changeStageOf", { name: r.name })}
+                  aria-label={t("changeStageOf", { name: r.name, stage: t(`stage.${r.stage}`) })}
                   onClick={() => setStageFor({ lead: r, stage: r.stage })}
                 >
                   <StageBadge stage={r.stage} />

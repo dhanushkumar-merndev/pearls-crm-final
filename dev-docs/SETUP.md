@@ -128,7 +128,13 @@ To redo it (for example for production, with `pearl-prod`):
 3. Add the clinic's domain under **Senders, Domains & Dedicated IPs → Domains** and follow the DNS steps. This stops emails landing in spam. It needs your domain's DNS access (question 14 in PLAN.md).
 
 ### 2.4 Vercel (hosting the web app) — before go-live
-Covered in a later phase, once you decide question 3 in PLAN.md (Vercel Pro or Cloudflare).
+See **dev-docs/GO_LIVE.md** (sections A and B): connect the GitHub repository with Root Directory `web`, set the four environment variables, and let it deploy itself on every push.
+
+### 2.5 Going live, backups and app releases
+- **dev-docs/GO_LIVE.md**: the go-live checklist, in order.
+- **dev-docs/OPERATIONS.md**: the admin's routine (dashboard, alerts, weekly backup).
+- **dev-docs/RESTORE.md**: the monthly restore drill, and the real restore after a disaster.
+- **dev-docs/RELEASE_ANDROID.md**: signing key, building and sharing a new app version.
 
 ---
 

@@ -49,6 +49,9 @@ interface TemplateRow {
  * messages and estimated cost, the settings (on/off, reminders, quiet hours) and the
  * templates — what each is for and which value fills each {{n}}.
  */
+// A stat tile inside the <dl> (a <div> may group a dt/dd pair; a Card's <section> may not).
+const STAT = "flex flex-col gap-1 rounded-2xl border border-border bg-card p-5";
+
 export function WhatsAppAdminScreen({ webhookUrl }: { webhookUrl: string }) {
   const t = useTranslations("waAdmin");
   const { saved, errorMessage } = useFeedback();
@@ -136,15 +139,15 @@ export function WhatsAppAdminScreen({ webhookUrl }: { webhookUrl: string }) {
                 ["optedOut", o.opted_out],
               ] as const
             ).map(([k, n]) => (
-              <Card key={k} className="flex flex-col gap-1">
+              <div key={k} className={STAT}>
                 <dt className="text-text-secondary">{t(`n.${k}`)}</dt>
                 <dd className="text-2xl font-semibold tabular-nums">{n.toLocaleString("en-IN")}</dd>
-              </Card>
+              </div>
             ))}
-            <Card className="flex flex-col gap-1">
+            <div className={STAT}>
               <dt className="text-text-secondary">{t("n.cost")}</dt>
               <dd className="text-2xl font-semibold tabular-nums">{formatINR(o.month.cost_paise)}</dd>
-            </Card>
+            </div>
           </dl>
           <p className="text-[0.9rem] text-text-secondary">{t("costHint")}</p>
         </section>

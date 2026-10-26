@@ -115,7 +115,8 @@ select throws_ok($$ select public.update_patient('55555555-1111-4000-a000-000000
 ------------------------------------------------------------------------------
 select is((select public.global_search('T5002') -> 0 ->> 'title'), 'Ravi Kumar', 'search by UHID');
 select is((select public.global_search('98450 99999') -> 0 ->> 'title'), 'Ravi Kumar', 'search by phone with spaces');
-select is((select public.global_search('9999') -> 0 ->> 'title'), 'Ravi Kumar', 'search by the last digits');
+-- Seven trailing digits: staging also holds test patients whose random numbers end in 9999.
+select is((select public.global_search('5099999') -> 0 ->> 'title'), 'Ravi Kumar', 'search by the last digits');
 select is((select public.global_search('ravi') -> 0 ->> 'title'), 'Ravi Kumar', 'search by part of the name');
 select is((select public.global_search('r')), '[]'::jsonb, 'one letter is too short to search');
 select is((select public.global_search('Ravi K') -> 0 ->> 'title'), 'Ravi Kumar', 'a name with a space');

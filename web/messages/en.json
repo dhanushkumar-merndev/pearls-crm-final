@@ -63,6 +63,7 @@
   "notifications": {
     "label": "Notifications",
     "unread": "{count, plural, =0 {No new notifications} one {# new notification} other {# new notifications}}",
+    "unreadOver": "99+ new notifications",
     "empty": "You're all caught up.",
     "markAllRead": "Mark all as read"
   },
@@ -2230,7 +2231,7 @@
     "assignTo": "Assign to",
     "back": "Back",
     "bulkLabel": "Selected leads",
-    "changeStageOf": "Change the stage of {name}",
+    "changeStageOf": "{stage}: change the stage of {name}",
     "choose": "Choose…",
     "clearSelection": "Clear selection",
     "col": {

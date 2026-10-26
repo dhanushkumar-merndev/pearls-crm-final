@@ -55,6 +55,15 @@ console.log(`✔ Login settings: sign-up off, passwords 8+ with letters and digi
 console.log(`  web app: ${site} · allowed: ${all.join(", ")}`);
 console.log(env.get("SMTP_USER") ? "✔ Emails go through Brevo" : "• Emails use Supabase's built-in sender (fill .env section 4 for Brevo)");
 
+// Refuse passwords known from data breaches (HaveIBeenPwned). Supabase offers it on Pro and up.
+try {
+  await api("/config/auth", { method: "PATCH", body: { password_hibp_enabled: true } });
+  console.log("✔ Leaked passwords are refused (HaveIBeenPwned)");
+} catch (e) {
+  if (!String(e).includes("HTTP 402")) throw e;
+  console.log("• Leaked-password check needs Supabase Pro: it switches on by itself here after upgrading");
+}
+
 const secrets = FUNCTION_KEYS.filter((k) => env.get(k)).map((name) => ({ name, value: env.get(name)! }));
 if (secrets.length) await api("/secrets", { method: "POST", body: secrets });
 console.log(`✔ Server function keys: ${secrets.length} of ${FUNCTION_KEYS.length} set (${secrets.map((s) => s.name).join(", ")})`);

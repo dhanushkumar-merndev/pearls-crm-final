@@ -32,7 +32,10 @@
     "sql": "tsx scripts/sql.ts",
     "precommit:scan": "tsx scripts/precommit-scan.ts",
     "vectors": "pnpm --filter @pearl/shared vectors",
-    "sql:check": "tsx scripts/sql-check.ts"
+    "sql:check": "tsx scripts/sql-check.ts",
+    "advisors": "tsx scripts/advisors.ts",
+    "perf": "tsx scripts/perf-check.ts",
+    "restore:drill": "tsx scripts/restore-drill.ts"
   },
   "devDependencies": {
     "@tigrisdata/cli": "3.16.0",

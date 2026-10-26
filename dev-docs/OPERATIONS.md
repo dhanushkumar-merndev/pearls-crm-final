@@ -78,3 +78,7 @@ After this, those recordings can't be played on the website or the phone; open t
 - **Download Excel** on the appointments, bills and leads tables saves what the filters show as an `.xlsx` file. Amounts are real numbers, so Excel can total them.
 - **Admin → Import patients**, **Import opening stock** and **Leads → Import** accept an Excel file (`.xlsx`) or a CSV. **Download template (Excel)** gives a sheet with the right columns. Old `.xls` files must first be saved as **Excel Workbook (.xlsx)**.
 - The BDM page's report and every import's problem list are Excel files too.
+
+## 7. The monthly restore drill
+
+Once a month, check that the backup on the USB drive really restores. Your developer runs it from the project computer in about 10 minutes, and nothing in the CRM changes. Steps: dev-docs/RESTORE.md section 1. The same page explains the full restore if the clinic's project is ever lost.

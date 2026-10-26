@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -32,6 +34,21 @@ fun quoted(value: String): String = "\"" + value.replace("\\", "\\\\").replace("
 val pushEnabled = file("google-services.json").exists()
 if (pushEnabled) apply(plugin = libs.plugins.google.services.get().pluginId)
 
+// Release signing (dev-docs/RELEASE_ANDROID.md): android/keystore.properties on the owner's PC
+// (git-ignored, like the keystore itself) or PEARL_KEYSTORE_* environment variables in CI.
+// Without either, assembleRelease still builds, unsigned.
+fun propertiesOf(file: File): Map<String, String> = if (!file.exists()) {
+    emptyMap()
+} else {
+    Properties().apply { file.inputStream().use { load(it) } }.entries.associate { it.key.toString() to it.value.toString() }
+}
+val keystore = propertiesOf(rootProject.file("keystore.properties"))
+fun signing(key: String, env: String): String? = System.getenv(env)?.takeIf { it.isNotBlank() } ?: keystore[key]
+val keystoreFile = signing("storeFile", "PEARL_KEYSTORE_FILE")?.let { rootProject.file(it) }
+
+// Bump both in android/version.properties for every release given to staff.
+val version = propertiesOf(rootProject.file("version.properties"))
+
 android {
     namespace = "com.pearl.crm"
     compileSdk = 36
@@ -40,8 +57,8 @@ android {
         applicationId = "com.pearl.crm"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = version.getValue("versionCode").toInt()
+        versionName = version.getValue("versionName")
         buildConfigField("String", "SUPABASE_URL", quoted(backend("NEXT_PUBLIC_SUPABASE_URL")))
         buildConfigField("String", "SUPABASE_ANON_KEY", quoted(backend("NEXT_PUBLIC_SUPABASE_ANON_KEY")))
         buildConfigField("boolean", "PUSH_ENABLED", pushEnabled.toString())
@@ -57,10 +74,23 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    signingConfigs {
+        if (keystoreFile?.exists() == true) {
+            create("release") {
+                storeFile = keystoreFile
+                storePassword = signing("storePassword", "PEARL_KEYSTORE_PASSWORD")
+                keyAlias = signing("keyAlias", "PEARL_KEY_ALIAS")
+                keyPassword = signing("keyPassword", "PEARL_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.findByName("release")
         }
     }
 

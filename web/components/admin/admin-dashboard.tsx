@@ -85,7 +85,7 @@ function moneyBars(rows: { label: string; paise: number }[]) {
   });
 }
 
-/** Admin dashboard (PLAN.md B6): one call, tiles vs the previous period, every section. */
+/** Admin dashboard (PLAN.md B6): tiles vs the previous period, every section (fetched in three parts). */
 export function AdminDashboard() {
   const t = useTranslations("adminDash");
   const s = useTranslations("salesDash");
@@ -101,7 +101,15 @@ export function AdminDashboard() {
     staleTime: 60_000,
     // Keep the old numbers on screen while a new period loads (no flash, charts keep their view).
     placeholderData: keepPreviousData,
-    queryFn: () => rpc<Dashboard>("dashboard_admin", { p_from: range.from, p_to: range.to, p_compare: true }),
+    // Three parts side by side: each is quick, together they'd be slow for a long period.
+    queryFn: async () => {
+      const parts = await Promise.all(
+        ["summary", "previous", "money"].map((part) =>
+          rpc<Partial<Dashboard>>("dashboard_admin", { p_from: range.from, p_to: range.to, p_compare: true, p_parts: [part] }),
+        ),
+      );
+      return Object.assign({}, ...parts) as Dashboard;
+    },
   });
   const d = dash.data;
   const k = d?.kpis;

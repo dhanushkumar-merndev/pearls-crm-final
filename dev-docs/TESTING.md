@@ -13,7 +13,10 @@ A phase is finished only when all of these pass (PLAN.md E1).
 | `pnpm db:concurrency` | 50 parallel finalizes → bill numbers with no gaps and no duplicates | **Yes** |
 | `cd android && ./gradlew test assembleDebug lintDebug` | Android: sync, outbox, PIN, Room migrations, sales repository, recordings, BDM day and route filter (incl. a simulated drive within ±5%), notes sheet / booking / BDM screens (Robolectric), APK builds, lint | No |
 | Field checklists (manual) | Caller pop-up, call log, recording matching (`dev-docs/TRY_ANDROID.md` step 8); BDM background route recording and a scripted drive (step 11) on each real phone model. Can't be fully automated | Real phones |
-| `E2E_DB=1 pnpm e2e` | Logged-in browser tests: shell, Ctrl+K search, theme saved per person, design preview charts, role pages | **Yes** (plus `pnpm db:reset` for seed data) |
+| `E2E_DB=1 pnpm e2e` | Logged-in browser tests: shell, Ctrl+K search, theme saved per person, design preview charts, role pages, and an accessibility sweep (`a11y.db.spec.ts`: axe WCAG 2.1 AA on 45 pages as the role that uses each; any serious or critical finding fails) | **Yes** (plus `pnpm db:reset` for seed data) |
+| `pnpm advisors [--strict]` | Supabase's security and performance advisors for the online project. Each finding we accept on purpose has its reason in `scripts/advisors.ts`; `--strict` fails on anything else | Online project |
+| `pnpm perf [--pending]` | Performance pass: a two-year "perf seed" (50k patients, 120k appointments, 40k bills, 30k leads, 60k calls, 30k WhatsApp messages) loaded in one transaction that is always rolled back; each main screen's RPC timed 15 times as the role that uses it. Budget p95: search < 150 ms, lists and dashboards < 300 ms. Afterwards it compacts the seeded tables (a rolled-back load still takes disk space, and a free project over 500 MB turns read-only) and refuses to start above 150 MB. `--pending` first applies migrations not yet online. `PERF_ONLY`, `PERF_RUNS`, `PERF_EXPLAIN=1` and `PERF_EXTRA` help while tuning | Online project |
+| `pnpm restore:drill "<backup folder>"` | Restore drill: the Backup centre's export checked against its manifest, loaded into staging in foreign-key order inside a rolled-back transaction, and compared value for value (dev-docs/RESTORE.md) | Online staging |
 
 ### Logged-in browser tests on the online staging project
 After `pnpm staging:bootstrap` (fake usernames admin / reception / manager / sales / bdm):
@@ -56,3 +59,5 @@ It also fails if `web/app/tokens.css` is out of date. Run `pnpm tokens` after ed
 - or lets logged-out visitors read or call anything except `public_branding`.
 
 It also checks that every security-definer function pins its `search_path`.
+
+`22_rls_fuzz.test.sql` goes further. As someone with no staff row, a deactivated person, a receptionist, a salesperson, a sales manager and a BDM, it tries to read, change and delete every row of every table, and calls every RPC with empty arguments. It then compares what got through with the exact list of what each role may do.

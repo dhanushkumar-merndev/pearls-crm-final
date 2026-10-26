@@ -959,3 +959,18 @@ Each phase ends with: tests green → I tell you step by step how to try it on s
   - Sales targets: optional (Settings → Sales), per salesperson per month for converted, agreed amount and calls; the admin sets them on the Targets page, the manager watches, the salesperson sees bars in the Android My day.
   - Excel: the appointments, bills and leads exports, import problem lists and templates are .xlsx; imports read .xlsx as well as CSV (old .xls must be re-saved).
   - Fixed while testing: the dashboard keeps the previous numbers on screen while a new period loads (charts used to reset); the sales targets list has a stable order when two people share a name.
+- 26/10/2026 (session 9), Phase 15 done: hardening and go-live. Decisions made while building:
+  - Security: Supabase's advisors run with `pnpm advisors --strict`. Every remaining finding is accepted on purpose, with its reason in `scripts/advisors.ts`. Examples: RPCs are security-definer by design and check the role inside; the leaked-password check needs Pro. Every owned function now pins `search_path`. Foreign keys got the missing indexes. Offices are readable only by staff and WhatsApp contacts only by admins. RLS fuzzing (`22_rls_fuzz`) tries every table and every RPC as six kinds of people and compares the result with the exact allowed list.
+  - Performance: `pnpm perf` loads a two-year seed in a rolled-back transaction and times every main screen as the role that uses it. Everything is within budget: search ≤ 23 ms, lists ≤ 74 ms, dashboards ≤ 204 ms (p95). Changes:
+    - Today's KPIs are worked out with exact date bounds (40 → 4 ms).
+    - The admin dashboard comes in three parts (summary / previous period / money) that the page asks for side by side. It is planned for the actual dates on every call; a cached generic plan was up to 5× slower now and then.
+    - "Outstanding" is one pass over bills and payments.
+    - "Revenue by source" joins leads as sets.
+    - Lesson: a rolled-back load still fills the disk. The free project turned read-only at 762 MB until compacted, so the perf script now compacts after itself and refuses to start above 150 MB.
+  - Accessibility: an axe sweep (WCAG 2.1 AA) over 45 signed-in pages. Fixed:
+    - the bell's spoken label now includes the number it shows;
+    - each lead stage button's name starts with the stage it shows;
+    - the WhatsApp stats list was invalid HTML.
+  - Restore: `pnpm restore:drill` checks a Backup centre export against its manifest and loads it in foreign-key order. Links that go round in a circle (patients ↔ leads, files ↔ backup items, …) are filled in afterwards. It compares every row value for value. The drill rolls back on staging; `--commit` restores into a new project, recreates logins with a temporary password and uploads the backed-up files. Drill passed on staging: 81 tables, 8 s.
+  - Android release: signing from `android/keystore.properties` (git-ignored) or `PEARL_KEYSTORE_*` in CI. The version is in `android/version.properties`. R8 shrinking is on (APK 2.7 MB). A release build was checked on the emulator: login, PIN, My day, and a lead saved to the server.
+  - Docs: GO_LIVE.md (checklist), RESTORE.md, RELEASE_ANDROID.md; OPERATIONS.md section 7.

@@ -70,11 +70,11 @@ export function NotificationBell({ staffId }: { staffId: string }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative" aria-label={`${t("label")}: ${t("unread", { count: unread })}`}>
+        <Button variant="ghost" size="icon" className="relative" aria-label={`${t("label")}: ${unread > 99 ? t("unreadOver") : t("unread", { count: unread })}`}>
           <Bell aria-hidden />
           {unread > 0 && (
             <span className="absolute top-1.5 right-1.5 inline-flex min-w-5 items-center justify-center rounded-full bg-status-critical px-1 text-[0.7rem] font-bold text-white">
-              {unread > 9 ? "9+" : unread}
+              {unread > 99 ? "99+" : unread}
             </span>
           )}
         </Button>
