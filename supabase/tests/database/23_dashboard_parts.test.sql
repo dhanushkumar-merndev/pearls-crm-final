@@ -133,8 +133,12 @@ select is((select array_agg(k order by k) from jsonb_object_keys((select v from 
   'the summary part holds only its sections');
 select is((select array_agg(k order by k) from jsonb_object_keys((select v from got where k = 'previous')) k),
   array['bucket', 'from', 'previous', 'to'], 'the previous part holds only the comparison');
-select is((select v from got where k = 'money') || (select v from got where k = 'summary') || (select v from got where k = 'previous'),
-  (select v from got where k = 'all'), 'the three parts together are the whole dashboard');
+-- The live sections (BDM positions, job and backup runs, storage) can change between the four calls
+-- on a busy online database: those must be there; everything else must match exactly.
+select is(((select v from got where k = 'money') || (select v from got where k = 'summary') || (select v from got where k = 'previous'))
+            - array['bdm', 'integrations', 'backup', 'storage'],
+  (select v from got where k = 'all') - array['bdm', 'integrations', 'backup', 'storage'],
+  'the three parts together are the whole dashboard');
 select is(public.dashboard_admin((select d from today), (select d from today), false, array['previous']) -> 'previous', 'null'::jsonb,
   'no comparison asked, none given');
 select throws_ok($$ select public.dashboard_admin(current_date, current_date, true, array['everything']) $$, 'P0001', 'invalid_input',

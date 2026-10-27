@@ -67,6 +67,12 @@ select is((select row(push, email)::text from private.notification_channels('lea
 
 -- Email goes through notify-email only when the rule asks and the person has an address.
 reset role;
+-- A fresh database (CI) has no Edge Function address in Vault yet (`pnpm supabase:configure` adds it
+-- online): stand-ins, rolled back with the rest of the test.
+select vault.create_secret('http://127.0.0.1:54321/functions/v1', 'edge_base_url')
+  where not exists (select 1 from vault.secrets where name = 'edge_base_url');
+select vault.create_secret('test-only-secret', 'edge_cron_secret')
+  where not exists (select 1 from vault.secrets where name = 'edge_cron_secret');
 create temp table q0 as select coalesce(max(id), 0) as id from net.http_request_queue;
 insert into public.notifications (recipient_id, type, title) values
   ('21212121-0000-4000-a000-00000000000a', 'lead_assigned', 'emailed'),

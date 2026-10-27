@@ -20,6 +20,8 @@ insert into public.staff (id, role, full_name, active, deactivated_at) values
   ('22222222-2200-4000-a000-0000000000c1', 'sales_executive', 'Fz Sales', true, null),
   ('22222222-2200-4000-a000-0000000000c2', 'sales_manager', 'Fz Mgr', true, null),
   ('22222222-2200-4000-a000-0000000000d1', 'bdm', 'Fz Bdm', true, null);
+-- At least one supplier, so reception's one allowed direct edit shows up on an empty database too (CI).
+insert into public.suppliers (name) values ('Fz Supplier');
 create temp table findings (who text, tbl text, op text, n bigint, err text);
 grant all on findings to authenticated;
 do $$

@@ -197,9 +197,12 @@ select is(
   (select jsonb_object_agg(k.metric, k.value) from private.kpi_compute_day((private.ist(now()))::date) k
     where k.dim_kind = 'clinic' and k.metric in ('collected_paise', 'refunds_paise')
       and k.metric is not null),
-  (select jsonb_build_object('collected_paise', s.c, 'refunds_paise', 0) from (
-     select coalesce(sum(amount_paise), 0) as c from public.payments
-     where cancelled_at is null and kind <> 'refund' and (private.ist(received_at))::date = (private.ist(now()))::date) s),
+  -- Refunds counted the same way: staging may already have refunds today (browser tests make some).
+  (select jsonb_build_object('collected_paise', s.c, 'refunds_paise', s.r) from (
+     select coalesce(sum(amount_paise) filter (where kind <> 'refund'), 0) as c,
+            coalesce(sum(amount_paise) filter (where kind = 'refund'), 0) as r
+     from public.payments
+     where cancelled_at is null and (private.ist(received_at))::date = (private.ist(now()))::date) s),
   'collected today = every non-cancelled payment and advance received today');
 select ok(
   (select value from private.kpi_compute_day((private.ist(now()))::date) where metric = 'revenue_paise' and dim_kind = 'bill_type'
