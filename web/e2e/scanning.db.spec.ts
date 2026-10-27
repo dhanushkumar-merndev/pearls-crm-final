@@ -4,6 +4,8 @@ import { open, STATE, uniquePhone } from "./helpers";
 // Phase 8: scanning. Offline queue, duplicate warning, real file type, single-use phone link.
 // Needs a backend (E2E_DB=1) with the phone-scan Edge Function and Tigris configured.
 test.skip(!process.env.E2E_DB, "needs the Supabase backend (E2E_DB=1)");
+// CI's throwaway local backend has no Tigris keys, so uploads (and the phone-scan function) can't work there.
+test.skip(Boolean(process.env.E2E_NO_FILE_STORAGE), "no file storage on this backend (E2E_NO_FILE_STORAGE)");
 test.use({ storageState: STATE.reception });
 // Image processing + upload + realtime: more than the default 30 s per test.
 test.setTimeout(120_000);

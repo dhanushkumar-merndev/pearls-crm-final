@@ -28,7 +28,9 @@ async function purchase(page: Page, medicine: string, batch: string, expiry: str
   await page.getByLabel("Supplier invoice no.").fill(`E2E-${stamp}`);
   await page.getByRole("combobox", { name: "Medicine" }).click();
   await page.getByPlaceholder("Type to search…").fill(medicine);
-  if (isNew) await page.getByRole("option", { name: `Add “${medicine}”` }).click();
+  // A medicine typed in for the first time may already exist after an earlier (refused) purchase:
+  // then the list shows it instead of "Add …", and that is the one to pick.
+  if (isNew) await page.getByRole("option").filter({ hasText: medicine }).first().click();
   else await page.getByRole("option", { name: new RegExp(medicine) }).first().click();
   await expect(page.getByRole("combobox", { name: "Medicine" })).toHaveText(medicine);
   await page.getByLabel("Batch", { exact: true }).fill(batch);

@@ -77,7 +77,8 @@ test.describe("admin", () => {
 
     await box.fill("400");
     await save.click();
-    await expect(row.getByText(/of 400 \(\d+%\)/)).toBeVisible();
+    // The share keeps one decimal ("1 of 400 (0.3%)").
+    await expect(row.getByText(/of 400 \(\d+(\.\d)?%\)/)).toBeVisible();
     // Cleared again: empty = no target.
     await box.fill("");
     await save.click();
