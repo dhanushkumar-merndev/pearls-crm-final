@@ -7,12 +7,14 @@ import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { formatDateTime, istDateString, type StatusKind } from "@pearl/shared";
 import { BdmMap, type MapMarker, type MarkerTone } from "@/components/bdm/bdm-map";
-import { bdmTone, minutesSince, type LiveBdm } from "@/lib/bdm";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Field, PageHeader } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Page } from "@/components/ui/page";
+import { RowSkeletons } from "@/components/ui/skeletons";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { bdmTone, minutesSince, type LiveBdm } from "@/lib/bdm";
 import { useLiveBdm } from "@/lib/realtime";
 import { rpc } from "@/lib/rpc";
 import { useDateRangeCheck } from "@/lib/use-date-range";
@@ -44,12 +46,12 @@ export function BdmScreen() {
   });
 
   return (
-    <div className="flex flex-col gap-5">
+    <Page>
       <PageHeader title={t("title")} description={t("description")} />
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]">
-        <BdmMap markers={markers} label={t("mapLabel")} className="h-[28rem]" />
+        <BdmMap markers={markers} label={t("mapLabel")} className="h-72 sm:h-96 xl:h-[28rem]" />
         <section aria-label={t("people")} className="flex flex-col gap-2">
-          {live.isPending && <p className="text-text-secondary">{t("loading")}</p>}
+          {live.isPending && <RowSkeletons rows={3} />}
           {live.isSuccess && people.length === 0 && <p className="text-text-secondary">{t("nobody")}</p>}
           <ul className="flex flex-col gap-2">
             {people.map((b) => {
@@ -101,7 +103,7 @@ export function BdmScreen() {
         </section>
       </div>
       <ReportCard />
-    </div>
+    </Page>
   );
 }
 

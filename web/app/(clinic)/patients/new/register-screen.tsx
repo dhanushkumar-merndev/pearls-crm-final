@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { UserPlus, Users, UserRoundCheck, Save } from "lucide-react";
+import { ArrowLeft, FileUser, Save, UserPlus, UserRoundCheck, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
@@ -12,6 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Checkbox, PageHeader } from "@/components/ui/form";
+import { Page, StickyActions } from "@/components/ui/page";
+import { RowSkeletons } from "@/components/ui/skeletons";
 import { newId, rpc, unwrap } from "@/lib/rpc";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
 import { useFeedback } from "@/lib/use-feedback";
@@ -74,13 +76,16 @@ export function RegisterScreen({ requestId, leadId = null }: { requestId: string
       },
   });
   if (requestId && !request.data) return <p>{request.isError ? t("loadFailed") : t("loading")}</p>;
-  if (leadId && lead.isPending) return <p>{t("loading")}</p>;
+  if (leadId && lead.isPending) return <RowSkeletons rows={3} />;
   if (leadId && lead.data?.patient_id) {
     return (
       <Card className="flex flex-col items-start gap-3">
         <p>{r("leadAlreadyRegistered", { n: lead.data.sl_no })}</p>
         <Button asChild>
-          <a href={`/patients/${lead.data.patient_id}`}>{r("openPatientFile")}</a>
+          <a href={`/patients/${lead.data.patient_id}`}>
+            <FileUser aria-hidden />
+            {r("openPatientFile")}
+          </a>
         </Button>
       </Card>
     );
@@ -173,34 +178,28 @@ function RegisterForm({
 
   const busy = check.isPending || register.isPending;
   return (
-    <div className="flex flex-col gap-2">
+    <Page>
       <PageHeader
         title={requestId ? t("reviewTitle") : t("title")}
         description={requestId ? t("reviewDescription") : t("description")}
-        actions={
-          <Button onClick={save} disabled={busy || requestStatus === "discarded"}>
-            <Save aria-hidden />
-            {busy ? t("saving") : t("save")}
-          </Button>
-        }
       />
       {lead && (
-        <Card className="mb-3" role="status">
+        <Card role="status">
           {t("fromLead", { n: lead.sl_no })}
         </Card>
       )}
       {requestStatus && requestStatus !== "pending" && (
-        <Card className="mb-3 text-text-secondary" role="status">
+        <Card className="text-text-secondary" role="status">
           {t("alreadyHandled")}
         </Card>
       )}
       <PatientForm draft={draft} onChange={setDraft} errors={form.errors} onEdit={form.clear} />
-      <div className="mt-4 flex justify-end">
-        <Button size="lg" onClick={save} disabled={busy}>
+      <StickyActions>
+        <Button size="lg" onClick={save} disabled={busy || requestStatus === "discarded"}>
           <Save aria-hidden />
           {busy ? t("saving") : t("save")}
         </Button>
-      </div>
+      </StickyActions>
 
       <Dialog open={matches !== null} onOpenChange={(o) => !o && setMatches(null)}>
         {matches && (
@@ -214,7 +213,7 @@ function RegisterForm({
           />
         )}
       </Dialog>
-    </div>
+    </Page>
   );
 }
 
@@ -325,6 +324,7 @@ function UpdateChooser({
       footer={
         <>
           <Button variant="ghost" onClick={onBack}>
+            <ArrowLeft aria-hidden />
             {t("back")}
           </Button>
           <Button disabled={busy || ticked.length === 0} onClick={() => onUpdate(patientId, ticked)}>
@@ -334,7 +334,7 @@ function UpdateChooser({
         </>
       }
     >
-      {stored.isPending && <p>{t("loading")}</p>}
+      {stored.isPending && <RowSkeletons rows={3} />}
       {stored.data && diffs.length === 0 && <p className="text-text-secondary">{t("nothingNew")}</p>}
       <ul className="flex flex-col gap-2">
         {diffs.map((d) => (

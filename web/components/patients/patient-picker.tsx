@@ -59,7 +59,7 @@ export function PatientPicker({
           aria-controls={listId}
           aria-invalid={invalid || undefined}
           aria-describedby={describedBy}
-          className="flex min-h-12 w-full items-center gap-2 rounded-xl border border-input bg-background px-4 text-left text-base aria-invalid:border-status-critical"
+          className="flex min-h-10 w-full items-center gap-2 rounded-xl border border-input bg-background px-3.5 text-left text-base aria-invalid:border-status-critical"
         >
           <span className={cn("flex-1 truncate", !value && "text-muted-foreground")}>
             {value ? `${value.title} · ${value.uhid}` : (placeholder ?? t("findPatient"))}
@@ -72,7 +72,7 @@ export function PatientPicker({
           <Command shouldFilter={false}>
             <div className="flex items-center gap-2 border-b border-border px-3">
               <Search aria-hidden className="size-5 text-muted-foreground" />
-              <Command.Input value={q} onValueChange={setQ} placeholder={t("patientSearch")} className="min-h-12 flex-1 bg-transparent outline-none" />
+              <Command.Input value={q} onValueChange={setQ} placeholder={t("patientSearch")} className="min-h-11 flex-1 bg-transparent outline-none" />
               {hits.isFetching && <LoaderCircle aria-hidden className="size-5 animate-spin text-muted-foreground" />}
             </div>
             <Command.List id={listId} className="max-h-80 overflow-y-auto p-1.5">
@@ -86,10 +86,10 @@ export function PatientPicker({
                     onChange(h);
                     setOpen(false);
                   }}
-                  className="flex min-h-11 cursor-pointer flex-col justify-center rounded-xl px-3 py-1.5 data-[selected=true]:bg-popover-accent"
+                  className="flex min-h-10 cursor-pointer flex-col justify-center rounded-xl px-3 py-1.5 data-[selected=true]:bg-popover-accent"
                 >
                   <span>{h.title}</span>
-                  <span className="text-[0.85rem] text-text-secondary">{h.subtitle}</span>
+                  <span className="text-[0.9rem] text-text-secondary">{h.subtitle}</span>
                 </Command.Item>
               ))}
             </Command.List>

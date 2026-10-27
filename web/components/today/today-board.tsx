@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { CalendarPlus, Footprints, Inbox, ListTodo, Repeat } from "lucide-react";
+import { CalendarPlus, ChevronDown, Footprints, Inbox, ListTodo, Repeat } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
@@ -15,6 +15,8 @@ import { StatTile } from "@/components/kpi/stat-tile";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { TileSkeletons } from "@/components/ui/skeletons";
 import { useLiveAppointments } from "@/lib/realtime";
 import { rpc } from "@/lib/rpc";
 
@@ -45,11 +47,11 @@ export function TodayBoard() {
   useLiveAppointments(day, [["today_board", day], ["dashboard_reception", day]]);
   const [dialog, setDialog] = useState<"book" | "walkin" | null>(null);
   const c = board.data?.counts ?? {};
+  const todo = (board.data?.followups_due ?? 0) + (board.data?.sessions_due_week ?? 0) + (board.data?.pending_registrations ?? 0);
 
   const arrivals = useCallback(
     (_theme: ChartTheme, mode: ThemeMode) => ({
-      grid: { left: 40, right: 16, top: 40, bottom: 32 },
-      legend: { top: 0, left: 0 },
+      legend: {},
       tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
       xAxis: { type: "category", data: (dash.data?.arrivals_by_hour ?? []).map((r) => hourLabel(r.hour)) },
       yAxis: { type: "value", minInterval: 1 },
@@ -62,8 +64,7 @@ export function TodayBoard() {
   );
   const load = useCallback(
     () => ({
-      grid: { left: 96, right: 16, top: 40, bottom: 24 },
-      legend: { top: 0, left: 0 },
+      legend: {},
       tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
       xAxis: { type: "value", minInterval: 1 },
       yAxis: { type: "category", data: (dash.data?.doctor_load ?? []).map((d) => d.doctor) },
@@ -79,6 +80,7 @@ export function TodayBoard() {
 
   return (
     <div className="flex flex-col gap-5">
+      {/* One primary action; the to-do lists (with their counts) are one tap away under "More". */}
       <div className="flex flex-wrap gap-2">
         <Button onClick={() => setDialog("book")}>
           <CalendarPlus aria-hidden />
@@ -88,36 +90,49 @@ export function TodayBoard() {
           <Footprints aria-hidden />
           {t("walkIn")}
         </Button>
-        <Button asChild variant="secondary">
-          <Link href="/followups">
-            <ListTodo aria-hidden />
-            {t("followups", { n: board.data?.followups_due ?? 0 })}
-          </Link>
-        </Button>
-        <Button asChild variant="secondary">
-          <Link href="/sessions">
-            <Repeat aria-hidden />
-            {t("sessionsDue", { n: board.data?.sessions_due_week ?? 0 })}
-          </Link>
-        </Button>
-        {(board.data?.pending_registrations ?? 0) > 0 && (
-          <Button asChild variant="secondary">
-            <Link href="/patients/pending">
-              <Inbox aria-hidden />
-              {t("pendingRegistrations", { n: board.data!.pending_registrations })}
-            </Link>
-          </Button>
-        )}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="secondary">
+              <ListTodo aria-hidden />
+              {t("toDo", { n: todo })}
+              <ChevronDown aria-hidden />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuItem asChild>
+              <Link href="/followups">
+                <ListTodo aria-hidden />
+                {t("followups", { n: board.data?.followups_due ?? 0 })}
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href="/sessions">
+                <Repeat aria-hidden />
+                {t("sessionsDue", { n: board.data?.sessions_due_week ?? 0 })}
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href="/patients/pending">
+                <Inbox aria-hidden />
+                {t("pendingRegistrations", { n: board.data?.pending_registrations ?? 0 })}
+              </Link>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-        <StatTile label={t("tile.total")} value={String(c.total ?? 0)} />
-        <StatTile label={t("tile.waitingConfirmation")} value={String(c.pending_confirmation ?? 0)} />
-        <StatTile label={t("tile.arrived")} value={String((c.arrived ?? 0) + (c.with_doctor ?? 0))} />
-        <StatTile label={t("tile.done")} value={String(c.done ?? 0)} />
-        <StatTile label={t("tile.noShow")} value={String(c.no_show ?? 0)} goodWhen="down" />
-        <StatTile label={t("tile.walkIns")} value={String(c.walk_ins ?? 0)} />
-      </div>
+      {board.isPending ? (
+        <TileSkeletons count={6} className="md:grid-cols-3 xl:grid-cols-6" />
+      ) : (
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+          <StatTile label={t("tile.total")} value={String(c.total ?? 0)} />
+          <StatTile label={t("tile.waitingConfirmation")} value={String(c.pending_confirmation ?? 0)} />
+          <StatTile label={t("tile.arrived")} value={String((c.arrived ?? 0) + (c.with_doctor ?? 0))} />
+          <StatTile label={t("tile.done")} value={String(c.done ?? 0)} />
+          <StatTile label={t("tile.noShow")} value={String(c.no_show ?? 0)} goodWhen="down" />
+          <StatTile label={t("tile.walkIns")} value={String(c.walk_ins ?? 0)} />
+        </div>
+      )}
       {dash.data && (
         <div className="flex flex-wrap items-center gap-x-6 gap-y-1 rounded-2xl border border-border p-4">
           <span className="text-lg font-semibold">{t("collected", { amount: formatINR(dash.data.collections.total_paise) })}</span>
@@ -130,23 +145,27 @@ export function TodayBoard() {
         </div>
       )}
 
-      <div className="grid gap-4 xl:grid-cols-2">
+      {/* items-start: each card is as tall as its own list (no empty stretched card). */}
+      <div className="grid items-start gap-4 xl:grid-cols-2">
         <Card className="flex flex-col gap-3">
           <CardTitle>{t("waiting")}</CardTitle>
           {board.data?.waiting.length === 0 && <p className="text-text-secondary">{t("nobodyWaiting")}</p>}
           <ul className="flex flex-col gap-2">
             {board.data?.waiting.map((a) => (
-              <li key={a.id} className="flex flex-wrap items-center gap-2 rounded-xl border border-border p-2">
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate font-medium">
+              <li key={a.id} className="flex flex-col gap-2 rounded-xl border border-border p-2.5">
+                {/* Two lines on every width: who (in full), then status and actions. */}
+                <span className="min-w-0">
+                  <span className="block font-medium break-words">
                     {a.queue_no ? `#${a.queue_no} ` : ""}
                     {a.patient}
                     {a.lead_only && <LeadTag />}
                   </span>
                   <span className="block text-[0.9rem] text-text-secondary">{[a.doctor, a.uhid].filter(Boolean).join(" · ")}</span>
                 </span>
-                <ApptStatusBadge status={a.status} />
-                <AppointmentActions appt={a} />
+                <span className="flex items-center justify-between gap-2">
+                  <ApptStatusBadge status={a.status} />
+                  <AppointmentActions appt={a} />
+                </span>
               </li>
             ))}
           </ul>
@@ -156,17 +175,21 @@ export function TodayBoard() {
           {board.data?.upcoming.length === 0 && <p className="text-text-secondary">{t("nothingUpcoming")}</p>}
           <ul className="flex flex-col gap-2">
             {board.data?.upcoming.map((a) => (
-              <li key={a.id} className="flex flex-wrap items-center gap-2 rounded-xl border border-border p-2">
-                <span className="w-20 font-medium tabular-nums">{a.slot_start ? formatTime(new Date(a.slot_start)) : ""}</span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate font-medium">
-                    {a.patient}
-                    {a.lead_only && <LeadTag />}
+              <li key={a.id} className="flex flex-col gap-2 rounded-xl border border-border p-2.5">
+                <span className="flex min-w-0 items-start gap-3">
+                  <span className="w-20 shrink-0 font-medium whitespace-nowrap tabular-nums">{a.slot_start ? formatTime(new Date(a.slot_start)) : ""}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-medium break-words">
+                      {a.patient}
+                      {a.lead_only && <LeadTag />}
+                    </span>
+                    <span className="block text-[0.9rem] text-text-secondary">{a.doctor}</span>
                   </span>
-                  <span className="block text-[0.9rem] text-text-secondary">{a.doctor}</span>
                 </span>
-                <ApptStatusBadge status={a.status} />
-                <AppointmentActions appt={a} />
+                <span className="flex items-center justify-between gap-2">
+                  <ApptStatusBadge status={a.status} />
+                  <AppointmentActions appt={a} />
+                </span>
               </li>
             ))}
           </ul>
@@ -174,10 +197,11 @@ export function TodayBoard() {
       </div>
 
       {dash.data && (
-        <div className="grid gap-4 xl:grid-cols-2">
+        <div className="grid items-start gap-4 xl:grid-cols-2">
           <EChart
             title={t("arrivalsTitle")}
             option={arrivals}
+            empty={dash.data.arrivals_by_hour.every((r) => !r.today && !r.typical)}
             table={{
               columns: [t("hour"), t("todayArrivals"), t("typical")],
               rows: dash.data.arrivals_by_hour.map((r) => [hourLabel(r.hour), r.today, r.typical]),
@@ -186,6 +210,9 @@ export function TodayBoard() {
           <EChart
             title={t("loadTitle")}
             option={load}
+            // One row per doctor, plus room for the six-status legend.
+            height={Math.max(176, dash.data.doctor_load.length * 32 + 112)}
+            empty={dash.data.doctor_load.length === 0}
             table={{
               columns: [t("doctor"), ...LOAD.map((x) => s(x))],
               rows: dash.data.doctor_load.map((d) => [d.doctor, ...LOAD.map((x) => d.counts[x] ?? 0)]),
@@ -205,5 +232,5 @@ export function TodayBoard() {
 /** A booking for a lead (sales booked it; no patient file yet): reception registers them on arrival. */
 function LeadTag() {
   const t = useTranslations("today");
-  return <span className="ml-2 rounded-full border border-border px-2 py-0.5 text-[0.8rem] font-normal text-text-secondary">{t("leadOnly")}</span>;
+  return <span className="ml-2 inline-block rounded-full border whitespace-nowrap border-border px-2 py-0.5 text-[0.9rem] font-normal text-text-secondary">{t("leadOnly")}</span>;
 }

@@ -251,12 +251,12 @@ export function SlotPicker({
               aria-checked={selected}
               disabled={disabled}
               onClick={() => onChange(s.start)}
-              className={`flex min-h-14 flex-col items-center justify-center rounded-xl border px-2 text-base ${
+              className={`flex min-h-12 flex-col items-center justify-center rounded-xl border px-2 text-base ${
                 selected ? "border-foreground bg-primary text-primary-foreground" : "border-border bg-secondary hover:bg-popover-accent"
               } disabled:cursor-not-allowed disabled:opacity-45`}
             >
               <span className="font-medium tabular-nums">{formatTime(new Date(s.start))}</span>
-              <span className="text-[0.8rem]">{s.blocked_reason ? t(`blocked.${s.blocked_reason}`) : t("left", { n: s.left })}</span>
+              <span className="text-[0.9rem]">{s.blocked_reason ? t(`blocked.${s.blocked_reason}`) : t("left", { n: s.left })}</span>
             </button>
           );
         })}

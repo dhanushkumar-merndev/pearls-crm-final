@@ -10,7 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Checkbox, Field, PageHeader, Select, Textarea } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Page, useAdminBack } from "@/components/ui/page";
 import { Pager } from "@/components/ui/pager";
+import { RowSkeletons } from "@/components/ui/skeletons";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
 import { asAppError, callFunction, unwrap } from "@/lib/rpc";
@@ -36,6 +38,7 @@ type Dialogs = { kind: "create" } | { kind: "edit" | "password" | "deactivate"; 
 const LIMIT = 25;
 
 export function UsersScreen({ myId }: { myId: string }) {
+  const adminBack = useAdminBack();
   const t = useTranslations("users");
   const c = useTranslations("common");
   const r = useTranslations("roles");
@@ -69,8 +72,8 @@ export function UsersScreen({ myId }: { myId: string }) {
   });
 
   return (
-    <div>
-      <PageHeader
+    <Page>
+      <PageHeader back={adminBack}
         title={t("title")}
         description={t("description")}
         actions={
@@ -80,7 +83,7 @@ export function UsersScreen({ myId }: { myId: string }) {
           </Button>
         }
       />
-      <div className="relative mb-4 max-w-md">
+      <div className="relative max-w-md">
         <Search aria-hidden className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-muted-foreground" />
         <Input
           className="pl-11"
@@ -106,7 +109,7 @@ export function UsersScreen({ myId }: { myId: string }) {
           </tr>
         </THead>
         <tbody>
-          {list.isPending && <EmptyRow colSpan={5}>{c("loading")}</EmptyRow>}
+          {list.isPending && <RowSkeletons asRow rows={3} cols={5} />}
           {list.data?.rows.length === 0 && <EmptyRow colSpan={5}>{c("noMatches")}</EmptyRow>}
           {list.data?.rows.map((row) => (
             <TR key={row.id}>
@@ -114,7 +117,7 @@ export function UsersScreen({ myId }: { myId: string }) {
               <TD>{r(row.role)}</TD>
               <TD className="break-all">{row.username ?? "—"}</TD>
               <TD>{row.active ? <StatusBadge kind="good" label={c("active")} /> : <StatusBadge kind="serious" label={t("deactivated")} />}</TD>
-              <TD className="text-right whitespace-nowrap">
+              <TD className="whitespace-nowrap">
                 <Button variant="ghost" onClick={() => setDialog({ kind: "edit", row })}>
                   <Pencil aria-hidden />
                   {c("edit")}
@@ -148,7 +151,7 @@ export function UsersScreen({ myId }: { myId: string }) {
         {dialog?.kind === "password" && <PasswordDialog row={dialog.row} onDone={() => setDialog(null)} />}
         {dialog?.kind === "deactivate" && <DeactivateDialog row={dialog.row} onDone={() => (setDialog(null), refresh())} />}
       </Dialog>
-    </div>
+    </Page>
   );
 }
 

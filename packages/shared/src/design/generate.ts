@@ -84,8 +84,13 @@ function kotlinObject(mode: ThemeMode): string {
   const lines = Object.entries(tokens.color[mode]).map(
     ([k, v]) => `        val ${pascal(k)} = ${kotlinColor(v)}`,
   );
-  const series = tokens.chart[mode].series.map(kotlinColor).join(", ");
-  lines.push(`        val ChartSeries = listOf(${series})`);
+  const ch = tokens.chart[mode];
+  lines.push(`        val ChartSeries = listOf(${ch.series.map(kotlinColor).join(", ")})`);
+  // Chart chrome, so phone charts match the web ones (grid lines, axis, labels, "the rest" grey).
+  lines.push(`        val ChartGrid = ${kotlinColor(ch.grid)}`);
+  lines.push(`        val ChartAxis = ${kotlinColor(ch.axis)}`);
+  lines.push(`        val ChartLabel = ${kotlinColor(ch.label)}`);
+  lines.push(`        val ChartEmphasisGray = ${kotlinColor(ch.emphasisGray)}`);
   return `    object ${pascal(mode)} {\n${lines.join("\n")}\n    }`;
 }
 

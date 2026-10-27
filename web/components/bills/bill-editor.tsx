@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Checkbox, Field, Select } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { StickyActions } from "@/components/ui/page";
 import { asAppError, newId, rpc } from "@/lib/rpc";
 import { useMe } from "@/lib/use-me";
 import { billSchema } from "@/lib/schemas/billing";
@@ -245,7 +246,7 @@ export function BillEditor({
               <li key={c.id} className="flex justify-between gap-3">
                 <span>
                   {c.description}
-                  {c.carried_from_bill_no && <span className="ml-2 text-[0.85rem] text-text-secondary">{t("carriedFromBill", { no: c.carried_from_bill_no })}</span>}
+                  {c.carried_from_bill_no && <span className="ml-2 text-[0.9rem] text-text-secondary">{t("carriedFromBill", { no: c.carried_from_bill_no })}</span>}
                 </span>
                 <span className="tabular-nums">{formatINR(c.total_paise)}</span>
               </li>
@@ -341,10 +342,10 @@ export function BillEditor({
                 </Field>
                 <div className="flex items-end justify-between gap-2 md:col-span-4">
                   <div className="text-right">
-                    <p className="text-[0.85rem] text-text-secondary">{t("lineTotal")}</p>
+                    <p className="text-[0.9rem] text-text-secondary">{t("lineTotal")}</p>
                     <p className="text-lg font-semibold tabular-nums">{p.result ? formatINR(p.result.totalPaise) : "—"}</p>
                     {p.result && p.result.taxPaise > 0 && (
-                      <p className="text-[0.85rem] text-text-secondary tabular-nums">
+                      <p className="text-[0.9rem] text-text-secondary tabular-nums">
                         {t("taxSplit", { cgst: formatINR(p.result.cgstPaise), sgst: formatINR(p.result.sgstPaise) })}
                       </p>
                     )}
@@ -369,7 +370,7 @@ export function BillEditor({
         </p>
       )}
 
-      <Card className="ml-auto grid w-full max-w-md grid-cols-2 gap-x-6 gap-y-1 tabular-nums">
+      <Card className="ml-auto grid w-full max-w-md grid-cols-2 gap-y-1 tabular-nums">
         <span className="text-text-secondary">{t("gross")}</span>
         <span className="text-right">{formatINR(totals.grossPaise)}</span>
         <span className="text-text-secondary">{t("discountTotal")}</span>
@@ -388,11 +389,12 @@ export function BillEditor({
         )}
         <span className="mt-1 border-t border-border pt-1 text-lg font-semibold">{t("total")}</span>
         <span className="mt-1 border-t border-border pt-1 text-right text-lg font-semibold">{formatINR(totals.totalPaise + bill.carried_in_paise)}</span>
-        <span className="col-span-2 text-[0.85rem] text-text-secondary">{t("previewNote")}</span>
+        <span className="col-span-2 text-[0.9rem] text-text-secondary">{t("previewNote")}</span>
       </Card>
 
+      {/* The bill's buttons stay in reach at the bottom of the screen while the lines scroll. */}
       {amend ? (
-        <div className="flex flex-wrap items-end justify-end gap-3">
+        <StickyActions className="items-end">
           <Field label={t("amendReason")} className="min-w-72" error={checks.error("reason")}>
             {(a) => <Input {...a} maxLength={300} value={reason} onChange={(e) => (setReason(e.target.value), checks.clear("reason"))} />}
           </Field>
@@ -400,9 +402,9 @@ export function BillEditor({
             <Save aria-hidden />
             {t("saveAmendment")}
           </Button>
-        </div>
+        </StickyActions>
       ) : (
-        <div className="flex flex-wrap justify-end gap-2">
+        <StickyActions>
           <Button variant="ghost" disabled={discard.isPending} onClick={() => discard.mutate()}>
             <X aria-hidden />
             {t("discardDraft")}
@@ -415,7 +417,7 @@ export function BillEditor({
             <CheckCheck aria-hidden />
             {t("finalize")}
           </Button>
-        </div>
+        </StickyActions>
       )}
       {me?.role !== "admin" && !amend && <p className="text-right text-[0.9rem] text-text-secondary">{t("discountLimitHint")}</p>}
 

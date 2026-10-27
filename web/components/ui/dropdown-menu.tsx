@@ -25,7 +25,7 @@ export function DropdownMenuContent({ className, sideOffset = 8, ...props }: Com
 }
 
 const itemClass =
-  "relative flex min-h-11 cursor-pointer items-center gap-3 rounded-xl px-3 text-base outline-none select-none data-[highlighted]:bg-popover-accent data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:size-5 [&_svg]:shrink-0";
+  "relative flex min-h-10 cursor-pointer items-center gap-3 rounded-xl px-3 text-base outline-none select-none data-[highlighted]:bg-popover-accent data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:size-[1.15rem] [&_svg]:shrink-0";
 
 export function DropdownMenuItem({ className, ...props }: ComponentProps<typeof Menu.Item>) {
   return <Menu.Item className={cn(itemClass, className)} {...props} />;
@@ -41,7 +41,7 @@ export function DropdownMenuRadioItem({ className, children, ...props }: Compone
 }
 
 export function DropdownMenuLabel({ className, ...props }: ComponentProps<typeof Menu.Label>) {
-  return <Menu.Label className={cn("px-3 pt-2 pb-1 text-[0.85rem] font-medium text-muted-foreground", className)} {...props} />;
+  return <Menu.Label className={cn("px-3 pt-2 pb-1 text-[0.9rem] font-medium text-muted-foreground", className)} {...props} />;
 }
 
 export function DropdownMenuSeparator({ className, ...props }: ComponentProps<typeof Menu.Separator>) {

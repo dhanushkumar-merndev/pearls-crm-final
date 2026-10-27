@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, CircleX, DoorOpen, FilePlus2, FileText, Pencil, Pill, ReceiptIndianRupee } from "lucide-react";
+import { CircleX, DoorOpen, FilePlus2, FileText, Pencil, Pill, ReceiptIndianRupee } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -14,8 +14,11 @@ import type { BillType } from "@/components/bills/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Field, Select, Textarea } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { MoreMenu } from "@/components/ui/more-menu";
+import { DetailHeader, Page } from "@/components/ui/page";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
 import { asAppError, newId, rpc } from "@/lib/rpc";
@@ -46,24 +49,20 @@ export function AdmissionScreen({ initial }: { initial: Admission }) {
   const close = () => (setDialog(null), void query.refetch());
 
   return (
-    <div className="flex flex-col gap-5">
-      <div>
-        <Button asChild variant="ghost" className="-ml-3 mb-2">
-          <Link href={`/patients/${a.patient_id}`}>
-            <ArrowLeft aria-hidden />
-            {t("backTo", { name: a.patient })}
-          </Link>
-        </Button>
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-[1.75rem] font-semibold tracking-tight">{t("stayTitle", { ip: a.ip_number })}</h1>
-          <StatusBadge kind={admissionBadge(a.status)} label={t(`status.${a.status}`)} />
-        </div>
-        <p className="mt-1 text-text-secondary">
-          {a.patient} · {a.uhid} · {formatDateTime(new Date(a.admitted_at))} – {a.discharged_at ? formatDateTime(new Date(a.discharged_at)) : t("stillAdmitted")} ·{" "}
-          {t("nights", { n: a.room_days })}
-        </p>
-      </div>
+    <Page>
+      <DetailHeader
+        back={{ href: `/patients/${a.patient_id}`, label: t("backTo", { name: a.patient }) }}
+        title={t("stayTitle", { ip: a.ip_number })}
+        badges={<StatusBadge kind={admissionBadge(a.status)} label={t(`status.${a.status}`)} />}
+        meta={
+          <>
+            {a.patient} · {a.uhid} · {formatDateTime(new Date(a.admitted_at))} – {a.discharged_at ? formatDateTime(new Date(a.discharged_at)) : t("stillAdmitted")} ·{" "}
+            {t("nights", { n: a.room_days })}
+          </>
+        }
+      />
 
+      {/* The next step of the stay is the primary action; bills on the side and changes are under "More". */}
       <div className="flex flex-wrap gap-2">
         {a.status === "admitted" && (
           <Button onClick={() => setDialog("discharge")}>
@@ -81,7 +80,7 @@ export function AdmissionScreen({ initial }: { initial: Admission }) {
                 </Link>
               </Button>
             ) : (
-              <Button variant="secondary" disabled={newBill.isPending} onClick={() => newBill.mutate("final_bill")}>
+              <Button variant={a.status === "discharged" ? "primary" : "secondary"} disabled={newBill.isPending} onClick={() => newBill.mutate("final_bill")}>
                 <ReceiptIndianRupee aria-hidden />
                 {t("makeFinalBill")}
               </Button>
@@ -99,26 +98,34 @@ export function AdmissionScreen({ initial }: { initial: Admission }) {
                 {t("writeSummary")}
               </Button>
             )}
-            <Button variant="ghost" disabled={newBill.isPending} onClick={() => newBill.mutate("procedure_receipt")}>
-              <FilePlus2 aria-hidden />
-              {t("newReceipt")}
-            </Button>
-            <Button variant="ghost" disabled={newBill.isPending} onClick={() => newBill.mutate("pharmacy_invoice")}>
-              <Pill aria-hidden />
-              {t("newPharmacyBill")}
-            </Button>
-            <Button variant="ghost" onClick={() => setDialog("edit")}>
-              <Pencil aria-hidden />
-              {t("edit")}
-            </Button>
           </>
         )}
-        {a.status === "admitted" && (
-          <Button variant="ghost" onClick={() => setDialog("cancel")}>
-            <CircleX aria-hidden />
-            {t("cancelAdmission")}
-          </Button>
-        )}
+        <MoreMenu>
+          {a.status !== "cancelled" && (
+            <DropdownMenuItem disabled={newBill.isPending} onSelect={() => newBill.mutate("procedure_receipt")}>
+              <FilePlus2 aria-hidden />
+              {t("newReceipt")}
+            </DropdownMenuItem>
+          )}
+          {a.status !== "cancelled" && (
+            <DropdownMenuItem disabled={newBill.isPending} onSelect={() => newBill.mutate("pharmacy_invoice")}>
+              <Pill aria-hidden />
+              {t("newPharmacyBill")}
+            </DropdownMenuItem>
+          )}
+          {a.status !== "cancelled" && (
+            <DropdownMenuItem onSelect={() => setDialog("edit")}>
+              <Pencil aria-hidden />
+              {t("edit")}
+            </DropdownMenuItem>
+          )}
+          {a.status === "admitted" && (
+            <DropdownMenuItem onSelect={() => setDialog("cancel")}>
+              <CircleX aria-hidden />
+              {t("cancelAdmission")}
+            </DropdownMenuItem>
+          )}
+        </MoreMenu>
       </div>
 
       <Card className="grid gap-x-8 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -153,7 +160,7 @@ export function AdmissionScreen({ initial }: { initial: Admission }) {
                   <Link href={`/bills/${x.id}`} className="font-medium text-link underline-offset-4 hover:underline">
                     {x.bill_no ?? b("status.draft")}
                   </Link>
-                  <span className="block text-[0.85rem] text-text-secondary">
+                  <span className="block text-[0.9rem] text-text-secondary">
                     {b(`type.${x.bill_type}`)}
                     {x.consolidated_into_id && ` · ${t("inFinalBill")}`}
                   </span>
@@ -175,14 +182,14 @@ export function AdmissionScreen({ initial }: { initial: Admission }) {
         {dialog === "cancel" && <CancelDialog admission={a} onDone={close} />}
         {dialog === "summary" && <StartSummaryDialog admission={a} />}
       </Dialog>
-    </div>
+    </Page>
   );
 }
 
 function Detail({ label, value }: { label: string; value: string | null | undefined }) {
   return (
     <div>
-      <p className="text-[0.85rem] text-text-secondary">{label}</p>
+      <p className="text-[0.9rem] text-text-secondary">{label}</p>
       <p>{value || "—"}</p>
     </div>
   );

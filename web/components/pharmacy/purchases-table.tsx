@@ -8,6 +8,7 @@ import { formatDate, formatINR, istDateString } from "@pearl/shared";
 import { Field, Select } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Pager } from "@/components/ui/pager";
+import { RowSkeletons } from "@/components/ui/skeletons";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
 import { rpc } from "@/lib/rpc";
@@ -31,7 +32,6 @@ const LIMIT = 25;
 /** Supplier invoices by date (range ≤ 1 year), offset paging with an exact count. */
 export function PurchasesTable() {
   const t = useTranslations("pharmacy");
-  const c = useTranslations("common");
   const [filters, setFilters] = useState(() => ({
     from: istDateString(new Date(Date.now() - 90 * 86_400_000)),
     to: istDateString(new Date()),
@@ -79,7 +79,7 @@ export function PurchasesTable() {
           </tr>
         </THead>
         <tbody>
-          {list.isPending && <EmptyRow colSpan={5}>{c("loading")}</EmptyRow>}
+          {list.isPending && <RowSkeletons asRow rows={3} cols={5} />}
           {list.data?.rows.length === 0 && <EmptyRow colSpan={5}>{t("noPurchases")}</EmptyRow>}
           {list.data?.rows.map((r) => (
             <TR key={r.id}>

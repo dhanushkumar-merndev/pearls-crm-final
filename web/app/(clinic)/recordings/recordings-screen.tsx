@@ -4,6 +4,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { RecordingsList, type RecordingFilters, type RecordingStatus } from "@/components/recordings/recordings-list";
 import { Field, PageHeader, Select } from "@/components/ui/form";
+import { Page } from "@/components/ui/page";
 
 const STATUSES: RecordingStatus[] = ["on_phone", "queued", "synced", "failed"];
 const KINDS = ["call", "voice_note", "visit"] as const;
@@ -25,7 +26,7 @@ export function RecordingsScreen() {
   const filters: RecordingFilters = { ...(status ? { status } : {}), ...(kind ? { kind } : {}) };
 
   return (
-    <div className="flex flex-col gap-4">
+    <Page>
       <PageHeader title={t("title")} description={t("description")} />
       <div className="flex flex-wrap gap-4">
         <Field label={t("filterStatus")} className="w-64">
@@ -54,6 +55,6 @@ export function RecordingsScreen() {
         </Field>
       </div>
       <RecordingsList key={`${status}-${kind}`} filters={filters} />
-    </div>
+    </Page>
   );
 }

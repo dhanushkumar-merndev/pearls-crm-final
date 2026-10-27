@@ -73,7 +73,7 @@ export function NotificationBell({ staffId }: { staffId: string }) {
         <Button variant="ghost" size="icon" className="relative" aria-label={`${t("label")}: ${unread > 99 ? t("unreadOver") : t("unread", { count: unread })}`}>
           <Bell aria-hidden />
           {unread > 0 && (
-            <span className="absolute top-1.5 right-1.5 inline-flex min-w-5 items-center justify-center rounded-full bg-status-critical px-1 text-[0.7rem] font-bold text-white">
+            <span className="absolute top-1.5 right-1.5 inline-flex min-w-5 items-center justify-center rounded-full bg-status-critical px-1 text-[0.75rem] font-bold text-destructive-foreground">
               {unread > 99 ? "99+" : unread}
             </span>
           )}
@@ -109,7 +109,7 @@ function NotificationText({ n }: { n: Notification }) {
     <span className="flex w-full flex-col">
       <span className={n.read_at ? "" : "font-semibold"}>{n.title}</span>
       {n.body && <span className="text-[0.9rem] text-text-secondary">{n.body}</span>}
-      <span className="text-[0.8rem] text-text-secondary">{formatDateTime(new Date(n.created_at))}</span>
+      <span className="text-[0.9rem] text-text-secondary">{formatDateTime(new Date(n.created_at))}</span>
     </span>
   );
 }

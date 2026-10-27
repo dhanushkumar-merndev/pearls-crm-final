@@ -84,7 +84,7 @@ export function CrudTable({ config, title, addLabel }: { config: CrudConfig; tit
   const colCount = config.columns.length + (config.hasActive ? 2 : 1);
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative min-w-60 flex-1">
           <Search aria-hidden className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-muted-foreground" />

@@ -8,6 +8,7 @@ import { formatDateTime, istDateString } from "@pearl/shared";
 import { Field, Select } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Pager } from "@/components/ui/pager";
+import { RowSkeletons } from "@/components/ui/skeletons";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
 import { rpc } from "@/lib/rpc";
@@ -34,7 +35,6 @@ export const admissionBadge = (s: AdmissionStatus) => (s === "admitted" ? "warni
 /** IP stays: "admitted now" (no date range) or by admission date (≤ 1 year). With patientId: that patient's stays. */
 export function AdmissionsTable({ patientId }: { patientId?: string }) {
   const t = useTranslations("ip");
-  const c = useTranslations("common");
   const [status, setStatus] = useState<"" | AdmissionStatus>(patientId ? "" : "admitted");
   const [range, setRange] = useState(() => ({ from: istDateString(new Date(Date.now() - 90 * 86_400_000)), to: istDateString(new Date()) }));
   const [offset, setOffset] = useState(0);
@@ -87,7 +87,7 @@ export function AdmissionsTable({ patientId }: { patientId?: string }) {
           </tr>
         </THead>
         <tbody>
-          {list.isPending && <EmptyRow colSpan={6}>{c("loading")}</EmptyRow>}
+          {list.isPending && <RowSkeletons asRow rows={3} cols={6} />}
           {list.data?.rows.length === 0 && <EmptyRow colSpan={6}>{t("none")}</EmptyRow>}
           {list.data?.rows.map((r) => (
             <TR key={r.id}>
@@ -95,14 +95,14 @@ export function AdmissionsTable({ patientId }: { patientId?: string }) {
                 <Link href={`/admissions/${r.id}`} className="font-medium text-link underline-offset-4 hover:underline">
                   {r.ip_number}
                 </Link>
-                {r.treatment && <span className="block text-[0.85rem] text-text-secondary">{r.treatment}</span>}
+                {r.treatment && <span className="block text-[0.9rem] text-text-secondary">{r.treatment}</span>}
               </TD>
               {!patientId && (
                 <TD>
                   <Link href={`/patients/${r.patient_id}`} className="text-link underline-offset-4 hover:underline">
                     {r.patient}
                   </Link>
-                  <span className="block text-[0.85rem] text-text-secondary">{r.uhid}</span>
+                  <span className="block text-[0.9rem] text-text-secondary">{r.uhid}</span>
                 </TD>
               )}
               <TD className="whitespace-nowrap">{formatDateTime(new Date(r.admitted_at))}</TD>

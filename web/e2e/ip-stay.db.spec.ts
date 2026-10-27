@@ -44,7 +44,8 @@ test("IP stay: final bill without double counting, discharge summary with the ri
   await expect(page.getByRole("heading", { level: 1 })).toContainText("IP stay");
 
   // An interim procedure bill during the stay, paid in full.
-  await page.getByRole("button", { name: "Procedure bill" }).click();
+  await page.getByRole("button", { name: "More" }).click();
+  await page.getByRole("menuitem", { name: "Procedure bill" }).click();
   await expect(page).toHaveURL(/\/bills\//);
   await pick(page, page.getByRole("combobox", { name: "Service or item" }).first(), "Consultation", /^Consultation/);
   await page.getByLabel("Rate", { exact: true }).first().fill("500");

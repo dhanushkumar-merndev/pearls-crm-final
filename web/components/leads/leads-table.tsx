@@ -1,7 +1,7 @@
 "use client";
 
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, UserCheck } from "lucide-react";
+import { Download, UserCheck, X } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -10,9 +10,11 @@ import { dateRangeSchema, requiredId, formatDate, formatDateTime, formatINR, fro
 import { LibraryCombobox, useDebounced, type LibraryItem } from "@/components/library-combobox";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
+import { FilterBar } from "@/components/ui/filter-bar";
 import { Field, Select } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Pager } from "@/components/ui/pager";
+import { RowSkeletons } from "@/components/ui/skeletons";
 import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
 import { downloadExcel } from "@/lib/excel";
 import { rpc } from "@/lib/rpc";
@@ -35,7 +37,6 @@ const bulkAssignSchema = z.object({ to: requiredId() });
 /** Managers' leads table: filters, server paging (exact count), inline stage / owner / due date, bulk assign, CSV export. */
 export function LeadsTable({ canAssign }: { canAssign: boolean }) {
   const t = useTranslations("leads");
-  const c = useTranslations("common");
   const queryClient = useQueryClient();
   const { saved, failed } = useFeedback();
   const staff = useSalesStaff();
@@ -138,13 +139,22 @@ export function LeadsTable({ canAssign }: { canAssign: boolean }) {
 
   const rows = list.data?.rows ?? [];
   const allChecked = rows.length > 0 && rows.every((r) => selected.includes(r.id));
-  const cols = canAssign ? 9 : 8;
+  const cols = canAssign ? 7 : 6;
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-end gap-3">
-        <Field label={t("searchLabel")} className="min-w-56 flex-1">
-          {(a) => <Input {...a} type="search" placeholder={t("searchPlaceholder")} value={filters.q} onChange={(e) => set("q", e.target.value)} />}
-        </Field>
+      {/* Search is always in view; the other filters fold behind "Filters" on a phone. */}
+      <Field label={t("searchLabel")} className="max-w-xl">
+        {(a) => <Input {...a} type="search" placeholder={t("searchPlaceholder")} value={filters.q} onChange={(e) => set("q", e.target.value)} />}
+      </Field>
+      <FilterBar
+        active={[filters.from, filters.to, filters.stage, filters.assigned_to, source, filters.due].filter(Boolean).length}
+        actions={
+          <Button variant="secondary" disabled={exporting || !range.success || !list.data?.total} onClick={() => void exportExcel()}>
+            <Download aria-hidden />
+            {exporting ? t("exporting") : t("export")}
+          </Button>
+        }
+      >
         <Field label={t("from")} error={rangeChecks.error("from")}>
           {(a) => <Input {...a} type="date" value={filters.from} onChange={(e) => set("from", e.target.value)} />}
         </Field>
@@ -202,11 +212,7 @@ export function LeadsTable({ canAssign }: { canAssign: boolean }) {
             </Select>
           )}
         </Field>
-        <Button variant="secondary" disabled={exporting || !range.success || !list.data?.total} onClick={() => void exportExcel()}>
-          <Download aria-hidden />
-          {exporting ? t("exporting") : t("export")}
-        </Button>
-      </div>
+      </FilterBar>
       {(filters.q || filters.due) && <p className="text-[0.9rem] text-text-secondary">{t("allDatesHint")}</p>}
 
       {canAssign && selected.length > 0 && (
@@ -235,67 +241,84 @@ export function LeadsTable({ canAssign }: { canAssign: boolean }) {
             {t("assign", { n: selected.length })}
           </Button>
           <Button variant="ghost" onClick={() => setSelected([])}>
+            <X aria-hidden />
             {t("clearSelection")}
           </Button>
         </div>
       )}
 
       {list.data && <p className="text-text-secondary">{t("count", { n: list.data.total })}</p>}
-      <Table>
+      {/* Tighter cell padding: all seven columns fit a 1280 px screen without scrolling. */}
+      <Table className="[&_td]:px-2.5 [&_th]:px-2.5">
         <THead>
           <tr>
             {canAssign && (
-              <TH className="w-12">
-                <input
-                  type="checkbox"
-                  className="size-5 accent-[var(--primary)]"
-                  aria-label={t("selectAll")}
-                  checked={allChecked}
-                  onChange={(e) => setSelected(e.target.checked ? rows.map((r) => r.id) : [])}
-                />
+              <TH className="w-12 p-0 sm:p-0">
+                {/* The whole cell is the tick box's hit area. */}
+                <label className="flex min-h-11 cursor-pointer items-center justify-center px-1">
+                  <input
+                    type="checkbox"
+                    className="size-5 accent-[var(--primary)]"
+                    aria-label={t("selectAll")}
+                    checked={allChecked}
+                    onChange={(e) => setSelected(e.target.checked ? rows.map((r) => r.id) : [])}
+                  />
+                </label>
               </TH>
             )}
             <TH>{t("col.lead")}</TH>
             <TH>{t("col.date")}</TH>
-            <TH>{t("col.treatment")}</TH>
-            <TH>{t("col.source")}</TH>
+            <TH>{t("col.treatmentSource")}</TH>
             <TH>{t("col.owner")}</TH>
-            <TH>{t("col.stage")}</TH>
+            <TH>{t("col.stageAgreed")}</TH>
             <TH>{t("col.due")}</TH>
-            <TH className="text-right">{t("col.finalised")}</TH>
           </tr>
         </THead>
         <tbody>
-          {list.isPending && <EmptyRow colSpan={cols}>{c("loading")}</EmptyRow>}
+          {list.isPending && <RowSkeletons asRow rows={4} cols={cols} />}
           {list.isError && <EmptyRow colSpan={cols}>{t("loadFailed")}</EmptyRow>}
           {list.data?.rows.length === 0 && <EmptyRow colSpan={cols}>{t("none")}</EmptyRow>}
           {rows.map((r) => (
             <TR key={r.id}>
               {canAssign && (
-                <TD>
-                  <input
-                    type="checkbox"
-                    className="size-5 accent-[var(--primary)]"
-                    aria-label={t("selectLead", { name: r.name })}
-                    checked={selected.includes(r.id)}
-                    onChange={(e) => setSelected((x) => (e.target.checked ? [...x, r.id] : x.filter((id) => id !== r.id)))}
-                  />
+                <TD className="p-0 sm:p-0">
+                  <label className="flex min-h-12 cursor-pointer items-center justify-center px-1">
+                    <input
+                      type="checkbox"
+                      className="size-5 accent-[var(--primary)]"
+                      aria-label={t("selectLead", { name: r.name })}
+                      checked={selected.includes(r.id)}
+                      onChange={(e) => setSelected((x) => (e.target.checked ? [...x, r.id] : x.filter((id) => id !== r.id)))}
+                    />
+                  </label>
                 </TD>
               )}
+              {/* Name on one line (cut with "…", full name on hover), number and phone under it. */}
               <TD>
-                <Link href={`/leads/${r.id}`} className="font-medium text-link underline-offset-4 hover:underline">
-                  {r.name}
-                </Link>
-                <span className="block text-[0.85rem] text-text-secondary tabular-nums">
-                  #{r.sl_no} · {r.phone_e164}
-                </span>
+                <div className="w-48 xl:w-52">
+                  <Link href={`/leads/${r.id}`} title={r.name} className="block truncate font-medium text-link underline-offset-4 hover:underline">
+                    {r.name}
+                  </Link>
+                  <span className="block text-[0.9rem] whitespace-nowrap text-text-secondary tabular-nums">
+                    #{r.sl_no} · {r.phone_e164}
+                  </span>
+                </div>
               </TD>
-              <TD className="whitespace-nowrap">{formatDate(day(r.lead_date))}</TD>
-              <TD>{r.treatment ?? "—"}</TD>
-              <TD>{r.source_label ?? "—"}</TD>
-              <TD className="min-w-44">
+              <TD className="whitespace-nowrap tabular-nums">{formatDate(day(r.lead_date))}</TD>
+              <TD className="min-w-28">
+                {!r.treatment && !r.source_label ? (
+                  "—"
+                ) : (
+                  <>
+                    <span className="block">{r.treatment ?? "—"}</span>
+                    {r.source_label && <span className="block text-[0.9rem] text-text-secondary">{r.source_label}</span>}
+                  </>
+                )}
+              </TD>
+              <TD>
                 {canAssign ? (
                   <Select
+                    className="w-36"
                     aria-label={t("ownerOf", { name: r.name })}
                     value={r.assigned_to ?? ""}
                     disabled={assign.isPending}
@@ -315,16 +338,21 @@ export function LeadsTable({ canAssign }: { canAssign: boolean }) {
               <TD>
                 <button
                   type="button"
-                  className="rounded-full focus-visible:outline-2"
+                  className="-my-1 inline-flex min-h-10 items-center rounded-full focus-visible:outline-2"
                   aria-label={t("changeStageOf", { name: r.name, stage: t(`stage.${r.stage}`) })}
                   onClick={() => setStageFor({ lead: r, stage: r.stage })}
                 >
                   <StageBadge stage={r.stage} />
                 </button>
+                {/* The agreed amount sits under the stage (one column fewer: the table fits a laptop). */}
+                {r.amount_finalised_paise !== null && (
+                  <span className="block text-[0.9rem] text-text-secondary tabular-nums">{formatINR(r.amount_finalised_paise)}</span>
+                )}
               </TD>
-              <TD className="min-w-52">
+              <TD>
                 <Input
                   type="datetime-local"
+                  className="w-[13.25rem] px-2 text-[0.9rem]"
                   aria-label={t("dueOf", { name: r.name })}
                   defaultValue={r.next_followup_at ? istDateTimeLocal(new Date(r.next_followup_at)) : ""}
                   key={`${r.id}-${r.version}`}
@@ -334,7 +362,6 @@ export function LeadsTable({ canAssign }: { canAssign: boolean }) {
                   }}
                 />
               </TD>
-              <TD className="text-right tabular-nums">{r.amount_finalised_paise !== null ? formatINR(r.amount_finalised_paise) : "—"}</TD>
             </TR>
           ))}
         </tbody>

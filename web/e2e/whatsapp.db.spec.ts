@@ -40,7 +40,9 @@ test.describe("reception", () => {
     await expect(conversation.getByText("Hello from the e2e test")).toBeVisible();
     await expect(conversation.getByText("Sent from a phone")).toBeVisible();
 
-    await page.getByRole("button", { name: "Stop WhatsApp messages to this number" }).click();
+    // Stopping messages lives in the chat's ⋮ menu, like WhatsApp Web.
+    await page.getByRole("button", { name: "Chat options" }).click();
+    await page.getByRole("menuitem", { name: "Stop WhatsApp messages to this number" }).click();
     await expect(page.getByText("Asked for no messages", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Open WhatsApp" })).toHaveCount(0);
     await page.getByRole("button", { name: "They asked to get messages again" }).click();
@@ -79,7 +81,7 @@ test.describe("reception inbox", () => {
     await expect(row).toContainText("Inbox live test");
     await row.click();
     await expect(inbox.getByRole("list", { name: "Conversation" }).getByText("Inbox live test")).toBeVisible();
-    await expect(inbox.getByRole("link", { name: "Open the patient file →" })).toBeVisible();
+    await expect(inbox.getByRole("link", { name: "Open the patient file" })).toBeVisible();
     await expect(inbox.getByRole("navigation", { name: "Main menu" }).first().getByRole("link", { name: /WhatsApp/ })).toBeVisible();
   });
 });

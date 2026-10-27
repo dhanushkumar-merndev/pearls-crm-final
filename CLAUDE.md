@@ -60,7 +60,7 @@ Edge Function imports are pinned once in `supabase/functions/deno.json` (bare sp
 
 ## UI rules
 - ChatGPT-style dark theme by default (PLAN.md B5). Colours only through CSS variables generated from `tokens.json` — never raw hex in components.
-- Big text (16–18 px), min 44 px targets, icon + text on buttons, status = icon + label, one primary action per screen.
+- **Compact size** (owner, 26/10/2026: "UI too big, reduce 20%"): web base font 14 px (`tokens.json` `font.baseSizePx`; everything is rem so it all scales), body text ~14 px, visual controls ~36 px tall; phone text ~20% under Material defaults used before (body 14 sp), touch area still ≥ 40 dp. Print pages keep their own size. Icon + text on buttons, status = icon + label, one primary action per screen.
 - **Full width** (owner, 23/10/2026): every signed-in page fills the whole workspace beside the sidebar. No centred `max-w-*` page column (`components/shell/app-shell.tsx` `<main>` has none — don't add one back or wrap pages in one). Only long paragraphs keep a readable width (`max-w-prose`); dialogs, the top search bar and public phone pages (`/r`, `/scan`) keep their own sizes.
 - **Custom dropdowns only** (owner, 23/10/2026): never the browser's native `<select>` list. Fixed choices use `Select` (`components/ui/select.tsx`, Radix, themed, same `value` / `onChange(e.target.value)` / `<option>` API); library lists use `LibraryCombobox`. In Playwright pick with `choose(page, field, "Label")` from `e2e/helpers.ts`, not `selectOption`.
 - Charts: ECharts via `components/charts/echart.tsx` only (tree-shaken, lazy). Categorical colours in fixed order; no dual axes; every chart has "View as table". Print pages always white.

@@ -103,8 +103,7 @@
     },
     "todayIs": "Today is {date}",
     "emptyTitle": "Your dashboard is on its way",
-    "emptyBody": "Leads, follow-ups and the sales dashboard arrive with the leads module.",
-    "designLink": "See the design preview"
+    "emptyBody": "Leads, follow-ups and the sales dashboard arrive with the leads module."
   },
   "design": {
     "title": "Design preview",
@@ -235,7 +234,12 @@
     "yes": "Yes",
     "no": "No",
     "remove": "Remove",
-    "loadMore": "Load more"
+    "loadMore": "Load more",
+    "filters": "Filters",
+    "filtersOn": "Filters ({n})",
+    "more": "More",
+    "back": "Back",
+    "noData": "No data for this period."
   },
   "validation": {
     "required": "Please fill this in.",
@@ -824,7 +828,8 @@
     "targets": {
       "title": "Sales targets",
       "body": "Monthly targets per salesperson (optional)."
-    }
+    },
+    "backToAdmin": "Back to admin"
   },
   "patientForm": {
     "who": "Patient",
@@ -1328,7 +1333,7 @@
     "holiday": "Clinic closed: {name}",
     "noDoctors": "No active doctors. Add them in Admin → Doctors.",
     "onLeave": "On leave",
-    "noHoursToday": "No hours on this day.",
+    "noHoursToday": "Not working on this day",
     "bookAt": "Book {time} with {doctor}",
     "bookShort": "Book",
     "queue": "Walk-in queue",
@@ -1355,7 +1360,8 @@
       "doctor": "Doctor",
       "type": "Type",
       "status": "Status"
-    }
+    },
+    "pastHidden": "{n, plural, one {# earlier slot} other {# earlier slots}} — nothing booked"
   },
   "today": {
     "book": "Book appointment",
@@ -1383,7 +1389,8 @@
     "sessionsDue": "Sessions to book this week ({n})",
     "collected": "Collected today: {amount}",
     "billsToday": "{n, plural, =0 {No bills yet today} one {# bill today} other {# bills today}}",
-    "leadOnly": "Lead — not registered"
+    "leadOnly": "Lead — not registered",
+    "toDo": "To do ({n})"
   },
   "followups": {
     "title": "Follow-ups",
@@ -2248,7 +2255,9 @@
       "sources": "Sources",
       "order": "Order",
       "openLeads": "Open leads",
-      "lastAssigned": "Last given a lead"
+      "lastAssigned": "Last given a lead",
+      "treatmentSource": "Treatment · source",
+      "stageAgreed": "Stage · agreed"
     },
     "count": "{n, plural, one {# lead} other {# leads}}",
     "dueFilter": "Next call",
@@ -2660,7 +2669,12 @@
     "enroll": "Add",
     "campaign": "Campaign",
     "noCampaigns": "No running campaign fits. An admin can make one in Admin → Drip campaigns.",
-    "chooseCampaign": "Choose a campaign"
+    "chooseCampaign": "Choose a campaign",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "chatOptions": "Chat options",
+    "backToChats": "Back to chats",
+    "typeMessage": "Type a message"
   },
   "waAdmin": {
     "title": "WhatsApp",
@@ -2838,7 +2852,6 @@
     "description": "Every conversation you can reply to, newest first. New replies appear here at once.",
     "conversations": "Conversations",
     "chat": "Chat",
-    "unreadOnly": "Only conversations with new replies",
     "loading": "Loading…",
     "empty": "No WhatsApp conversations yet.",
     "noUnread": "No new replies. All caught up ✓",
@@ -2848,12 +2861,17 @@
     "unknown": "Not a patient or lead yet",
     "more": "Show more",
     "pick": "Choose a conversation on the left to read and reply.",
-    "openPatient": "Open the patient file →",
-    "openLead": "Open the lead →",
+    "openPatient": "Open the patient file",
+    "openLead": "Open the lead",
     "unknownHint": "This number isn't a patient or a lead yet. Register them or add them as a lead, then reply from their page (WhatsApp tab).",
     "call": "Call",
     "register": "Register patient",
-    "addLead": "Add as lead"
+    "addLead": "Add as lead",
+    "chats": "Chats",
+    "unreadFilter": "Unread",
+    "search": "Search chats",
+    "noMatch": "No chat matches.",
+    "pickShort": "Pick a conversation"
   },
   "recordings": {
     "title": "Recordings",
@@ -3113,7 +3131,9 @@
       "error": "error",
       "unknown": "not checked",
       "off": "off"
-    }
+    },
+    "whatsappHint": "{delivered}% delivered · {read}% read",
+    "admissionsHint": "Average stay {days} days"
   },
   "storage": {
     "db": "Database",

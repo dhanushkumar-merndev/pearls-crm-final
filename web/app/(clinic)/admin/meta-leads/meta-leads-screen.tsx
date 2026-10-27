@@ -11,12 +11,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Field, PageHeader, Select } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { LoadMore } from "@/components/ui/load-more";
+import { Page, useAdminBack } from "@/components/ui/page";
+import { RowSkeletons } from "@/components/ui/skeletons";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
+import { EmptyRow, Table, TD, TH, THead, TR, wrapText } from "@/components/ui/table";
 import { callFunction, rpc, unwrap } from "@/lib/rpc";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
 import { useFeedback } from "@/lib/use-feedback";
 import { useZodForm } from "@/lib/use-zod-form";
+import { cn } from "@/lib/utils";
 
 const TARGETS = ["name", "phone", "alt_phone", "email", "treatment_text", "comments1", "comments2", "ignore"] as const;
 
@@ -50,6 +54,7 @@ const mapSchema = z
  * retry for the ones that failed.
  */
 export function MetaLeadsScreen({ webhookUrl }: { webhookUrl: string }) {
+  const adminBack = useAdminBack();
   const t = useTranslations("metaLeads");
   const { saved, failed } = useFeedback();
   const queryClient = useQueryClient();
@@ -105,8 +110,8 @@ export function MetaLeadsScreen({ webhookUrl }: { webhookUrl: string }) {
   const items = events.data?.pages.flatMap((p) => p.items) ?? [];
 
   return (
-    <div className="flex flex-col gap-5">
-      <PageHeader title={t("title")} description={t("description")} />
+    <Page>
+      <PageHeader back={adminBack} title={t("title")} description={t("description")} />
 
       <Card className="flex flex-col gap-3">
         <CardTitle>{t("setupTitle")}</CardTitle>
@@ -190,7 +195,7 @@ export function MetaLeadsScreen({ webhookUrl }: { webhookUrl: string }) {
             </tr>
           </THead>
           <tbody>
-            {events.isPending && <EmptyRow colSpan={5}>{t("loading")}</EmptyRow>}
+            {events.isPending && <RowSkeletons asRow rows={3} cols={5} />}
             {events.isSuccess && items.length === 0 && <EmptyRow colSpan={5}>{t("noEvents")}</EmptyRow>}
             {items.map((e) => (
               <TR key={e.id}>
@@ -210,7 +215,7 @@ export function MetaLeadsScreen({ webhookUrl }: { webhookUrl: string }) {
                     "—"
                   )}
                 </TD>
-                <TD className="max-w-md text-[0.95rem] text-text-secondary">{e.error ?? "—"}</TD>
+                <TD className={cn("max-w-md text-[0.95rem] text-text-secondary", wrapText)}>{e.error ?? "—"}</TD>
                 <TD className="text-right">
                   {(e.status === "failed" || e.status === "received") && (
                     <Button variant="ghost" disabled={retry.isPending} onClick={() => retry.mutate(e.leadgen_id)}>
@@ -223,12 +228,10 @@ export function MetaLeadsScreen({ webhookUrl }: { webhookUrl: string }) {
             ))}
           </tbody>
         </Table>
-        {events.hasNextPage && (
-          <Button variant="secondary" className="self-start" disabled={events.isFetchingNextPage} onClick={() => void events.fetchNextPage()}>
-            {t("more")}
-          </Button>
-        )}
+        <LoadMore hasMore={events.hasNextPage} loading={events.isFetchingNextPage} onClick={() => void events.fetchNextPage()}>
+          {t("more")}
+        </LoadMore>
       </section>
-    </div>
+    </Page>
   );
 }

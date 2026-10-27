@@ -79,7 +79,7 @@ export function SectionsEditor({
               type="button"
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => insert(p)}
-              className="min-h-9 rounded-full border border-border bg-secondary px-3 text-[0.85rem] hover:bg-popover-accent"
+              className="min-h-10 rounded-full border border-border bg-secondary px-3.5 text-[0.95rem] hover:bg-popover-accent"
             >
               {t(`ph.${p}`)}
             </button>

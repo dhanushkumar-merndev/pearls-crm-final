@@ -5,6 +5,7 @@ import { getTranslations } from "next-intl/server";
 import { formatINR } from "@pearl/shared";
 import { StatTile } from "@/components/kpi/stat-tile";
 import { Button } from "@/components/ui/button";
+import { Page, PageHeader } from "@/components/ui/page";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { getMe } from "@/lib/session";
 import { DesignCharts } from "./design-charts";
@@ -17,14 +18,16 @@ export default async function DesignPage() {
   if (me?.role !== "admin") notFound();
 
   return (
-    <div className="flex flex-col gap-8">
-      <div>
-        <h1 className="text-[1.9rem] font-semibold tracking-tight">{t("title")}</h1>
-        <p className="mt-1 flex items-center gap-2 text-text-secondary">
-          <TriangleAlert aria-hidden className="size-5 text-status-warning" />
-          {t("sample")}
-        </p>
-      </div>
+    <Page className="gap-8">
+      <PageHeader
+        title={t("title")}
+        meta={
+          <span className="flex items-center gap-2">
+            <TriangleAlert aria-hidden className="size-5 text-status-warning" />
+            {t("sample")}
+          </span>
+        }
+      />
 
       <section aria-labelledby="buttons" className="flex flex-col gap-3">
         <h2 id="buttons" className="text-lg font-semibold">{t("buttons")}</h2>
@@ -56,7 +59,7 @@ export default async function DesignPage() {
 
       <section aria-labelledby="kpis" className="flex flex-col gap-3">
         <h2 id="kpis" className="text-lg font-semibold">{t("kpis")}</h2>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
           <StatTile label={t("kpiCollected")} value={formatINR(8450000)} current={84500} previous={71200} trend={[52, 61, 58, 70, 66, 71, 84]} />
           <StatTile label={t("kpiAppointments")} value="42" current={42} previous={38} trend={[30, 35, 33, 38, 41, 38, 42]} />
           <StatTile label={t("kpiNoShows")} value="3" current={3} previous={5} goodWhen="down" trend={[6, 4, 5, 5, 4, 5, 3]} />
@@ -68,6 +71,6 @@ export default async function DesignPage() {
         <h2 id="charts" className="text-lg font-semibold">{t("charts")}</h2>
         <DesignCharts />
       </section>
-    </div>
+    </Page>
   );
 }

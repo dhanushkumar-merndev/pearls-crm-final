@@ -7,6 +7,8 @@ import { useState, useSyncExternalStore } from "react";
 import { formatDate, formatTime } from "@pearl/shared";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
+import { LoadMore } from "@/components/ui/load-more";
+import { RowSkeletons } from "@/components/ui/skeletons";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
 import { callFunction, rpc } from "@/lib/rpc";
@@ -106,7 +108,7 @@ export function DocumentsTab({ patientId }: { patientId: string }) {
           </tr>
         </THead>
         <tbody>
-          {docs.isPending && <EmptyRow colSpan={6}>{c("loading")}</EmptyRow>}
+          {docs.isPending && <RowSkeletons asRow rows={3} cols={6} />}
           {docs.isError && <EmptyRow colSpan={6}>{c("loadFailed")}</EmptyRow>}
           {docs.isSuccess && rows.length === 0 && <EmptyRow colSpan={6}>{p("noDocuments")}</EmptyRow>}
           {rows.map((d) => {
@@ -136,11 +138,7 @@ export function DocumentsTab({ patientId }: { patientId: string }) {
           })}
         </tbody>
       </Table>
-      {docs.hasNextPage && (
-        <Button variant="secondary" className="self-start" onClick={() => void docs.fetchNextPage()}>
-          {c("loadMore")}
-        </Button>
-      )}
+      <LoadMore hasMore={docs.hasNextPage} loading={docs.isFetchingNextPage} onClick={() => void docs.fetchNextPage()} />
 
       <Dialog open={scanning} onOpenChange={setScanning}>
         {scanning && <ScannerDialog patientId={patientId} onDone={() => setScanning(false)} />}

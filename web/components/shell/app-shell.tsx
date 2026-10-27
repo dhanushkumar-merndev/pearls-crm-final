@@ -49,7 +49,7 @@ function isTyping(target: EventTarget | null) {
   return Boolean(el && (el.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName)));
 }
 
-/** ChatGPT-style layout: left sidebar, slim top bar with one search box, centred content. */
+/** ChatGPT-style layout: left sidebar, slim top bar with one search box, full-width content. */
 export function AppShell({ me, idleMinutes, children }: { me: Me; idleMinutes: number; children: ReactNode }) {
   const t = useTranslations();
   const collapsed = useSyncExternalStore(subscribeCollapsed, readCollapsed, () => false);
@@ -104,22 +104,22 @@ export function AppShell({ me, idleMinutes, children }: { me: Me; idleMinutes: n
       </Dialog.Root>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-2 bg-background/85 px-4 backdrop-blur md:px-8">
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-2 bg-background/85 px-4 backdrop-blur md:px-6 xl:px-8">
           <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setMobileOpen(true)} aria-label={t("nav.openMenu")}>
             <Menu aria-hidden />
           </Button>
           <button
             type="button"
             onClick={() => setPaletteOpen(true)}
-            className="mx-auto flex min-h-11 max-w-xl min-w-0 flex-1 items-center gap-3 rounded-full border border-border bg-secondary px-4 text-left text-muted-foreground hover:bg-popover-accent"
+            className="mx-auto flex min-h-10 max-w-xl min-w-0 flex-1 items-center gap-3 rounded-full border border-border bg-secondary px-4 text-left text-muted-foreground hover:bg-popover-accent"
           >
-            <Search aria-hidden className="size-5" />
+            <Search aria-hidden className="size-4" />
             <span className="flex-1 truncate">{t("search.placeholder")}</span>
-            <kbd className="hidden rounded-md border border-border px-1.5 text-[0.8rem] sm:inline">/</kbd>
+            <kbd className="hidden rounded-md border border-border px-1.5 text-[0.9rem] sm:inline">/</kbd>
           </button>
           <NotificationBell staffId={me.id} />
         </header>
-        <main id="main" tabIndex={-1} className="w-full min-w-0 flex-1 px-4 pt-4 pb-16 outline-none md:px-8">
+        <main id="main" tabIndex={-1} className="w-full min-w-0 flex-1 px-4 pt-3 pb-8 outline-none md:px-6 xl:px-8">
           {children}
         </main>
       </div>

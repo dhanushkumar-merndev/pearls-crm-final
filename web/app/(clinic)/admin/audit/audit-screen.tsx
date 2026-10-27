@@ -4,10 +4,12 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { formatDateTime, istDayStart } from "@pearl/shared";
-import { Button } from "@/components/ui/button";
 import { Field, PageHeader, Select } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
+import { LoadMore } from "@/components/ui/load-more";
+import { Page, useAdminBack } from "@/components/ui/page";
+import { RowSkeletons } from "@/components/ui/skeletons";
+import { EmptyRow, Table, TD, TH, THead, TR, wrapText } from "@/components/ui/table";
 import { rpc } from "@/lib/rpc";
 
 interface AuditRow {
@@ -31,6 +33,7 @@ const show = (v: unknown) => (v === null || v === undefined ? "—" : typeof v =
 
 /** Who changed what and when (newest first). Only changed fields are stored. */
 export function AuditScreen() {
+  const adminBack = useAdminBack();
   const t = useTranslations("audit");
   const c = useTranslations("common");
   const v = useTranslations("validation");
@@ -57,9 +60,9 @@ export function AuditScreen() {
   const items = list.data?.pages.flatMap((p) => p.items) ?? [];
 
   return (
-    <div>
-      <PageHeader title={t("title")} description={t("description")} />
-      <div className="mb-4 grid gap-3 sm:grid-cols-3">
+    <Page>
+      <PageHeader back={adminBack} title={t("title")} description={t("description")} />
+      <div className="grid gap-3 sm:grid-cols-3">
         <Field label={t("what")}>
           {(a) => (
             <Select {...a} value={table} onChange={(e) => setTable(e.target.value)}>
@@ -85,7 +88,7 @@ export function AuditScreen() {
           </tr>
         </THead>
         <tbody>
-          {list.isPending && <EmptyRow colSpan={4}>{c("loading")}</EmptyRow>}
+          {list.isPending && <RowSkeletons asRow rows={3} cols={4} />}
           {list.isSuccess && items.length === 0 && <EmptyRow colSpan={4}>{c("empty")}</EmptyRow>}
           {items.map((row) => (
             <TR key={row.id} className="align-top">
@@ -95,7 +98,7 @@ export function AuditScreen() {
                 {(AUDITED as readonly string[]).includes(row.table_name) ? t(`table.${row.table_name}`) : row.table_name}
                 <span className="block text-[0.9rem] text-text-secondary">{t(`action.${row.action}`)}</span>
               </TD>
-              <TD>
+              <TD className={wrapText}>
                 <ul className="flex flex-col gap-1 text-[0.95rem]">
                   {Object.entries(row.changes).slice(0, 12).map(([field, [before, after]]) => (
                     <li key={field} className="break-words">
@@ -109,11 +112,7 @@ export function AuditScreen() {
           ))}
         </tbody>
       </Table>
-      {list.hasNextPage && (
-        <Button variant="secondary" className="mt-3" onClick={() => void list.fetchNextPage()} disabled={list.isFetchingNextPage}>
-          {c("loadMore")}
-        </Button>
-      )}
-    </div>
+      <LoadMore hasMore={list.hasNextPage} loading={list.isFetchingNextPage} onClick={() => void list.fetchNextPage()} />
+    </Page>
   );
 }

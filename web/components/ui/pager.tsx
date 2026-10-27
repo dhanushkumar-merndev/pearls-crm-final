@@ -21,7 +21,7 @@ export function Pager({
   const from = total === 0 ? 0 : offset + 1;
   const to = Math.min(offset + limit, total);
   return (
-    <nav aria-label={t("pages")} className="mt-3 flex flex-wrap items-center justify-between gap-3">
+    <nav aria-label={t("pages")} className="flex flex-wrap items-center justify-between gap-3">
       <p className="text-text-secondary" aria-live="polite">
         {t("rowsOf", { from, to, total })}
       </p>

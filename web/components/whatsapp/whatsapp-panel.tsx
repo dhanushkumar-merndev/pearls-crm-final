@@ -1,15 +1,36 @@
 "use client";
 
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BellOff, BellRing, Check, CheckCheck, CircleAlert, Clock, ExternalLink, Hand, Pause, Play, Plus, Send, Square } from "lucide-react";
+import {
+  ArrowLeft,
+  BellOff,
+  BellRing,
+  Check,
+  CheckCheck,
+  CircleAlert,
+  Clock,
+  EllipsisVertical,
+  Hand,
+  ListChecks,
+  Pause,
+  Play,
+  Plus,
+  Send,
+  Square,
+} from "lucide-react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
-import { formatDateTime, formatTime } from "@pearl/shared";
+import { Fragment, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { formatDate, formatDateTime, formatTime } from "@pearl/shared";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Field, Select, Textarea } from "@/components/ui/form";
+import { LoadMore } from "@/components/ui/load-more";
+import { RowSkeletons } from "@/components/ui/skeletons";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { Tooltip } from "@/components/ui/tooltip";
 import { callFunction, newId, rpc, unwrap } from "@/lib/rpc";
 import { dripEnrollSchema, waTemplateSendSchema, waTextSchema } from "@/lib/schemas/whatsapp";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
@@ -18,6 +39,7 @@ import { useZodForm } from "@/lib/use-zod-form";
 import { useLiveWhatsApp } from "@/lib/realtime";
 import { waLink } from "@/lib/whatsapp";
 import { cn } from "@/lib/utils";
+import { ChatAvatar } from "./chat-avatar";
 
 interface WaMessage {
   id: string;
@@ -67,16 +89,42 @@ export function fillTemplate(body: string | null, vars: string[]): string {
 }
 
 const STATUS_ICON = { queued: Clock, sent: Check, delivered: CheckCheck, read: CheckCheck, failed: CircleAlert, manual: Hand, received: Check };
+// Statuses worth words in the bubble; the rest are a tick (with the word for screen readers).
+const STATUS_IN_WORDS = new Set(["queued", "failed", "manual"]);
+
+/** The person the chat is with, for the inbox's chat header (avatar, name, link to their page). */
+export interface ChatContact {
+  name: string;
+  subtitle?: string;
+  link?: { href: string; label: string; icon: ReactNode };
+  /** Phone width: back to the list. */
+  onBack?: () => void;
+}
+
+/** "Today" / "Yesterday" / DD/MM/YYYY for the pill between days. */
+function useDayLabel() {
+  const t = useTranslations("whatsapp");
+  return (d: Date) => {
+    const today = new Date();
+    const yesterday = new Date(today.getTime() - 86_400_000);
+    const key = formatDate(d);
+    return key === formatDate(today) ? t("today") : key === formatDate(yesterday) ? t("yesterday") : key;
+  };
+}
 
 /**
- * WhatsApp with one patient or lead: the conversation (newest at the bottom), sending an
- * approved template or — within 24 hours of their last message — free text, the manual
- * wa.me fallback when the Cloud API is off, opt-out, and drip campaigns (`canDrip`).
+ * WhatsApp with one patient or lead, laid out like WhatsApp Web: chat header, the conversation
+ * (newest at the bottom, a pill between days), and the composer pinned at the bottom. Sending an
+ * approved template or — within 24 hours of their last message — free text, the manual wa.me
+ * fallback when the Cloud API is off, opt-out, and drip campaigns (`canDrip`).
+ * With `contact` (the inbox) it fills its box; without (patient file, lead page) it is a card.
  */
-export function WhatsAppPanel({ patientId, leadId, canDrip }: { patientId?: string; leadId?: string; canDrip: boolean }) {
+export function WhatsAppPanel({ patientId, leadId, canDrip, contact }: { patientId?: string; leadId?: string; canDrip: boolean; contact?: ChatContact }) {
   const t = useTranslations("whatsapp");
   const queryClient = useQueryClient();
   const { saved, failed } = useFeedback();
+  const dayLabel = useDayLabel();
+  const [dripDialog, setDripDialog] = useState<"list" | "enroll" | null>(null);
   const key = ["wa_thread", patientId ?? null, leadId ?? null];
   const thread = useInfiniteQuery({
     queryKey: key,
@@ -122,67 +170,184 @@ export function WhatsAppPanel({ patientId, leadId, canDrip }: { patientId?: stri
     onError: failed,
   });
 
-  if (thread.isPending) return <p className="text-text-secondary">{t("loading")}</p>;
-  if (thread.isError || !head) return <p className="text-text-secondary">{t("cantLoad")}</p>;
+  const inbox = !!contact;
+  if (thread.isPending) return <div className={inbox ? "p-4" : undefined}><RowSkeletons rows={3} /></div>;
+  if (thread.isError || !head) return <p className={cn("text-text-secondary", inbox && "p-4")}>{t("cantLoad")}</p>;
   const api = head.enabled && head.wa_mode !== "manual";
   const windowOpen = !!head.window_open_until && new Date(head.window_open_until) > new Date();
+  const drips = canDrip && !!head.phone_e164;
 
-  return (
-    <div className="flex flex-col gap-4">
-      <Card className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <CardTitle className="mr-auto">{t("title")}</CardTitle>
-          {head.opted_out ? (
-            <StatusBadge kind="critical" label={t("optedOut")} />
-          ) : !api ? (
-            <StatusBadge kind="serious" label={head.enabled ? t("manualNumber") : t("apiOff")} />
-          ) : windowOpen ? (
-            <StatusBadge kind="good" label={t("windowOpen", { time: formatTime(new Date(head.window_open_until!)) })} />
-          ) : (
-            <StatusBadge kind="warning" label={t("templatesOnly")} />
-          )}
-        </div>
-        {!head.phone_e164 ? (
-          <CardDescription>{t("noPhone")}</CardDescription>
-        ) : (
+  const chip = head.opted_out ? (
+    <StatusBadge kind="critical" label={t("optedOut")} />
+  ) : !api ? (
+    <StatusBadge kind="serious" label={head.enabled ? t("manualNumber") : t("apiOff")} />
+  ) : windowOpen ? (
+    <StatusBadge kind="good" label={t("windowOpen", { time: formatTime(new Date(head.window_open_until!)) })} />
+  ) : (
+    <StatusBadge kind="warning" label={t("templatesOnly")} />
+  );
+
+  // The ⋮ menu: what WhatsApp Web keeps there too (campaigns in the inbox, stop messages).
+  const showMenu = (inbox && drips) || (!head.opted_out && !!head.phone_e164);
+  const menu = showMenu && (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" aria-label={t("chatOptions")}>
+          <EllipsisVertical aria-hidden />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {inbox && drips && (
           <>
-            <ol ref={listRef} aria-live="polite" aria-label={t("conversation")} className="flex max-h-[28rem] flex-col gap-2 overflow-y-auto rounded-xl border border-border p-3">
-              {thread.hasNextPage && (
-                <li className="self-center">
-                  <Button variant="ghost" disabled={thread.isFetchingNextPage} onClick={() => void thread.fetchNextPage()}>
-                    {t("older")}
-                  </Button>
-                </li>
-              )}
-              {items.length === 0 && <li className="text-text-secondary">{t("empty")}</li>}
-              {items.map((m) => (
-                <Bubble key={m.id} m={m} />
-              ))}
-            </ol>
-            {head.opted_out ? (
-              <div className="flex flex-wrap items-center gap-3">
-                <CardDescription className="flex-1">{t("optedOutHint")}</CardDescription>
-                <Button variant="secondary" disabled={optOut.isPending} onClick={() => optOut.mutate(false)}>
-                  <BellRing aria-hidden />
-                  {t("optIn")}
-                </Button>
-              </div>
-            ) : api ? (
-              <ApiComposer patientId={patientId} leadId={leadId} windowOpen={windowOpen} onSent={refresh} />
-            ) : (
-              <ManualComposer patientId={patientId} leadId={leadId} phone={head.phone_e164} enabled={head.enabled} onSent={refresh} />
-            )}
-            {!head.opted_out && (
-              <Button variant="ghost" className="self-start" disabled={optOut.isPending} onClick={() => optOut.mutate(true)}>
-                <BellOff aria-hidden />
-                {t("optOut")}
-              </Button>
-            )}
+            <DropdownMenuItem onSelect={() => setDripDialog("enroll")}>
+              <Plus aria-hidden />
+              {t("addToDrip")}
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setDripDialog("list")}>
+              <ListChecks aria-hidden />
+              {t("drips")}
+            </DropdownMenuItem>
           </>
         )}
-      </Card>
-      {canDrip && head.phone_e164 && <Drips patientId={patientId} leadId={leadId} />}
+        {!head.opted_out && head.phone_e164 && (
+          <DropdownMenuItem disabled={optOut.isPending} onSelect={() => optOut.mutate(true)}>
+            <BellOff aria-hidden />
+            {t("optOut")}
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
+  const header = inbox ? (
+    <div className="flex min-h-16 items-center gap-2 border-b border-border px-2 py-2 sm:px-4">
+      {contact.onBack && (
+        <Button variant="ghost" size="icon" className="lg:hidden" onClick={contact.onBack} aria-label={t("backToChats")}>
+          <ArrowLeft aria-hidden />
+        </Button>
+      )}
+      <ChatAvatar name={contact.name} />
+      <div className="min-w-0 flex-1">
+        <h2 className="truncate font-semibold">{contact.name}</h2>
+        {contact.subtitle && <p className="truncate text-[0.9rem] text-text-secondary">{contact.subtitle}</p>}
+      </div>
+      <span className="hidden md:inline-flex">{chip}</span>
+      {contact.link && (
+        <Tooltip label={contact.link.label} side="bottom">
+          <Button asChild variant="ghost" size="icon">
+            <Link href={contact.link.href} aria-label={contact.link.label}>
+              {contact.link.icon}
+            </Link>
+          </Button>
+        </Tooltip>
+      )}
+      {menu}
     </div>
+  ) : (
+    <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2.5">
+      <CardTitle className="mr-auto">{t("title")}</CardTitle>
+      {chip}
+      {menu}
+    </div>
+  );
+
+  const body = !head.phone_e164 ? (
+    <p className="chat-wall flex-1 p-4 text-text-secondary">{t("noPhone")}</p>
+  ) : (
+    <>
+      {/* The chip moves under the header on a phone-width inbox (no room beside the name). */}
+      {inbox && <div className="border-b border-border px-4 py-1.5 md:hidden">{chip}</div>}
+      <ol
+        ref={listRef}
+        aria-live="polite"
+        aria-label={t("conversation")}
+        className={cn("chat-wall flex flex-col gap-1.5 overflow-y-auto px-3 py-3 sm:px-6", inbox ? "min-h-0 flex-1" : "h-[24rem] max-h-[60dvh]")}
+      >
+        {thread.hasNextPage && (
+          <li className="self-center pb-2">
+            <LoadMore hasMore loading={thread.isFetchingNextPage} onClick={() => void thread.fetchNextPage()}>
+              {t("older")}
+            </LoadMore>
+          </li>
+        )}
+        {items.length === 0 && <li className="m-auto rounded-full bg-card px-4 py-1.5 text-text-secondary">{t("empty")}</li>}
+        {items.map((m, i) => {
+          const d = new Date(m.created_at);
+          const newDay = i === 0 || formatDate(new Date(items[i - 1]!.created_at)) !== formatDate(d);
+          return (
+            <Fragment key={m.id}>
+              {newDay && (
+                <li className="my-1.5 self-center rounded-full border border-border bg-card px-3 py-0.5 text-[0.9rem] text-text-secondary shadow-sm">
+                  {dayLabel(d)}
+                </li>
+              )}
+              <Bubble m={m} />
+            </Fragment>
+          );
+        })}
+      </ol>
+      <div className="border-t border-border bg-card px-3 py-2.5 sm:px-4">
+        {head.opted_out ? (
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="min-w-0 flex-1 text-[0.95rem] text-text-secondary">{t("optedOutHint")}</p>
+            <Button variant="secondary" disabled={optOut.isPending} onClick={() => optOut.mutate(false)}>
+              <BellRing aria-hidden />
+              {t("optIn")}
+            </Button>
+          </div>
+        ) : api ? (
+          <ApiComposer patientId={patientId} leadId={leadId} windowOpen={windowOpen} onSent={refresh} />
+        ) : (
+          <ManualComposer patientId={patientId} leadId={leadId} phone={head.phone_e164} enabled={head.enabled} onSent={refresh} />
+        )}
+      </div>
+    </>
+  );
+
+  return (
+    <>
+      {inbox ? (
+        <div className="flex h-full min-h-0 flex-col">
+          {header}
+          {body}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-4">
+          <Card className="flex flex-col overflow-hidden p-0 sm:p-0">
+            {header}
+            {body}
+          </Card>
+          {drips && <Drips patientId={patientId} leadId={leadId} />}
+        </div>
+      )}
+      {inbox && drips && (
+        <Dialog open={dripDialog !== null} onOpenChange={(o) => !o && setDripDialog(null)}>
+          {dripDialog === "list" && (
+            <DialogContent
+              title={t("drips")}
+              footer={
+                <Button variant="secondary" onClick={() => setDripDialog("enroll")}>
+                  <Plus aria-hidden />
+                  {t("addToDrip")}
+                </Button>
+              }
+            >
+              <DripList patientId={patientId} leadId={leadId} />
+            </DialogContent>
+          )}
+          {dripDialog === "enroll" && (
+            <EnrollDialog
+              patientId={patientId}
+              leadId={leadId}
+              onDone={() => {
+                setDripDialog(null);
+                void queryClient.invalidateQueries({ queryKey: ["drip_enrollments"] });
+              }}
+            />
+          )}
+        </Dialog>
+      )}
+    </>
   );
 }
 
@@ -191,23 +356,54 @@ function Bubble({ m }: { m: WaMessage }) {
   const Icon = STATUS_ICON[m.status];
   const out = m.direction === "outbound";
   const text = m.kind === "template" ? fillTemplate(m.body, m.vars) : (m.body ?? "");
+  const at = new Date(m.created_at);
   return (
-    <li className={cn("flex max-w-[85%] flex-col gap-1 rounded-2xl border border-border px-3 py-2", out ? "self-end bg-secondary" : "self-start bg-background")}>
-      {m.template && <span className="text-[0.85rem] text-text-secondary">{t("template", { name: m.template })}</span>}
+    <li
+      className={cn(
+        "flex max-w-[85%] flex-col gap-0.5 rounded-2xl px-3 pt-1.5 pb-1 shadow-sm sm:max-w-[70%]",
+        out ? "chat-out self-end rounded-tr-sm" : "chat-in self-start rounded-tl-sm border border-border",
+      )}
+    >
+      {m.template && <span className="text-[0.9rem] text-text-secondary">{t("template", { name: m.template })}</span>}
       <p className="whitespace-pre-wrap break-words">{text || "—"}</p>
-      <span className="flex flex-wrap items-center gap-x-2 text-[0.85rem] text-text-secondary">
-        <span>{formatDateTime(new Date(m.created_at))}</span>
+      <span className="flex flex-wrap items-center justify-end gap-x-2 self-end text-[0.9rem] text-text-secondary">
+        {m.action && <span className="font-medium text-foreground">{t(`action.${m.action}`)}</span>}
         {m.sent_by_name && <span>{m.sent_by_name}</span>}
+        <time dateTime={m.created_at} title={formatDateTime(at)} className="tabular-nums">
+          {formatTime(at)}
+        </time>
         {out && (
           <span className={cn("inline-flex items-center gap-1", m.status === "failed" && "text-bad-text", m.status === "read" && "text-link")}>
             <Icon aria-hidden className="size-4" />
-            {t(`status.${m.status}`)}
+            {STATUS_IN_WORDS.has(m.status) ? t(`status.${m.status}`) : <span className="sr-only">{t(`status.${m.status}`)}</span>}
           </span>
         )}
-        {m.action && <span className="font-medium text-foreground">{t(`action.${m.action}`)}</span>}
       </span>
-      {m.status === "failed" && m.error_text && <span className="text-[0.85rem] text-bad-text">{m.error_text}</span>}
+      {m.status === "failed" && m.error_text && <span className="text-[0.9rem] text-bad-text">{m.error_text}</span>}
     </li>
+  );
+}
+
+/** Enter sends (like WhatsApp Web); Shift+Enter starts a new line. */
+function enterSends(send: () => void) {
+  return (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+      e.preventDefault();
+      send();
+    }
+  };
+}
+
+const COMPOSER_TEXT = "min-h-10 max-h-36 resize-none rounded-3xl py-2 [field-sizing:content]";
+
+/** The round send button at the end of the composer (icon; its name says what it does). */
+function SendButton({ label, busy, onClick }: { label: string; busy: boolean; onClick: () => void }) {
+  return (
+    <Tooltip label={label} side="top">
+      <Button size="icon" className="shrink-0" aria-label={label} disabled={busy} onClick={onClick}>
+        <Send aria-hidden />
+      </Button>
+    </Tooltip>
   );
 }
 
@@ -244,66 +440,80 @@ function ApiComposer({ patientId, leadId, windowOpen, onSent }: { patientId?: st
     onError: failed,
   });
   const effective = windowOpen ? mode : "template";
+  const sendTemplate = () => {
+    const d = tplChecks.validate({ template_id: templateId });
+    if (d) send.mutate(d);
+  };
+  const sendText = () => {
+    const d = textChecks.validate({ text });
+    if (d) send.mutate(d);
+  };
+  const seg = (on: boolean) =>
+    cn("min-h-8 rounded-full px-3 text-[0.9rem] font-medium", on ? "bg-primary text-primary-foreground" : "text-text-secondary hover:bg-accent hover:text-foreground");
   return (
-    <div className="flex flex-col gap-3">
-      <div role="radiogroup" aria-label={t("sendAs")} className="flex flex-wrap gap-2">
-        <Button role="radio" aria-checked={effective === "template"} variant={effective === "template" ? "primary" : "secondary"} onClick={() => setMode("template")}>
-          {t("useTemplate")}
-        </Button>
-        <Button
-          role="radio"
-          aria-checked={effective === "text"}
-          variant={effective === "text" ? "primary" : "secondary"}
-          disabled={!windowOpen}
-          onClick={() => setMode("text")}
-        >
-          {t("useText")}
-        </Button>
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <div role="radiogroup" aria-label={t("sendAs")} className="inline-flex gap-1 rounded-full border border-border p-0.5">
+          <button type="button" role="radio" aria-checked={effective === "template"} className={seg(effective === "template")} onClick={() => setMode("template")}>
+            {t("useTemplate")}
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={effective === "text"}
+            className={cn(seg(effective === "text"), "disabled:opacity-50")}
+            disabled={!windowOpen}
+            onClick={() => setMode("text")}
+          >
+            {t("useText")}
+          </button>
+        </div>
+        {!windowOpen && <p className="min-w-0 flex-1 text-[0.9rem] text-text-secondary">{t("windowClosedHint")}</p>}
       </div>
-      {!windowOpen && <CardDescription>{t("windowClosedHint")}</CardDescription>}
       {effective === "template" ? (
         <>
-          <Field label={t("templateField")} error={tplChecks.error("template_id")} hint={templates.data?.length === 0 ? t("noTemplates") : undefined}>
-            {(a) => (
-              <Select
-                {...a}
-                value={templateId}
-                onChange={(e) => {
-                  setTemplateId(e.target.value);
-                  tplChecks.clear("template_id");
-                }}
-              >
-                <option value="">{t("chooseTemplate")}</option>
-                {(templates.data ?? []).map((x) => (
-                  <option key={x.id} value={x.id}>
-                    {x.name}
-                  </option>
-                ))}
-              </Select>
-            )}
-          </Field>
-          {picked?.body_text && <p className="rounded-xl border border-border p-3 whitespace-pre-wrap text-text-secondary">{picked.body_text}</p>}
-          <Button
-            className="self-start"
-            disabled={send.isPending}
-            onClick={() => {
-              const d = tplChecks.validate({ template_id: templateId });
-              if (d) send.mutate(d);
-            }}
-          >
-            <Send aria-hidden />
-            {send.isPending ? t("sending") : t("send")}
-          </Button>
+          {picked?.body_text && <p className="rounded-xl border border-border p-2.5 whitespace-pre-wrap text-text-secondary">{picked.body_text}</p>}
+          <div className="flex items-start gap-2">
+            <Field
+              label={t("templateField")}
+              labelClassName="sr-only"
+              className="min-w-0 flex-1"
+              error={tplChecks.error("template_id")}
+              hint={templates.data?.length === 0 ? t("noTemplates") : undefined}
+            >
+              {(a) => (
+                <Select
+                  {...a}
+                  value={templateId}
+                  onChange={(e) => {
+                    setTemplateId(e.target.value);
+                    tplChecks.clear("template_id");
+                  }}
+                >
+                  <option value="">{t("chooseTemplate")}</option>
+                  {(templates.data ?? []).map((x) => (
+                    <option key={x.id} value={x.id}>
+                      {x.name}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </Field>
+            <SendButton label={send.isPending ? t("sending") : t("send")} busy={send.isPending} onClick={sendTemplate} />
+          </div>
         </>
       ) : (
-        <>
-          <Field label={t("message")} error={textChecks.error("text")}>
+        <div className="flex items-start gap-2">
+          <Field label={t("message")} labelClassName="sr-only" className="min-w-0 flex-1" error={textChecks.error("text")}>
             {(a) => (
               <Textarea
                 {...a}
-                rows={3}
+                rows={1}
                 maxLength={4096}
+                placeholder={t("typeMessage")}
+                className={COMPOSER_TEXT}
                 value={text}
+                onKeyDown={enterSends(sendText)}
                 onChange={(e) => {
                   setText(e.target.value);
                   textChecks.clear("text");
@@ -311,18 +521,8 @@ function ApiComposer({ patientId, leadId, windowOpen, onSent }: { patientId?: st
               />
             )}
           </Field>
-          <Button
-            className="self-start"
-            disabled={send.isPending}
-            onClick={() => {
-              const d = textChecks.validate({ text });
-              if (d) send.mutate(d);
-            }}
-          >
-            <Send aria-hidden />
-            {send.isPending ? t("sending") : t("send")}
-          </Button>
-        </>
+          <SendButton label={send.isPending ? t("sending") : t("send")} busy={send.isPending} onClick={sendText} />
+        </div>
       )}
     </div>
   );
@@ -337,44 +537,43 @@ function ManualComposer({ patientId, leadId, phone, enabled, onSent }: { patient
     mutationFn: (d: { text: string }) => rpc<{ phone_e164: string; text: string }>("wa_prepare_manual", { p: { patient_id: patientId ?? null, lead_id: leadId ?? null, text: d.text } }),
     onError: failed,
   });
+  const submit = () => {
+    const d = checks.validate({ text });
+    if (!d) return;
+    // Opened now (a click) so the browser doesn't block it; filled once the message is logged.
+    const tab = window.open("about:blank", "_blank");
+    log.mutate(d, {
+      onSuccess: (r) => {
+        if (tab) tab.location.href = waLink(r.phone_e164 || phone, r.text);
+        setText("");
+        onSent();
+      },
+      onError: () => tab?.close(),
+    });
+  };
   return (
-    <div className="flex flex-col gap-3">
-      <CardDescription>{enabled ? t("manualNumberHint") : t("apiOffHint")}</CardDescription>
-      <Field label={t("message")} error={checks.error("text")}>
-        {(a) => (
-          <Textarea
-            {...a}
-            rows={3}
-            maxLength={4096}
-            value={text}
-            onChange={(e) => {
-              setText(e.target.value);
-              checks.clear("text");
-            }}
-          />
-        )}
-      </Field>
-      <Button
-        className="self-start"
-        disabled={log.isPending}
-        onClick={() => {
-          const d = checks.validate({ text });
-          if (!d) return;
-          // Opened now (a click) so the browser doesn't block it; filled once the message is logged.
-          const tab = window.open("about:blank", "_blank");
-          log.mutate(d, {
-            onSuccess: (r) => {
-              if (tab) tab.location.href = waLink(r.phone_e164 || phone, r.text);
-              setText("");
-              onSent();
-            },
-            onError: () => tab?.close(),
-          });
-        }}
-      >
-        <ExternalLink aria-hidden />
-        {t("openWhatsApp")}
-      </Button>
+    <div className="flex flex-col gap-2">
+      <p className="text-[0.9rem] text-text-secondary">{enabled ? t("manualNumberHint") : t("apiOffHint")}</p>
+      <div className="flex items-start gap-2">
+        <Field label={t("message")} labelClassName="sr-only" className="min-w-0 flex-1" error={checks.error("text")}>
+          {(a) => (
+            <Textarea
+              {...a}
+              rows={1}
+              maxLength={4096}
+              placeholder={t("typeMessage")}
+              className={COMPOSER_TEXT}
+              value={text}
+              onKeyDown={enterSends(submit)}
+              onChange={(e) => {
+                setText(e.target.value);
+                checks.clear("text");
+              }}
+            />
+          )}
+        </Field>
+        <SendButton label={t("openWhatsApp")} busy={log.isPending} onClick={submit} />
+      </div>
     </div>
   );
 }
@@ -382,8 +581,38 @@ function ManualComposer({ patientId, leadId, phone, enabled, onSent }: { patient
 function Drips({ patientId, leadId }: { patientId?: string; leadId?: string }) {
   const t = useTranslations("whatsapp");
   const queryClient = useQueryClient();
-  const { saved, failed } = useFeedback();
   const [adding, setAdding] = useState(false);
+  return (
+    <Card className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <CardTitle className="mr-auto">{t("drips")}</CardTitle>
+        <Button variant="secondary" onClick={() => setAdding(true)}>
+          <Plus aria-hidden />
+          {t("addToDrip")}
+        </Button>
+      </div>
+      <DripList patientId={patientId} leadId={leadId} />
+      <Dialog open={adding} onOpenChange={setAdding}>
+        {adding && (
+          <EnrollDialog
+            patientId={patientId}
+            leadId={leadId}
+            onDone={() => {
+              setAdding(false);
+              void queryClient.invalidateQueries({ queryKey: ["drip_enrollments"] });
+            }}
+          />
+        )}
+      </Dialog>
+    </Card>
+  );
+}
+
+/** The campaigns this person is in, with pause / resume / stop. */
+function DripList({ patientId, leadId }: { patientId?: string; leadId?: string }) {
+  const t = useTranslations("whatsapp");
+  const queryClient = useQueryClient();
+  const { saved, failed } = useFeedback();
   const enrollments = useQuery({
     queryKey: ["drip_enrollments", patientId ?? null, leadId ?? null],
     queryFn: () => rpc<Enrollment[]>("drip_enrollments_for", { p_patient_id: patientId ?? null, p_lead_id: leadId ?? null }),
@@ -397,14 +626,7 @@ function Drips({ patientId, leadId }: { patientId?: string; leadId?: string }) {
     onError: failed,
   });
   return (
-    <Card className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <CardTitle className="mr-auto">{t("drips")}</CardTitle>
-        <Button variant="secondary" onClick={() => setAdding(true)}>
-          <Plus aria-hidden />
-          {t("addToDrip")}
-        </Button>
-      </div>
+    <div className="flex flex-col gap-2">
       {enrollments.data?.length === 0 && <CardDescription>{t("noDrips")}</CardDescription>}
       <ul className="flex flex-col gap-2">
         {(enrollments.data ?? []).map((e) => (
@@ -442,19 +664,7 @@ function Drips({ patientId, leadId }: { patientId?: string; leadId?: string }) {
           </li>
         ))}
       </ul>
-      <Dialog open={adding} onOpenChange={setAdding}>
-        {adding && (
-          <EnrollDialog
-            patientId={patientId}
-            leadId={leadId}
-            onDone={() => {
-              setAdding(false);
-              void queryClient.invalidateQueries({ queryKey: ["drip_enrollments"] });
-            }}
-          />
-        )}
-      </Dialog>
-    </Card>
+    </div>
   );
 }
 

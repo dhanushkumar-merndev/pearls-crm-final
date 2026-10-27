@@ -8,8 +8,9 @@ import { useState, type FormEvent } from "react";
 import { ClinicMark } from "@/components/clinic-mark";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
-import { Field, PageHeader, Textarea } from "@/components/ui/form";
+import { Field, Textarea } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { PageHeader, useAdminBack } from "@/components/ui/page";
 import { newId, rpc } from "@/lib/rpc";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
 import { BILL_TYPES, clinicProfileSchema } from "@/lib/schemas/admin";
@@ -40,6 +41,7 @@ export interface ClinicProfile {
 export function ClinicProfileForm({ initial }: { initial: ClinicProfile | null }) {
   const t = useTranslations("clinic");
   const c = useTranslations("common");
+  const adminBack = useAdminBack();
   const router = useRouter();
   const { saved, failed } = useFeedback();
   const [form, setForm] = useState({
@@ -70,9 +72,13 @@ export function ClinicProfileForm({ initial }: { initial: ClinicProfile | null }
     mutationFn: async (file: File) => {
       if (!["image/png", "image/jpeg", "image/webp", "image/svg+xml"].includes(file.type)) throw new Error("file_type_not_allowed");
       if (file.size > 512 * 1024) throw new Error("file_too_large");
-      const ext = file.type === "image/svg+xml" ? "svg" : file.type.split("/")[1];
+      const logo = await shrinkLogo(file);
+      const ext = logo.type === "image/svg+xml" ? "svg" : logo.type.split("/")[1];
       const path = `clinic/logo-${newId()}.${ext}`;
-      const { error } = await getSupabaseBrowser().storage.from("public-assets").upload(path, file, { contentType: file.type });
+      // Every logo gets a new name, so browsers may keep it for a year (it shows on every page).
+      const { error } = await getSupabaseBrowser()
+        .storage.from("public-assets")
+        .upload(path, logo, { contentType: logo.type, cacheControl: "31536000" });
       if (error) throw error;
       return path;
     },
@@ -104,8 +110,9 @@ export function ClinicProfileForm({ initial }: { initial: ClinicProfile | null }
   );
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-6" noValidate>
+    <form onSubmit={submit} className="flex min-w-0 flex-col gap-5" noValidate>
       <PageHeader
+        back={adminBack}
         title={t("title")}
         description={t("description")}
         actions={
@@ -119,8 +126,8 @@ export function ClinicProfileForm({ initial }: { initial: ClinicProfile | null }
       <Card className="flex flex-col gap-4">
         <CardTitle>{t("logo")}</CardTitle>
         <div className="flex flex-wrap items-center gap-4">
-          <ClinicMark name={form.name || null} logoPath={form.logo_path} size={72} />
-          <label className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-full border border-border bg-secondary px-5 font-medium hover:bg-popover-accent">
+          <ClinicMark name={form.name || null} logoPath={form.logo_path} size={60} />
+          <label className="inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-full border border-border bg-secondary px-4 font-medium hover:bg-popover-accent">
             <ImageUp aria-hidden className="size-5" />
             {upload.isPending ? t("uploading") : t("chooseLogo")}
             <input
@@ -187,4 +194,23 @@ export function ClinicProfileForm({ initial }: { initial: ClinicProfile | null }
       </Card>
     </form>
   );
+}
+
+/**
+ * A big photo-sized logo is drawn down to 512 px (sharp enough for a printed bill, a fraction of
+ * the download on every page). SVGs and logos already that small are kept as they are.
+ */
+async function shrinkLogo(file: File, max = 512): Promise<Blob> {
+  if (file.type === "image/svg+xml" || typeof createImageBitmap !== "function") return file;
+  const bitmap = await createImageBitmap(file).catch(() => null);
+  if (!bitmap) return file;
+  const scale = Math.min(1, max / Math.max(bitmap.width, bitmap.height));
+  if (scale === 1 && file.size <= 100 * 1024) return file;
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  canvas.getContext("2d")?.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  // WebP keeps a transparent background and is much smaller than PNG.
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/webp", 0.9));
+  return blob && blob.size < file.size ? blob : file;
 }

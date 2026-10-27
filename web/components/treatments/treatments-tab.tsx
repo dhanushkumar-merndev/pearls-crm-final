@@ -16,6 +16,7 @@ import { Card, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Field, Select, Textarea } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { RowSkeletons } from "@/components/ui/skeletons";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { newId, rpc } from "@/lib/rpc";
 import { editTreatmentSchema, removeSessionSchema, startTreatmentSchema } from "@/lib/schemas/clinical";
@@ -60,7 +61,6 @@ const TREATMENT_KIND: Record<TreatmentStatus, StatusKind> = { active: "good", on
 /** Patient file → Treatments: parallel treatments, each with its planned sessions. */
 export function TreatmentsTab({ patient }: { patient: PatientHit }) {
   const t = useTranslations("treatments");
-  const c = useTranslations("common");
   const [starting, setStarting] = useState(false);
   const list = useQuery({
     queryKey: ["patient_treatments", patient.id],
@@ -74,7 +74,7 @@ export function TreatmentsTab({ patient }: { patient: PatientHit }) {
           {t("start")}
         </Button>
       </div>
-      {list.isPending && <p>{c("loading")}</p>}
+      {list.isPending && <RowSkeletons rows={3} />}
       {list.data?.length === 0 && <p className="text-text-secondary">{t("none")}</p>}
       {list.data?.map((tr) => <TreatmentCard key={tr.id} treatment={tr} patient={patient} />)}
       <Dialog open={starting} onOpenChange={setStarting}>

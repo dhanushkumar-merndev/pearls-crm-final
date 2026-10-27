@@ -9,6 +9,9 @@ import { formatDateTime } from "@pearl/shared";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Field, PageHeader, Textarea } from "@/components/ui/form";
+import { LoadMore } from "@/components/ui/load-more";
+import { Page } from "@/components/ui/page";
+import { RowSkeletons } from "@/components/ui/skeletons";
 import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
 import { rpc } from "@/lib/rpc";
 import { reasonSchema } from "@/lib/schemas/clinical";
@@ -36,7 +39,7 @@ export function PendingScreen() {
   });
   const items = list.data?.pages.flatMap((p) => p.items) ?? [];
   return (
-    <div>
+    <Page>
       <PageHeader title={t("title")} description={t("description")} />
       <Table>
         <THead>
@@ -50,7 +53,7 @@ export function PendingScreen() {
           </tr>
         </THead>
         <tbody>
-          {list.isPending && <EmptyRow colSpan={4}>{c("loading")}</EmptyRow>}
+          {list.isPending && <RowSkeletons asRow rows={3} cols={4} />}
           {list.isSuccess && items.length === 0 && <EmptyRow colSpan={4}>{t("none")}</EmptyRow>}
           {items.map((r) => (
             <TR key={r.id}>
@@ -73,11 +76,7 @@ export function PendingScreen() {
           ))}
         </tbody>
       </Table>
-      {list.hasNextPage && (
-        <Button variant="secondary" className="mt-3" onClick={() => void list.fetchNextPage()}>
-          {c("loadMore")}
-        </Button>
-      )}
+      <LoadMore hasMore={list.hasNextPage} loading={list.isFetchingNextPage} onClick={() => void list.fetchNextPage()} />
       <Dialog open={discarding !== null} onOpenChange={(o) => !o && setDiscarding(null)}>
         {discarding && (
           <DiscardDialog
@@ -89,7 +88,7 @@ export function PendingScreen() {
           />
         )}
       </Dialog>
-    </div>
+    </Page>
   );
 }
 

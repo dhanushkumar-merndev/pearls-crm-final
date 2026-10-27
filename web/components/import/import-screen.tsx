@@ -18,9 +18,10 @@ import {
 } from "@pearl/shared";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
-import { Checkbox, Field, PageHeader } from "@/components/ui/form";
+import { Checkbox, Field } from "@/components/ui/form";
+import { Page, PageHeader, useAdminBack } from "@/components/ui/page";
 import { FieldError, Input } from "@/components/ui/input";
-import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
+import { EmptyRow, Table, TD, TH, THead, TR, wrapText } from "@/components/ui/table";
 import { downloadExcel, isXlsx, readExcelRows } from "@/lib/excel";
 import { rpc } from "@/lib/rpc";
 import { useFeedback } from "@/lib/use-feedback";
@@ -68,6 +69,10 @@ export function ImportScreen({ kind = "patients" }: { kind?: ImportKind }) {
   const errs = useTranslations("errors");
   const k = KINDS[kind];
   const tk = (key: string, values?: Record<string, string | number>) => t(`${k.prefix}${key}`, values);
+  const tl = useTranslations("leads");
+  const adminBack = useAdminBack();
+  // Leads are imported from the Leads screen (sales manager); the rest from Admin.
+  const back = kind === "leads" ? { href: "/leads", label: tl("backToLeads") } : adminBack;
   const { saved, failed } = useFeedback();
   const [fileName, setFileName] = useState("");
   const [fileError, setFileError] = useState<string | null>(null);
@@ -209,8 +214,8 @@ export function ImportScreen({ kind = "patients" }: { kind?: ImportKind }) {
     checked && result === null && progress === null && missingRequired.length === 0 && goodRows.length > 0 && (problems.length === 0 || skipBad);
 
   return (
-    <div className="flex flex-col gap-5">
-      <PageHeader title={tk("title")} description={tk("description")} />
+    <Page>
+      <PageHeader back={back} title={tk("title")} description={tk("description")} />
 
       <Card className="flex flex-col gap-3">
         <CardTitle>{t("step0")}</CardTitle>
@@ -318,14 +323,14 @@ export function ImportScreen({ kind = "patients" }: { kind?: ImportKind }) {
                 <TR key={i}>
                   <TD className="tabular-nums">{p.line}</TD>
                   <TD>{colLabel(p.field)}</TD>
-                  <TD>{message(p)}</TD>
+                  <TD className={wrapText}>{message(p)}</TD>
                 </TR>
               ))}
             </tbody>
           </Table>
         </>
       )}
-    </div>
+    </Page>
   );
 }
 

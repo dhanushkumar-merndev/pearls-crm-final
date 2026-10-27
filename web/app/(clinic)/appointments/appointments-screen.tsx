@@ -1,9 +1,8 @@
 "use client";
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { CalendarPlus, ChevronLeft, ChevronRight, Download, Footprints, Plus } from "lucide-react";
+import { CalendarCheck, CalendarPlus, ChevronLeft, ChevronRight, Download, Footprints, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { Tabs } from "radix-ui";
 import { useState } from "react";
 import { formatDate, formatTime, istDateString, istDayStart } from "@pearl/shared";
 import { AppointmentActions, type ApptCard } from "@/components/appointments/appointment-actions";
@@ -13,10 +12,14 @@ import type { LibraryItem } from "@/components/library-combobox";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
+import { FilterBar } from "@/components/ui/filter-bar";
 import { Field, PageHeader, Select } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Page } from "@/components/ui/page";
 import { Pager } from "@/components/ui/pager";
+import { CardSkeleton, RowSkeletons } from "@/components/ui/skeletons";
 import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLiveAppointments } from "@/lib/realtime";
 import { downloadExcel } from "@/lib/excel";
 import { rpc } from "@/lib/rpc";
@@ -53,7 +56,7 @@ export function AppointmentsScreen() {
   const [booking, setBooking] = useState<{ doctor?: LibraryItem; slot?: string } | null>(null);
   const [walkIn, setWalkIn] = useState(false);
   return (
-    <div className="flex flex-col gap-4">
+    <Page>
       <PageHeader
         title={t("title")}
         description={t("description")}
@@ -70,32 +73,28 @@ export function AppointmentsScreen() {
           </>
         }
       />
-      <Tabs.Root defaultValue="board" className="flex flex-col gap-4">
-        <Tabs.List aria-label={t("views")} className="flex gap-1 border-b border-border">
+      <Tabs defaultValue="board" className="flex flex-col gap-4">
+        <TabsList aria-label={t("views")}>
           {(["board", "table"] as const).map((v) => (
-            <Tabs.Trigger
-              key={v}
-              value={v}
-              className="min-h-11 rounded-t-xl px-4 font-medium text-text-secondary data-[state=active]:border-b-2 data-[state=active]:border-foreground data-[state=active]:text-foreground"
-            >
+            <TabsTrigger key={v} value={v}>
               {t(`view.${v}`)}
-            </Tabs.Trigger>
+            </TabsTrigger>
           ))}
-        </Tabs.List>
-        <Tabs.Content value="board">
+        </TabsList>
+        <TabsContent value="board">
           <BoardView day={day} setDay={setDay} onBook={(doctor, slot) => setBooking({ doctor, slot })} />
-        </Tabs.Content>
-        <Tabs.Content value="table">
+        </TabsContent>
+        <TabsContent value="table">
           <TableView />
-        </Tabs.Content>
-      </Tabs.Root>
+        </TabsContent>
+      </Tabs>
       <Dialog open={booking !== null} onOpenChange={(o) => !o && setBooking(null)}>
         {booking && <BookDialog doctor={booking.doctor ?? null} date={day} slot={booking.slot ?? null} onDone={() => setBooking(null)} />}
       </Dialog>
       <Dialog open={walkIn} onOpenChange={setWalkIn}>
         {walkIn && <WalkInDialog onDone={() => setWalkIn(false)} />}
       </Dialog>
-    </div>
+    </Page>
   );
 }
 
@@ -111,36 +110,51 @@ function BoardView({ day, setDay, onBook }: { day: string; setDay: (d: string) =
   const data = board.data;
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-end gap-2">
         <Button variant="secondary" size="icon" aria-label={t("prevDay")} onClick={() => setDay(shiftDay(day, -1))}>
           <ChevronLeft aria-hidden />
         </Button>
-        <Field label={t("day")}>{(f) => <Input {...f} type="date" value={day} onChange={(e) => e.target.value && setDay(e.target.value)} className="w-48" />}</Field>
+        <Field label={t("day")}>{(f) => <Input {...f} type="date" value={day} onChange={(e) => e.target.value && setDay(e.target.value)} className="w-44" />}</Field>
         <Button variant="secondary" size="icon" aria-label={t("nextDay")} onClick={() => setDay(shiftDay(day, 1))}>
           <ChevronRight aria-hidden />
         </Button>
         <Button variant="ghost" onClick={() => setDay(istDateString(new Date()))}>
+          <CalendarCheck aria-hidden />
           {t("today")}
         </Button>
       </div>
       {data?.holiday && <Card role="status">{t("holiday", { name: data.holiday })}</Card>}
       {data && data.doctors.length === 0 && <p className="text-text-secondary">{t("noDoctors")}</p>}
+      {board.isPending && (
+        <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+          <CardSkeleton height={160} />
+          <CardSkeleton height={160} />
+        </div>
+      )}
       <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
-        {data?.doctors.map((d) => (
+        {data?.doctors.filter((d) => d.slots.length > 0).map((d) => (
           <Card key={d.id} className="flex flex-col gap-3">
             <h2 className="flex items-center gap-2 text-lg font-semibold">
               <span aria-hidden className="size-3 rounded-full" style={{ background: `var(--chart-${(d.colour_slot % 8) + 1})` }} />
               {d.name}
               {d.on_leave && <span className="text-[0.9rem] font-normal text-bad-text">{t("onLeave")}</span>}
             </h2>
-            {d.slots.length === 0 && <p className="text-text-secondary">{t("noHoursToday")}</p>}
             <ul className="flex flex-col gap-2">
-              {d.slots.map((s) => {
+              {/* Earlier slots with nothing booked fold into one line, so today's board starts at "now". */}
+              {(() => {
+                const n = d.slots.filter((s) => s.blocked_reason === "past" && s.chips.length === 0).length;
+                return n > 0 ? (
+                  <li className="rounded-xl border border-dashed border-border bg-muted/40 px-2 py-1.5 text-[0.9rem] text-text-secondary">
+                    {t("pastHidden", { n })}
+                  </li>
+                ) : null;
+              })()}
+              {d.slots.filter((s) => !(s.blocked_reason === "past" && s.chips.length === 0)).map((s) => {
                 const left = Math.max(s.capacity - s.chips.length, 0);
                 const bookable = !s.blocked_reason && left > 0;
                 return (
-                  <li key={s.start} className={cn("rounded-xl border border-border p-2", s.blocked_reason && "opacity-60")}>
+                  <li key={s.start} className={cn("rounded-xl border border-border p-2", s.blocked_reason && "border-dashed bg-muted/40")}>
                     <div className="flex items-center gap-2">
                       <span className="w-20 font-medium tabular-nums">{formatTime(new Date(s.start))}</span>
                       <span className="flex-1 text-[0.9rem] text-text-secondary">
@@ -175,6 +189,23 @@ function BoardView({ day, setDay, onBook }: { day: string; setDay: (d: string) =
           </Card>
         ))}
       </div>
+      {/* Doctors with no hours on this day: one short line, not a card each. */}
+      {data && data.doctors.some((d) => d.slots.length === 0) && (
+        <Card className="flex flex-col gap-2">
+          <h2 className="text-lg font-semibold">{t("noHoursToday")}</h2>
+          <ul className="flex flex-wrap gap-x-4 gap-y-1.5 text-text-secondary">
+            {data.doctors
+              .filter((d) => d.slots.length === 0)
+              .map((d) => (
+                <li key={d.id} className="flex items-center gap-2">
+                  <span aria-hidden className="size-2.5 rounded-full" style={{ background: `var(--chart-${(d.colour_slot % 8) + 1})` }} />
+                  {d.name}
+                  {d.on_leave && <span className="text-[0.9rem] text-bad-text">{t("onLeave")}</span>}
+                </li>
+              ))}
+          </ul>
+        </Card>
+      )}
       {data && data.queue.length > 0 && (
         <Card className="flex flex-col gap-2">
           <h2 className="text-lg font-semibold">{t("queue")}</h2>
@@ -252,7 +283,15 @@ function TableView() {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-end gap-3">
+      <FilterBar
+        active={[filters.status].filter(Boolean).length}
+        actions={
+          <Button variant="secondary" disabled={exporting || !list.data?.total} onClick={() => void exportExcel()}>
+            <Download aria-hidden />
+            {exporting ? t("exporting") : t("export")}
+          </Button>
+        }
+      >
         <Field label={t("from")} error={rangeCheck.fromError}>
           {(f) => <Input {...f} type="date" value={filters.from} onChange={(e) => (setFilters({ ...filters, from: e.target.value }), setOffset(0))} />}
         </Field>
@@ -282,11 +321,7 @@ function TableView() {
             </Select>
           )}
         </Field>
-        <Button variant="secondary" disabled={exporting || !list.data?.total} onClick={() => void exportExcel()}>
-          <Download aria-hidden />
-          {exporting ? t("exporting") : t("export")}
-        </Button>
-      </div>
+      </FilterBar>
       {list.isError && <p className="text-bad-text">{t("rangeTooWide")}</p>}
       <Table>
         <THead>
@@ -301,18 +336,26 @@ function TableView() {
           </tr>
         </THead>
         <tbody>
-          {list.isPending && <EmptyRow colSpan={5}>{c("loading")}</EmptyRow>}
+          {list.isPending && <RowSkeletons asRow rows={3} cols={5} />}
           {list.data?.rows.length === 0 && <EmptyRow colSpan={5}>{t("none")}</EmptyRow>}
           {list.data?.rows.map((r) => (
             <TR key={r.id}>
+              {/* Date over time; the patient and doctor keep their names on one line (the table scrolls on a phone). */}
               <TD className="whitespace-nowrap tabular-nums">
-                {r.slot_start ? `${formatDate(new Date(r.slot_start))} ${formatTime(new Date(r.slot_start))}` : t("walkInQueue", { n: r.queue_no ?? 0 })}
+                {r.slot_start ? (
+                  <>
+                    <span className="block">{formatDate(new Date(r.slot_start))}</span>
+                    <span className="block text-[0.9rem] text-text-secondary">{formatTime(new Date(r.slot_start))}</span>
+                  </>
+                ) : (
+                  t("walkInQueue", { n: r.queue_no ?? 0 })
+                )}
               </TD>
-              <TD>
+              <TD className="min-w-48">
                 <span className="font-medium">{r.patient}</span>
-                <span className="block text-[0.9rem] text-text-secondary">{[r.uhid, r.phone].filter(Boolean).join(" · ")}</span>
+                <span className="block text-[0.9rem] whitespace-nowrap text-text-secondary">{[r.uhid, r.phone].filter(Boolean).join(" · ")}</span>
               </TD>
-              <TD>{r.doctor ?? "—"}</TD>
+              <TD className="whitespace-nowrap">{r.doctor ?? "—"}</TD>
               <TD>
                 <ApptStatusBadge status={r.status} />
               </TD>

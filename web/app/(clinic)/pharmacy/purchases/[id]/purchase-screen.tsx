@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, CirclePlus, PackageCheck, Save, Trash2, X } from "lucide-react";
+import { CirclePlus, PackageCheck, Save, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -16,6 +16,7 @@ import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Field, Select, Textarea } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { DetailHeader, Page } from "@/components/ui/page";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Table, TD, TH, THead, TR } from "@/components/ui/table";
 import { asAppError, newId, rpc } from "@/lib/rpc";
@@ -176,17 +177,12 @@ export function PurchaseScreen({ initial }: { initial: Purchase | null }) {
   if (initial?.status === "posted") return <PostedPurchase p={initial} />;
 
   return (
-    <div className="flex flex-col gap-4">
-      <div>
-        <Button asChild variant="ghost" className="-ml-3 mb-2">
-          <Link href="/pharmacy?tab=purchases">
-            <ArrowLeft aria-hidden />
-            {t("backToPurchases")}
-          </Link>
-        </Button>
-        <h1 className="text-[1.75rem] font-semibold tracking-tight">{initial ? t("purchaseTitle", { no: initial.invoice_no }) : t("newPurchase")}</h1>
-        <p className="mt-1 text-text-secondary">{t("purchaseHint")}</p>
-      </div>
+    <Page>
+      <DetailHeader
+        back={{ href: "/pharmacy?tab=purchases", label: t("backToPurchases") }}
+        title={initial ? t("purchaseTitle", { no: initial.invoice_no }) : t("newPurchase")}
+        description={t("purchaseHint")}
+      />
 
       <Card className="grid gap-4 sm:grid-cols-3">
         <Field label={t("col.supplier")} error={checks.error("supplier")}>
@@ -337,29 +333,24 @@ export function PurchaseScreen({ initial }: { initial: Purchase | null }) {
           </DialogContent>
         )}
       </Dialog>
-    </div>
+    </Page>
   );
 }
 
 function PostedPurchase({ p }: { p: Purchase }) {
   const t = useTranslations("pharmacy");
   return (
-    <div className="flex flex-col gap-4">
-      <div>
-        <Button asChild variant="ghost" className="-ml-3 mb-2">
-          <Link href="/pharmacy?tab=purchases">
-            <ArrowLeft aria-hidden />
-            {t("backToPurchases")}
-          </Link>
-        </Button>
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-[1.75rem] font-semibold tracking-tight">{t("purchaseTitle", { no: p.invoice_no })}</h1>
-          <StatusBadge kind="good" label={t("purchaseStatus.posted")} />
-        </div>
-        <p className="mt-1 text-text-secondary">
-          {p.supplier} · {formatDate(new Date(`${p.invoice_date}T00:00:00+05:30`))}
-        </p>
-      </div>
+    <Page>
+      <DetailHeader
+        back={{ href: "/pharmacy?tab=purchases", label: t("backToPurchases") }}
+        title={t("purchaseTitle", { no: p.invoice_no })}
+        badges={<StatusBadge kind="good" label={t("purchaseStatus.posted")} />}
+        meta={
+          <>
+            {p.supplier} · {formatDate(new Date(`${p.invoice_date}T00:00:00+05:30`))}
+          </>
+        }
+      />
       <Table>
         <THead>
           <tr>
@@ -395,6 +386,6 @@ function PostedPurchase({ p }: { p: Purchase }) {
       </Table>
       <p className="text-right text-lg font-semibold tabular-nums">{t("invoiceTotal", { amount: formatINR(p.total_paise) })}</p>
       {p.notes && <p className="text-text-secondary">{p.notes}</p>}
-    </div>
+    </Page>
   );
 }

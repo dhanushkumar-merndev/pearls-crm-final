@@ -9,7 +9,9 @@ import { LeadsTable } from "@/components/leads/leads-table";
 import { NewLeadDialog } from "@/components/leads/new-lead-dialog";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
-import { PageHeader } from "@/components/ui/form";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { MoreMenu } from "@/components/ui/more-menu";
+import { Page, PageHeader } from "@/components/ui/page";
 
 /** Leads: the managers' table, with New lead (also the sidebar's main button), import, pool and dashboard. */
 export function LeadsScreen({ openNew }: { openNew: boolean }) {
@@ -22,7 +24,7 @@ export function LeadsScreen({ openNew }: { openNew: boolean }) {
     if (openNew) router.replace(pathname, { scroll: false });
   };
   return (
-    <div className="flex flex-col gap-2">
+    <Page>
       <PageHeader
         title={t("title")}
         description={t("description")}
@@ -33,23 +35,25 @@ export function LeadsScreen({ openNew }: { openNew: boolean }) {
               {t("newLead")}
             </Button>
             <Button asChild variant="secondary">
-              <Link href="/leads/import">
-                <FileInput aria-hidden />
-                {t("import")}
-              </Link>
-            </Button>
-            <Button asChild variant="secondary">
-              <Link href="/leads/pool">
-                <Shuffle aria-hidden />
-                {t("pool")}
-              </Link>
-            </Button>
-            <Button asChild variant="ghost">
               <Link href="/leads/dashboard">
                 <ChartColumn aria-hidden />
                 {t("dashboard")}
               </Link>
             </Button>
+            <MoreMenu>
+              <DropdownMenuItem asChild>
+                <Link href="/leads/import">
+                  <FileInput aria-hidden />
+                  {t("import")}
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/leads/pool">
+                  <Shuffle aria-hidden />
+                  {t("pool")}
+                </Link>
+              </DropdownMenuItem>
+            </MoreMenu>
           </>
         }
       />
@@ -57,6 +61,6 @@ export function LeadsScreen({ openNew }: { openNew: boolean }) {
       <Dialog open={creating} onOpenChange={(o) => !o && close()}>
         {creating && <NewLeadDialog canAssign onDone={close} />}
       </Dialog>
-    </div>
+    </Page>
   );
 }

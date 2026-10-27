@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { Field, Select } from "@/components/ui/form";
 import { Pager } from "@/components/ui/pager";
+import { RowSkeletons } from "@/components/ui/skeletons";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
 import { rpc } from "@/lib/rpc";
@@ -33,7 +34,6 @@ const LIMIT = 25;
 /** Open alerts: expired first, then nearest expiry, then low stock. They clear themselves. */
 export function AlertsList() {
   const t = useTranslations("pharmacy");
-  const c = useTranslations("common");
   const [type, setType] = useState("");
   const [offset, setOffset] = useState(0);
   const list = useQuery({
@@ -66,7 +66,7 @@ export function AlertsList() {
           </tr>
         </THead>
         <tbody>
-          {list.isPending && <EmptyRow colSpan={4}>{c("loading")}</EmptyRow>}
+          {list.isPending && <RowSkeletons asRow rows={3} cols={4} />}
           {list.data?.rows.length === 0 && <EmptyRow colSpan={4}>{t("noAlerts")}</EmptyRow>}
           {list.data?.rows.map((r) => (
             <TR key={r.id}>
@@ -80,7 +80,7 @@ export function AlertsList() {
                 <Link href={`/pharmacy/items/${r.item_id}`} className="font-medium text-link underline-offset-4 hover:underline">
                   {r.item}
                 </Link>
-                {r.strength && <span className="block text-[0.85rem] text-text-secondary">{r.strength}</span>}
+                {r.strength && <span className="block text-[0.9rem] text-text-secondary">{r.strength}</span>}
               </TD>
               <TD className="tabular-nums">{r.batch_no ? `${r.batch_no} · ${expiryLabel(r.expiry_date)}` : t("reorderAt", { n: qtyLabel(r.detail.reorder_level) })}</TD>
               <TD className="text-right tabular-nums">{qtyLabel(r.qty_on_hand ?? r.detail.on_hand)}</TD>

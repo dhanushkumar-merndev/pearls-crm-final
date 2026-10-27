@@ -6,7 +6,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { Card } from "@/components/ui/card";
-import { PageHeader } from "@/components/ui/form";
+import { Page, PageHeader } from "@/components/ui/page";
 
 export const metadata: Metadata = { title: "Admin" };
 
@@ -39,16 +39,16 @@ const LINKS: { href: string; key: string; icon: LucideIcon }[] = [
 export default async function AdminHome() {
   const t = await getTranslations("adminHub");
   return (
-    <div>
+    <Page>
       <PageHeader title={t("title")} description={t("description")} />
       <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {LINKS.map(({ href, key, icon: Icon }) => (
           <li key={href}>
             <Link href={href} className="block h-full rounded-2xl focus-visible:outline-2">
               <Card className="flex h-full items-start gap-3 hover:bg-accent">
-                <Icon aria-hidden className="mt-0.5 size-6 shrink-0 text-text-secondary" />
+                <Icon aria-hidden className="mt-0.5 size-5 shrink-0 text-text-secondary" />
                 <span>
-                  <span className="block text-lg font-semibold">{t(`${key}.title`)}</span>
+                  <span className="block text-[1.05rem] font-semibold">{t(`${key}.title`)}</span>
                   <span className="block text-[0.95rem] text-text-secondary">{t(`${key}.body`)}</span>
                 </span>
               </Card>
@@ -56,6 +56,6 @@ export default async function AdminHome() {
           </li>
         ))}
       </ul>
-    </div>
+    </Page>
   );
 }

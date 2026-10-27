@@ -33,21 +33,21 @@ export function UserMenu({ me, collapsed }: { me: Me; collapsed: boolean }) {
     <DropdownMenu>
       <DropdownMenuTrigger
         className={cn(
-          "flex min-h-12 w-full items-center gap-3 rounded-xl px-2 text-left hover:bg-sidebar-accent",
+          "flex min-h-11 w-full items-center gap-3 rounded-xl px-2 text-left hover:bg-sidebar-accent",
           collapsed && "justify-center px-0",
         )}
         // Collapsed: only initials show, so the button needs a name. Expanded: the visible name is the name
         // (an aria-label that differs from visible text fails WCAG 2.5.3 "label in name").
         aria-label={collapsed ? me.full_name : undefined}
       >
-        <span aria-hidden className="inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-[0.9rem] font-semibold text-primary-foreground">
+        <span aria-hidden className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-[0.9rem] font-semibold text-primary-foreground">
           {initials(me.full_name)}
         </span>
         {!collapsed && (
           <>
             <span className="min-w-0 flex-1">
               <span className="block truncate font-medium">{me.full_name}</span>
-              <span className="block truncate text-[0.85rem] text-muted-foreground">{t(`roles.${me.role}`)}</span>
+              <span className="block truncate text-[0.9rem] text-muted-foreground">{t(`roles.${me.role}`)}</span>
             </span>
             <ChevronsUpDown aria-hidden className="size-4 text-muted-foreground" />
           </>

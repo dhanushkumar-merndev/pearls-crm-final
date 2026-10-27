@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Save } from "lucide-react";
+import { Save, Settings } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardDescription } from "@/components/ui/card";
 import { Checkbox, PageHeader } from "@/components/ui/form";
 import { FieldError, Input } from "@/components/ui/input";
+import { Page } from "@/components/ui/page";
+import { RowSkeletons } from "@/components/ui/skeletons";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
 import { rpc, unwrap } from "@/lib/rpc";
@@ -81,23 +83,18 @@ export function PoolScreen() {
   });
 
   return (
-    <div className="flex flex-col gap-4">
-      <div>
-        <Button asChild variant="ghost" className="-ml-3 mb-2">
-          <Link href="/leads">
-            <ArrowLeft aria-hidden />
-            {t("backToLeads")}
-          </Link>
-        </Button>
-        <PageHeader title={t("poolTitle")} description={t("poolHint")} />
-      </div>
+    <Page>
+      <PageHeader back={{ href: "/leads", label: t("backToLeads") }} title={t("poolTitle")} description={t("poolHint")} />
       {pool.data && (
         <Card className="flex flex-wrap items-center gap-3">
           <StatusBadge kind={pool.data.round_robin ? "good" : "serious"} label={pool.data.round_robin ? t("rrOn") : t("rrOff")} />
           <CardDescription className="flex-1">{pool.data.round_robin ? t("rrOnHint") : t("rrOffHint")}</CardDescription>
           {me?.role === "admin" && (
             <Button asChild variant="ghost">
-              <Link href="/admin/settings">{t("rrSetting")}</Link>
+              <Link href="/admin/settings">
+                <Settings aria-hidden />
+                {t("rrSetting")}
+              </Link>
             </Button>
           )}
         </Card>
@@ -114,19 +111,19 @@ export function PoolScreen() {
           </tr>
         </THead>
         <tbody>
-          {pool.isPending && <EmptyRow colSpan={6}>{t("loading")}</EmptyRow>}
+          {pool.isPending && <RowSkeletons asRow rows={3} cols={6} />}
           {pool.data && rows.length === 0 && <EmptyRow colSpan={6}>{t("noExecs")}</EmptyRow>}
           {rows.map((r, i) => (
             <TR key={r.staff_id}>
               <TD>
                 <span className="font-medium">{r.name}</span>
-                {!r.staff_active && <span className="block text-[0.85rem] text-text-secondary">{t("inactiveSkipped")}</span>}
+                {!r.staff_active && <span className="block text-[0.9rem] text-text-secondary">{t("inactiveSkipped")}</span>}
               </TD>
               <TD>
                 <Checkbox label={t("takesLeads")} checked={r.in_pool} onChange={(e) => update(i, { in_pool: e.target.checked })} />
               </TD>
               <TD className="min-w-64">
-                <p className="mb-1 text-[0.85rem] text-text-secondary">{r.source_ids.length === 0 ? t("allSources") : t("onlySources")}</p>
+                <p className="mb-1 text-[0.9rem] text-text-secondary">{r.source_ids.length === 0 ? t("allSources") : t("onlySources")}</p>
                 <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("sourcesFor", { name: r.name })}>
                   {sources.data?.map((s) => {
                     const on = r.source_ids.includes(s.id);
@@ -136,7 +133,7 @@ export function PoolScreen() {
                         type="button"
                         aria-pressed={on}
                         onClick={() => update(i, { source_ids: on ? r.source_ids.filter((x) => x !== s.id) : [...r.source_ids, s.id] })}
-                        className={`min-h-9 rounded-full border px-3 text-[0.85rem] ${on ? "border-foreground bg-primary text-primary-foreground" : "border-border bg-secondary hover:bg-popover-accent"}`}
+                        className={`min-h-10 rounded-full border px-3.5 text-[0.95rem] ${on ? "border-foreground bg-primary text-primary-foreground" : "border-border bg-secondary hover:bg-popover-accent"}`}
                       >
                         {s.label}
                       </button>
@@ -175,6 +172,6 @@ export function PoolScreen() {
           {t("savePool")}
         </Button>
       )}
-    </div>
+    </Page>
   );
 }

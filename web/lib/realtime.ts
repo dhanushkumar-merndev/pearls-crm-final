@@ -1,8 +1,32 @@
 "use client";
 
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { useEffect, useId } from "react";
 import { getSupabaseBrowser } from "./supabase/client";
+
+/**
+ * Changes made between the first load and joining (or while reconnecting) send no event, so the
+ * queries reload when the channel is (re)joined. On the first join a query that has just loaded
+ * (under 2 s ago) or is still loading is left alone: its answer is already as new as the join,
+ * and reloading it would only fetch everything twice on every page. Any later change reloads it anyway.
+ */
+function reloadOnJoin(queryClient: QueryClient, keys: string) {
+  let joined = false;
+  return (status: string) => {
+    if (status !== "SUBSCRIBED") return;
+    const first = !joined;
+    joined = true;
+    for (const key of JSON.parse(keys) as unknown[][]) {
+      // A key can be a prefix (["wa_inbox"] covers every filter of the inbox): all of them must be fresh.
+      const matches = queryClient.getQueryCache().findAll({ queryKey: key });
+      const fresh =
+        matches.length > 0 &&
+        matches.every(({ state }) => state.fetchStatus === "fetching" || Date.now() - state.dataUpdatedAt < 2_000);
+      if (first && fresh) continue;
+      void queryClient.invalidateQueries({ queryKey: key });
+    }
+  };
+}
 
 /**
  * Live updates for one IST day's appointments (Today board, slot board): any change
@@ -20,11 +44,7 @@ export function useLiveAppointments(day: string, queryKeys: unknown[][]) {
     const channel = supabase
       .channel(`appointments:${day}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "appointments", filter: `appt_date=eq.${day}` }, refresh)
-      // Changes made between the first load and joining (or while reconnecting) send no event:
-      // reload once each time the channel is (re)joined.
-      .subscribe((status) => {
-        if (status === "SUBSCRIBED") refresh();
-      });
+      .subscribe(reloadOnJoin(queryClient, keys));
     return () => {
       void supabase.removeChannel(channel);
     };
@@ -56,9 +76,7 @@ export function useLiveWhatsApp(phone: string | null | undefined, queryKeys: unk
         { event: "*", schema: "public", table: "wa_threads", ...(phone ? { filter: `phone_e164=eq.${phone}` } : {}) },
         refresh,
       )
-      .subscribe((status) => {
-        if (status === "SUBSCRIBED") refresh();
-      });
+      .subscribe(reloadOnJoin(queryClient, keys));
     return () => {
       void supabase.removeChannel(channel);
     };
@@ -78,9 +96,7 @@ export function useLiveBdm(queryKeys: unknown[][]) {
     const channel = supabase
       .channel(`bdm_live:${id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "bdm_live_status" }, refresh)
-      .subscribe((status) => {
-        if (status === "SUBSCRIBED") refresh();
-      });
+      .subscribe(reloadOnJoin(queryClient, keys));
     return () => {
       void supabase.removeChannel(channel);
     };

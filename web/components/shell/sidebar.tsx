@@ -34,7 +34,7 @@ export function Sidebar({
 }) {
   const t = useTranslations();
   const pathname = usePathname();
-  const items = navFor(me.role);
+  const items = navFor(me.role).filter((item) => item.inMenu !== false);
   const action = PRIMARY_ACTIONS[me.role];
   // One small call for every badge; refreshed every few minutes.
   const badges = useQuery({
@@ -50,15 +50,17 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        "flex h-dvh shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-200",
-        collapsed ? "w-[76px]" : "w-[272px]",
+        // overflow-hidden: while the width animates (or if a label is longer than the bar) the
+        // content is cut cleanly at the bar's edge instead of spilling over the page.
+        "flex h-dvh shrink-0 flex-col overflow-hidden border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-200",
+        collapsed ? "w-[4.5rem]" : "w-64",
         className,
       )}
     >
-      <div className={cn("flex h-16 items-center gap-2 px-3", collapsed && "justify-center")}>
+      <div className={cn("flex h-14 items-center gap-2 px-3", collapsed && "justify-center")}>
         {!collapsed && (
           <Link href="/home" className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl px-1.5 py-1 hover:bg-sidebar-accent">
-            <ClinicMark name={me.clinic.name} logoPath={me.clinic.logo_path} size={32} />
+            <ClinicMark name={me.clinic.name} logoPath={me.clinic.logo_path} size={26} />
             <span className="truncate font-semibold">{me.clinic.name ?? t("app.name")}</span>
           </Link>
         )}
@@ -92,7 +94,7 @@ export function Sidebar({
               {!collapsed && (
                 <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
                   <span className="truncate">{t(action.labelKey)}</span>
-                  <span className="shrink-0 rounded-full border border-border px-2 text-[0.8rem] font-normal">
+                  <span className="shrink-0 rounded-full border border-border px-2 text-[0.9rem] font-normal">
                     {t("actions.soonShort")}
                   </span>
                 </span>
@@ -103,7 +105,7 @@ export function Sidebar({
       )}
 
       <nav aria-label={t("nav.mainMenu")} className="flex-1 overflow-y-auto px-3 py-2">
-        <ul className="flex flex-col gap-1">
+        <ul className="flex flex-col gap-0.5">
           {items.map((item) => {
             const active = isActive(pathname, item.href);
             const count = item.badge ? (badges.data?.[item.badge] ?? 0) : 0;
@@ -114,13 +116,13 @@ export function Sidebar({
                 onClick={onNavigate}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex min-h-11 items-center gap-3 rounded-xl px-3 text-[0.98rem] hover:bg-sidebar-accent",
+                  "flex min-h-10 items-center gap-3 rounded-xl px-3 hover:bg-sidebar-accent",
                   active && "bg-sidebar-accent font-semibold",
                   collapsed && "justify-center px-0",
                 )}
               >
                 <span className="relative">
-                  <item.icon aria-hidden className="size-5 shrink-0" />
+                  <item.icon aria-hidden className="size-[1.15rem] shrink-0" />
                   {collapsed && count > 0 && <span aria-hidden className="absolute -top-1 -right-1 size-2.5 rounded-full bg-status-warning" />}
                 </span>
                 {collapsed ? (
@@ -128,10 +130,10 @@ export function Sidebar({
                 ) : (
                   <>
                     <span className="sr-only">{label}</span>
-                    <span aria-hidden className="flex flex-1 items-center justify-between gap-2">
-                      {t(item.labelKey)}
+                    <span aria-hidden className="flex min-w-0 flex-1 items-center justify-between gap-2">
+                      <span className="truncate">{t(item.labelKey)}</span>
                       {count > 0 && (
-                        <span className="min-w-7 rounded-full border border-border bg-secondary px-2 text-center text-[0.8rem] font-semibold tabular-nums">{count}</span>
+                        <span className="min-w-7 shrink-0 rounded-full border border-border bg-secondary px-2 text-center text-[0.9rem] font-semibold tabular-nums">{count}</span>
                       )}
                     </span>
                   </>

@@ -1,8 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, CircleX, IndianRupee, Pencil, Printer, Wallet } from "lucide-react";
-import Link from "next/link";
+import { CircleX, IndianRupee, Pencil, Printer, Wallet } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -15,7 +14,10 @@ import { MoneyInput } from "@/components/forms/money-input";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Field, Textarea } from "@/components/ui/form";
+import { MoreMenu } from "@/components/ui/more-menu";
+import { DetailHeader, Page } from "@/components/ui/page";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Table, TD, TH, THead, TR } from "@/components/ui/table";
 import { rpc } from "@/lib/rpc";
@@ -40,26 +42,35 @@ export function BillScreen({ initial }: { initial: Bill }) {
   const [finalizing, setFinalizing] = useState<Bill | null>(null);
   const due = payable(b) - b.received_paise;
 
+  const canPay = b.status === "finalized" && due > 0;
+  const isAdmin = me?.role === "admin" && b.status === "finalized";
+  // A plain link: a prefetch would count as a print and make the next one a "Duplicate copy".
+  const printLink = (primary: boolean) => (
+    <Button asChild variant={primary ? "primary" : "secondary"}>
+      <a href={`/print/bill/${b.id}`} target="_blank" rel="noopener">
+        <Printer aria-hidden />
+        {t("print")}
+      </a>
+    </Button>
+  );
+
   return (
-    <div className="flex flex-col gap-4">
-      <div>
-        <Button asChild variant="ghost" className="-ml-3 mb-2">
-          <Link href={`/patients/${b.patient_id}`}>
-            <ArrowLeft aria-hidden />
-            {t("backTo", { name: b.patient })}
-          </Link>
-        </Button>
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-[1.75rem] font-semibold tracking-tight">
+    <Page>
+      <DetailHeader
+        back={{ href: `/patients/${b.patient_id}`, label: t("backTo", { name: b.patient }) }}
+        title={
+          <>
             {t(`type.${b.bill_type}`)} {b.bill_no && <span className="tabular-nums">· {b.bill_no}</span>}
-          </h1>
-          <StatusBadge kind={b.status === "finalized" ? "good" : b.status === "draft" ? "warning" : "critical"} label={t(`status.${b.status}`)} />
-        </div>
-        <p className="mt-1 text-text-secondary">
-          {b.patient} · {b.uhid}
-          {b.bill_at && ` · ${formatDateTime(new Date(b.bill_at))}`}
-        </p>
-      </div>
+          </>
+        }
+        badges={<StatusBadge kind={b.status === "finalized" ? "good" : b.status === "draft" ? "warning" : "critical"} label={t(`status.${b.status}`)} />}
+        meta={
+          <>
+            {b.patient} · {b.uhid}
+            {b.bill_at && ` · ${formatDateTime(new Date(b.bill_at))}`}
+          </>
+        }
+      />
 
       {b.status === "draft" ? (
         <BillEditor key={b.version} bill={b} onFinalize={setFinalizing} />
@@ -67,37 +78,32 @@ export function BillScreen({ initial }: { initial: Bill }) {
         <BillEditor bill={b} amend onAmended={() => (setAmending(false), void bill.refetch())} />
       ) : (
         <>
+          {/* Money still due: taking it is the main job; printing comes after. */}
           <div className="flex flex-wrap gap-2">
-            {/* A plain link: a prefetch would count as a print and make the next one a "Duplicate copy". */}
-            <Button asChild>
-              <a href={`/print/bill/${b.id}`} target="_blank" rel="noopener">
-                <Printer aria-hidden />
-                {t("print")}
-              </a>
-            </Button>
-            {b.status === "finalized" && due > 0 && (
-              <Button variant="secondary" onClick={() => setDialog("pay")}>
+            {canPay && (
+              <Button onClick={() => setDialog("pay")}>
                 <IndianRupee aria-hidden />
                 {t("addPayment")}
               </Button>
             )}
-            {b.status === "finalized" && due > 0 && (b.patient_credit_paise ?? 0) > 0 && (
+            {printLink(!canPay)}
+            {canPay && (b.patient_credit_paise ?? 0) > 0 && (
               <Button variant="secondary" onClick={() => setDialog("advance")}>
                 <Wallet aria-hidden />
                 {t("useAdvanceButton", { amount: formatINR(b.patient_credit_paise ?? 0) })}
               </Button>
             )}
-            {me?.role === "admin" && b.status === "finalized" && (
-              <>
-                <Button variant="ghost" onClick={() => setAmending(true)}>
+            {isAdmin && (
+              <MoreMenu>
+                <DropdownMenuItem onSelect={() => setAmending(true)}>
                   <Pencil aria-hidden />
                   {t("amend")}
-                </Button>
-                <Button variant="ghost" onClick={() => setDialog("cancel")}>
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setDialog("cancel")}>
                   <CircleX aria-hidden />
                   {t("cancelBill")}
-                </Button>
-              </>
+                </DropdownMenuItem>
+              </MoreMenu>
             )}
           </div>
           {b.status === "cancelled" && <Card role="status">{t("cancelledBecause", { reason: b.cancel_reason ?? "" })}</Card>}
@@ -115,7 +121,7 @@ export function BillScreen({ initial }: { initial: Bill }) {
       <Dialog open={finalizing !== null} onOpenChange={(o) => !o && setFinalizing(null)}>
         {finalizing && <FinalizeDialog bill={finalizing} onDone={() => (setFinalizing(null), router.refresh(), void bill.refetch())} />}
       </Dialog>
-    </div>
+    </Page>
   );
 }
 
@@ -145,8 +151,8 @@ function BillView({ bill: b }: { bill: Bill }) {
               <TD className="tabular-nums">{i.line_no}</TD>
               <TD>
                 {i.description}
-                {i.category && <span className="block text-[0.85rem] text-text-secondary">{i.category}</span>}
-                {i.carried_from_bill_no && <span className="block text-[0.85rem] text-text-secondary">{t("carriedFromBill", { no: i.carried_from_bill_no })}</span>}
+                {i.category && <span className="block text-[0.9rem] text-text-secondary">{i.category}</span>}
+                {i.carried_from_bill_no && <span className="block text-[0.9rem] text-text-secondary">{t("carriedFromBill", { no: i.carried_from_bill_no })}</span>}
               </TD>
               <TD className="text-right tabular-nums">{formatINR(i.rate_paise)}</TD>
               <TD className="text-right tabular-nums">{Number(i.qty)}</TD>
@@ -159,7 +165,7 @@ function BillView({ bill: b }: { bill: Bill }) {
           ))}
         </tbody>
       </Table>
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid items-start gap-4 lg:grid-cols-2">
         <Card className="flex flex-col gap-2">
           <CardTitle>{t("payments")}</CardTitle>
           {print.data?.payments.length === 0 && <p className="text-text-secondary">{t("noPayments")}</p>}
@@ -175,7 +181,7 @@ function BillView({ bill: b }: { bill: Bill }) {
             ))}
           </ul>
         </Card>
-        <Card className="grid grid-cols-2 gap-x-6 gap-y-1 tabular-nums">
+        <Card className="grid grid-cols-2 gap-y-1 tabular-nums">
           <span className="text-text-secondary">{t("gross")}</span>
           <span className="text-right">{formatINR(b.gross_paise)}</span>
           <span className="text-text-secondary">{t("discountTotal")}</span>

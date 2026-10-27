@@ -5,7 +5,6 @@ import { FilePlus2, PackagePlus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Tabs } from "radix-ui";
 import { useState } from "react";
 import { formatINR } from "@pearl/shared";
 import { StatTile } from "@/components/kpi/stat-tile";
@@ -18,6 +17,8 @@ import { PHARMACY_TABS, type PharmacyTab } from "@/components/pharmacy/tabs";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Field, PageHeader } from "@/components/ui/form";
+import { Page } from "@/components/ui/page";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { newId, rpc } from "@/lib/rpc";
 import { pickPatientSchema } from "@/lib/schemas/pharmacy";
 import { useFeedback } from "@/lib/use-feedback";
@@ -42,7 +43,7 @@ export function PharmacyScreen({ initialTab }: { initialTab: PharmacyTab }) {
   const summary = useQuery({ queryKey: ["pharmacy_summary"], queryFn: () => rpc<Summary>("pharmacy_summary") });
   const s = summary.data;
   return (
-    <div className="flex flex-col gap-5">
+    <Page>
       <PageHeader
         title={t("title")}
         description={t("description")}
@@ -70,7 +71,7 @@ export function PharmacyScreen({ initialTab }: { initialTab: PharmacyTab }) {
         </div>
       )}
 
-      <Tabs.Root
+      <Tabs
         value={tab}
         onValueChange={(v) => {
           setTab(v as PharmacyTab);
@@ -78,36 +79,32 @@ export function PharmacyScreen({ initialTab }: { initialTab: PharmacyTab }) {
         }}
         className="flex flex-col gap-4"
       >
-        <Tabs.List aria-label={t("sections")} className="flex flex-wrap gap-1 border-b border-border">
+        <TabsList aria-label={t("sections")}>
           {PHARMACY_TABS.map((x) => (
-            <Tabs.Trigger
-              key={x}
-              value={x}
-              className="min-h-11 rounded-t-xl px-4 font-medium text-text-secondary hover:text-foreground data-[state=active]:border-b-2 data-[state=active]:border-foreground data-[state=active]:text-foreground"
-            >
+            <TabsTrigger key={x} value={x}>
               {t(`tab.${x}`)}
               {x === "alerts" && (s?.alerts ?? 0) > 0 && <span className="ml-1.5 tabular-nums">({s!.alerts})</span>}
-            </Tabs.Trigger>
+            </TabsTrigger>
           ))}
-        </Tabs.List>
-        <Tabs.Content value="stock">
+        </TabsList>
+        <TabsContent value="stock">
           <StockTable />
-        </Tabs.Content>
-        <Tabs.Content value="purchases">
+        </TabsContent>
+        <TabsContent value="purchases">
           <PurchasesTable />
-        </Tabs.Content>
-        <Tabs.Content value="suppliers">
+        </TabsContent>
+        <TabsContent value="suppliers">
           <Suppliers />
-        </Tabs.Content>
-        <Tabs.Content value="alerts">
+        </TabsContent>
+        <TabsContent value="alerts">
           <AlertsList />
-        </Tabs.Content>
-      </Tabs.Root>
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={selling} onOpenChange={setSelling}>
         {selling && <NewSaleDialog />}
       </Dialog>
-    </div>
+    </Page>
   );
 }
 

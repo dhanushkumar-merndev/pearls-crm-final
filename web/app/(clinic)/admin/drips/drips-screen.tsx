@@ -9,13 +9,16 @@ import { Button } from "@/components/ui/button";
 import { DialogContent, Dialog } from "@/components/ui/dialog";
 import { Checkbox, Field, PageHeader, Select, Textarea } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Page, useAdminBack } from "@/components/ui/page";
+import { RowSkeletons } from "@/components/ui/skeletons";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
+import { EmptyRow, Table, TD, TH, THead, TR, wrapText } from "@/components/ui/table";
 import { rpc, unwrap } from "@/lib/rpc";
 import { DRIP_AUDIENCES, DRIP_TRIGGERS, dripCampaignSchema, LEAD_TRIGGERS } from "@/lib/schemas/whatsapp";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
 import { useFeedback } from "@/lib/use-feedback";
 import { useZodForm } from "@/lib/use-zod-form";
+import { cn } from "@/lib/utils";
 
 interface Campaign {
   id: string;
@@ -49,12 +52,13 @@ function delayParts(minutes: number): { days: number; hours: number } {
  * someone. Replies and bookings can stop it; opted-out numbers never get it.
  */
 export function DripsScreen() {
+  const adminBack = useAdminBack();
   const t = useTranslations("drips");
   const [editing, setEditing] = useState<Campaign | "new" | null>(null);
   const campaigns = useQuery({ queryKey: ["drip_campaigns"], queryFn: () => rpc<Campaign[]>("drip_campaigns_list") });
   return (
-    <div className="flex flex-col gap-5">
-      <PageHeader
+    <Page>
+      <PageHeader back={adminBack}
         title={t("title")}
         description={t("description")}
         actions={
@@ -78,7 +82,7 @@ export function DripsScreen() {
           </tr>
         </THead>
         <tbody>
-          {campaigns.isPending && <EmptyRow colSpan={6}>{t("loading")}</EmptyRow>}
+          {campaigns.isPending && <RowSkeletons asRow rows={3} cols={6} />}
           {campaigns.isSuccess && campaigns.data.length === 0 && <EmptyRow colSpan={6}>{t("empty")}</EmptyRow>}
           {(campaigns.data ?? []).map((c) => (
             <TR key={c.id}>
@@ -90,7 +94,7 @@ export function DripsScreen() {
                 {t(`trigger.${c.trigger}`)}
                 <span className="block text-[0.9rem] text-text-secondary">{t(`audience.${c.audience}`)}</span>
               </TD>
-              <TD className="text-[0.95rem]">
+              <TD className={cn("text-[0.95rem]", wrapText)}>
                 {c.steps.map((s) => {
                   const d = delayParts(s.offset_minutes);
                   return (
@@ -117,7 +121,7 @@ export function DripsScreen() {
       <Dialog open={editing !== null} onOpenChange={(o) => !o && setEditing(null)}>
         {editing && <CampaignDialog campaign={editing === "new" ? null : editing} onDone={() => setEditing(null)} />}
       </Dialog>
-    </div>
+    </Page>
   );
 }
 

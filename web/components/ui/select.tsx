@@ -71,7 +71,7 @@ export function Select({ value, onChange, children, className, disabled, require
       <S.Trigger
         {...aria}
         className={cn(
-          "flex min-h-12 w-full items-center gap-2 rounded-xl border border-input bg-background px-4 text-left text-base text-foreground",
+          "flex min-h-10 w-full items-center gap-2 rounded-xl border border-input bg-background px-3.5 text-left text-base text-foreground",
           "disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-status-critical",
           "data-[placeholder]:text-muted-foreground",
           current === "" && "text-muted-foreground",
@@ -101,7 +101,7 @@ export function Select({ value, onChange, children, className, disabled, require
                 value={toItem(o.value)}
                 disabled={o.disabled}
                 className={cn(
-                  "flex min-h-11 cursor-pointer items-center gap-3 rounded-xl px-3 py-1.5 text-base outline-none select-none",
+                  "flex min-h-10 cursor-pointer items-center gap-3 rounded-xl px-3 py-1.5 text-base outline-none select-none",
                   "data-[highlighted]:bg-popover-accent data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50",
                 )}
               >

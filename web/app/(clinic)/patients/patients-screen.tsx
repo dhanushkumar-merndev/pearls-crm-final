@@ -10,6 +10,9 @@ import { useDebounced } from "@/components/library-combobox";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { LoadMore } from "@/components/ui/load-more";
+import { Page } from "@/components/ui/page";
+import { RowSkeletons } from "@/components/ui/skeletons";
 import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
 import { rpc } from "@/lib/rpc";
 
@@ -33,7 +36,6 @@ interface SearchHit {
 /** Recent patients (newest first, "load more") or server search by name / phone / UHID. */
 export function PatientsScreen() {
   const t = useTranslations("patients");
-  const c = useTranslations("common");
   const [q, setQ] = useState("");
   const search = useDebounced(q.trim(), 300);
 
@@ -57,7 +59,7 @@ export function PatientsScreen() {
   const rows = recent.data?.pages.flatMap((p) => p.items) ?? [];
 
   return (
-    <div>
+    <Page>
       <PageHeader
         title={t("title")}
         description={t("description")}
@@ -84,7 +86,7 @@ export function PatientsScreen() {
           </>
         }
       />
-      <div className="relative mb-4 max-w-xl">
+      <div className="relative max-w-xl">
         <Search aria-hidden className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-muted-foreground" />
         <Input className="pl-11" value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("search")} aria-label={t("search")} />
       </div>
@@ -98,7 +100,7 @@ export function PatientsScreen() {
             </tr>
           </THead>
           <tbody>
-            {hits.isPending && <EmptyRow colSpan={2}>{c("loading")}</EmptyRow>}
+            {hits.isPending && <RowSkeletons asRow rows={3} cols={2} />}
             {hits.data?.length === 0 && <EmptyRow colSpan={2}>{t("noneFound")}</EmptyRow>}
             {hits.data?.map((h) => (
               <TR key={h.id}>
@@ -124,7 +126,7 @@ export function PatientsScreen() {
               </tr>
             </THead>
             <tbody>
-              {recent.isPending && <EmptyRow colSpan={4}>{c("loading")}</EmptyRow>}
+              {recent.isPending && <RowSkeletons asRow rows={3} cols={4} />}
               {recent.isSuccess && rows.length === 0 && <EmptyRow colSpan={4}>{t("noPatients")}</EmptyRow>}
               {rows.map((p) => (
                 <TR key={p.id}>
@@ -141,13 +143,9 @@ export function PatientsScreen() {
               ))}
             </tbody>
           </Table>
-          {recent.hasNextPage && (
-            <Button variant="secondary" className="mt-3" onClick={() => void recent.fetchNextPage()} disabled={recent.isFetchingNextPage}>
-              {c("loadMore")}
-            </Button>
-          )}
+          <LoadMore hasMore={recent.hasNextPage} loading={recent.isFetchingNextPage} onClick={() => void recent.fetchNextPage()} />
         </>
       )}
-    </div>
+    </Page>
   );
 }

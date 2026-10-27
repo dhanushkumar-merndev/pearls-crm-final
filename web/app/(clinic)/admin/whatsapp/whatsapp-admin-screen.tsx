@@ -12,13 +12,16 @@ import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Checkbox, Field, PageHeader, Select, Textarea } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Page, useAdminBack } from "@/components/ui/page";
+import { RowSkeletons } from "@/components/ui/skeletons";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
+import { EmptyRow, Table, TD, TH, THead, TR, wrapText } from "@/components/ui/table";
 import { asAppError, callFunction, rpc, unwrap } from "@/lib/rpc";
 import { templateSchema, WA_PURPOSES, WA_VARS } from "@/lib/schemas/whatsapp";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
 import { useFeedback } from "@/lib/use-feedback";
 import { useZodForm } from "@/lib/use-zod-form";
+import { cn } from "@/lib/utils";
 
 interface Overview {
   integration: { state: "ok" | "error" | "unknown" | "off"; last_ok_at: string | null; last_error: string | null; checked_at: string | null } | null;
@@ -53,6 +56,7 @@ interface TemplateRow {
 const STAT = "flex flex-col gap-1 rounded-2xl border border-border bg-card p-5";
 
 export function WhatsAppAdminScreen({ webhookUrl }: { webhookUrl: string }) {
+  const adminBack = useAdminBack();
   const t = useTranslations("waAdmin");
   const { saved, errorMessage } = useFeedback();
   const queryClient = useQueryClient();
@@ -82,8 +86,8 @@ export function WhatsAppAdminScreen({ webhookUrl }: { webhookUrl: string }) {
   const state = o?.integration?.state ?? "unknown";
 
   return (
-    <div className="flex flex-col gap-5">
-      <PageHeader title={t("title")} description={t("description")} />
+    <Page>
+      <PageHeader back={adminBack} title={t("title")} description={t("description")} />
 
       <Card className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-2">
@@ -174,7 +178,7 @@ export function WhatsAppAdminScreen({ webhookUrl }: { webhookUrl: string }) {
                   <TD className="whitespace-nowrap">{formatDateTime(new Date(f.at))}</TD>
                   <TD className="tabular-nums">{f.phone_e164}</TD>
                   <TD>{f.purpose && t.has(`purpose.${f.purpose}`) ? t(`purpose.${f.purpose}` as "purpose.other") : "—"}</TD>
-                  <TD className="max-w-md text-[0.95rem] text-text-secondary">{f.error_text ?? "—"}</TD>
+                  <TD className={cn("max-w-md text-[0.95rem] text-text-secondary", wrapText)}>{f.error_text ?? "—"}</TD>
                 </TR>
               ))}
             </tbody>
@@ -184,7 +188,7 @@ export function WhatsAppAdminScreen({ webhookUrl }: { webhookUrl: string }) {
       <Link href="/admin/drips" className="self-start text-link underline-offset-4 hover:underline">
         {t("dripsLink")}
       </Link>
-    </div>
+    </Page>
   );
 }
 
@@ -315,7 +319,7 @@ function Templates() {
           </tr>
         </THead>
         <tbody>
-          {templates.isPending && <EmptyRow colSpan={5}>{t("loading")}</EmptyRow>}
+          {templates.isPending && <RowSkeletons asRow rows={3} cols={5} />}
           {templates.isSuccess && templates.data.length === 0 && <EmptyRow colSpan={5}>{t("noTemplates")}</EmptyRow>}
           {(templates.data ?? []).map((x) => (
             <TR key={x.id}>
@@ -334,7 +338,7 @@ function Templates() {
                 />
               </TD>
               <TD>{x.purpose ? t(`purpose.${x.purpose}` as "purpose.other") : "—"}</TD>
-              <TD className="text-[0.95rem]">
+              <TD className={cn("text-[0.95rem]", wrapText)}>
                 {x.param_count === 0
                   ? t("noValues")
                   : x.variable_map.length === x.param_count

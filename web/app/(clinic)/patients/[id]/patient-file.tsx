@@ -10,11 +10,13 @@ import { TreatmentsTab } from "@/components/treatments/treatments-tab";
 import { PatientAdmissionsTab } from "@/components/admissions/patient-admissions-tab";
 import { PatientBillsTab } from "@/components/bills/patient-bills-tab";
 import { DocumentsTab } from "@/components/scan/documents-tab";
+import { LoadMore } from "@/components/ui/load-more";
+import { RowSkeletons } from "@/components/ui/skeletons";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WhatsAppPanel } from "@/components/whatsapp/whatsapp-panel";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Tabs } from "radix-ui";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { formatDate, formatDateTime, formatTime, PATIENT_SERVER_FIELDS, patientDraftSchema } from "@pearl/shared";
@@ -23,8 +25,11 @@ import { PatientPicker, type PatientHit } from "@/components/patients/patient-pi
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Field, Textarea } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { MoreMenu } from "@/components/ui/more-menu";
+import { Page, PageHeader } from "@/components/ui/page";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
 import { rpc } from "@/lib/rpc";
@@ -70,102 +75,104 @@ export function PatientFile({ initial }: { initial: PatientHeader }) {
   const canWhatsApp = me?.role === "receptionist" || me?.role === "admin";
 
   return (
-    <div className="flex flex-col gap-5">
-      <header className="flex flex-wrap items-start gap-4">
-        <div className="min-w-0 flex-1">
-          <h1 className="text-[1.9rem] font-semibold tracking-tight">
+    <Page>
+      <PageHeader
+        title={
+          <>
             {p.title ? `${p.title} ` : ""}
             {p.full_name}
-          </h1>
-          <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-text-secondary">
+          </>
+        }
+        meta={
+          <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <span className="font-medium text-foreground tabular-nums">{p.uhid}</span>
             {p.age !== null && <span>{p.dob_estimated ? t("ageAbout", { n: p.age }) : t("age", { n: p.age })}</span>}
             <span>{f(`genders.${p.gender}`)}</span>
             {p.phone_e164 && (
-              <a href={`tel:${p.phone_e164}`} className="inline-flex items-center gap-1 text-link underline-offset-4 hover:underline">
+              <a href={`tel:${p.phone_e164}`} className="inline-flex min-h-8 items-center gap-1 text-link underline-offset-4 hover:underline">
                 <Phone aria-hidden className="size-4" />
                 {p.phone_e164}
               </a>
             )}
-          </p>
-          {p.allergies.length > 0 && (
-            <StatusBadge kind="critical" label={t("allergies", { list: p.allergies.join(", ") })} className="mt-2" />
-          )}
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button onClick={() => setDialog("book")}>
-            <CalendarPlus aria-hidden />
-            {t("book")}
-          </Button>
-          <Button variant="secondary" onClick={() => setDialog("followup")}>
-            <CalendarCheck aria-hidden />
-            {t("addFollowup")}
-          </Button>
-          <Button variant="secondary" onClick={() => setDialog("edit")}>
-            <Pencil aria-hidden />
-            {t("edit")}
-          </Button>
-          <Button asChild variant="secondary">
-            <a href={`/print/registration/${p.id}`} target="_blank" rel="noopener">
-              <Printer aria-hidden />
-              {t("printForm")}
-            </a>
-          </Button>
-          {me?.role === "admin" && (
-            <Button variant="ghost" onClick={() => setDialog("merge")}>
-              <GitMerge aria-hidden />
-              {t("merge")}
+          </span>
+        }
+        description={
+          p.allergies.length > 0 ? <StatusBadge kind="critical" label={t("allergies", { list: p.allergies.join(", ") })} className="mt-1" /> : undefined
+        }
+        actions={
+          <>
+            <Button onClick={() => setDialog("book")}>
+              <CalendarPlus aria-hidden />
+              {t("book")}
             </Button>
-          )}
-        </div>
-      </header>
+            <Button variant="secondary" onClick={() => setDialog("followup")}>
+              <CalendarCheck aria-hidden />
+              {t("addFollowup")}
+            </Button>
+            <MoreMenu>
+              <DropdownMenuItem onSelect={() => setDialog("edit")}>
+                <Pencil aria-hidden />
+                {t("edit")}
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <a href={`/print/registration/${p.id}`} target="_blank" rel="noopener">
+                  <Printer aria-hidden />
+                  {t("printForm")}
+                </a>
+              </DropdownMenuItem>
+              {me?.role === "admin" && (
+                <DropdownMenuItem onSelect={() => setDialog("merge")}>
+                  <GitMerge aria-hidden />
+                  {t("merge")}
+                </DropdownMenuItem>
+              )}
+            </MoreMenu>
+          </>
+        }
+      />
 
-      <Tabs.Root defaultValue="overview" className="flex flex-col gap-4">
-        <Tabs.List aria-label={t("sections")} className="flex flex-wrap gap-1 border-b border-border">
+      <Tabs defaultValue="overview" className="flex flex-col gap-4">
+        <TabsList aria-label={t("sections")}>
           {(["overview", "appointments", "treatments", "ip", "bills", "documents", "whatsapp", "family", "timeline"] as const)
             .filter((tab) => tab !== "whatsapp" || canWhatsApp)
             .map((tab) => (
-            <Tabs.Trigger
-              key={tab}
-              value={tab}
-              className="min-h-11 rounded-t-xl px-4 font-medium text-text-secondary hover:text-foreground data-[state=active]:border-b-2 data-[state=active]:border-foreground data-[state=active]:text-foreground"
-            >
+            <TabsTrigger key={tab} value={tab}>
               {t(`tab.${tab}`)}
               {tab === "documents" && p.documents_count > 0 && <span className="ml-1.5 tabular-nums">({p.documents_count})</span>}
               {tab === "family" && p.family.length > 0 && <span className="ml-1.5 tabular-nums">({p.family.length})</span>}
-            </Tabs.Trigger>
+            </TabsTrigger>
           ))}
-        </Tabs.List>
-        <Tabs.Content value="overview">
+        </TabsList>
+        <TabsContent value="overview">
           <Overview p={p} />
-        </Tabs.Content>
-        <Tabs.Content value="appointments">
+        </TabsContent>
+        <TabsContent value="appointments">
           <Appointments patientId={p.id} />
-        </Tabs.Content>
-        <Tabs.Content value="treatments">
+        </TabsContent>
+        <TabsContent value="treatments">
           <TreatmentsTab patient={hit} />
-        </Tabs.Content>
-        <Tabs.Content value="ip">
+        </TabsContent>
+        <TabsContent value="ip">
           <PatientAdmissionsTab patient={hit} />
-        </Tabs.Content>
-        <Tabs.Content value="bills">
+        </TabsContent>
+        <TabsContent value="bills">
           <PatientBillsTab patientId={p.id} />
-        </Tabs.Content>
-        <Tabs.Content value="documents">
+        </TabsContent>
+        <TabsContent value="documents">
           <DocumentsTab patientId={p.id} />
-        </Tabs.Content>
+        </TabsContent>
         {canWhatsApp && (
-          <Tabs.Content value="whatsapp">
+          <TabsContent value="whatsapp">
             <WhatsAppPanel patientId={p.id} canDrip />
-          </Tabs.Content>
+          </TabsContent>
         )}
-        <Tabs.Content value="family">
+        <TabsContent value="family">
           <Family p={p} />
-        </Tabs.Content>
-        <Tabs.Content value="timeline">
+        </TabsContent>
+        <TabsContent value="timeline">
           <Timeline patientId={p.id} />
-        </Tabs.Content>
-      </Tabs.Root>
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={dialog !== null} onOpenChange={(o) => !o && setDialog(null)}>
         {dialog === "edit" && <EditDialog p={p} onDone={() => (setDialog(null), void header.refetch())} />}
@@ -173,7 +180,7 @@ export function PatientFile({ initial }: { initial: PatientHeader }) {
         {dialog === "book" && <BookDialog patient={hit} onDone={() => setDialog(null)} />}
         {dialog === "followup" && <FollowupDialog patient={hit} onDone={() => setDialog(null)} />}
       </Dialog>
-    </div>
+    </Page>
   );
 }
 
@@ -404,7 +411,7 @@ function Appointments({ patientId }: { patientId: string }) {
           </tr>
         </THead>
         <tbody>
-          {list.isPending && <EmptyRow colSpan={4}>{c("loading")}</EmptyRow>}
+          {list.isPending && <RowSkeletons asRow rows={3} cols={4} />}
           {list.isSuccess && items.length === 0 && <EmptyRow colSpan={4}>{t("noAppointments")}</EmptyRow>}
           {items.map((a) => (
             <TR key={a.id}>
@@ -422,11 +429,7 @@ function Appointments({ patientId }: { patientId: string }) {
           ))}
         </tbody>
       </Table>
-      {list.hasNextPage && (
-        <Button variant="secondary" className="self-start" onClick={() => void list.fetchNextPage()}>
-          {c("loadMore")}
-        </Button>
-      )}
+      <LoadMore hasMore={list.hasNextPage} loading={list.isFetchingNextPage} onClick={() => void list.fetchNextPage()} />
     </div>
   );
 }
@@ -440,7 +443,6 @@ interface TimelineItem {
 
 function Timeline({ patientId }: { patientId: string }) {
   const t = useTranslations("patientFile");
-  const c = useTranslations("common");
   const list = useInfiniteQuery({
     queryKey: ["patient_timeline", patientId],
     initialPageParam: null as string | null,
@@ -451,11 +453,11 @@ function Timeline({ patientId }: { patientId: string }) {
   const items = list.data?.pages.flatMap((p) => p.items) ?? [];
   return (
     <div className="flex flex-col gap-2">
-      {list.isPending && <p>{c("loading")}</p>}
+      {list.isPending && <RowSkeletons rows={3} />}
       <ol className="flex flex-col gap-2 border-l-2 border-border pl-5">
         {items.map((e) => (
           <li key={`${e.kind}-${e.id}`} className="relative">
-            <span aria-hidden className="absolute top-2 -left-[27px] size-3 rounded-full bg-text-secondary" />
+            <span aria-hidden className="absolute top-1.5 -left-[calc(1.25rem+1px+0.375rem)] size-3 rounded-full bg-text-secondary" />
             <p className="font-medium">{e.title}</p>
             <p className="text-[0.9rem] text-text-secondary">
               {t(`event.${e.kind}`)} · {formatDateTime(new Date(e.at))}
@@ -463,11 +465,7 @@ function Timeline({ patientId }: { patientId: string }) {
           </li>
         ))}
       </ol>
-      {list.hasNextPage && (
-        <Button variant="secondary" className="self-start" onClick={() => void list.fetchNextPage()}>
-          {c("loadMore")}
-        </Button>
-      )}
+      <LoadMore hasMore={list.hasNextPage} loading={list.isFetchingNextPage} onClick={() => void list.fetchNextPage()} />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { DatabaseBackup, FolderOpen, HardDriveDownload, ScanSearch, Square, Trash2 } from "lucide-react";
+import { CircleX, DatabaseBackup, FolderOpen, HardDriveDownload, ScanSearch, Square, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 import { BACKUP_PURPOSES, formatDateTime, istDateString, PURGEABLE_PURPOSES } from "@pearl/shared";
@@ -11,6 +11,7 @@ import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Checkbox, Field, PageHeader } from "@/components/ui/form";
 import { FieldError, Input } from "@/components/ui/input";
+import { Page, useAdminBack } from "@/components/ui/page";
 import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
 import { copyFiles, exportDatabase, recheckFolder, type BackupServer, type Folder, type Progress } from "@/lib/backup";
 import { callFunction, rpc } from "@/lib/rpc";
@@ -77,6 +78,7 @@ function stampNow(): string {
 
 /** Backup centre (PLAN.md E3 row 14): copy files to a folder, check the copies, export the database, free up space. */
 export function BackupCentre() {
+  const adminBack = useAdminBack();
   const t = useTranslations("backup");
   const p = useTranslations("backup.purpose");
   const { saved, failed } = useFeedback();
@@ -234,8 +236,8 @@ export function BackupCentre() {
   const lastDone = o?.batches.find((b) => b.kind === "files" && b.done_items > 0);
 
   return (
-    <div className="flex flex-col gap-5">
-      <PageHeader title={t("title")} description={t("description")} />
+    <Page>
+      <PageHeader back={adminBack} title={t("title")} description={t("description")} />
       {!supported && (
         <p role="alert" className="rounded-xl border border-border p-4 text-bad-text">
           {t("unsupported")}
@@ -317,6 +319,7 @@ export function BackupCentre() {
           )}
           {running && !backup.isPending && (
             <Button variant="ghost" disabled={abandon.isPending} onClick={() => abandon.mutate(running.id)}>
+              <CircleX aria-hidden />
               {t("abandon")}
             </Button>
           )}
@@ -459,6 +462,6 @@ export function BackupCentre() {
           </DialogContent>
         )}
       </Dialog>
-    </div>
+    </Page>
   );
 }

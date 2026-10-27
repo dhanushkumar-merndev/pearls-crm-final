@@ -4,14 +4,17 @@ import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-q
 import { Check, Phone, Plus, X } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { Tabs } from "radix-ui";
 import { useState } from "react";
 import { formatDate } from "@pearl/shared";
 import { FollowupDialog } from "@/components/followups/followup-dialog";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Field, PageHeader, Textarea } from "@/components/ui/form";
-import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
+import { LoadMore } from "@/components/ui/load-more";
+import { Page } from "@/components/ui/page";
+import { RowSkeletons } from "@/components/ui/skeletons";
+import { EmptyRow, Table, TD, TH, THead, TR, wrapText } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { rpc } from "@/lib/rpc";
 import { followupOutcomeSchema } from "@/lib/schemas/clinical";
 import { useFeedback } from "@/lib/use-feedback";
@@ -34,7 +37,7 @@ export function FollowupsScreen() {
   const t = useTranslations("followups");
   const [adding, setAdding] = useState(false);
   return (
-    <div>
+    <Page>
       <PageHeader
         title={t("title")}
         description={t("description")}
@@ -45,28 +48,24 @@ export function FollowupsScreen() {
           </Button>
         }
       />
-      <Tabs.Root defaultValue="today" className="flex flex-col gap-4">
-        <Tabs.List aria-label={t("when")} className="flex gap-1 border-b border-border">
+      <Tabs defaultValue="today" className="flex flex-col gap-4">
+        <TabsList aria-label={t("when")}>
           {SCOPES.map((s) => (
-            <Tabs.Trigger
-              key={s}
-              value={s}
-              className="min-h-11 rounded-t-xl px-4 font-medium text-text-secondary data-[state=active]:border-b-2 data-[state=active]:border-foreground data-[state=active]:text-foreground"
-            >
+            <TabsTrigger key={s} value={s}>
               {t(`scope.${s}`)}
-            </Tabs.Trigger>
+            </TabsTrigger>
           ))}
-        </Tabs.List>
+        </TabsList>
         {SCOPES.map((s) => (
-          <Tabs.Content key={s} value={s}>
+          <TabsContent key={s} value={s}>
             <FollowupList scope={s} />
-          </Tabs.Content>
+          </TabsContent>
         ))}
-      </Tabs.Root>
+      </Tabs>
       <Dialog open={adding} onOpenChange={setAdding}>
         {adding && <FollowupDialog onDone={() => setAdding(false)} />}
       </Dialog>
-    </div>
+    </Page>
   );
 }
 
@@ -95,7 +94,7 @@ function FollowupList({ scope }: { scope: (typeof SCOPES)[number] }) {
           </tr>
         </THead>
         <tbody>
-          {list.isPending && <EmptyRow colSpan={4}>{c("loading")}</EmptyRow>}
+          {list.isPending && <RowSkeletons asRow rows={3} cols={4} />}
           {list.isSuccess && items.length === 0 && <EmptyRow colSpan={4}>{t("none")}</EmptyRow>}
           {items.map((f) => (
             <TR key={f.id}>
@@ -110,8 +109,8 @@ function FollowupList({ scope }: { scope: (typeof SCOPES)[number] }) {
                 )}
                 {f.uhid && <span className="block text-[0.9rem] text-text-secondary">{f.uhid}</span>}
               </TD>
-              <TD>
-                <span className="block text-[0.85rem] text-text-secondary">{t(`kind.${f.kind}`)}</span>
+              <TD className={wrapText}>
+                <span className="block text-[0.9rem] text-text-secondary">{t(`kind.${f.kind}`)}</span>
                 {f.reason}
               </TD>
               <TD className="text-right whitespace-nowrap">
@@ -136,11 +135,7 @@ function FollowupList({ scope }: { scope: (typeof SCOPES)[number] }) {
           ))}
         </tbody>
       </Table>
-      {list.hasNextPage && (
-        <Button variant="secondary" className="self-start" onClick={() => void list.fetchNextPage()}>
-          {c("loadMore")}
-        </Button>
-      )}
+      <LoadMore hasMore={list.hasNextPage} loading={list.isFetchingNextPage} onClick={() => void list.fetchNextPage()} />
       <Dialog open={closing !== null} onOpenChange={(o) => !o && setClosing(null)}>
         {closing && <CloseDialog {...closing} onDone={() => setClosing(null)} />}
       </Dialog>

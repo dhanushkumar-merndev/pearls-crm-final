@@ -10,6 +10,9 @@ import { LibraryCombobox, type LibraryItem, type LibraryKind } from "@/component
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Field, PageHeader } from "@/components/ui/form";
+import { LoadMore } from "@/components/ui/load-more";
+import { Page, useAdminBack } from "@/components/ui/page";
+import { RowSkeletons } from "@/components/ui/skeletons";
 import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
 import { rpc } from "@/lib/rpc";
 import { useFeedback } from "@/lib/use-feedback";
@@ -25,6 +28,7 @@ interface Pending {
 
 /** Items staff added on the fly: keep them (mark reviewed) or merge them into an existing item. */
 export function ReviewScreen() {
+  const adminBack = useAdminBack();
   const t = useTranslations("review");
   const c = useTranslations("common");
   const k = useTranslations("review.kind");
@@ -54,8 +58,8 @@ export function ReviewScreen() {
   });
 
   return (
-    <div>
-      <PageHeader title={t("title")} description={t("description")} />
+    <Page>
+      <PageHeader back={adminBack} title={t("title")} description={t("description")} />
       <Table>
         <THead>
           <tr>
@@ -68,7 +72,7 @@ export function ReviewScreen() {
           </tr>
         </THead>
         <tbody>
-          {list.isPending && <EmptyRow colSpan={4}>{c("loading")}</EmptyRow>}
+          {list.isPending && <RowSkeletons asRow rows={3} cols={4} />}
           {list.isSuccess && items.length === 0 && <EmptyRow colSpan={4}>{t("none")}</EmptyRow>}
           {items.map((item) => (
             <TR key={`${item.kind}-${item.id}`}>
@@ -92,15 +96,11 @@ export function ReviewScreen() {
           ))}
         </tbody>
       </Table>
-      {list.hasNextPage && (
-        <Button variant="secondary" className="mt-3" onClick={() => void list.fetchNextPage()} disabled={list.isFetchingNextPage}>
-          {c("loadMore")}
-        </Button>
-      )}
+      <LoadMore hasMore={list.hasNextPage} loading={list.isFetchingNextPage} onClick={() => void list.fetchNextPage()} />
       <Dialog open={merging !== null} onOpenChange={(o) => !o && setMerging(null)}>
         {merging && <MergeDialog item={merging} onDone={() => (setMerging(null), refresh())} />}
       </Dialog>
-    </div>
+    </Page>
   );
 }
 

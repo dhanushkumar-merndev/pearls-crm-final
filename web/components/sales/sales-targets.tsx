@@ -9,6 +9,7 @@ import { formatINR, istDateString } from "@pearl/shared";
 import { Button } from "@/components/ui/button";
 import { Field, PageHeader } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Page } from "@/components/ui/page";
 import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
 import { pct } from "@/lib/periods";
 import { rpc } from "@/lib/rpc";
@@ -46,12 +47,13 @@ export function SalesTargets({ canEdit }: { canEdit: boolean }) {
   });
   const d = data.data;
   return (
-    <div className="flex flex-col gap-5">
+    <Page>
       <PageHeader title={t("title")} description={canEdit ? t("description") : t("descriptionManager")} />
       {d && !d.enabled && (
         <p role="status" className="rounded-xl border border-border p-4">
           {t("off")}{" "}
-          {canEdit && <Link href="/admin/settings" className="text-link underline-offset-4 hover:underline">{t("turnOn")}</Link>}
+          {/* Inside a sentence a link needs more than its colour: always underlined. */}
+          {canEdit && <Link href="/admin/settings" className="text-link underline underline-offset-4">{t("turnOn")}</Link>}
         </p>
       )}
       <Field label={t("month")} className="max-w-xs">
@@ -85,7 +87,7 @@ export function SalesTargets({ canEdit }: { canEdit: boolean }) {
           ))}
         </tbody>
       </Table>
-    </div>
+    </Page>
   );
 }
 

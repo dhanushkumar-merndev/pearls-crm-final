@@ -5,7 +5,7 @@ export function Input({ className, ...props }: ComponentProps<"input">) {
   return (
     <input
       className={cn(
-        "flex min-h-12 w-full rounded-xl border border-input bg-background px-4 text-base text-foreground",
+        "flex min-h-10 w-full rounded-xl border border-input bg-background px-3.5 text-base text-foreground",
         "placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50",
         "aria-invalid:border-status-critical",
         className,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ExternalLink, Save, UserPlus } from "lucide-react";
+import { ArrowLeft, ExternalLink, Save, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -98,6 +98,7 @@ export function NewLeadDialog({ canAssign, onDone }: { canAssign: boolean; onDon
         footer={
           <>
             <Button variant="ghost" onClick={() => setDuplicates(null)}>
+              <ArrowLeft aria-hidden />
               {t("back")}
             </Button>
             <Button variant="secondary" disabled={create.isPending} onClick={() => submit(true)}>

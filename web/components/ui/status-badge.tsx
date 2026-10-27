@@ -22,7 +22,7 @@ export function StatusBadge({ kind, label, className }: { kind: StatusKind; labe
   return (
     <span
       className={cn(
-        "inline-flex min-h-8 items-center gap-1.5 rounded-full border border-border bg-secondary px-3 text-[0.9rem] font-medium text-foreground",
+        "inline-flex min-h-7 items-center gap-1.5 rounded-full border border-border bg-secondary px-2.5 text-[0.9rem] font-medium whitespace-nowrap text-foreground",
         className,
       )}
     >

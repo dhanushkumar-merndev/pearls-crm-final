@@ -1,8 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, BookmarkPlus, CheckCheck, Pencil, Pill, Printer, Save } from "lucide-react";
-import Link from "next/link";
+import { BookmarkPlus, CheckCheck, Pencil, Pill, Printer, Save, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
@@ -13,8 +12,11 @@ import { LibraryCombobox, type LibraryItem } from "@/components/library-combobox
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Field, Select, Textarea } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { MoreMenu } from "@/components/ui/more-menu";
+import { DetailHeader, Page } from "@/components/ui/page";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { asAppError, newId, rpc } from "@/lib/rpc";
 import { useMe } from "@/lib/use-me";
@@ -168,23 +170,22 @@ export function SummaryScreen({ initial }: { initial: Summary }) {
   const a = s.admission;
   const frozen = s.rendered;
   return (
-    <div className="flex flex-col gap-5">
-      <div>
-        <Button asChild variant="ghost" className="-ml-3 mb-2">
-          <Link href={`/admissions/${a.id}`}>
-            <ArrowLeft aria-hidden />
-            {t("backToStay", { ip: a.ip_number })}
-          </Link>
-        </Button>
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-[1.75rem] font-semibold tracking-tight">{t("title")}</h1>
-          <StatusBadge kind={s.status === "finalized" ? "good" : "warning"} label={t(`status.${s.status}`)} />
-          {s.status === "draft" && <span className="text-text-secondary">{save.isPending ? t("saving") : dirty ? t("savedAuto") : ""}</span>}
-        </div>
-        <p className="mt-1 text-text-secondary">
-          {a.patient} · {a.uhid} · {a.ip_number} · {formatDateTime(new Date(a.admitted_at))} – {a.discharged_at ? formatDateTime(new Date(a.discharged_at)) : t("stillAdmitted")}
-        </p>
-      </div>
+    <Page>
+      <DetailHeader
+        back={{ href: `/admissions/${a.id}`, label: t("backToStay", { ip: a.ip_number }) }}
+        title={t("title")}
+        badges={
+          <>
+            <StatusBadge kind={s.status === "finalized" ? "good" : "warning"} label={t(`status.${s.status}`)} />
+            {s.status === "draft" && <span className="text-text-secondary">{save.isPending ? t("saving") : dirty ? t("savedAuto") : ""}</span>}
+          </>
+        }
+        meta={
+          <>
+            {a.patient} · {a.uhid} · {a.ip_number} · {formatDateTime(new Date(a.admitted_at))} – {a.discharged_at ? formatDateTime(new Date(a.discharged_at)) : t("stillAdmitted")}
+          </>
+        }
+      />
 
       <div className="flex flex-wrap gap-2">
         {s.status === "draft" && (
@@ -212,22 +213,24 @@ export function SummaryScreen({ initial }: { initial: Summary }) {
             {t("save")}
           </Button>
         )}
-        <Button variant="ghost" onClick={() => setDialog("template")}>
-          <BookmarkPlus aria-hidden />
-          {t("saveAsTemplate")}
-        </Button>
-        {content.medications.some((m) => m.pharmacy_item_id) && (
-          <Button variant="ghost" disabled={pharmacyBill.isPending} onClick={() => pharmacyBill.mutate()}>
-            <Pill aria-hidden />
-            {t("pharmacyBill")}
-          </Button>
-        )}
-        {me?.role === "admin" && s.status === "finalized" && !amending && (
-          <Button variant="ghost" onClick={() => (setContent(withDefaults(s.content)), setAmending(true))}>
-            <Pencil aria-hidden />
-            {t("amend")}
-          </Button>
-        )}
+        <MoreMenu>
+          <DropdownMenuItem onSelect={() => setDialog("template")}>
+            <BookmarkPlus aria-hidden />
+            {t("saveAsTemplate")}
+          </DropdownMenuItem>
+          {content.medications.some((m) => m.pharmacy_item_id) && (
+            <DropdownMenuItem disabled={pharmacyBill.isPending} onSelect={() => pharmacyBill.mutate()}>
+              <Pill aria-hidden />
+              {t("pharmacyBill")}
+            </DropdownMenuItem>
+          )}
+          {me?.role === "admin" && s.status === "finalized" && !amending && (
+            <DropdownMenuItem onSelect={() => (setContent(withDefaults(s.content)), setAmending(true))}>
+              <Pencil aria-hidden />
+              {t("amend")}
+            </DropdownMenuItem>
+          )}
+        </MoreMenu>
       </div>
 
       {editable ? (
@@ -280,6 +283,7 @@ export function SummaryScreen({ initial }: { initial: Summary }) {
                   {(f) => <Input {...f} maxLength={300} value={reason} onChange={(e) => (setReason(e.target.value), checks.clear("reason"))} />}
                 </Field>
                 <Button variant="ghost" onClick={() => setAmending(false)}>
+                  <X aria-hidden />
                   {t("cancelAmend")}
                 </Button>
                 <Button
@@ -365,7 +369,7 @@ export function SummaryScreen({ initial }: { initial: Summary }) {
         )}
         {dialog === "template" && <TemplateDialog summaryId={s.id} beforeSave={() => save.mutateAsync(content)} draft={s.status === "draft"} onDone={() => setDialog(null)} />}
       </Dialog>
-    </div>
+    </Page>
   );
 }
 

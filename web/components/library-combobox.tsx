@@ -141,7 +141,7 @@ export function LibraryCombobox({
           aria-describedby={describedBy}
           disabled={disabled}
           className={cn(
-            "flex min-h-12 w-full items-center gap-2 rounded-xl border border-input bg-background px-4 text-left text-base",
+            "flex min-h-10 w-full items-center gap-2 rounded-xl border border-input bg-background px-3.5 text-left text-base",
             "disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-status-critical",
             className,
           )}
@@ -165,7 +165,7 @@ export function LibraryCombobox({
                 value={q}
                 onValueChange={setQ}
                 placeholder={t("search")}
-                className="min-h-12 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground"
+                className="min-h-11 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground"
               />
               {query.isFetching && <LoaderCircle aria-hidden className="size-5 animate-spin text-muted-foreground" />}
             </div>
@@ -180,7 +180,7 @@ export function LibraryCombobox({
                     onChange(null);
                     setOpen(false);
                   }}
-                  className="flex min-h-11 cursor-pointer items-center gap-3 rounded-xl px-3 text-text-secondary data-[selected=true]:bg-popover-accent"
+                  className="flex min-h-10 cursor-pointer items-center gap-3 rounded-xl px-3 text-text-secondary data-[selected=true]:bg-popover-accent"
                 >
                   {t("clear")}
                 </Command.Item>
@@ -194,15 +194,15 @@ export function LibraryCombobox({
                     setOpen(false);
                     setQ("");
                   }}
-                  className="flex min-h-11 cursor-pointer items-center gap-3 rounded-xl px-3 py-1.5 data-[selected=true]:bg-popover-accent"
+                  className="flex min-h-10 cursor-pointer items-center gap-3 rounded-xl px-3 py-1.5 data-[selected=true]:bg-popover-accent"
                 >
                   <Check aria-hidden className={cn("size-5 shrink-0", value?.id === item.id ? "opacity-100" : "opacity-0")} />
                   <span className="flex min-w-0 flex-1 flex-col">
                     <span className="truncate">{item.label}</span>
-                    {item.subtitle && <span className="truncate text-[0.85rem] text-text-secondary">{item.subtitle}</span>}
+                    {item.subtitle && <span className="truncate text-[0.9rem] text-text-secondary">{item.subtitle}</span>}
                   </span>
                   {item.on_the_fly && (
-                    <span className="rounded-full border border-border px-2 text-[0.8rem] text-text-secondary">{t("new")}</span>
+                    <span className="rounded-full border border-border px-2 text-[0.9rem] text-text-secondary">{t("new")}</span>
                   )}
                 </Command.Item>
               ))}
@@ -210,7 +210,7 @@ export function LibraryCombobox({
                 <Command.Item
                   value="__more"
                   onSelect={() => void query.fetchNextPage()}
-                  className="flex min-h-11 cursor-pointer items-center justify-center rounded-xl px-3 text-link data-[selected=true]:bg-popover-accent"
+                  className="flex min-h-10 cursor-pointer items-center justify-center rounded-xl px-3 text-link data-[selected=true]:bg-popover-accent"
                 >
                   {query.isFetchingNextPage ? t("loading") : t("more")}
                 </Command.Item>
@@ -220,7 +220,7 @@ export function LibraryCombobox({
                   value="__create"
                   disabled={creating}
                   onSelect={() => void create()}
-                  className="flex min-h-11 cursor-pointer items-center gap-3 rounded-xl px-3 data-[selected=true]:bg-popover-accent"
+                  className="flex min-h-10 cursor-pointer items-center gap-3 rounded-xl px-3 data-[selected=true]:bg-popover-accent"
                 >
                   <Plus aria-hidden className="size-5 shrink-0" />
                   {t("add", { name: q.trim() })}

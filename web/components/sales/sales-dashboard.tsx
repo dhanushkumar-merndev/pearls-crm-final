@@ -9,8 +9,10 @@ import { EChart } from "@/components/charts/echart";
 import { StatTile } from "@/components/kpi/stat-tile";
 import { useSalesStaff } from "@/components/leads/use-sales-staff";
 import { Button } from "@/components/ui/button";
+import { FilterBar } from "@/components/ui/filter-bar";
 import { Field, Select } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { CardSkeleton, TileSkeletons } from "@/components/ui/skeletons";
 import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
 import { pct, PRESETS, rangeFor, type Preset } from "@/lib/periods";
 import { rpc } from "@/lib/rpc";
@@ -69,7 +71,7 @@ export function SalesDashboard() {
 
   const funnel = useCallback(
     () => ({
-      grid: { left: 150, right: 48, top: 8, bottom: 24 },
+      grid: { right: 40 },
       tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
       xAxis: { type: "value", minInterval: 1 },
       yAxis: { type: "category", inverse: true, data: (d?.funnel.steps ?? []).map((s) => st(s.stage)) },
@@ -79,8 +81,7 @@ export function SalesDashboard() {
   );
   const bySource = useCallback(
     () => ({
-      grid: { left: 48, right: 16, top: 40, bottom: 32 },
-      legend: { top: 0, left: 0 },
+      legend: {},
       tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
       xAxis: { type: "category", data: (d?.by_source.buckets ?? []).map((b) => formatDate(new Date(`${b}T00:00:00+05:30`))) },
       yAxis: { type: "value", minInterval: 1 },
@@ -90,7 +91,7 @@ export function SalesDashboard() {
   );
   const conversion = useCallback(
     () => ({
-      grid: { left: 130, right: 56, top: 8, bottom: 24 },
+      grid: { right: 48 },
       tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, valueFormatter: (v: number) => `${v}%` },
       xAxis: { type: "value", max: 100, axisLabel: { formatter: "{value}%" } },
       yAxis: { type: "category", inverse: true, data: (d?.conversion_by_source ?? []).map((s) => s.label ?? t("noSource")) },
@@ -106,7 +107,7 @@ export function SalesDashboard() {
   );
   const lost = useCallback(
     () => ({
-      grid: { left: 150, right: 40, top: 8, bottom: 24 },
+      grid: { right: 40 },
       tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
       xAxis: { type: "value", minInterval: 1 },
       yAxis: { type: "category", inverse: true, data: (d?.lost_reasons ?? []).map((r) => r.label ?? t("noReason")) },
@@ -120,7 +121,8 @@ export function SalesDashboard() {
   }, [d]);
   const heat = useCallback(
     (theme: { color: string[] }, mode: ThemeMode) => ({
-      grid: { left: 56, right: 16, top: 8, bottom: 64 },
+      // Room under the plot for the colour scale.
+      grid: { bottom: 44 },
       tooltip: { position: "top" },
       xAxis: { type: "category", data: HOURS.map((h) => `${h % 12 || 12}${h < 12 ? "am" : "pm"}`), splitArea: { show: false } },
       yAxis: { type: "category", data: DOW.map((x) => t(`dow.${x}`)) },
@@ -128,6 +130,8 @@ export function SalesDashboard() {
         min: 0,
         max: heatData.max,
         calculable: false,
+        itemWidth: 12,
+        itemHeight: 120,
         orient: "horizontal",
         left: "center",
         bottom: 0,
@@ -140,8 +144,7 @@ export function SalesDashboard() {
   );
   const agreed = useCallback(
     () => ({
-      grid: { left: 64, right: 16, top: 40, bottom: 32 },
-      legend: { top: 0, left: 0 },
+      legend: {},
       tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, valueFormatter: (v: number) => formatINR(Math.round(v * 100)) },
       xAxis: { type: "category", data: (d?.agreed_vs_billed ?? []).map((r) => r.name ?? t("unassigned")) },
       yAxis: { type: "value", axisLabel: { formatter: (v: number) => formatINRShort(Math.round(v * 100)) } },
@@ -155,7 +158,15 @@ export function SalesDashboard() {
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-start gap-3">
+      <FilterBar
+        active={(preset === "mtd" ? 0 : 1) + (staffId ? 1 : 0)}
+        actions={
+          <Button variant="ghost" disabled={dash.isFetching} onClick={() => void dash.refetch()}>
+            <RefreshCw aria-hidden className={dash.isFetching ? "animate-spin" : undefined} />
+            {t("refresh")}
+          </Button>
+        }
+      >
         <Field label={t("period")}>
           {(a) => (
             <Select {...a} value={preset} onChange={(e) => setPreset(e.target.value as Preset)}>
@@ -189,15 +200,20 @@ export function SalesDashboard() {
             </Select>
           )}
         </Field>
-        <Button variant="ghost" className="mt-7" disabled={dash.isFetching} onClick={() => void dash.refetch()}>
-          <RefreshCw aria-hidden className={dash.isFetching ? "animate-spin" : undefined} />
-          {t("refresh")}
-        </Button>
-      </div>
+      </FilterBar>
       {dash.isError && <p className="text-bad-text">{t("loadFailed")}</p>}
+      {dash.isPending && check.valid && (
+        <>
+          <TileSkeletons count={8} />
+          <div className="grid gap-4 xl:grid-cols-2">
+            <CardSkeleton />
+            <CardSkeleton />
+          </div>
+        </>
+      )}
 
       {tl && (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
           <StatTile label={t("tile.newLeads")} value={String(tl.new_leads)} current={tl.new_leads} previous={pv?.new_leads} />
           <StatTile
             label={t("tile.contacted1h")}
@@ -225,16 +241,19 @@ export function SalesDashboard() {
       )}
 
       {d && (
-        <div className="grid gap-4 xl:grid-cols-2">
+        <div className="grid items-start gap-4 xl:grid-cols-2">
           <EChart
             title={t("funnelTitle")}
             description={t("funnelHint", { lost: d.funnel.lost, junk: d.funnel.junk })}
             option={funnel}
+            rows={d.funnel.steps.length}
+            empty={d.funnel.steps.every((s) => !s.n)}
             table={{ columns: [t("stage"), t("leads")], rows: d.funnel.steps.map((s) => [st(s.stage), s.n]) }}
           />
           <EChart
             title={t("sourcesTitle")}
             option={bySource}
+            empty={d.by_source.series.every((s) => s.data.every((n) => !n))}
             table={{
               columns: [t("period"), ...d.by_source.series.map((s) => s.label ?? t("other"))],
               rows: d.by_source.buckets.map((b, i) => [formatDate(new Date(`${b}T00:00:00+05:30`)), ...d.by_source.series.map((s) => s.data[i] ?? 0)]),
@@ -243,6 +262,8 @@ export function SalesDashboard() {
           <EChart
             title={t("conversionTitle")}
             option={conversion}
+            rows={d.conversion_by_source.length}
+            empty={d.conversion_by_source.length === 0}
             table={{
               columns: [t("source"), t("leads"), t("converted"), "%"],
               rows: d.conversion_by_source.map((s) => [s.label ?? t("noSource"), s.leads, s.converted, pct(s.converted, s.leads)]),
@@ -251,18 +272,23 @@ export function SalesDashboard() {
           <EChart
             title={t("lostTitle")}
             option={lost}
+            rows={d.lost_reasons.length}
+            empty={d.lost_reasons.length === 0}
             table={{ columns: [t("reason"), t("leads")], rows: d.lost_reasons.map((r) => [r.label ?? t("noReason"), r.n]) }}
           />
           <EChart
             title={t("heatTitle")}
             description={t("heatHint")}
             option={heat}
+            height={264}
+            empty={d.heatmap.length === 0}
             table={{ columns: [t("day"), t("hour"), t("calls")], rows: d.heatmap.map((h) => [t(`dow.${h.dow}`), `${h.hour}:00`, h.n]) }}
           />
           <EChart
             title={t("agreedTitle")}
             description={t("agreedHint")}
             option={agreed}
+            empty={d.agreed_vs_billed.length === 0}
             table={{
               columns: [t("person"), t("agreed"), t("billed"), t("patients")],
               rows: d.agreed_vs_billed.map((r) => [r.name ?? t("unassigned"), formatINR(r.agreed_paise), formatINR(r.billed_paise), r.patients]),

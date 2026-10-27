@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 // Flat cards on the page colour with a hairline border (ChatGPT look). Charts sit
 // on this surface: the chart palette is validated against the page colour.
 export function Card({ className, ...props }: ComponentProps<"section">) {
-  return <section className={cn("rounded-2xl border border-border bg-card p-5", className)} {...props} />;
+  return <section className={cn("rounded-2xl border border-border bg-card p-4 sm:p-5", className)} {...props} />;
 }
 
 export function CardTitle({ className, ...props }: ComponentProps<"h2">) {

@@ -11,6 +11,8 @@ export interface NavItem {
   badge?: string;
   /** Screen-reader label with the count (default "nav.withCount", which says "alerts"). */
   badgeLabelKey?: string;
+  /** false: only in Ctrl+K search, not in the sidebar (developer pages). */
+  inMenu?: boolean;
 }
 
 /** Menu items, in order. Each phase adds its pages here. */
@@ -36,7 +38,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/pharmacy", labelKey: "nav.pharmacy", icon: Pill, roles: ["receptionist", "admin"], badge: "pharmacy" },
   { href: "/followups", labelKey: "nav.followups", icon: ListTodo, roles: ["receptionist", "admin"] },
   { href: "/admin", labelKey: "nav.admin", icon: Settings, roles: ["admin"] },
-  { href: "/design", labelKey: "nav.design", icon: Palette, roles: ["admin"] },
+  { href: "/design", labelKey: "nav.design", icon: Palette, roles: ["admin"], inMenu: false },
 ];
 
 export interface PrimaryAction {

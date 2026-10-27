@@ -1,19 +1,21 @@
 "use client";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { ArrowLeft, ChevronLeft, ChevronRight, Image as ImageIcon, Pause, Play } from "lucide-react";
+import { ChevronLeft, ChevronRight, Image as ImageIcon, Pause, Play } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
 import { decodePolyline, formatDistance, formatTime, istDateString, isIsoDate, type LatLng } from "@pearl/shared";
 import { BdmMap, type MapMarker } from "@/components/bdm/bdm-map";
-import { trackPoints, type TrackPoint } from "@/lib/bdm";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Field, PageHeader } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Page } from "@/components/ui/page";
+import { RowSkeletons } from "@/components/ui/skeletons";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { trackPoints, type TrackPoint } from "@/lib/bdm";
 import { rpc } from "@/lib/rpc";
 import { viewUrls } from "@/lib/upload";
 import { useFeedback } from "@/lib/use-feedback";
@@ -112,12 +114,10 @@ export function DayScreen({ staffId }: { staffId: string }) {
   }, [data, t]);
 
   return (
-    <div className="flex flex-col gap-5">
-      <Link href="/bdm" className="inline-flex items-center gap-1 self-start text-link underline-offset-4 hover:underline">
-        <ArrowLeft aria-hidden className="size-4" />
-        {t("back")}
-      </Link>
-      <PageHeader title={data?.staff?.name ? t("sheetTitle", { name: data.staff.name }) : t("daySheet")} description={t("sheetDescription")} />
+    <Page>
+      <PageHeader
+        back={{ href: "/bdm", label: t("back") }}
+        title={data?.staff?.name ? t("sheetTitle", { name: data.staff.name }) : t("daySheet")} description={t("sheetDescription")} />
       <div className="flex flex-wrap items-end gap-2">
         <Button variant="secondary" aria-label={t("previousDay")} onClick={() => shift(-1)}>
           <ChevronLeft aria-hidden />
@@ -130,7 +130,7 @@ export function DayScreen({ staffId }: { staffId: string }) {
         </Button>
       </div>
 
-      {tl.isPending && <p className="text-text-secondary">{t("loading")}</p>}
+      {tl.isPending && <RowSkeletons rows={3} />}
       {tl.isSuccess && !data?.day && <p className="text-text-secondary">{t("noDay")}</p>}
       {data?.day && data.summary && (
         <>
@@ -143,7 +143,7 @@ export function DayScreen({ staffId }: { staffId: string }) {
           <BreaksCard breaks={data.breaks ?? []} />
         </>
       )}
-    </div>
+    </Page>
   );
 }
 
@@ -232,7 +232,7 @@ function RouteCard({ points, paths, markers }: { points: TrackPoint[]; paths: { 
   return (
     <Card className="flex flex-col gap-3">
       <CardTitle>{t("route")}</CardTitle>
-      <BdmMap markers={markers} paths={paths} cursor={playing || index > 0 ? (current?.point ?? null) : null} label={t("routeMapLabel")} className="h-96" />
+      <BdmMap markers={markers} paths={paths} cursor={playing || index > 0 ? (current?.point ?? null) : null} label={t("routeMapLabel")} className="h-72 sm:h-96 xl:h-[28rem]" />
       {points.length > 1 ? (
         <div className="flex flex-wrap items-center gap-3">
           <Button variant="secondary" onClick={() => setPlaying((p) => !p)} aria-pressed={playing}>

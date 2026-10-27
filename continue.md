@@ -74,6 +74,14 @@ Read `CLAUDE.md` and `dev-docs/PLAN.md` first (PLAN.md section G lists every dec
 - Logo (owner's file, 26/10/2026): the round mark is the favicon (16/32/48 .ico), tab icon 192, Apple icon 180, web-app manifest 192/512/maskable, and the Android launcher icon (adaptive, all densities, themed layer). In the app it is the Clinic profile logo (uploaded on staging). Source is only 155 px: a 512 px+ or SVG original would sharpen the big icons.
 - NEXT: nothing to build. The owner works through `dev-docs/GO_LIVE.md`; monthly `pnpm restore:drill`.
 
+## Session 10 (owner: "UI/UX polish, professional, UI 20% smaller, WhatsApp-like inbox, centred login/PIN")
+- DONE UI/UX polish pass, web + phone (plan: one spacing system, shared page pieces, one primary action per screen, charts that fit a phone). No database/RPC changes.
+- **Compact size** (CLAUDE.md UI rules): web base font 14 px (`tokens.json`), phone body 14 sp, spacing 4/6/10/12/20 dp. Print pages keep 17 px.
+- Web: `<Page>`/`DetailHeader`/tabs/load-more/filter bar/skeletons/"More" menu in `components/ui`; WhatsApp-Web-style inbox; charts update in place and lay out for narrow cards (`components/charts/layout.ts`: legend wraps under the plot, no zero labels on stacks); doctors with no hours fold into one "Not working on this day" line; "Design preview" only in Ctrl+K search; new Playwright "phone" project (390×844, no sideways scroll).
+- Phone: centred login/PIN with a number pad (`AuthLayout`), stacked calls chart (Vico 3.1.0 stays), pull-to-refresh, empty/loading states, offline strip from a network monitor (auto-reload when back), Settings as list rows (Sign out asks first), BDM start card: allow location → then start.
+- Tests: shared 235, web 92, Deno 115, Android unit tests all pass, e2e 289 (3 workers; admin staff-login and phone-scan tests only fail under staging load, pass alone).
+- On the owner's phone: a stale "Note on a lead" from an old automatic test sits in Settings → failed changes → Discard it. The test PIN is 2468 (change it in Settings → Change PIN).
+
 ## Login-form validation (from another Claude session) — now committed
 `loginSchema` (zod) in `packages/shared/src/auth.ts`, `login-form.tsx` (field errors, focus first bad field, "forgot password" link removed), `login.spec.ts` + screenshots, login keys in `en.json`. Committed as its own commit but not re-verified after the hand-off: run `pnpm test` and the login e2e once.
 

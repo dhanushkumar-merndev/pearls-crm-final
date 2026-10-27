@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Field, Select } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Pager } from "@/components/ui/pager";
+import { RowSkeletons } from "@/components/ui/skeletons";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
 import { downloadExcel } from "@/lib/excel";
@@ -42,7 +43,6 @@ const LIMIT = 25;
 export function BillsTable({ patientId }: { patientId?: string }) {
   const t = useTranslations("bills");
   const b = useTranslations("bill");
-  const c = useTranslations("common");
   const { failed } = useFeedback();
   const [filters, setFilters] = useState(() => ({
     from: istDateString(new Date(Date.now() - 30 * 86_400_000)),
@@ -158,7 +158,7 @@ export function BillsTable({ patientId }: { patientId?: string }) {
           </tr>
         </THead>
         <tbody>
-          {list.isPending && <EmptyRow colSpan={6}>{c("loading")}</EmptyRow>}
+          {list.isPending && <RowSkeletons asRow rows={3} cols={6} />}
           {list.data?.rows.length === 0 && <EmptyRow colSpan={6}>{t("none")}</EmptyRow>}
           {list.data?.rows.map((r) => (
             <TR key={r.id}>
@@ -166,7 +166,7 @@ export function BillsTable({ patientId }: { patientId?: string }) {
                 <Link href={`/bills/${r.id}`} className="font-medium text-link underline-offset-4 hover:underline">
                   {r.bill_no ?? t("draft")}
                 </Link>
-                <span className="block text-[0.85rem] text-text-secondary">{b(`type.${r.bill_type}`)}</span>
+                <span className="block text-[0.9rem] text-text-secondary">{b(`type.${r.bill_type}`)}</span>
               </TD>
               <TD className="whitespace-nowrap">{formatDate(new Date(r.bill_at ?? r.created_at))}</TD>
               {!patientId && (
@@ -174,7 +174,7 @@ export function BillsTable({ patientId }: { patientId?: string }) {
                   <Link href={`/patients/${r.patient_id}`} className="text-link underline-offset-4 hover:underline">
                     {r.patient}
                   </Link>
-                  <span className="block text-[0.85rem] text-text-secondary">{r.uhid}</span>
+                  <span className="block text-[0.9rem] text-text-secondary">{r.uhid}</span>
                 </TD>
               )}
               <TD>

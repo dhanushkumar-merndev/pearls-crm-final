@@ -20,8 +20,7 @@ export function DesignCharts() {
   // Emphasis form: today in the accent colour, the typical day in grey (PLAN.md B6).
   const arrivals = useCallback(
     (_theme: ChartTheme, mode: ThemeMode) => ({
-      grid: { left: 40, right: 16, top: 40, bottom: 32 },
-      legend: { top: 0, left: 0 },
+      legend: {},
       tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
       xAxis: { type: "category", data: HOURS },
       yAxis: { type: "value", minInterval: 1 },
@@ -36,7 +35,6 @@ export function DesignCharts() {
   // Single series: the title names it, so no legend box.
   const revenue = useCallback(
     () => ({
-      grid: { left: 64, right: 16, top: 16, bottom: 32 },
       tooltip: {
         trigger: "axis",
         valueFormatter: (v: number) => formatINR(v),

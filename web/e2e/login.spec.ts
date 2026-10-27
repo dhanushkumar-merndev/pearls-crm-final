@@ -54,7 +54,8 @@ test("the form can be used with the keyboard only", async ({ page }) => {
   await expect(page.getByLabel("Password", { exact: true })).toHaveAttribute("type", "text");
 });
 
-test("buttons and inputs are big enough to tap (≥ 44 px)", async ({ page }) => {
+// Compact size (owner, 26/10/2026): controls are about 36 px tall — never under 32 px.
+test("buttons and inputs are big enough to tap (≥ 32 px)", async ({ page }) => {
   await page.goto("/login");
   for (const locator of [
     page.getByLabel("Username"),
@@ -63,7 +64,7 @@ test("buttons and inputs are big enough to tap (≥ 44 px)", async ({ page }) =>
     page.getByRole("button", { name: "Show password" }),
   ]) {
     const box = await locator.boundingBox();
-    expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+    expect(box?.height ?? 0).toBeGreaterThanOrEqual(32);
   }
 });
 

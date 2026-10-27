@@ -83,7 +83,7 @@ export function LoginForm({ next, notice, signOutFirst }: { next: string; notice
     <form onSubmit={onSubmit} className="flex flex-col gap-5" noValidate>
       <div className="text-center">
         <h1 className="text-[1.75rem] font-semibold tracking-tight">{t("title")}</h1>
-        <p className="mt-1 text-text-secondary">{t("subtitle")}</p>
+        <p className="mt-1 text-balance text-text-secondary">{t("subtitle")}</p>
       </div>
 
       {notice && (

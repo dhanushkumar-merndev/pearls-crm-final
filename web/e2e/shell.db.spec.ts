@@ -25,7 +25,9 @@ test.describe("admin shell", () => {
     await expect(page.getByRole("heading", { level: 1 })).toContainText("Asha");
     const menu = page.getByRole("navigation", { name: "Main menu" });
     await expect(menu.getByRole("link", { name: "Home" })).toHaveAttribute("aria-current", "page");
-    await expect(menu.getByRole("link", { name: "Design preview" })).toBeVisible();
+    await expect(menu.getByRole("link", { name: "Admin" })).toBeVisible();
+    // The design preview is a developer page: Ctrl+K search only, not in the menu.
+    await expect(menu.getByRole("link", { name: "Design preview" })).toHaveCount(0);
     const results = await new AxeBuilder({ page }).analyze();
     expect(results.violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => v.id)).toEqual([]);
   });

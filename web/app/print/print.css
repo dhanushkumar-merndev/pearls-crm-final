@@ -4,6 +4,11 @@
   size: A4;
   margin: 12mm;
 }
+/* A4 papers keep their own size: the screen UI's smaller 14 px base (tokens.json) must not
+   shrink any rem-based size on a printed bill, registration or discharge summary. */
+html:has(.print-root) {
+  font-size: 17px;
+}
 .print-root {
   background: #ffffff;
   color: #000000;

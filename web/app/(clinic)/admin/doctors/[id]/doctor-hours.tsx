@@ -1,8 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Plus, Trash2 } from "lucide-react";
-import Link from "next/link";
+import { Plus, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState, type FormEvent } from "react";
 import { formatDateTime, istDayStart } from "@pearl/shared";
@@ -10,7 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Field, PageHeader, Select } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
+import { Page } from "@/components/ui/page";
+import { EmptyRow, Table, TD, TH, THead, TR, wrapText } from "@/components/ui/table";
 import { newId, rpc, unwrap } from "@/lib/rpc";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
 import { doctorHoursSchema, doctorLeaveSchema } from "@/lib/schemas/clinical";
@@ -179,16 +179,8 @@ export function DoctorHours({ doctorId, doctorName }: { doctorId: string; doctor
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <Button asChild variant="ghost" className="-ml-3 mb-2">
-          <Link href="/admin/libraries/doctors">
-            <ArrowLeft aria-hidden />
-            {t("back")}
-          </Link>
-        </Button>
-        <PageHeader title={t("title", { name: doctorName })} description={t("description")} />
-      </div>
+    <Page>
+      <PageHeader back={{ href: "/admin/libraries/doctors", label: t("back") }} title={t("title", { name: doctorName })} description={t("description")} />
 
       <Card className="flex flex-col gap-4">
         <CardTitle>{t("weeklyHours")}</CardTitle>
@@ -254,7 +246,7 @@ export function DoctorHours({ doctorId, doctorName }: { doctorId: string; doctor
                 onChange={(e) => setHour("capacity", e.target.value)} />
             )}
           </Field>
-          <Button type="submit" className="lg:mt-8" disabled={addHours.isPending}>
+          <Button type="submit" variant="secondary" className="lg:mt-7" disabled={addHours.isPending}>
             <Plus aria-hidden />
             {t("addHours")}
           </Button>
@@ -283,7 +275,7 @@ export function DoctorHours({ doctorId, doctorName }: { doctorId: string; doctor
                 <TR key={l.id}>
                   <TD>{formatDateTime(from)}</TD>
                   <TD>{formatDateTime(to)}</TD>
-                  <TD>{l.reason ?? "—"}</TD>
+                  <TD className={wrapText}>{l.reason ?? "—"}</TD>
                   <TD className="text-right">
                     <Button variant="ghost" onClick={() => remove.mutate({ table: "doctor_leaves", id: l.id })}>
                       <Trash2 aria-hidden />
@@ -305,7 +297,7 @@ export function DoctorHours({ doctorId, doctorName }: { doctorId: string; doctor
           <Field label={t("reason")} error={leaveChecks.error("reason")}>
             {(a) => <Input {...a} maxLength={300} value={leave.reason} onChange={(e) => setLeaveField("reason", e.target.value)} />}
           </Field>
-          <Button type="submit" className="lg:mt-8" disabled={addLeave.isPending}>
+          <Button type="submit" variant="secondary" className="lg:mt-7" disabled={addLeave.isPending}>
             <Plus aria-hidden />
             {conflicts ? t("addLeaveAnyway") : t("addLeave")}
           </Button>
@@ -324,6 +316,6 @@ export function DoctorHours({ doctorId, doctorName }: { doctorId: string; doctor
           </div>
         )}
       </Card>
-    </div>
+    </Page>
   );
 }

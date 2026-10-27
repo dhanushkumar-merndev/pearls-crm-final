@@ -11,6 +11,9 @@ import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Field, PageHeader } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { LoadMore } from "@/components/ui/load-more";
+import { Page } from "@/components/ui/page";
+import { RowSkeletons } from "@/components/ui/skeletons";
 import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
 import { rpc } from "@/lib/rpc";
 import { useDateRangeCheck } from "@/lib/use-date-range";
@@ -47,9 +50,9 @@ export function SessionsScreen() {
   });
   const items = list.data?.pages.flatMap((p) => p.items) ?? [];
   return (
-    <div>
+    <Page>
       <PageHeader title={t("title")} description={t("description")} />
-      <div className="mb-4 flex flex-wrap gap-3">
+      <div className="flex flex-wrap items-end gap-3">
         <Field label={t("from")} error={rangeCheck.fromError}>{(a) => <Input {...a} type="date" value={from} onChange={(e) => setFrom(e.target.value)} />}</Field>
         <Field label={t("to")} error={rangeCheck.toError}>{(a) => <Input {...a} type="date" value={to} onChange={(e) => setTo(e.target.value)} />}</Field>
       </div>
@@ -65,7 +68,7 @@ export function SessionsScreen() {
           </tr>
         </THead>
         <tbody>
-          {list.isPending && <EmptyRow colSpan={4}>{c("loading")}</EmptyRow>}
+          {list.isPending && <RowSkeletons asRow rows={3} cols={4} />}
           {list.isError && <EmptyRow colSpan={4}>{t("rangeTooWide")}</EmptyRow>}
           {list.isSuccess && items.length === 0 && <EmptyRow colSpan={4}>{t("none")}</EmptyRow>}
           {items.map((d) => (
@@ -99,11 +102,7 @@ export function SessionsScreen() {
           ))}
         </tbody>
       </Table>
-      {list.hasNextPage && (
-        <Button variant="secondary" className="mt-3" onClick={() => void list.fetchNextPage()}>
-          {c("loadMore")}
-        </Button>
-      )}
+      <LoadMore hasMore={list.hasNextPage} loading={list.isFetchingNextPage} onClick={() => void list.fetchNextPage()} />
       <Dialog open={booking !== null} onOpenChange={(o) => !o && setBooking(null)}>
         {booking && (
           <BookDialog
@@ -114,6 +113,6 @@ export function SessionsScreen() {
           />
         )}
       </Dialog>
-    </div>
+    </Page>
   );
 }

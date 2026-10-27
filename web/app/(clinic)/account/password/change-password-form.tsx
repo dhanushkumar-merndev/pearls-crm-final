@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Field, PageHeader } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Page } from "@/components/ui/page";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
 import { useZodForm } from "@/lib/use-zod-form";
 
@@ -47,9 +48,10 @@ export function ChangePasswordForm({ username }: { username: string }) {
   }
 
   return (
-    <div className="max-w-lg">
+    <Page>
       <PageHeader title={t("title")} description={t("description")} />
-      <Card>
+      {/* The page is full width; only this small field group keeps a readable width. */}
+      <Card className="max-w-xl">
         <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
           <Field label={t("current")} error={checks.error("current")}>
             {(a) => <Input {...a} type="password" autoComplete="current-password" value={form.current} onChange={(e) => set("current", e.target.value)} />}
@@ -66,6 +68,6 @@ export function ChangePasswordForm({ username }: { username: string }) {
           </Button>
         </form>
       </Card>
-    </div>
+    </Page>
   );
 }

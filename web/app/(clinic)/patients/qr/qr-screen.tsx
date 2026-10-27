@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 import { formatTime } from "@pearl/shared";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { PageHeader } from "@/components/ui/form";
+import { Page, PageHeader } from "@/components/ui/page";
 import { rpc } from "@/lib/rpc";
 
 const MINUTES = 30;
@@ -35,22 +35,25 @@ export function QrScreen() {
   }, [url]);
 
   return (
-    <div className="flex flex-col items-center gap-4">
+    <Page>
       <PageHeader title={t("title")} description={t("description")} />
-      <Card className="flex flex-col items-center gap-4 bg-white p-8 text-black">
-        {svg ? (
-          // The QR is our own generated SVG (no user input reaches it).
-          <div aria-label={t("qrLabel")} role="img" className="size-80" dangerouslySetInnerHTML={{ __html: svg }} />
-        ) : (
-          <div className="size-80 animate-pulse rounded-xl bg-neutral-200" aria-hidden />
-        )}
-        <p className="text-center text-xl font-semibold">{t("scan")}</p>
-      </Card>
-      {link.data && <p className="text-text-secondary">{t("changesAt", { time: formatTime(new Date(link.data.expires_at)) })}</p>}
-      <Button variant="secondary" onClick={() => void link.refetch()} disabled={link.isFetching}>
-        <RefreshCw aria-hidden />
-        {t("newCode")}
-      </Button>
-    </div>
+      <div className="flex flex-col items-center gap-4">
+        {/* Fits a phone: as wide as the screen allows, never more than 20rem. */}
+        <Card className="flex w-full max-w-80 flex-col items-center gap-4 bg-qr-paper p-4 text-qr-ink sm:max-w-96 sm:p-8">
+          {svg ? (
+            // The QR is our own generated SVG (no user input reaches it).
+            <div aria-label={t("qrLabel")} role="img" className="aspect-square w-full [&>svg]:size-full" dangerouslySetInnerHTML={{ __html: svg }} />
+          ) : (
+            <div className="aspect-square w-full animate-pulse rounded-xl bg-qr-placeholder" aria-hidden />
+          )}
+          <p className="text-center text-xl font-semibold">{t("scan")}</p>
+        </Card>
+        {link.data && <p className="text-center text-text-secondary">{t("changesAt", { time: formatTime(new Date(link.data.expires_at)) })}</p>}
+        <Button variant="secondary" onClick={() => void link.refetch()} disabled={link.isFetching}>
+          <RefreshCw aria-hidden className={link.isFetching ? "animate-spin" : undefined} />
+          {t("newCode")}
+        </Button>
+      </div>
+    </Page>
   );
 }

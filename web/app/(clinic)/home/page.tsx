@@ -1,12 +1,11 @@
-import { CalendarDays, Palette } from "lucide-react";
+import { CalendarDays } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { formatDate, istParts } from "@pearl/shared";
 import { SalesDashboard } from "@/components/sales/sales-dashboard";
 import { TodayBoard } from "@/components/today/today-board";
-import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
+import { Page, PageHeader } from "@/components/ui/page";
 import { greetingKey } from "@/lib/greeting";
 import { getMe } from "@/lib/session";
 
@@ -18,13 +17,11 @@ export default async function HomePage() {
   const firstName = me?.full_name.split(" ")[0] ?? "";
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-[1.9rem] font-semibold tracking-tight">
-          {t(`greeting.${greetingKey(istParts(now).hour)}`, { name: firstName })}
-        </h1>
-        <p className="mt-1 text-text-secondary">{t("todayIs", { date: formatDate(now) })}</p>
-      </div>
+    <Page>
+      <PageHeader
+        title={t(`greeting.${greetingKey(istParts(now).hour)}`, { name: firstName })}
+        description={t("todayIs", { date: formatDate(now) })}
+      />
 
       {me && (me.role === "receptionist" || me.role === "admin") ? (
         <TodayBoard />
@@ -35,16 +32,8 @@ export default async function HomePage() {
           <CalendarDays aria-hidden className="size-10 text-text-secondary" />
           <CardTitle>{t("emptyTitle")}</CardTitle>
           <CardDescription className="max-w-prose">{t("emptyBody")}</CardDescription>
-          {me?.role === "admin" && (
-            <Button asChild variant="secondary" className="mt-2">
-              <Link href="/design">
-                <Palette aria-hidden />
-                {t("designLink")}
-              </Link>
-            </Button>
-          )}
         </Card>
       )}
-    </div>
+    </Page>
   );
 }

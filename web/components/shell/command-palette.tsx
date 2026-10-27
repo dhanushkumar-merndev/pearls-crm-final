@@ -13,9 +13,9 @@ import { navFor } from "@/lib/nav";
 import { canSearchPeople, searchHref } from "@/lib/search-href";
 
 const groupClass =
-  "[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:pt-3 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:text-[0.85rem] [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground";
+  "[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:pt-3 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:text-[0.9rem] [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted-foreground";
 const itemClass =
-  "flex min-h-11 cursor-pointer items-center gap-3 rounded-xl px-3 text-base data-[selected=true]:bg-popover-accent [&_svg]:size-5";
+  "flex min-h-10 cursor-pointer items-center gap-3 rounded-xl px-3 text-base data-[selected=true]:bg-popover-accent [&_svg]:size-[1.15rem]";
 
 interface Hit {
   type: string;
@@ -57,7 +57,7 @@ export function CommandPalette({
       onOpenChange={onOpenChange}
       label={t("search.label")}
       overlayClassName="fixed inset-0 z-40 bg-overlay"
-      contentClassName="fixed top-[12vh] left-1/2 z-50 w-[min(640px,calc(100vw-2rem))] -translate-x-1/2 overflow-hidden rounded-2xl border border-border bg-popover text-popover-foreground shadow-2xl"
+      contentClassName="fixed top-[12vh] left-1/2 z-50 w-[min(36rem,calc(100vw-2rem))] -translate-x-1/2 overflow-hidden rounded-2xl border border-border bg-popover text-popover-foreground shadow-2xl"
     >
       <div className="flex items-center gap-3 border-b border-border px-4">
         <Search aria-hidden className="size-5 text-muted-foreground" />
@@ -65,7 +65,7 @@ export function CommandPalette({
           value={q}
           onValueChange={setQ}
           placeholder={t("search.placeholder")}
-          className="min-h-14 flex-1 bg-transparent text-[1.05rem] outline-none placeholder:text-muted-foreground"
+          className="min-h-12 flex-1 bg-transparent text-[1.05rem] outline-none placeholder:text-muted-foreground"
         />
         {hits.isFetching && <LoaderCircle aria-hidden className="size-5 animate-spin text-muted-foreground" />}
       </div>
@@ -79,7 +79,7 @@ export function CommandPalette({
                 {h.type === "lead" ? <Target aria-hidden /> : <UserRound aria-hidden />}
                 <span className="flex min-w-0 flex-col">
                   <span className="truncate">{h.title}</span>
-                  <span className="truncate text-[0.85rem] text-text-secondary">
+                  <span className="truncate text-[0.9rem] text-text-secondary">
                     {h.type === "lead" ? `${t("search.lead")} · ${h.subtitle}` : h.subtitle}
                   </span>
                 </span>

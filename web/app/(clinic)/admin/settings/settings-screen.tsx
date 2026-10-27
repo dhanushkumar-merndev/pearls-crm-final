@@ -10,7 +10,9 @@ import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Checkbox, Field, PageHeader, Select } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
+import { Page, useAdminBack } from "@/components/ui/page";
+import { CardSkeleton, RowSkeletons } from "@/components/ui/skeletons";
+import { Table, TD, TH, THead, TR } from "@/components/ui/table";
 import { asAppError, rpc, unwrap } from "@/lib/rpc";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
 import { numberSeriesSchema } from "@/lib/schemas/admin";
@@ -71,6 +73,7 @@ const SECTIONS: { section: SettingsSection; fields: Record<string, FieldKind> }[
 ];
 
 export function SettingsScreen() {
+  const adminBack = useAdminBack();
   const t = useTranslations("settings");
   const stored = useQuery({
     queryKey: ["app_settings"],
@@ -82,15 +85,21 @@ export function SettingsScreen() {
       }[],
   });
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader title={t("title")} description={t("description")} />
+    <Page>
+      <PageHeader back={adminBack} title={t("title")} description={t("description")} />
+      {stored.isPending && (
+        <>
+          <CardSkeleton height={120} />
+          <CardSkeleton height={120} />
+        </>
+      )}
       {stored.data &&
         SECTIONS.map(({ section, fields }) => {
           const row = stored.data.find((r) => r.section === section);
           return <SectionForm key={section} section={section} fields={fields} value={row?.value} version={row?.version ?? 0} />;
         })}
       <NumberSeries />
-    </div>
+    </Page>
   );
 }
 
@@ -153,16 +162,16 @@ function SectionForm({
           <CardTitle>{t(`${section}.title`)}</CardTitle>
           <CardDescription>{t(`${section}.description`)}</CardDescription>
         </div>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {Object.entries(fields).map(([key, kind]) => {
             const label = t(`${section}.${key}`);
             // A list's message sits on the bad entry ("extra_recipients.2"); show the first one.
             const err = checks.error(key) ?? [0, 1, 2, 3, 4, 5].map((i) => checks.error(`${key}.${i}`)).find(Boolean);
             if (kind === "bool")
-              return <Checkbox key={key} label={label} checked={Boolean(form[key])} onChange={(e) => set(key, e.target.checked)} className="sm:col-span-2" />;
+              return <Checkbox key={key} label={label} checked={Boolean(form[key])} onChange={(e) => set(key, e.target.checked)} className="col-span-full" />;
             if (kind === "weekdays")
               return (
-                <fieldset key={key} className="sm:col-span-2">
+                <fieldset key={key} className="col-span-full">
                   <legend className="mb-1 font-medium">{label}</legend>
                   <div className="flex flex-wrap gap-x-4">
                     {[1, 2, 3, 4, 5, 6, 7].map((d) => {
@@ -234,7 +243,8 @@ function SectionForm({
             );
           })}
         </div>
-        <Button type="submit" disabled={save.isPending} className="self-start">
+        {/* Each section saves on its own (its own version check), so no single "main" button. */}
+        <Button type="submit" variant="secondary" disabled={save.isPending} className="self-start">
           <Save aria-hidden />
           {save.isPending ? c("saving") : c("save")}
         </Button>
@@ -287,7 +297,7 @@ function NumberSeries() {
           </tr>
         </THead>
         <tbody>
-          {list.isPending && <EmptyRow colSpan={4}>{c("loading")}</EmptyRow>}
+          {list.isPending && <RowSkeletons asRow rows={3} cols={4} />}
           {list.data &&
             SERIES_KEYS.map((key) => {
               const seriesFy = key === "uhid" ? "ALL" : fy;

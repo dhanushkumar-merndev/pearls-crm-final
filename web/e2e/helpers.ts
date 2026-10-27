@@ -10,7 +10,13 @@ export const STATE = {
   admin: "e2e/.auth/admin.json",
   reception: "e2e/.auth/reception.json",
   manager: "e2e/.auth/manager.json",
+  // Phone-app roles: the web sends them to "Please use the mobile app".
+  sales: "e2e/.auth/sales.json",
+  bdm: "e2e/.auth/bdm.json",
 } as const;
+
+/** Roles that work in the phone app, not the web. */
+export const PHONE_ROLES = new Set<string>(["sales", "bdm"]);
 
 /** A random valid Indian mobile — unique even when tests start in the same millisecond. */
 export { randomUUID };

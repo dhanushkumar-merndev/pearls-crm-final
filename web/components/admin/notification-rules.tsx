@@ -10,6 +10,7 @@ import { NOTIFICATION_TYPE_LIST, NOTIFICATION_TYPES, type NotificationType } fro
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Checkbox, PageHeader } from "@/components/ui/form";
+import { Page, useAdminBack } from "@/components/ui/page";
 import { Table, TD, TH, THead, TR } from "@/components/ui/table";
 import { unwrap } from "@/lib/rpc";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
@@ -22,6 +23,7 @@ const rulesSchema = z.array(z.object({ type: z.enum(NOTIFICATION_TYPE_LIST), pus
 
 /** Admin → Notifications: per kind, ring the phone and/or send an email. The bell always shows it. */
 export function NotificationRules() {
+  const adminBack = useAdminBack();
   const t = useTranslations("notifyRules");
   const { saved, failed } = useFeedback();
   const queryClient = useQueryClient();
@@ -31,8 +33,8 @@ export function NotificationRules() {
       unwrap(await getSupabaseBrowser().from("notification_rules").select("type, push, email")) as { type: string; push: boolean; email: boolean }[],
   });
   return (
-    <div className="flex flex-col gap-5">
-      <PageHeader title={t("title")} description={t("description")} />
+    <Page>
+      <PageHeader back={adminBack} title={t("title")} description={t("description")} />
       {stored.data && <RulesForm key={stored.dataUpdatedAt} stored={stored.data} onSaved={() => {
         saved();
         void queryClient.invalidateQueries({ queryKey: ["notification_rules"] });
@@ -45,7 +47,7 @@ export function NotificationRules() {
           <Link href="/admin/users" className="text-link underline-offset-4 hover:underline">{t("usersLink")}</Link>
         </p>
       </Card>
-    </div>
+    </Page>
   );
 }
 

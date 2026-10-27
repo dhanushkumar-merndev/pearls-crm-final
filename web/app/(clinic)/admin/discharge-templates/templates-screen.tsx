@@ -6,6 +6,8 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Checkbox, PageHeader } from "@/components/ui/form";
+import { Page, useAdminBack } from "@/components/ui/page";
+import { RowSkeletons } from "@/components/ui/skeletons";
 import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
 import { rpc } from "@/lib/rpc";
 import { useFeedback } from "@/lib/use-feedback";
@@ -20,8 +22,8 @@ interface Row {
 
 /** Admin → Discharge templates. New ones are saved from a summary ("Save as template"). */
 export function TemplatesScreen() {
+  const adminBack = useAdminBack();
   const t = useTranslations("dischargeTemplates");
-  const c = useTranslations("common");
   const queryClient = useQueryClient();
   const { failed } = useFeedback();
   const list = useQuery({ queryKey: ["discharge_templates"], queryFn: () => rpc<Row[]>("discharge_templates_list") });
@@ -31,8 +33,8 @@ export function TemplatesScreen() {
     onError: failed,
   });
   return (
-    <div className="flex flex-col gap-5">
-      <PageHeader title={t("title")} description={t("description")} />
+    <Page>
+      <PageHeader back={adminBack} title={t("title")} description={t("description")} />
       <Table>
         <THead>
           <tr>
@@ -46,7 +48,7 @@ export function TemplatesScreen() {
           </tr>
         </THead>
         <tbody>
-          {list.isPending && <EmptyRow colSpan={5}>{c("loading")}</EmptyRow>}
+          {list.isPending && <RowSkeletons asRow rows={3} cols={5} />}
           {list.data?.length === 0 && <EmptyRow colSpan={5}>{t("none")}</EmptyRow>}
           {list.data?.map((r) => (
             <TR key={r.id}>
@@ -68,6 +70,6 @@ export function TemplatesScreen() {
           ))}
         </tbody>
       </Table>
-    </div>
+    </Page>
   );
 }

@@ -9,6 +9,7 @@ import { useDebounced } from "@/components/library-combobox";
 import { Field, Select } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Pager } from "@/components/ui/pager";
+import { RowSkeletons } from "@/components/ui/skeletons";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
 import { rpc } from "@/lib/rpc";
@@ -40,7 +41,6 @@ const VIEWS = ["all", "in_stock", "low", "expiring", "expired"] as const;
 /** Every medicine with its stock (unexpired), next expiry and value at cost. */
 export function StockTable() {
   const t = useTranslations("pharmacy");
-  const c = useTranslations("common");
   const [q, setQ] = useState("");
   const [view, setView] = useState<(typeof VIEWS)[number]>("all");
   const [offset, setOffset] = useState(0);
@@ -80,7 +80,7 @@ export function StockTable() {
           </tr>
         </THead>
         <tbody>
-          {list.isPending && <EmptyRow colSpan={5}>{c("loading")}</EmptyRow>}
+          {list.isPending && <RowSkeletons asRow rows={3} cols={5} />}
           {list.data?.rows.length === 0 && <EmptyRow colSpan={5}>{t("noItems")}</EmptyRow>}
           {list.data?.rows.map((r) => {
             const low = r.reorder_level > 0 && r.on_hand <= r.reorder_level;
@@ -90,7 +90,7 @@ export function StockTable() {
                   <Link href={`/pharmacy/items/${r.id}`} className="font-medium text-link underline-offset-4 hover:underline">
                     {r.name}
                   </Link>
-                  <span className="block text-[0.85rem] text-text-secondary">
+                  <span className="block text-[0.9rem] text-text-secondary">
                     {[r.strength, r.form, r.manufacturer, r.rack && t("rackLabel", { rack: r.rack })].filter(Boolean).join(" · ")}
                   </span>
                 </TD>

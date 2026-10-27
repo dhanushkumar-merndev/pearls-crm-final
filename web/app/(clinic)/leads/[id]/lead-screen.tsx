@@ -1,7 +1,7 @@
 "use client";
 
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, CalendarPlus, CalendarX2, Flag, IndianRupee, Link2, MessageSquarePlus, Pencil, Phone, PhoneCall, Trash2 } from "lucide-react";
+import { CalendarPlus, CalendarX2, Flag, IndianRupee, Link2, MessageSquarePlus, Pencil, Phone, PhoneCall, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -10,6 +10,7 @@ import { z } from "zod";
 import { formatDate, formatDateTime, formatINR, fromIstDateTimeLocal, istDateTimeLocal, optionalDateTime, requiredItem, requiredText } from "@pearl/shared";
 import { ApptStatusBadge } from "@/components/appointments/status";
 import { BookDialog } from "@/components/appointments/book-dialog";
+import type { ApptStatus } from "@/components/appointments/status";
 import { AmountDialog, DeleteLeadDialog, EditLeadDialog, LogCallDialog } from "@/components/leads/lead-dialogs";
 import { StageBadge } from "@/components/leads/stage-badge";
 import { StageDialog } from "@/components/leads/stage-dialog";
@@ -19,14 +20,17 @@ import { RecordingsList } from "@/components/recordings/recordings-list";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Field, Textarea } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { LoadMore } from "@/components/ui/load-more";
+import { MoreMenu } from "@/components/ui/more-menu";
+import { DetailHeader, Page } from "@/components/ui/page";
 import { WhatsAppPanel } from "@/components/whatsapp/whatsapp-panel";
 import { newId, rpc } from "@/lib/rpc";
 import { useMe } from "@/lib/use-me";
 import { useFeedback } from "@/lib/use-feedback";
 import { useZodForm } from "@/lib/use-zod-form";
-import type { ApptStatus } from "@/components/appointments/status";
 
 export interface LeadDetail extends Lead {
   created_at: string;
@@ -83,29 +87,28 @@ export function LeadScreen({ initial }: { initial: LeadDetail }) {
   const isAdmin = me?.role === "admin";
 
   return (
-    <div className="flex flex-col gap-5">
-      <div>
-        <Button asChild variant="ghost" className="-ml-3 mb-2">
-          <Link href="/leads">
-            <ArrowLeft aria-hidden />
-            {t("backToLeads")}
-          </Link>
-        </Button>
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-[1.75rem] font-semibold tracking-tight">{l.name}</h1>
-          <StageBadge stage={l.stage} />
-          <span className="text-text-secondary tabular-nums">#{l.sl_no}</span>
-        </div>
-        <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-text-secondary">
-          <a href={`tel:${l.phone_e164}`} className="inline-flex items-center gap-1 text-link underline-offset-4 hover:underline">
-            <Phone aria-hidden className="size-4" />
-            {l.phone_e164}
-          </a>
-          {l.alt_phone_e164 && <span>{l.alt_phone_e164}</span>}
-          <span>{t("cameIn", { date: formatDate(day(l.lead_date)), via: t(`via.${l.created_via}`) })}</span>
-          <span>{l.assigned_name ? t("ownerIs", { name: l.assigned_name }) : t("unassigned")}</span>
-        </p>
-      </div>
+    <Page>
+      <DetailHeader
+        back={{ href: "/leads", label: t("backToLeads") }}
+        title={l.name}
+        badges={
+          <>
+            <StageBadge stage={l.stage} />
+            <span className="text-text-secondary tabular-nums">#{l.sl_no}</span>
+          </>
+        }
+        meta={
+          <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <a href={`tel:${l.phone_e164}`} className="inline-flex min-h-8 items-center gap-1 text-link underline-offset-4 hover:underline">
+              <Phone aria-hidden className="size-4" />
+              {l.phone_e164}
+            </a>
+            {l.alt_phone_e164 && <span>{l.alt_phone_e164}</span>}
+            <span>{t("cameIn", { date: formatDate(day(l.lead_date)), via: t(`via.${l.created_via}`) })}</span>
+            <span>{l.assigned_name ? t("ownerIs", { name: l.assigned_name }) : t("unassigned")}</span>
+          </span>
+        }
+      />
 
       <div className="flex flex-wrap gap-2">
         <Button onClick={() => setDialog("call")}>
@@ -120,18 +123,20 @@ export function LeadScreen({ initial }: { initial: LeadDetail }) {
           <CalendarPlus aria-hidden />
           {t("bookConsultation")}
         </Button>
-        <Button variant="secondary" onClick={() => setDialog("amount")}>
-          <IndianRupee aria-hidden />
-          {t("setAmount")}
-        </Button>
-        <Button variant="ghost" onClick={() => setDialog("edit")}>
-          <Pencil aria-hidden />
-          {t("edit")}
-        </Button>
-        <Button variant="ghost" onClick={() => setDialog("delete")}>
-          <Trash2 aria-hidden />
-          {t("delete")}
-        </Button>
+        <MoreMenu>
+          <DropdownMenuItem onSelect={() => setDialog("amount")}>
+            <IndianRupee aria-hidden />
+            {t("setAmount")}
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => setDialog("edit")}>
+            <Pencil aria-hidden />
+            {t("edit")}
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => setDialog("delete")}>
+            <Trash2 aria-hidden />
+            {t("delete")}
+          </DropdownMenuItem>
+        </MoreMenu>
       </div>
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]">
@@ -228,7 +233,7 @@ export function LeadScreen({ initial }: { initial: LeadDetail }) {
         {dialog === "book" && <BookDialog lead={{ id: l.id, name: l.name }} onDone={done} />}
         {dialog === "delete" && <DeleteLeadDialog lead={l} onDone={() => (setDialog(null), router.push("/leads"))} />}
       </Dialog>
-    </div>
+    </Page>
   );
 }
 
@@ -431,11 +436,9 @@ function Activities({ leadId }: { leadId: string }) {
           </li>
         ))}
       </ol>
-      {list.hasNextPage && (
-        <Button variant="ghost" className="self-start" disabled={list.isFetchingNextPage} onClick={() => void list.fetchNextPage()}>
-          {t("showOlder")}
-        </Button>
-      )}
+      <LoadMore hasMore={list.hasNextPage} loading={list.isFetchingNextPage} onClick={() => void list.fetchNextPage()}>
+        {t("showOlder")}
+      </LoadMore>
     </Card>
   );
 }

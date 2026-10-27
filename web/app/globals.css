@@ -55,10 +55,22 @@
   --radius-2xl: var(--pearl-radius-xl);
 
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+
+  --color-qr-paper: var(--qr-paper);
+  --color-qr-ink: var(--qr-ink);
+  --color-qr-placeholder: var(--qr-placeholder);
+}
+
+/* A QR code is printed matter: dark modules on white in every theme, or phone cameras miss it.
+   (Not theme tokens on purpose; like the print pages' paper and ink.) */
+:root {
+  --qr-paper: #ffffff;
+  --qr-ink: #000000;
+  --qr-placeholder: #e5e5e5;
 }
 
 @layer base {
-  /* 17 px base: every rem-based size scales up for easy reading (granny rule). */
+  /* Base size from tokens.json (14 px, owner 26/10/2026): every rem-based size follows it. */
   html {
     font-size: var(--font-base-size);
   }
@@ -83,6 +95,25 @@
   }
   .tabular {
     font-variant-numeric: tabular-nums;
+  }
+}
+
+/* WhatsApp-style chat (components/whatsapp): every surface mixed from theme tokens, so it
+   follows dark/light. A very faint dot pattern on the wall, like WhatsApp Web. */
+@layer components {
+  .chat-wall {
+    background-color: color-mix(in srgb, var(--muted) 55%, var(--background));
+    background-image: radial-gradient(color-mix(in srgb, var(--foreground) 6%, transparent) 1px, transparent 1px);
+    background-size: 18px 18px;
+  }
+  .chat-in {
+    background-color: var(--card);
+  }
+  .chat-out {
+    background-color: color-mix(in srgb, var(--status-good) 18%, var(--card));
+  }
+  .chat-unread {
+    background-color: color-mix(in srgb, var(--status-good) 30%, var(--card));
   }
 }
 

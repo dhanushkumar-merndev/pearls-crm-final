@@ -1,7 +1,7 @@
 "use client";
 
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, SlidersHorizontal } from "lucide-react";
+import { SlidersHorizontal } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -12,6 +12,9 @@ import { Card, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Field, Select, Textarea } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { LoadMore } from "@/components/ui/load-more";
+import { DetailHeader, Page } from "@/components/ui/page";
+import { RowSkeletons } from "@/components/ui/skeletons";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
 import { newId, rpc } from "@/lib/rpc";
@@ -51,7 +54,6 @@ interface Move {
 /** One medicine: batches (FEFO order) with adjustments, and its stock ledger. */
 export function ItemScreen({ initial }: { initial: ItemStock }) {
   const t = useTranslations("pharmacy");
-  const c = useTranslations("common");
   const id = initial.item.id;
   const stock = useQuery({ queryKey: ["item_stock", id], initialData: initial, queryFn: () => rpc<ItemStock>("item_stock", { p_item_id: id }) });
   const ledger = useInfiniteQuery({
@@ -64,23 +66,18 @@ export function ItemScreen({ initial }: { initial: ItemStock }) {
   const s = stock.data;
   const i = s.item;
   return (
-    <div className="flex flex-col gap-5">
-      <div>
-        <Button asChild variant="ghost" className="-ml-3 mb-2">
-          <Link href="/pharmacy">
-            <ArrowLeft aria-hidden />
-            {t("backToPharmacy")}
-          </Link>
-        </Button>
-        <h1 className="text-[1.75rem] font-semibold tracking-tight">{i.name}</h1>
-        <p className="mt-1 text-text-secondary">
-          {[i.strength, i.form, i.manufacturer, i.rack && t("rackLabel", { rack: i.rack }), t("gstLabel", { rate: i.gst_rate_bp / 100 })].filter(Boolean).join(" · ")}
-        </p>
-        <p className="mt-2 text-lg">
-          {t("onHandLine", { n: qtyLabel(s.on_hand), unit: i.sell_unit })}
-          {i.reorder_level > 0 && <span className="text-text-secondary"> · {t("reorderAt", { n: qtyLabel(i.reorder_level) })}</span>}
-        </p>
-      </div>
+    <Page>
+      <DetailHeader
+        back={{ href: "/pharmacy", label: t("backToPharmacy") }}
+        title={i.name}
+        meta={[i.strength, i.form, i.manufacturer, i.rack && t("rackLabel", { rack: i.rack }), t("gstLabel", { rate: i.gst_rate_bp / 100 })].filter(Boolean).join(" · ")}
+        description={
+          <span className="text-lg text-foreground">
+            {t("onHandLine", { n: qtyLabel(s.on_hand), unit: i.sell_unit })}
+            {i.reorder_level > 0 && <span className="text-text-secondary"> · {t("reorderAt", { n: qtyLabel(i.reorder_level) })}</span>}
+          </span>
+        }
+      />
 
       <Card className="flex flex-col gap-3">
         <CardTitle>{t("batches")}</CardTitle>
@@ -135,7 +132,7 @@ export function ItemScreen({ initial }: { initial: ItemStock }) {
             </tr>
           </THead>
           <tbody>
-            {ledger.isPending && <EmptyRow colSpan={5}>{c("loading")}</EmptyRow>}
+            {ledger.isPending && <RowSkeletons asRow rows={3} cols={5} />}
             {ledger.data?.pages[0]?.items.length === 0 && <EmptyRow colSpan={5}>{t("noMoves")}</EmptyRow>}
             {ledger.data?.pages.flatMap((p) => p.items).map((m) => (
               <TR key={m.id}>
@@ -152,7 +149,7 @@ export function ItemScreen({ initial }: { initial: ItemStock }) {
                       {m.ref_no}
                     </Link>
                   )}
-                  {m.reason && <span className="block text-[0.85rem] text-text-secondary">{m.reason}</span>}
+                  {m.reason && <span className="block text-[0.9rem] text-text-secondary">{m.reason}</span>}
                 </TD>
                 <TD>{m.batch_no}</TD>
                 <TD className={`text-right tabular-nums ${m.qty < 0 ? "text-bad-text" : "text-good-text"}`}>
@@ -164,17 +161,13 @@ export function ItemScreen({ initial }: { initial: ItemStock }) {
             ))}
           </tbody>
         </Table>
-        {ledger.hasNextPage && (
-          <Button variant="secondary" className="self-start" disabled={ledger.isFetchingNextPage} onClick={() => void ledger.fetchNextPage()}>
-            {ledger.isFetchingNextPage ? c("loading") : t("loadMore")}
-          </Button>
-        )}
+        <LoadMore hasMore={ledger.hasNextPage} loading={ledger.isFetchingNextPage} onClick={() => void ledger.fetchNextPage()} />
       </Card>
 
       <Dialog open={adjusting !== null} onOpenChange={(o) => !o && setAdjusting(null)}>
         {adjusting && <AdjustDialog itemId={id} batch={adjusting} onDone={() => setAdjusting(null)} />}
       </Dialog>
-    </div>
+    </Page>
   );
 }
 

@@ -55,11 +55,11 @@ export function Textarea({ className, ...props }: ComponentProps<"textarea">) {
   );
 }
 
-/** Big tick box with its label (whole row is clickable, ≥ 44 px). */
+/** Tick box with its label (the whole row is clickable). */
 export function Checkbox({ label, hint, className, ...props }: Omit<ComponentProps<"input">, "type"> & { label: ReactNode; hint?: ReactNode }) {
   return (
-    <label className={cn("flex min-h-11 cursor-pointer items-start gap-3 rounded-xl py-2", className)}>
-      <input type="checkbox" className="mt-0.5 size-6 shrink-0 accent-[var(--primary)]" {...props} />
+    <label className={cn("flex min-h-10 cursor-pointer items-start gap-3 rounded-xl py-2", className)}>
+      <input type="checkbox" className="mt-0.5 size-5 shrink-0 accent-[var(--primary)]" {...props} />
       <span className="flex flex-col">
         <span className="text-base">{label}</span>
         {hint && <span className="text-[0.9rem] text-text-secondary">{hint}</span>}
@@ -68,14 +68,5 @@ export function Checkbox({ label, hint, className, ...props }: Omit<ComponentPro
   );
 }
 
-export function PageHeader({ title, description, actions }: { title: ReactNode; description?: ReactNode; actions?: ReactNode }) {
-  return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-      <div className="min-w-0">
-        <h1 className="text-[1.75rem] font-semibold tracking-tight">{title}</h1>
-        {description && <p className="mt-1 max-w-prose text-text-secondary">{description}</p>}
-      </div>
-      {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
-    </div>
-  );
-}
+// The page title block lives in ./page.tsx (with <Page>, back links and detail headers).
+export { PageHeader } from "./page";

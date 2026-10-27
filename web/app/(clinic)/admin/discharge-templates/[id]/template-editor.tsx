@@ -1,8 +1,7 @@
 "use client";
 
 import { useMutation } from "@tanstack/react-query";
-import { ArrowLeft, Save } from "lucide-react";
-import Link from "next/link";
+import { Save } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -11,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Field, PageHeader } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Page } from "@/components/ui/page";
 import { newId, rpc } from "@/lib/rpc";
 import { dischargeTemplateSchema } from "@/lib/schemas/clinical";
 import { useFeedback } from "@/lib/use-feedback";
@@ -44,16 +44,8 @@ export function TemplateEditor({ initial }: { initial: Template }) {
     onError: failed,
   });
   return (
-    <div className="flex flex-col gap-5">
-      <div>
-        <Button asChild variant="ghost" className="-ml-3 mb-2">
-          <Link href="/admin/discharge-templates">
-            <ArrowLeft aria-hidden />
-            {t("back")}
-          </Link>
-        </Button>
-        <PageHeader title={t("editTitle", { name: initial.name })} description={t("editHint")} />
-      </div>
+    <Page>
+      <PageHeader back={{ href: "/admin/discharge-templates", label: t("back") }} title={t("editTitle", { name: initial.name })} description={t("editHint")} />
       <Card className="grid gap-4 sm:grid-cols-2">
         <Field label={t("name")} error={checks.error("name")}>
           {(a) => (
@@ -98,6 +90,6 @@ export function TemplateEditor({ initial }: { initial: Template }) {
         <Save aria-hidden />
         {t("save")}
       </Button>
-    </div>
+    </Page>
   );
 }

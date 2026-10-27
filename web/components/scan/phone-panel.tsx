@@ -128,12 +128,12 @@ export function PhonePanel({
   const over = status === "expired" || status === "closed";
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-      <div className="flex shrink-0 flex-col items-center gap-2 rounded-2xl bg-white p-4 text-black">
+      <div className="flex w-full max-w-64 shrink-0 flex-col items-center gap-2 self-center rounded-2xl bg-qr-paper p-4 text-qr-ink sm:w-56 sm:self-start">
         {svg && !over ? (
           // Our own generated SVG (no user input reaches it).
-          <div aria-label={t("phoneQrLabel")} role="img" className="size-56" dangerouslySetInnerHTML={{ __html: svg }} />
+          <div aria-label={t("phoneQrLabel")} role="img" className="aspect-square w-full [&>svg]:size-full" dangerouslySetInnerHTML={{ __html: svg }} />
         ) : (
-          <div className="size-56 animate-pulse rounded-xl bg-neutral-200" aria-hidden />
+          <div className="aspect-square w-full animate-pulse rounded-xl bg-qr-placeholder" aria-hidden />
         )}
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-3">
