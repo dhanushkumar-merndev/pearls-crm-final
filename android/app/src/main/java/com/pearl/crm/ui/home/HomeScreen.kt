@@ -6,6 +6,10 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
@@ -27,8 +31,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -39,10 +43,12 @@ import androidx.navigation.compose.rememberNavController
 import com.pearl.crm.AppContainer
 import com.pearl.crm.BuildConfig
 import com.pearl.crm.R
+import com.pearl.crm.core.ui.components.LocalOnline
 import com.pearl.crm.core.data.auth.Session
 import com.pearl.crm.core.model.StaffRole
-import com.pearl.crm.core.ui.components.StatusLabel
+import com.pearl.crm.core.ui.components.SyncBanner
 import com.pearl.crm.core.ui.components.StatusTone
+import com.pearl.crm.core.ui.theme.Spacing
 import com.pearl.crm.feature.bdm.BdmDayScreen
 import com.pearl.crm.feature.bdm.BdmLeadsScreen
 import com.pearl.crm.feature.bdm.BdmVisitsScreen
@@ -87,10 +93,25 @@ fun HomeScreen(container: AppContainer, session: Session) {
     AskForNotifications()
     val voiceNotes = remember { VoiceNotes(container.voiceRecorder, container.recordings) }
     val isSales = role == StaffRole.SalesExecutive || role == StaffRole.SalesManager
+    // Read once per sign-in: the tip shows on this visit to Leads, never after.
+    val swipeHint = remember { !container.settings.swipeHintSeen }
 
-    CompositionLocalProvider(LocalVoiceNotes provides voiceNotes) {
+    val online by container.network.online.collectAsStateWithLifecycle()
+    CompositionLocalProvider(LocalVoiceNotes provides voiceNotes, LocalOnline provides online) {
         Scaffold(
             snackbarHost = { SnackbarHost(snackbar) },
+            // Offline / unsent changes: one slim strip above every tab (Settings shows the details itself).
+            topBar = {
+                if (tabs.any { it.route == route } && route != HomeTab.Settings.route) {
+                    HomeSyncBanner(container, onOpenSettings = {
+                        nav.navigate(HomeTab.Settings.route) {
+                            popUpTo(nav.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    })
+                }
+            },
             bottomBar = {
                 if (tabs.any { it.route == route }) {
                     NavigationBar {
@@ -112,20 +133,30 @@ fun HomeScreen(container: AppContainer, session: Session) {
                 }
             },
         ) { padding ->
-            NavHost(nav, startDestination = tabs.first().route, modifier = Modifier.padding(padding)) {
+            // The bars' space is used up here, so screens inside don't add the status/navigation bar again.
+            NavHost(nav, startDestination = tabs.first().route, modifier = Modifier.padding(padding).consumeWindowInsets(padding)) {
                 val sales = role == StaffRole.SalesExecutive || role == StaffRole.SalesManager
                 val openLead: (String) -> Unit = { id -> nav.navigate("lead/$id") }
+                // Pull-down on a list of phone data = sync with the server now.
+                val sync: suspend () -> Unit = { container.syncRunner.runOnce() }
                 tabs.forEach { tab ->
                     composable(tab.route) {
                         when {
                             tab == HomeTab.MyDay && sales -> SalesMyDayRoute(container, session, openLead)
                             tab == HomeTab.MyDay && role == StaffRole.Bdm -> BdmDayRoute(container, session)
                             tab == HomeTab.Visits -> BdmVisitsScreen(container.bdm, session.staffId)
-                            tab == HomeTab.Leads && role == StaffRole.Bdm -> BdmLeadsScreen(container.sales, container.library)
+                            tab == HomeTab.Leads && role == StaffRole.Bdm -> BdmLeadsScreen(container.sales, container.library, onRefresh = sync)
                             tab == HomeTab.MyDay -> MyDayScreen(container, session)
-                            tab == HomeTab.Leads && sales -> LeadsScreen(container.sales, container.library, openLead)
-                            tab == HomeTab.Followups -> FollowupsScreen(session.staffId, container.sales, container.library, openLead)
-                            tab == HomeTab.Calls -> CallsScreen(container.sales, openLead)
+                            tab == HomeTab.Leads && sales -> LeadsScreen(
+                                container.sales,
+                                container.library,
+                                openLead,
+                                onRefresh = sync,
+                                swipeHint = swipeHint,
+                                onSwipeHintShown = { container.settings.swipeHintSeen = true },
+                            )
+                            tab == HomeTab.Followups -> FollowupsScreen(session.staffId, container.sales, container.library, openLead, onRefresh = sync)
+                            tab == HomeTab.Calls -> CallsScreen(container.sales, openLead, onRefresh = sync)
                             tab == HomeTab.Settings -> SettingsRoute(
                                 container,
                                 session,
@@ -205,18 +236,39 @@ private fun AskForNotifications() {
     }
 }
 
+/** Offline, or changes the server refused: the strip shown above every tab. */
+@Composable
+private fun HomeSyncBanner(container: AppContainer, onOpenSettings: () -> Unit) {
+    val status by container.syncRunner.status.collectAsStateWithLifecycle()
+    val failed by remember { container.db.outbox().observeFailed() }.collectAsStateWithLifecycle(emptyList())
+    val unsent by remember { container.db.outbox().observeUnsentCount() }.collectAsStateWithLifecycle(0)
+    val online by container.network.online.collectAsStateWithLifecycle()
+    // Below the status bar: this sits in the top bar slot, which doesn't pad itself.
+    val inset = Modifier.windowInsetsPadding(WindowInsets.statusBars)
+    when {
+        failed.isNotEmpty() -> SyncBanner(
+            stringResource(R.string.home_unsent_failed),
+            StatusTone.Critical,
+            inset,
+            actionLabel = stringResource(R.string.home_open_settings),
+            onAction = onOpenSettings,
+        )
+        status.offline || !online -> SyncBanner(
+            if (unsent > 0) pluralStringResource(R.plurals.home_offline_unsent, unsent, unsent) else stringResource(R.string.home_offline),
+            StatusTone.Offline,
+            inset,
+        )
+    }
+}
+
 @Composable
 private fun MyDayScreen(container: AppContainer, session: Session) {
     val profile by container.profile.collectAsStateWithLifecycle()
-    val status by container.syncRunner.status.collectAsStateWithLifecycle()
-    val failed by remember { container.db.outbox().observeFailed() }.collectAsStateWithLifecycle(emptyList())
-    Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    Column(Modifier.fillMaxSize().padding(Spacing.screen), verticalArrangement = Arrangement.spacedBy(Spacing.section)) {
         Text(
             stringResource(R.string.home_greeting, profile?.fullName?.takeIf { it.isNotBlank() } ?: session.username),
             style = MaterialTheme.typography.titleLarge,
         )
-        if (failed.isNotEmpty()) StatusLabel(stringResource(R.string.home_unsent_failed), StatusTone.Critical)
-        if (status.offline) StatusLabel(stringResource(R.string.home_offline), StatusTone.Offline)
         Text(stringResource(R.string.coming_soon), color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
@@ -238,13 +290,9 @@ private fun BdmDayRoute(container: AppContainer, session: Session) {
 @Composable
 private fun SalesMyDayRoute(container: AppContainer, session: Session, openLead: (String) -> Unit) {
     val profile by container.profile.collectAsStateWithLifecycle()
-    val status by container.syncRunner.status.collectAsStateWithLifecycle()
-    val failed by remember { container.db.outbox().observeFailed() }.collectAsStateWithLifecycle(emptyList())
     SalesMyDayScreen(
         name = profile?.fullName?.takeIf { it.isNotBlank() } ?: session.username,
         sales = container.sales,
-        offline = status.offline,
-        hasFailedChanges = failed.isNotEmpty(),
         onOpenLead = openLead,
     )
 }
@@ -272,7 +320,7 @@ private fun SettingsRoute(
             role = session.staffRole,
             theme = theme,
             unsentCount = unsent,
-            failed = failed.map { FailedChange(it.id, it.lastError ?: "unknown", it.createdAt) },
+            failed = failed.map { FailedChange(it.id, it.lastError ?: "unknown", it.createdAt, it.rpc) },
             lastSyncAt = listOfNotNull(status.lastSuccessAt, lastPull).maxOrNull(),
             offline = status.offline,
             syncing = status.running,

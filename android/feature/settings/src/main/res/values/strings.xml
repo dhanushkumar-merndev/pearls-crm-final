@@ -11,6 +11,15 @@
         <item quantity="other">%1$d changes not sent yet</item>
     </plurals>
     <string name="settings_sync_now">Sync now</string>
+    <string name="change_create_lead">New lead</string>
+    <string name="change_log_call">Call notes</string>
+    <string name="change_add_lead_note">Note on a lead</string>
+    <string name="change_set_lead_stage">Lead stage change</string>
+    <string name="change_book_appointment">Booking</string>
+    <string name="change_set_appointment_status">Booking confirmation</string>
+    <string name="change_complete_followup">Follow-up marked done</string>
+    <string name="change_bdm">Field day update</string>
+    <string name="change_other">Other change</string>
     <string name="settings_failed_made">Couldn\'t be saved on the server. Made %1$s.</string>
     <string name="settings_retry">Try again</string>
     <string name="settings_discard">Discard</string>

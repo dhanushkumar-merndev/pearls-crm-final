@@ -1,27 +1,29 @@
 package com.pearl.crm.ui.pin
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
+import androidx.compose.material.icons.automirrored.outlined.Backspace
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.automirrored.outlined.Login
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.LockOpen
 import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -32,13 +34,14 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.pearl.crm.R
 import com.pearl.crm.core.data.security.PinStore
 import com.pearl.crm.core.ui.components.ButtonKind
@@ -46,35 +49,71 @@ import com.pearl.crm.core.ui.components.PearlButton
 import com.pearl.crm.core.ui.components.StatusLabel
 import com.pearl.crm.core.ui.components.StatusTone
 import com.pearl.crm.core.ui.theme.Pearl
+import com.pearl.crm.core.ui.theme.Spacing
+import com.pearl.crm.ui.AuthLayout
 
-/** Digits only, at most 6, never shown. Kept out of saved state on purpose. */
+/** PIN dots: one per digit typed, never fewer than the shortest PIN. The digits are never shown. */
 @Composable
-fun PinField(value: String, onValueChange: (String) -> Unit, onDone: () -> Unit, modifier: Modifier = Modifier) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = { onValueChange(it.filter(Char::isDigit).take(PinStore.MAX_LENGTH)) },
-        label = { Text(stringResource(R.string.pin_label)) },
-        singleLine = true,
-        visualTransformation = PasswordVisualTransformation(),
-        textStyle = MaterialTheme.typography.titleLarge.copy(letterSpacing = 6.sp),
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword, imeAction = ImeAction.Done),
-        keyboardActions = KeyboardActions(onDone = { onDone() }),
-        modifier = modifier.fillMaxWidth(),
-    )
+private fun PinDots(length: Int) {
+    val label = pluralStringResource(R.plurals.pin_entered, length, length)
+    Row(
+        Modifier.padding(vertical = Spacing.m).semantics { contentDescription = label },
+        horizontalArrangement = Arrangement.spacedBy(Spacing.l),
+    ) {
+        repeat(maxOf(PinStore.MIN_LENGTH, length)) { i ->
+            val filled = i < length
+            val colour = if (filled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+            Box(
+                Modifier
+                    .size(14.dp)
+                    .clip(CircleShape)
+                    .background(if (filled) colour else Color.Transparent)
+                    .border(1.5.dp, colour, CircleShape),
+            )
+        }
+    }
+}
+
+private val KEY = 68.dp
+
+/** Phone-style number pad, so the screen doesn't jump around under the system keyboard. Digits only, at most 6. */
+@Composable
+private fun PinPad(value: String, onValueChange: (String) -> Unit, enabled: Boolean) {
+    fun type(d: Char) {
+        if (value.length < PinStore.MAX_LENGTH) onValueChange(value + d)
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.m), horizontalAlignment = Alignment.CenterHorizontally) {
+        listOf("123", "456", "789").forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xl)) {
+                row.forEach { d -> PinKey(d, enabled) { type(d) } }
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xl), verticalAlignment = Alignment.CenterVertically) {
+            Spacer(Modifier.size(KEY))
+            PinKey('0', enabled) { type('0') }
+            IconButton(
+                onClick = { onValueChange(value.dropLast(1)) },
+                enabled = enabled && value.isNotEmpty(),
+                modifier = Modifier.size(KEY).testTag("pin-delete"),
+            ) {
+                Icon(Icons.AutoMirrored.Outlined.Backspace, contentDescription = stringResource(R.string.pin_delete))
+            }
+        }
+    }
 }
 
 @Composable
-private fun PinLayout(content: @Composable () -> Unit) {
-    Column(
-        Modifier
-            .fillMaxSize()
-            .safeDrawingPadding()
-            .imePadding()
-            .verticalScroll(rememberScrollState())
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
+private fun PinKey(digit: Char, enabled: Boolean, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        enabled = enabled,
+        shape = CircleShape,
+        color = Pearl.palette.raised,
+        modifier = Modifier.size(KEY).testTag("pin-key-$digit"),
     ) {
-        Column(Modifier.widthIn(max = 480.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) { content() }
+        Box(contentAlignment = Alignment.Center) {
+            Text(digit.toString(), style = MaterialTheme.typography.headlineSmall)
+        }
     }
 }
 
@@ -104,11 +143,13 @@ fun PinSetupScreen(busy: Boolean, onCreate: (String) -> Unit, onCancel: (() -> U
         }
     }
 
-    PinLayout {
-        Text(stringResource(if (step == 1) R.string.pin_create_title else R.string.pin_confirm_title), style = MaterialTheme.typography.titleLarge)
-        Text(stringResource(R.string.pin_create_body), color = Pearl.palette.textSecondary)
+    AuthLayout(
+        stringResource(if (step == 1) R.string.pin_create_title else R.string.pin_confirm_title),
+        stringResource(R.string.pin_create_body),
+    ) {
+        PinDots(entry.length)
         if (mismatch) StatusLabel(stringResource(R.string.pin_mismatch), StatusTone.Critical)
-        PinField(entry, { entry = it }, ::next)
+        PinPad(entry, { entry = it; mismatch = false }, enabled = !busy)
         if (step == 1) {
             PearlButton(stringResource(R.string.pin_next), Icons.AutoMirrored.Outlined.ArrowForward, ::next, Modifier.fillMaxWidth(), enabled = valid)
         } else {
@@ -141,15 +182,17 @@ fun PinUnlockScreen(
         entry = ""
     }
 
-    PinLayout {
-        Text(title, style = MaterialTheme.typography.titleLarge)
-        PinField(entry, { entry = it }, ::submit)
+    AuthLayout(title) {
+        PinDots(entry.length)
         triesLeft?.let { StatusLabel(pluralStringResource(R.plurals.pin_wrong, it, it), StatusTone.Critical) }
+        PinPad(entry, { entry = it }, enabled = !busy)
         PearlButton(stringResource(R.string.pin_unlock), Icons.Outlined.LockOpen, ::submit, Modifier.fillMaxWidth(), enabled = valid, busy = busy)
-        onForgot?.let {
-            PearlButton(stringResource(R.string.pin_forgot), Icons.AutoMirrored.Outlined.HelpOutline, { forgotOpen = true }, kind = ButtonKind.Quiet)
+        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+            onForgot?.let {
+                PearlButton(stringResource(R.string.pin_forgot), Icons.AutoMirrored.Outlined.HelpOutline, { forgotOpen = true }, kind = ButtonKind.Quiet)
+            }
+            onCancel?.let { PearlButton(stringResource(R.string.pin_cancel), Icons.Outlined.Close, it, kind = ButtonKind.Quiet) }
         }
-        onCancel?.let { PearlButton(stringResource(R.string.pin_cancel), Icons.Outlined.Close, it, kind = ButtonKind.Quiet) }
     }
 
     if (forgotOpen && onForgot != null) {

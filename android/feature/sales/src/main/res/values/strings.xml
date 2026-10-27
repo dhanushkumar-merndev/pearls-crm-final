@@ -53,6 +53,9 @@
     <string name="leads_empty_due">Nobody to call right now.</string>
     <string name="leads_new">New lead</string>
     <string name="leads_swipe_hint">Swipe right to call, left for WhatsApp.</string>
+    <string name="leads_show_all">Show all leads</string>
+    <string name="leads_empty_search">No leads match “%1$s”.</string>
+    <string name="leads_clear_search">Clear search</string>
 
     <!-- New lead -->
     <string name="new_lead_title">New lead</string>
@@ -73,8 +76,11 @@
     <string name="lead_stage">Stage</string>
     <string name="lead_change_stage">Change stage</string>
     <string name="lead_log_call">Add call notes</string>
+    <string name="lead_log_call_short">Call notes</string>
     <string name="lead_book">Book a consultation</string>
+    <string name="lead_book_short">Book</string>
     <string name="lead_add_note">Add a note</string>
+    <string name="lead_add_note_short">Note</string>
     <string name="lead_note">Note</string>
     <string name="lead_note_save">Save note</string>
     <string name="lead_note_required">Type the note.</string>
@@ -120,6 +126,9 @@
     <string name="followups_upcoming">Next 7 days</string>
     <string name="followups_empty">No follow-ups. Well done.</string>
     <string name="followups_done">Done</string>
+    <string name="followups_done_snack">Follow-up done.</string>
+    <string name="followups_undo">Undo</string>
+    <string name="followups_empty_body">New ones appear here when you set a next call.</string>
     <string name="followups_kind_call_to_confirm">Confirm the booking</string>
 
     <!-- Calls -->
@@ -127,6 +136,10 @@
     <string name="calls_empty">No calls in the last 60 days.</string>
     <string name="calls_unknown">Unknown number</string>
     <string name="calls_duration">%1$d min %2$d s</string>
+    <string name="calls_duration_s">%1$d s</string>
+    <string name="calls_dir_outgoing">Outgoing</string>
+    <string name="calls_dir_incoming">Incoming</string>
+    <string name="calls_dir_missed">Missed</string>
 
     <!-- Booking -->
     <string name="book_title">Book a consultation</string>
@@ -142,7 +155,6 @@
     <string name="book_done">Booked for %1$s.</string>
     <string name="book_slot_required">Choose a time.</string>
     <string name="book_doctor_required">Choose a doctor.</string>
-    <string name="book_loading">Loading free times…</string>
     <string name="book_today">Today</string>
     <string name="book_tomorrow">Tomorrow</string>
 
@@ -205,13 +217,29 @@
     <string name="myday_calls">Calls today</string>
     <string name="myday_connected">Spoke</string>
     <string name="myday_due">Follow-ups today</string>
-    <string name="myday_overdue">Overdue</string>
-    <string name="myday_booked">Booked today</string>
-    <string name="myday_pending">To confirm</string>
-    <string name="myday_chart">Calls per day (last 14 days)</string>
-    <string name="myday_chart_table">Show as table</string>
-    <string name="myday_chart_chart">Show as chart</string>
-    <string name="myday_chart_row">%1$s: %2$d calls, %3$d spoke</string>
+    <string name="myday_secondary">%1$d overdue · %2$d booked today · %3$d to confirm</string>
+    <string name="myday_chart_spoke">Spoke</string>
+    <string name="myday_chart_not_reached">Not reached</string>
+    <string name="myday_chart_target">Target %1$d a day</string>
+    <string name="myday_chart_col_day">Day</string>
+    <string name="myday_chart_col_calls">Calls</string>
+    <string name="myday_chart_description">Calls per day. %1$s, %2$s. Tap Table for each day\'s numbers.</string>
+    <plurals name="myday_chart_summary">
+        <item quantity="one">%1$d call · %2$d%% spoke</item>
+        <item quantity="other">%1$d calls · %2$d%% spoke</item>
+    </plurals>
+    <plurals name="myday_chart_period">
+        <item quantity="one">Last %1$d day</item>
+        <item quantity="other">Last %1$d days</item>
+    </plurals>
+    <plurals name="myday_chart_empty">
+        <item quantity="one">No calls in the last %1$d day</item>
+        <item quantity="other">No calls in the last %1$d days</item>
+    </plurals>
+    <plurals name="myday_chart_marker">
+        <item quantity="one">%1$s · %2$d call · %3$d spoke</item>
+        <item quantity="other">%1$s · %2$d calls · %3$d spoke</item>
+    </plurals>
     <string name="myday_offline_numbers">Numbers need the internet. Your lists below still work.</string>
     <string name="myday_confirm_title">Waiting for the patient to confirm</string>
     <string name="myday_confirm_none">All bookings are confirmed.</string>
@@ -222,6 +250,4 @@
     <string name="myday_target_agreed">Agreed amount</string>
     <string name="myday_target_calls">Calls</string>
     <string name="myday_target_progress">%1$s of %2$s (%3$d%%)</string>
-    <string name="myday_unsent_failed">Some changes couldn\'t be saved on the server. Open Settings to see them.</string>
-    <string name="myday_offline">Offline. Your work is saved on this phone.</string>
 </resources>

@@ -12,6 +12,7 @@ import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,20 +23,17 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.BatteryChargingFull
 import androidx.compose.material.icons.outlined.CloudUpload
 import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -61,11 +59,17 @@ import com.pearl.crm.core.data.SettingsStore
 import com.pearl.crm.core.data.db.RecordingWithLead
 import com.pearl.crm.core.model.IstDates
 import com.pearl.crm.core.ui.components.ButtonKind
+import com.pearl.crm.core.ui.components.EmptyState
+import com.pearl.crm.core.ui.components.LoadingBlock
+import com.pearl.crm.core.ui.components.Muted
+import com.pearl.crm.core.ui.components.PearlCard
+import com.pearl.crm.core.ui.components.PearlTopBar
 import com.pearl.crm.core.ui.components.PearlButton
 import com.pearl.crm.core.ui.components.StatusLabel
 import com.pearl.crm.core.ui.components.StatusTone
 import com.pearl.crm.core.ui.components.errorMessage
 import com.pearl.crm.core.ui.theme.Pearl
+import com.pearl.crm.core.ui.theme.Spacing
 import kotlinx.coroutines.launch
 
 @Composable
@@ -84,30 +88,34 @@ private fun recordingStatusLabel(status: String): String = stringResource(
 fun RecordingsOnPhoneScreen(recordings: RecordingsRepository, onSyncRequested: () -> Unit, onBack: () -> Unit) {
     val rows by remember { recordings.observe() }.collectAsStateWithLifecycle(null)
     val scope = rememberCoroutineScope()
-    Column(Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
-            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.back)) }
-            Text(stringResource(R.string.rec_title), style = MaterialTheme.typography.titleLarge)
-        }
-        Muted(stringResource(R.string.rec_hint))
-        val list = rows
-        val waiting = list.orEmpty().filter { it.recording.status == RecordingStatus.ON_PHONE || it.recording.status == RecordingStatus.FAILED }
-        if (waiting.isNotEmpty()) {
-            PearlButton(stringResource(R.string.rec_sync_all, waiting.size), Icons.Outlined.CloudUpload, {
-                scope.launch {
-                    recordings.syncNow(waiting.map { it.recording.id })
-                    onSyncRequested()
-                }
-            }, modifier = Modifier.testTag("rec-sync-all"))
-        }
-        if (list != null && list.isEmpty()) Muted(stringResource(R.string.rec_empty))
-        if (!list.isNullOrEmpty()) {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.weight(1f)) {
-                items(list, key = { it.recording.id }) { row ->
-                    RecordingRow(row) {
-                        scope.launch {
-                            recordings.syncNow(listOf(row.recording.id))
-                            onSyncRequested()
+    Column(Modifier.fillMaxSize()) {
+        PearlTopBar(stringResource(R.string.rec_title), onBack = onBack)
+        Column(Modifier.weight(1f).padding(horizontal = Spacing.screen), verticalArrangement = Arrangement.spacedBy(Spacing.section)) {
+            Muted(stringResource(R.string.rec_hint))
+            val list = rows
+            val waiting = list.orEmpty().filter { it.recording.status == RecordingStatus.ON_PHONE || it.recording.status == RecordingStatus.FAILED }
+            if (waiting.isNotEmpty()) {
+                PearlButton(stringResource(R.string.rec_sync_all, waiting.size), Icons.Outlined.CloudUpload, {
+                    scope.launch {
+                        recordings.syncNow(waiting.map { it.recording.id })
+                        onSyncRequested()
+                    }
+                }, modifier = Modifier.testTag("rec-sync-all"))
+            }
+            when {
+                list == null -> LoadingBlock(rows = 3, rowHeight = 64.dp)
+                list.isEmpty() -> EmptyState(Icons.Outlined.GraphicEq, stringResource(R.string.rec_empty))
+                else -> LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(Spacing.item),
+                    contentPadding = PaddingValues(bottom = Spacing.screen),
+                    modifier = Modifier.weight(1f),
+                ) {
+                    items(list, key = { it.recording.id }) { row ->
+                        RecordingRow(row) {
+                            scope.launch {
+                                recordings.syncNow(listOf(row.recording.id))
+                                onSyncRequested()
+                            }
                         }
                     }
                 }
@@ -119,15 +127,16 @@ fun RecordingsOnPhoneScreen(recordings: RecordingsRepository, onSyncRequested: (
 @Composable
 private fun RecordingRow(row: RecordingWithLead, onSync: () -> Unit) {
     val r = row.recording
-    Surface(shape = MaterialTheme.shapes.medium, tonalElevation = 1.dp, modifier = Modifier.fillMaxWidth()) {
-        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+    PearlCard {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
                     row.leadName ?: stringResource(if (r.kind == "voice_note") R.string.rec_voice_note else R.string.rec_call),
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleSmall,
                 )
                 Text(
                     "${IstDates.formatDateTime(r.recordedAt)} · ${r.durationS / 60}:${"%02d".format(r.durationS % 60)}",
+                    style = MaterialTheme.typography.bodySmall,
                     color = Pearl.palette.textSecondary,
                 )
                 val tone = when (r.status) {
@@ -141,7 +150,7 @@ private fun RecordingRow(row: RecordingWithLead, onSync: () -> Unit) {
                 if (r.status == RecordingStatus.FAILED && r.error != null) Muted(errorMessage(r.error!!))
             }
             if (r.status == RecordingStatus.ON_PHONE || r.status == RecordingStatus.FAILED) {
-                PearlButton(stringResource(R.string.rec_sync), Icons.Outlined.CloudUpload, onSync, kind = ButtonKind.Secondary)
+                PearlButton(stringResource(R.string.rec_sync), Icons.Outlined.CloudUpload, onSync, kind = ButtonKind.Tonal, small = true)
             }
         }
     }
@@ -202,60 +211,59 @@ fun CallSetupScreen(settings: SettingsStore, onScanNow: suspend () -> Int, onBac
     }
     val open = { intent: Intent -> runCatching { context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } }
 
-    Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.back)) }
-            Text(stringResource(R.string.setup_title), style = MaterialTheme.typography.titleLarge)
-        }
-        Muted(stringResource(R.string.setup_intro))
+    Column(Modifier.fillMaxSize()) {
+        PearlTopBar(stringResource(R.string.setup_title), onBack = onBack)
+        Column(
+            Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(start = Spacing.screen, end = Spacing.screen, bottom = Spacing.screen),
+            verticalArrangement = Arrangement.spacedBy(Spacing.section),
+        ) {
+            Muted(stringResource(R.string.setup_intro))
 
-        Step(stringResource(R.string.setup_phone), stringResource(R.string.setup_phone_why), phoneOk, Icons.Outlined.Phone, "setup-phone") {
-            phonePerms.launch(arrayOf(Manifest.permission.READ_PHONE_STATE, Manifest.permission.READ_CALL_LOG))
-        }
-        Step(stringResource(R.string.setup_overlay), stringResource(R.string.setup_overlay_why), overlayOk, Icons.Outlined.Layers, "setup-overlay") {
-            open(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}")))
-        }
-        Step(stringResource(R.string.setup_notify), stringResource(R.string.setup_notify_why), notifyOk, Icons.Outlined.Notifications, "setup-notify") {
-            if (Build.VERSION.SDK_INT >= 33) single.launch(Manifest.permission.POST_NOTIFICATIONS)
-        }
-        Step(stringResource(R.string.setup_battery), stringResource(batteryGuide()), batteryOk, Icons.Outlined.BatteryChargingFull, "setup-battery") {
-            @Suppress("BatteryLife") // installed directly for staff phones; the brief requires calls to be caught reliably
-            open(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:${context.packageName}")))
-        }
-        Step(stringResource(R.string.setup_mic), stringResource(R.string.setup_mic_why), micOk, Icons.Outlined.Mic, "setup-mic") {
-            single.launch(Manifest.permission.RECORD_AUDIO)
-        }
-        Step(
-            stringResource(R.string.setup_folder),
-            folder?.let { stringResource(R.string.setup_folder_chosen, folderName(it)) } ?: stringResource(recordingFolderHint()),
-            folder != null,
-            Icons.Outlined.Folder,
-            "setup-folder",
-            actionLabel = if (folder != null) stringResource(R.string.setup_change) else null,
-        ) { pickFolder.launch(null) }
+            Step(stringResource(R.string.setup_phone), stringResource(R.string.setup_phone_why), phoneOk, Icons.Outlined.Phone, "setup-phone") {
+                phonePerms.launch(arrayOf(Manifest.permission.READ_PHONE_STATE, Manifest.permission.READ_CALL_LOG))
+            }
+            Step(stringResource(R.string.setup_overlay), stringResource(R.string.setup_overlay_why), overlayOk, Icons.Outlined.Layers, "setup-overlay") {
+                open(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}")))
+            }
+            Step(stringResource(R.string.setup_notify), stringResource(R.string.setup_notify_why), notifyOk, Icons.Outlined.Notifications, "setup-notify") {
+                if (Build.VERSION.SDK_INT >= 33) single.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+            Step(stringResource(R.string.setup_battery), stringResource(batteryGuide()), batteryOk, Icons.Outlined.BatteryChargingFull, "setup-battery") {
+                @Suppress("BatteryLife") // installed directly for staff phones; the brief requires calls to be caught reliably
+                open(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:${context.packageName}")))
+            }
+            Step(stringResource(R.string.setup_mic), stringResource(R.string.setup_mic_why), micOk, Icons.Outlined.Mic, "setup-mic") {
+                single.launch(Manifest.permission.RECORD_AUDIO)
+            }
+            Step(
+                stringResource(R.string.setup_folder),
+                folder?.let { stringResource(R.string.setup_folder_chosen, folderName(it)) } ?: stringResource(recordingFolderHint()),
+                folder != null,
+                Icons.Outlined.Folder,
+                "setup-folder",
+                actionLabel = if (folder != null) stringResource(R.string.setup_change) else null,
+            ) { pickFolder.launch(null) }
 
-        HorizontalDivider()
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(stringResource(R.string.setup_popup), style = MaterialTheme.typography.titleMedium)
-                Muted(stringResource(R.string.setup_popup_why))
+            HorizontalDivider()
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(stringResource(R.string.setup_popup), style = MaterialTheme.typography.titleMedium)
+                    Muted(stringResource(R.string.setup_popup_why))
+                }
+                Switch(checked = popup, onCheckedChange = {
+                    popup = it
+                    settings.callerPopup = it
+                }, modifier = Modifier.testTag("setup-popup"))
             }
-            Switch(checked = popup, onCheckedChange = {
-                popup = it
-                settings.callerPopup = it
-            }, modifier = Modifier.testTag("setup-popup"))
+            PearlButton(stringResource(R.string.setup_check), Icons.Outlined.Search, {
+                scanning = true
+                scope.launch {
+                    found = runCatching { onScanNow() }.getOrNull() ?: 0
+                    scanning = false
+                }
+            }, kind = ButtonKind.Secondary, busy = scanning, enabled = folder != null)
+            found?.let { Muted(pluralStringResource(R.plurals.setup_found_plural, it, it)) }
         }
-        PearlButton(stringResource(R.string.setup_check), Icons.Outlined.Search, {
-            scanning = true
-            scope.launch {
-                found = runCatching { onScanNow() }.getOrNull() ?: 0
-                scanning = false
-            }
-        }, kind = ButtonKind.Secondary, busy = scanning, enabled = folder != null)
-        found?.let { Muted(pluralStringResource(R.plurals.setup_found_plural, it, it)) }
     }
 }
 
@@ -272,14 +280,12 @@ private fun Step(
     actionLabel: String? = null,
     onFix: () -> Unit,
 ) {
-    Surface(shape = MaterialTheme.shapes.medium, tonalElevation = 1.dp, modifier = Modifier.fillMaxWidth().testTag(tag)) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(title, style = MaterialTheme.typography.titleMedium)
-            Muted(why)
-            if (done) StatusLabel(stringResource(R.string.setup_done), StatusTone.Good)
-            if (!done || actionLabel != null) {
-                PearlButton(actionLabel ?: stringResource(R.string.setup_fix), icon, onFix, kind = if (done) ButtonKind.Quiet else ButtonKind.Secondary)
-            }
+    PearlCard(Modifier.testTag(tag)) {
+        Text(title, style = MaterialTheme.typography.titleSmall)
+        Muted(why)
+        if (done) StatusLabel(stringResource(R.string.setup_done), StatusTone.Good)
+        if (!done || actionLabel != null) {
+            PearlButton(actionLabel ?: stringResource(R.string.setup_fix), icon, onFix, kind = if (done) ButtonKind.Quiet else ButtonKind.Tonal, small = true)
         }
     }
 }

@@ -2,6 +2,7 @@ package com.pearl.crm.feature.settings
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -41,6 +42,9 @@ import com.pearl.crm.core.model.IstDates
 import com.pearl.crm.core.model.StaffRole
 import com.pearl.crm.core.model.ThemeMode
 import com.pearl.crm.core.ui.components.ButtonKind
+import com.pearl.crm.core.ui.components.ListRow
+import com.pearl.crm.core.ui.components.PearlCard
+import com.pearl.crm.core.ui.components.Section
 import com.pearl.crm.core.ui.components.MinTouchTarget
 import com.pearl.crm.core.ui.components.PearlButton
 import com.pearl.crm.core.ui.components.StatusLabel
@@ -48,9 +52,10 @@ import com.pearl.crm.core.ui.components.StatusTone
 import com.pearl.crm.core.ui.components.errorMessage
 import com.pearl.crm.core.ui.components.roleLabel
 import com.pearl.crm.core.ui.theme.Pearl
+import com.pearl.crm.core.ui.theme.Spacing
 
 /** A queued change the server refused; the person decides to try again or discard it. */
-data class FailedChange(val id: String, val code: String, val createdAt: Long)
+data class FailedChange(val id: String, val code: String, val createdAt: Long, val rpc: String = "")
 
 data class SettingsUiState(
     val fullName: String?,
@@ -87,82 +92,95 @@ fun SettingsScreen(
         modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp),
+            .padding(Spacing.screen),
+        verticalArrangement = Arrangement.spacedBy(Spacing.section),
     ) {
         Text(stringResource(R.string.settings_title), style = MaterialTheme.typography.titleLarge)
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(state.fullName?.takeIf { it.isNotBlank() } ?: state.username, style = MaterialTheme.typography.titleMedium)
+        PearlCard(verticalSpacing = 2.dp) {
+            Text(state.fullName?.takeIf { it.isNotBlank() } ?: state.username, style = MaterialTheme.typography.titleSmall)
             val role = state.role?.let { roleLabel(it) }
             Text(
                 listOfNotNull(state.username, role).joinToString(" · "),
+                style = MaterialTheme.typography.bodySmall,
                 color = Pearl.palette.textSecondary,
             )
         }
 
         Section(stringResource(R.string.settings_sync)) {
-            when {
-                state.syncing -> StatusLabel(stringResource(R.string.settings_syncing), StatusTone.Info)
-                state.offline -> StatusLabel(stringResource(R.string.settings_offline), StatusTone.Offline)
-                state.lastSyncAt != null -> StatusLabel(
-                    stringResource(R.string.settings_last_sync, IstDates.formatDateTime(state.lastSyncAt)),
-                    StatusTone.Good,
+            PearlCard {
+                when {
+                    state.syncing -> StatusLabel(stringResource(R.string.settings_syncing), StatusTone.Info)
+                    state.offline -> StatusLabel(stringResource(R.string.settings_offline), StatusTone.Offline)
+                    state.lastSyncAt != null -> StatusLabel(
+                        stringResource(R.string.settings_last_sync, IstDates.formatDateTime(state.lastSyncAt)),
+                        StatusTone.Good,
+                    )
+                    else -> StatusLabel(stringResource(R.string.settings_never_synced), StatusTone.Info)
+                }
+                if (state.unsentCount > 0) {
+                    StatusLabel(
+                        pluralStringResource(R.plurals.settings_unsent, state.unsentCount, state.unsentCount),
+                        StatusTone.Warning,
+                    )
+                }
+                PearlButton(
+                    stringResource(R.string.settings_sync_now),
+                    Icons.Outlined.Sync,
+                    onSyncNow,
+                    kind = ButtonKind.Tonal,
+                    small = true,
+                    busy = state.syncing,
                 )
-                else -> StatusLabel(stringResource(R.string.settings_never_synced), StatusTone.Info)
-            }
-            if (state.unsentCount > 0) {
-                StatusLabel(
-                    pluralStringResource(R.plurals.settings_unsent, state.unsentCount, state.unsentCount),
-                    StatusTone.Warning,
-                )
-            }
-            PearlButton(
-                stringResource(R.string.settings_sync_now),
-                Icons.Outlined.Sync,
-                onSyncNow,
-                kind = ButtonKind.Secondary,
-                busy = state.syncing,
-            )
-            state.failed.forEach { change ->
-                HorizontalDivider()
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                state.failed.forEach { change ->
+                    HorizontalDivider()
+                    Text(stringResource(changeLabel(change.rpc)), style = MaterialTheme.typography.titleSmall)
                     StatusLabel(errorMessage(change.code), StatusTone.Critical)
                     Text(
                         stringResource(R.string.settings_failed_made, IstDates.formatDateTime(change.createdAt)),
                         style = MaterialTheme.typography.bodySmall,
                         color = Pearl.palette.textSecondary,
                     )
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        PearlButton(stringResource(R.string.settings_retry), Icons.Outlined.Refresh, { onRetry(change.id) }, kind = ButtonKind.Secondary)
-                        PearlButton(stringResource(R.string.settings_discard), Icons.Outlined.Delete, { discarding = change.id }, kind = ButtonKind.Quiet)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                        PearlButton(stringResource(R.string.settings_retry), Icons.Outlined.Refresh, { onRetry(change.id) }, kind = ButtonKind.Tonal, small = true)
+                        PearlButton(stringResource(R.string.settings_discard), Icons.Outlined.Delete, { discarding = change.id }, kind = ButtonKind.Quiet, small = true)
                     }
                 }
             }
         }
 
         Section(stringResource(R.string.settings_theme)) {
-            Column(Modifier.selectableGroup()) {
-                ThemeOption(stringResource(R.string.settings_theme_dark), state.theme == ThemeMode.Dark) { onThemeChange(ThemeMode.Dark) }
-                ThemeOption(stringResource(R.string.settings_theme_light), state.theme == ThemeMode.Light) { onThemeChange(ThemeMode.Light) }
-                ThemeOption(stringResource(R.string.settings_theme_system), state.theme == ThemeMode.System) { onThemeChange(ThemeMode.System) }
+            PearlCard(contentPadding = PaddingValues(vertical = Spacing.xs), verticalSpacing = 0.dp) {
+                Column(Modifier.selectableGroup()) {
+                    ThemeOption(stringResource(R.string.settings_theme_dark), state.theme == ThemeMode.Dark) { onThemeChange(ThemeMode.Dark) }
+                    ThemeOption(stringResource(R.string.settings_theme_light), state.theme == ThemeMode.Light) { onThemeChange(ThemeMode.Light) }
+                    ThemeOption(stringResource(R.string.settings_theme_system), state.theme == ThemeMode.System) { onThemeChange(ThemeMode.System) }
+                }
             }
         }
 
         if (onCallSetup != null || onRecordings != null) {
             Section(stringResource(R.string.settings_calls)) {
-                onCallSetup?.let { PearlButton(stringResource(R.string.settings_call_setup), Icons.Outlined.Phone, it, kind = ButtonKind.Secondary) }
-                onRecordings?.let { PearlButton(stringResource(R.string.settings_recordings), Icons.Outlined.GraphicEq, it, kind = ButtonKind.Secondary) }
+                PearlCard(contentPadding = PaddingValues(0.dp), verticalSpacing = 0.dp) {
+                    onCallSetup?.let { ListRow(stringResource(R.string.settings_call_setup), icon = Icons.Outlined.Phone, onClick = it, chevron = true) }
+                    if (onCallSetup != null && onRecordings != null) HorizontalDivider()
+                    onRecordings?.let { ListRow(stringResource(R.string.settings_recordings), icon = Icons.Outlined.GraphicEq, onClick = it, chevron = true) }
+                }
             }
         }
 
         Section(stringResource(R.string.settings_security)) {
-            PearlButton(stringResource(R.string.settings_change_pin), Icons.Outlined.Pin, onChangePin, kind = ButtonKind.Secondary)
-            PearlButton(
-                stringResource(R.string.settings_sign_out),
-                Icons.AutoMirrored.Outlined.Logout,
-                { confirmSignOut = true },
-                kind = ButtonKind.Danger,
-            )
+            PearlCard(contentPadding = PaddingValues(0.dp), verticalSpacing = 0.dp) {
+                ListRow(stringResource(R.string.settings_change_pin), icon = Icons.Outlined.Pin, onClick = onChangePin, chevron = true)
+                HorizontalDivider()
+                // Same row style as Change PIN; the red text says it is the one to be careful with (it asks first).
+                ListRow(
+                    stringResource(R.string.settings_sign_out),
+                    icon = Icons.AutoMirrored.Outlined.Logout,
+                    iconTint = Pearl.palette.badText,
+                    titleColor = Pearl.palette.badText,
+                    onClick = { confirmSignOut = true },
+                )
+            }
         }
 
         Text(
@@ -226,23 +244,30 @@ fun SettingsScreen(
 }
 
 @Composable
-private fun Section(title: String, content: @Composable () -> Unit) {
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(title, style = MaterialTheme.typography.titleSmall, color = Pearl.palette.textSecondary)
-        content()
-    }
-}
-
-@Composable
 private fun ThemeOption(label: String, selected: Boolean, onClick: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
             .heightIn(min = MinTouchTarget)
-            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick),
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
+            // Lines the radio up with the icons of the list rows below (same left edge).
+            .padding(horizontal = Spacing.m),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         RadioButton(selected = selected, onClick = null)
-        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(start = 12.dp))
+        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(start = Spacing.m))
     }
+}
+
+/** What a queued change was, in the person's words, so they can decide to retry or discard it. */
+private fun changeLabel(rpc: String): Int = when {
+    rpc == "create_lead" -> R.string.change_create_lead
+    rpc == "log_call" -> R.string.change_log_call
+    rpc == "add_lead_note" -> R.string.change_add_lead_note
+    rpc == "set_lead_stage" -> R.string.change_set_lead_stage
+    rpc == "book_appointment" -> R.string.change_book_appointment
+    rpc == "set_appointment_status" -> R.string.change_set_appointment_status
+    rpc == "complete_followup" -> R.string.change_complete_followup
+    rpc.startsWith("bdm_") -> R.string.change_bdm
+    else -> R.string.change_other
 }

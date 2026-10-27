@@ -24,6 +24,7 @@ import com.pearl.crm.core.model.RpcFailure
 import com.pearl.crm.core.ui.R
 import com.pearl.crm.core.ui.errors.ERROR_STRINGS
 import com.pearl.crm.core.ui.theme.Pearl
+import com.pearl.crm.core.ui.theme.Spacing
 
 enum class StatusTone { Good, Info, Warning, Critical, Offline }
 
@@ -43,8 +44,8 @@ fun StatusLabel(text: String, tone: StatusTone, modifier: Modifier = Modifier) {
 
 @Composable
 private fun StatusRow(text: String, icon: ImageVector, color: Color, modifier: Modifier) {
-    Row(modifier, horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(22.dp))
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(Spacing.s), verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(18.dp))
         Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
     }
 }

@@ -35,7 +35,11 @@
     <string name="pin_create_body">4 to 6 digits. You\'ll enter it when you come back to the app after 5 minutes away.</string>
     <string name="pin_confirm_title">Type the PIN again</string>
     <string name="pin_mismatch">The two PINs don\'t match. Please choose your PIN again.</string>
-    <string name="pin_label">PIN</string>
+    <string name="pin_delete">Delete last digit</string>
+    <plurals name="pin_entered">
+        <item quantity="one">%d digit entered</item>
+        <item quantity="other">%d digits entered</item>
+    </plurals>
     <string name="pin_next">Next</string>
     <string name="pin_save">Save PIN</string>
     <string name="pin_unlock_title">Enter your PIN</string>
@@ -81,8 +85,13 @@
     <string name="tab_visits">Visits</string>
     <string name="tab_settings">Settings</string>
     <string name="coming_soon">This screen arrives in the next update. Your login, PIN and offline sync are ready.</string>
-    <string name="home_unsent_failed">Some changes couldn\'t be saved on the server. Open Settings to try again.</string>
-    <string name="home_offline">Offline. Changes are kept on this phone and sent when the internet is back.</string>
+    <string name="home_unsent_failed">Some changes couldn\'t be saved on the server.</string>
+    <string name="home_offline">Offline. Your work is saved on this phone and sent when the internet is back.</string>
+    <string name="home_open_settings">Open settings</string>
+    <plurals name="home_offline_unsent">
+        <item quantity="one">Offline. %1$d change waits on this phone and is sent when the internet is back.</item>
+        <item quantity="other">Offline. %1$d changes wait on this phone and are sent when the internet is back.</item>
+    </plurals>
     <string name="home_greeting">Hello, %1$s</string>
 
     <!-- Notifications -->

@@ -28,15 +28,16 @@ import com.pearl.crm.core.ui.components.ButtonKind
 import com.pearl.crm.core.ui.components.PearlButton
 import com.pearl.crm.core.ui.components.roleLabel
 import com.pearl.crm.core.ui.theme.Pearl
+import com.pearl.crm.core.ui.theme.Spacing
 
 @Composable
 private fun MessageScreen(icon: ImageVector, title: String, body: String, action: @Composable () -> Unit = {}) {
     Column(
-        Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp),
+        Modifier.fillMaxSize().safeDrawingPadding().padding(Spacing.xl),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Column(Modifier.widthIn(max = 480.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(Modifier.widthIn(max = 480.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(Spacing.l)) {
             Icon(icon, contentDescription = null, modifier = Modifier.size(40.dp), tint = Pearl.palette.textSecondary)
             Text(title, style = MaterialTheme.typography.titleLarge)
             Text(body, color = Pearl.palette.textSecondary)

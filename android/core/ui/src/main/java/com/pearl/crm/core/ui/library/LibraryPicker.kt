@@ -11,8 +11,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -29,6 +29,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -62,6 +63,7 @@ import com.pearl.crm.core.ui.R
 import com.pearl.crm.core.ui.components.MinTouchTarget
 import com.pearl.crm.core.ui.components.failureMessage
 import com.pearl.crm.core.ui.theme.Pearl
+import com.pearl.crm.core.ui.theme.Spacing
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -94,15 +96,16 @@ fun LibraryPicker(
     ) {
         Text(label, style = MaterialTheme.typography.labelMedium, color = Pearl.palette.textSecondary)
         Spacer(Modifier.size(6.dp))
+        // Same box as the text fields around it (shape, height, inner padding).
         Surface(
-            shape = MaterialTheme.shapes.medium,
+            shape = OutlinedTextFieldDefaults.shape,
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = 56.dp)
                 .alpha(if (enabled) 1f else 0.5f),
         ) {
-            Row(Modifier.padding(horizontal = 16.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.padding(horizontal = 16.dp, vertical = Spacing.m), verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     value?.label ?: placeholder ?: stringResource(R.string.picker_choose),
                     style = MaterialTheme.typography.bodyLarge,
@@ -116,7 +119,7 @@ fun LibraryPicker(
         }
     }
     if (open) {
-        Dialog(onDismissRequest = { open = false }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Dialog(onDismissRequest = { open = false }, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
             LibrarySearchPanel(
                 kind = kind,
                 source = source,
@@ -226,8 +229,8 @@ internal fun LibrarySearchPanel(
     val showCreate = allowCreate && trimmed.isNotEmpty() && !exact && !loading
 
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        Column(Modifier.fillMaxSize().statusBarsPadding()) {
-            Row(Modifier.padding(start = 4.dp, end = 16.dp, top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.fillMaxSize().safeDrawingPadding()) {
+            Row(Modifier.padding(start = Spacing.xs, end = Spacing.l, top = Spacing.xs), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onClose, modifier = Modifier.size(MinTouchTarget)) {
                     Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = stringResource(R.string.common_close))
                 }
@@ -245,7 +248,7 @@ internal fun LibrarySearchPanel(
                 textStyle = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .padding(horizontal = Spacing.l, vertical = Spacing.s)
                     .focusRequester(focus),
             )
             LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)) {
@@ -262,13 +265,13 @@ internal fun LibrarySearchPanel(
                         Text(
                             stringResource(R.string.picker_nothing),
                             color = Pearl.palette.textSecondary,
-                            modifier = Modifier.fillMaxWidth().padding(24.dp),
+                            modifier = Modifier.fillMaxWidth().padding(Spacing.xl),
                         )
                     }
                 }
                 failure?.let { error ->
                     item(key = "__failure") {
-                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Column(Modifier.padding(Spacing.l), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
                             Text(failureMessage(error), color = Pearl.palette.badText)
                             PickerAction(stringResource(R.string.common_try_again), Icons.Outlined.Refresh) { reload++ }
                         }
@@ -290,7 +293,7 @@ internal fun LibrarySearchPanel(
                             Text(
                                 if (it is RpcFailure.Transient) stringResource(R.string.picker_add_offline) else failureMessage(it),
                                 color = Pearl.palette.badText,
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                                modifier = Modifier.padding(horizontal = Spacing.l, vertical = Spacing.xs),
                             )
                         }
                     }
@@ -308,15 +311,10 @@ private fun ItemRow(item: LibraryItem, isSelected: Boolean, onClick: () -> Unit)
             .heightIn(min = 56.dp)
             .semantics { selected = isSelected }
             .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .padding(horizontal = Spacing.m, vertical = Spacing.s),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.m),
     ) {
-        Icon(
-            Icons.Outlined.Check,
-            contentDescription = if (isSelected) stringResource(R.string.picker_selected) else null,
-            modifier = Modifier.size(22.dp).alpha(if (isSelected) 1f else 0f),
-        )
         Column(Modifier.weight(1f)) {
             Text(item.label, style = MaterialTheme.typography.bodyLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
             item.subtitle?.takeIf { it.isNotBlank() }?.let {
@@ -329,9 +327,18 @@ private fun ItemRow(item: LibraryItem, isSelected: Boolean, onClick: () -> Unit)
                     stringResource(R.string.picker_new),
                     style = MaterialTheme.typography.labelSmall,
                     color = Pearl.palette.textSecondary,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 2.dp),
+                    modifier = Modifier.padding(horizontal = Spacing.s, vertical = 2.dp),
                 )
             }
+        }
+        // Tick on the right, only on the chosen row, so names line up with the search box.
+        if (isSelected) {
+            Icon(
+                Icons.Outlined.Check,
+                contentDescription = stringResource(R.string.picker_selected),
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(22.dp),
+            )
         }
     }
 }
@@ -343,9 +350,9 @@ private fun PickerAction(text: String, icon: ImageVector, enabled: Boolean = tru
             .fillMaxWidth()
             .heightIn(min = MinTouchTarget)
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .padding(horizontal = Spacing.m, vertical = Spacing.s),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.m),
     ) {
         Icon(icon, contentDescription = null, modifier = Modifier.size(22.dp), tint = Pearl.palette.link)
         Text(text, style = MaterialTheme.typography.bodyLarge, color = Pearl.palette.link)

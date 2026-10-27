@@ -17,6 +17,10 @@ dependencies {
     api(libs.androidx.compose.material3)
     api(libs.androidx.compose.material.icons)
     api(libs.androidx.compose.ui.tooling.preview)
+    // Status / nav bar icon colour (PearlTheme).
+    implementation(libs.androidx.core.ktx)
+    // Charts (PearlCharts.kt). Stays on Vico 3.1.x: 3.2+ needs compileSdk 37, which AGP 9.1 can't build.
+    implementation(libs.vico.compose.m3)
     debugImplementation(libs.androidx.compose.ui.tooling)
 
     testImplementation(libs.junit)

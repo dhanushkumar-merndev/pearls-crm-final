@@ -3,6 +3,14 @@
     <string name="common_offline">Can\'t reach the server. Check the internet connection.</string>
     <string name="common_close">Close</string>
     <string name="common_try_again">Try again</string>
+    <string name="common_back">Back</string>
+    <string name="common_loading">Loading…</string>
+
+    <!-- Charts (PearlCharts.kt) -->
+    <string name="chart_show_table">Table</string>
+    <string name="chart_show_chart">Chart</string>
+    <string name="chart_show_table_description">Show the numbers as a table</string>
+    <string name="chart_show_chart_description">Show the numbers as a chart</string>
 
     <!-- Roles (web/messages/en.json "roles") -->
     <string name="role_receptionist">Receptionist</string>

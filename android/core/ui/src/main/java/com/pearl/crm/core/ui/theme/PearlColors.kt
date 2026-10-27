@@ -25,6 +25,10 @@ object PearlColors {
         val GoodText = Color(0xFF0CA30C)
         val BadText = Color(0xFFF07070)
         val ChartSeries = listOf(Color(0xFF3987E5), Color(0xFFD95926), Color(0xFF199E70), Color(0xFFC98500), Color(0xFFD55181), Color(0xFF008300), Color(0xFF9085E9), Color(0xFFE66767))
+        val ChartGrid = Color(0xFF303030)
+        val ChartAxis = Color(0xFF424242)
+        val ChartLabel = Color(0xFF9B9B9B)
+        val ChartEmphasisGray = Color(0xFF5C5C5C)
     }
     object Light {
         val Page = Color(0xFFFFFFFF)
@@ -47,6 +51,10 @@ object PearlColors {
         val GoodText = Color(0xFF006300)
         val BadText = Color(0xFFB42318)
         val ChartSeries = listOf(Color(0xFF2A78D6), Color(0xFFEB6834), Color(0xFF1BAF7A), Color(0xFFEDA100), Color(0xFFE87BA4), Color(0xFF008300), Color(0xFF6250D6), Color(0xFFE34948))
+        val ChartGrid = Color(0xFFE5E5E5)
+        val ChartAxis = Color(0xFFC4C4C4)
+        val ChartLabel = Color(0xFF6B6B6B)
+        val ChartEmphasisGray = Color(0xFFC4C4C4)
     }
     object Status {
         val Good = Color(0xFF0CA30C)

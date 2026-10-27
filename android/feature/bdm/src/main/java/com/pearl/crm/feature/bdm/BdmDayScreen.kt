@@ -8,10 +8,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -25,7 +25,6 @@ import androidx.compose.material.icons.outlined.DirectionsCar
 import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Mic
-import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Stop
 import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material3.AlertDialog
@@ -36,10 +35,10 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import com.pearl.crm.core.ui.components.LocalOnline
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -71,12 +70,18 @@ import com.pearl.crm.core.model.LibraryKind
 import com.pearl.crm.core.model.LibrarySource
 import com.pearl.crm.core.model.Phones
 import com.pearl.crm.core.ui.components.ButtonKind
+import com.pearl.crm.core.ui.components.LoadingBlock
+import com.pearl.crm.core.ui.components.Muted
+import com.pearl.crm.core.ui.components.PearlCard
+import com.pearl.crm.core.ui.components.PearlRefreshBox
+import com.pearl.crm.core.ui.components.StatGrid
 import com.pearl.crm.core.ui.components.PearlButton
 import com.pearl.crm.core.ui.components.StatusLabel
 import com.pearl.crm.core.ui.components.StatusTone
 import com.pearl.crm.core.ui.components.failureMessage
 import com.pearl.crm.core.ui.library.LibraryPicker
 import com.pearl.crm.core.ui.theme.Pearl
+import com.pearl.crm.core.ui.theme.Spacing
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -136,7 +141,6 @@ fun BdmDayScreen(
     var permitted by remember { mutableStateOf(location.permitted()) }
     var dashboard by remember { mutableStateOf<BdmDashboard?>(null) }
     var dashFailed by remember { mutableStateOf(false) }
-    var reloadTiles by remember { mutableIntStateOf(0) }
     var meetingPath by rememberSaveable { mutableStateOf<String?>(null) }
     var meetingSeconds by rememberSaveable { mutableIntStateOf(0) }
     val dayClientId = rememberSaveable { newClientId() }
@@ -184,7 +188,7 @@ fun BdmDayScreen(
         }
     }
 
-    LaunchedEffect(reloadTiles, day.dayId, day.ended) {
+    suspend fun loadTiles() {
         try {
             dashboard = bdm.dashboard()
             dashFailed = false
@@ -194,68 +198,76 @@ fun BdmDayScreen(
             dashFailed = true
         }
     }
+    LaunchedEffect(day.dayId, day.ended) { loadTiles() }
+    val online = LocalOnline.current
+    LaunchedEffect(online) { if (online && dashFailed) loadTiles() }
     LaunchedEffect(day.open, permitted) { if (day.open && permitted) onTrackingNeeded() }
 
-    Scaffold(snackbarHost = { SnackbarHost(snackbar) }) { padding ->
-        Column(
-            Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            Text(stringResource(R.string.bdm_hello, name), style = MaterialTheme.typography.titleLarge)
-            StatusLabel(bdmStateLabel(day.state), if (day.open) StatusTone.Good else StatusTone.Info)
-            if (!permitted) {
-                StatusLabel(stringResource(R.string.bdm_location_needed), StatusTone.Warning)
-                PearlButton(stringResource(R.string.bdm_allow_location), Icons.Outlined.LocationOn, {
-                    askLocation.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
-                }, modifier = Modifier.testTag("bdm-allow-location"))
-            }
-            message?.let { StatusLabel(stringResource(it), StatusTone.Info) }
-            failure?.let { StatusLabel(failureMessage(it), StatusTone.Critical, Modifier.testTag("bdm-failure")) }
+    Scaffold(contentWindowInsets = WindowInsets(0), snackbarHost = { SnackbarHost(snackbar) }) { padding ->
+        PearlRefreshBox(onRefresh = { loadTiles() }, modifier = Modifier.fillMaxSize().padding(padding)) {
+            Column(
+                Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(Spacing.screen),
+                verticalArrangement = Arrangement.spacedBy(Spacing.section),
+            ) {
+                Text(stringResource(R.string.bdm_hello, name), style = MaterialTheme.typography.titleLarge)
+                // Where the day stands, in one card: state, route recording, and any message.
+                PearlCard {
+                    StatusLabel(bdmStateLabel(day.state), if (day.open) StatusTone.Good else StatusTone.Info)
+                    if (day.open) StatusLabel(stringResource(R.string.bdm_recording_route), StatusTone.Info)
+                    if (day.open && !permitted) StatusLabel(stringResource(R.string.bdm_location_needed), StatusTone.Warning)
+                    message?.let { StatusLabel(stringResource(it), StatusTone.Info) }
+                    failure?.let { StatusLabel(failureMessage(it), StatusTone.Critical, Modifier.testTag("bdm-failure")) }
+                }
+                val allowLocation = @Composable {
+                    PearlButton(stringResource(R.string.bdm_allow_location), Icons.Outlined.LocationOn, {
+                        askLocation.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
+                    }, modifier = Modifier.testTag("bdm-allow-location"))
+                }
+                // Location taken away during the day: ask again right under the status.
+                if (day.open && !permitted) allowLocation()
 
-            when {
-                day.ended -> Text(stringResource(R.string.bdm_day_ended))
-                !day.open -> Surface(shape = MaterialTheme.shapes.medium, tonalElevation = 1.dp) {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text(stringResource(R.string.bdm_start_title), style = MaterialTheme.typography.titleMedium)
-                        Text(stringResource(R.string.bdm_start_body), color = Pearl.palette.textSecondary)
-                        Text(stringResource(R.string.bdm_needs_internet), color = Pearl.palette.textSecondary)
-                        PearlButton(stringResource(R.string.bdm_start), Icons.Outlined.CameraAlt, {
+                when {
+                    day.ended -> Text(stringResource(R.string.bdm_day_ended))
+                    !day.open -> PearlCard(verticalSpacing = Spacing.m) {
+                            Text(stringResource(R.string.bdm_start_title), style = MaterialTheme.typography.titleMedium)
+                            Muted(stringResource(R.string.bdm_start_body))
+                            Muted(stringResource(R.string.bdm_needs_internet))
+                            // One step at a time: allow location first, then the start button.
                             if (!permitted) {
-                                askLocation.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
-                                return@PearlButton
-                            }
-                            takePhoto { selfie ->
-                                act {
-                                    val fix = location.current() ?: throw NoFix()
-                                    val r = bdm.startDay(selfie, fix, dayClientId)
-                                    selfie.delete()
-                                    message = if (r.inside == true) R.string.bdm_started_in_office else R.string.bdm_started_away
-                                    onTrackingNeeded()
+                                StatusLabel(stringResource(R.string.bdm_location_needed), StatusTone.Warning)
+                                allowLocation()
+                            } else PearlButton(stringResource(R.string.bdm_start), Icons.Outlined.CameraAlt, {
+                                takePhoto { selfie ->
+                                    act {
+                                        val fix = location.current() ?: throw NoFix()
+                                        val r = bdm.startDay(selfie, fix, dayClientId)
+                                        selfie.delete()
+                                        message = if (r.inside == true) R.string.bdm_started_in_office else R.string.bdm_started_away
+                                        onTrackingNeeded()
+                                    }
                                 }
-                            }
-                        }, busy = busy, enabled = !busy, modifier = Modifier.testTag("bdm-start"))
+                            }, busy = busy, enabled = !busy, modifier = Modifier.testTag("bdm-start"))
+                    }
+                    else -> DayActions(
+                        day.state, day.visitId != null, day.visitReached, day.breakOpen, day.visitDestination, busy,
+                        onTravel = { dialog = "travel" },
+                        onOffice = { act { bdm.atOffice(location.current(5_000)) } },
+                        onReached = { dialog = "reached" },
+                        onComplete = { dialog = "complete" },
+                        onBreak = { dialog = "break" },
+                        onEndBreak = { act { bdm.endBreak() } },
+                        onEndDay = { dialog = "end" },
+                    )
+                }
+                if (day.open && day.visitReached) {
+                    MeetingRecorder(recorder, meetingPath, meetingSeconds) { path, secs ->
+                        meetingPath = path
+                        meetingSeconds = secs
                     }
                 }
-                else -> DayActions(
-                    day.state, day.visitId != null, day.visitReached, day.breakOpen, day.visitDestination, busy,
-                    onTravel = { dialog = "travel" },
-                    onOffice = { act { bdm.atOffice(location.current(5_000)) } },
-                    onReached = { dialog = "reached" },
-                    onComplete = { dialog = "complete" },
-                    onBreak = { dialog = "break" },
-                    onEndBreak = { act { bdm.endBreak() } },
-                    onEndDay = { dialog = "end" },
-                )
-            }
-            if (day.open && day.visitReached) {
-                MeetingRecorder(recorder, meetingPath, meetingSeconds) { path, secs ->
-                    meetingPath = path
-                    meetingSeconds = secs
-                }
-            }
-            if (day.open) StatusLabel(stringResource(R.string.bdm_recording_route), StatusTone.Info)
 
-            Tiles(dashboard, dashFailed) { reloadTiles++ }
+                Tiles(dashboard, dashFailed)
+            }
         }
     }
 
@@ -315,7 +327,7 @@ private fun DayActions(
     onEndBreak: () -> Unit,
     onEndDay: () -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
         when {
             breakOpen -> PearlButton(stringResource(R.string.bdm_end_break), Icons.Outlined.Coffee, onEndBreak, busy = busy, modifier = Modifier.testTag("bdm-end-break"))
             hasVisit && !reached -> {
@@ -329,7 +341,7 @@ private fun DayActions(
             else -> PearlButton(stringResource(R.string.bdm_travel), Icons.Outlined.DirectionsCar, onTravel, busy = busy, modifier = Modifier.testTag("bdm-travel"))
         }
         if (!breakOpen) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.s), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
                 if (!hasVisit && state != BdmState.IN_OFFICE) {
                     PearlButton(stringResource(R.string.bdm_office), Icons.Outlined.Business, onOffice, kind = ButtonKind.Secondary, enabled = !busy)
                 }
@@ -360,10 +372,10 @@ private fun MeetingRecorder(recorder: VoiceRecorder, path: String?, seconds: Int
             elapsed++
         }
     }
-    Surface(shape = MaterialTheme.shapes.medium, tonalElevation = 1.dp, modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    PearlCard {
+        Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
             when {
-                recording -> Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                recording -> Row(horizontalArrangement = Arrangement.spacedBy(Spacing.m), verticalAlignment = Alignment.CenterVertically) {
                     StatusLabel(stringResource(R.string.bdm_recording, elapsed / 60, elapsed % 60), StatusTone.Warning)
                     PearlButton(stringResource(R.string.bdm_stop_recording), Icons.Outlined.Stop, {
                         recording = false
@@ -384,38 +396,33 @@ private fun MeetingRecorder(recorder: VoiceRecorder, path: String?, seconds: Int
     }
 }
 
+/** Today's three key numbers as tiles, the rest on quiet lines (online; pull down to refresh). */
 @Composable
-private fun Tiles(d: BdmDashboard?, failed: Boolean, onRefresh: () -> Unit) {
+private fun Tiles(d: BdmDashboard?, failed: Boolean) {
     val today = d?.today
-    if (today != null) {
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Tile(stringResource(R.string.bdm_tiles_visits), today.visits.toString())
-            Tile(stringResource(R.string.bdm_tiles_km), "%.1f".format(today.distanceM / 1000.0))
-            Tile(stringResource(R.string.bdm_tiles_km_est), "%.1f".format(today.estM / 1000.0))
-            Tile(stringResource(R.string.bdm_tiles_leads), today.leads.toString())
-            Tile(
-                stringResource(R.string.bdm_tiles_break),
-                stringResource(R.string.bdm_tiles_minutes, (today.breakS / 60).toInt(), (today.breakAllowedS / 60).toInt()),
+    when {
+        today != null -> {
+            StatGrid(
+                listOf(
+                    stringResource(R.string.bdm_tiles_visits) to today.visits.toString(),
+                    stringResource(R.string.bdm_tiles_km) to "%.1f".format(today.distanceM / 1000.0),
+                    stringResource(R.string.bdm_tiles_leads) to today.leads.toString(),
+                ),
             )
+            Muted(
+                stringResource(
+                    R.string.bdm_tiles_secondary,
+                    "%.1f".format(today.estM / 1000.0),
+                    stringResource(R.string.bdm_tiles_minutes, (today.breakS / 60).toInt(), (today.breakAllowedS / 60).toInt()),
+                ),
+            )
+            Muted(stringResource(R.string.bdm_time_split, (today.travelS / 60).toInt(), (today.meetingS / 60).toInt(), (today.breakS / 60).toInt(), (today.officeS / 60).toInt()))
         }
-        Text(
-            stringResource(R.string.bdm_time_split, (today.travelS / 60).toInt(), (today.meetingS / 60).toInt(), (today.breakS / 60).toInt(), (today.officeS / 60).toInt()),
-            color = Pearl.palette.textSecondary,
-        )
+        failed -> StatusLabel(stringResource(R.string.bdm_numbers_offline), StatusTone.Offline)
+        // Loaded but no day yet (not started): nothing to show for today, only the month line.
+        d == null -> LoadingBlock(rows = 1, rowHeight = 64.dp)
     }
-    d?.month?.let { m -> Text(stringResource(R.string.bdm_month, m.visits, m.leads, m.conversions, "%.1f".format(m.km)), color = Pearl.palette.textSecondary) }
-    if (failed) Text(stringResource(R.string.bdm_numbers_offline), color = Pearl.palette.textSecondary)
-    PearlButton(stringResource(R.string.bdm_refresh), Icons.Outlined.Refresh, onRefresh, kind = ButtonKind.Quiet)
-}
-
-@Composable
-private fun Tile(label: String, value: String) {
-    Surface(shape = MaterialTheme.shapes.medium, tonalElevation = 1.dp, modifier = Modifier.widthIn(min = 140.dp)) {
-        Column(Modifier.padding(12.dp)) {
-            Text(label, color = Pearl.palette.textSecondary, style = MaterialTheme.typography.bodyMedium)
-            Text(value, style = MaterialTheme.typography.headlineSmall)
-        }
-    }
+    d?.month?.let { m -> Muted(stringResource(R.string.bdm_month, m.visits, m.leads, m.conversions, "%.1f".format(m.km))) }
 }
 
 @Composable
@@ -427,7 +434,7 @@ private fun TravelDialog(onDismiss: () -> Unit, onGo: (String, String?) -> Unit)
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.bdm_travel_title)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
                 OutlinedTextField(
                     value = destination,
                     onValueChange = {
@@ -466,7 +473,7 @@ private fun ReachedDialog(destination: String, takePhoto: ((File) -> Unit) -> Un
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.bdm_reached_title, destination)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
                 Text(stringResource(R.string.bdm_reached_body))
                 if (photo != null) StatusLabel(stringResource(R.string.bdm_photo_ready), StatusTone.Good)
                 else PearlButton(stringResource(R.string.bdm_take_photo), Icons.Outlined.CameraAlt, { takePhoto { photo = it } }, kind = ButtonKind.Secondary)
@@ -511,13 +518,13 @@ fun CompleteDialog(onDismiss: () -> Unit, onSave: (VisitResult) -> Unit) {
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.bdm_complete_title)) },
         text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
                 field("outcome", outcome, R.string.bdm_outcome, { outcome = it.take(2000) }, lines = 3)
                 field("contactName", contactName, R.string.bdm_contact_name, { contactName = it.take(120) })
                 field("contactPhone", contactPhone, R.string.bdm_contact_phone, { contactPhone = it }, phone = true)
                 field("designation", designation, R.string.bdm_contact_designation, { designation = it.take(120) })
                 Text(stringResource(R.string.bdm_interest), style = MaterialTheme.typography.labelLarge)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
                     listOf("hot" to R.string.bdm_interest_hot, "warm" to R.string.bdm_interest_warm, "cold" to R.string.bdm_interest_cold, "none" to R.string.bdm_interest_none)
                         .forEach { (v, l) -> FilterChip(selected = interest == v, onClick = { interest = v }, label = { Text(stringResource(l)) }) }
                 }
@@ -563,7 +570,7 @@ private fun BreakDialog(library: LibrarySource, onDismiss: () -> Unit, onStart: 
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.bdm_break_title)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
                 LibraryPicker(
                     kind = LibraryKind.BREAK_TYPE,
                     value = type,

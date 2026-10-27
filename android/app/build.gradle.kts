@@ -62,6 +62,8 @@ android {
         buildConfigField("String", "SUPABASE_URL", quoted(backend("NEXT_PUBLIC_SUPABASE_URL")))
         buildConfigField("String", "SUPABASE_ANON_KEY", quoted(backend("NEXT_PUBLIC_SUPABASE_ANON_KEY")))
         buildConfigField("boolean", "PUSH_ENABLED", pushEnabled.toString())
+        // On-device tests (src/androidTest, run on a real phone by `pnpm phone:test`).
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildFeatures {
@@ -94,7 +96,11 @@ android {
         }
     }
 
-    testOptions.unitTests.isIncludeAndroidResources = true
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+        // Each on-device test in its own process: one crash can't take the rest down.
+        execution = "ANDROIDX_TEST_ORCHESTRATOR"
+    }
 
     lint {
         abortOnError = true
@@ -132,4 +138,15 @@ dependencies {
     testImplementation(libs.androidx.compose.ui.test.junit4)
     testImplementation(libs.kotlinx.coroutines.test)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.rules)
+    androidTestImplementation(libs.androidx.test.core)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.test.uiautomator)
+    androidTestImplementation(libs.androidx.test.espresso.intents)
+    androidTestImplementation(libs.kotlinx.coroutines.test)
+    androidTestUtil(libs.androidx.test.orchestrator)
 }

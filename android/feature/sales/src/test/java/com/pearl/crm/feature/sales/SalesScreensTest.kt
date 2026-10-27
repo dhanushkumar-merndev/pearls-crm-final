@@ -153,14 +153,14 @@ class SalesScreensTest {
         }
 
         // Book without choosing: the message is under the time list.
-        compose.onNodeWithTag("book-save").performScrollTo().performClick()
+        compose.onNodeWithTag("book-save").performClick()
         compose.onNodeWithText(text(R.string.book_doctor_required)).assertIsDisplayed()
 
         compose.onNodeWithTag("book-doctor").performClick()
         compose.onNodeWithText("Dr. Test").performClick()
         compose.waitUntil(5_000) { exists(hasText("11:00 AM", substring = true)) }
         compose.onNodeWithText(text(R.string.book_slot_left, "11:00 AM", 1)).performScrollTo().performClick()
-        compose.onNodeWithTag("book-save").performScrollTo().performClick()
+        compose.onNodeWithTag("book-save").performClick()
 
         compose.waitUntil(5_000) { exists(hasTestTag("book-failure")) }
         compose.onNodeWithText(text(com.pearl.crm.core.ui.R.string.error_slot_full)).assertIsDisplayed()

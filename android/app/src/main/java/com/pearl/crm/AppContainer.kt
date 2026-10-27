@@ -53,6 +53,7 @@ import com.pearl.crm.push.Push
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -96,6 +97,9 @@ class AppContainer(private val context: Context) {
     val pins = PinController(PinStore(securePrefs))
     val lock = AppLock(settings, pins)
     val scheduler = SyncScheduler(context)
+
+    /** Live connection state for the offline strip; a sync runs as soon as signal returns. */
+    val network = NetworkMonitor(context) { if (sessions.session.value != null) scheduler.syncSoon() }
     val crashes = CrashReporter(File(context.filesDir, "crash-reports"), appVersion)
     val syncRunner = SyncRunner(
         outbox = OutboxProcessor(db.outbox(), rpc),
@@ -141,17 +145,17 @@ class AppContainer(private val context: Context) {
                 db.clearAllTables()
                 settings.callLogImportedUntil = 0
                 bdm.clear()
+                settings.profileName = null
             }
             settings.databaseOwner = staffId
         }
+        // Greet by the remembered name straight away; me() below refreshes it.
+        val session = sessions.session.value
+        settings.profileName?.let { _profile.value = StaffProfile(staffId, session?.staffRole, it, session?.username) }
         crashes.flush(outbox)
         scheduler.startPeriodic()
         scheduler.syncSoon()
-        try {
-            _profile.value = account.refreshProfile()
-        } catch (_: RpcFailure) {
-            // Offline: the role from the login token is used until the next start.
-        }
+        scope.launch { refreshProfile() }
         if (sessions.session.value?.staffRole == StaffRole.Bdm) {
             // Today's day as the server knows it (e.g. after a reinstall or the auto-end).
             runCatching { bdm.refreshFromServer() }
@@ -159,11 +163,28 @@ class AppContainer(private val context: Context) {
         Push.registerToken(context) { token -> scope.launch { account.registerPushToken(token, appVersion) } }
     }
 
+    /** me(), retried a few times: a failed first try (no network yet) used to leave the username on screen. */
+    private suspend fun refreshProfile() {
+        for (wait in listOf(0L, 5_000L, 30_000L, 120_000L)) {
+            delay(wait)
+            if (sessions.session.value == null) return
+            try {
+                val profile = account.refreshProfile()
+                _profile.value = profile
+                settings.profileName = profile.fullName.takeIf { it.isNotBlank() }
+                return
+            } catch (_: RpcFailure) {
+                // Offline: the role from the login token is used meanwhile.
+            }
+        }
+    }
+
     private fun onSignedOut() {
         scheduler.stopAll()
         RecordingWorker.cancel(context)
         com.pearl.crm.bdm.BdmTrackingService.stop(context)
         _profile.value = null
+        settings.profileName = null
         // A new login always sets a new PIN.
         pins.clear()
     }

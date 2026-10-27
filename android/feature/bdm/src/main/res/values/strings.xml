@@ -90,18 +90,17 @@
     <!-- Tiles -->
     <string name="bdm_tiles_visits">Visits</string>
     <string name="bdm_tiles_km">Km driven</string>
-    <string name="bdm_tiles_km_est">Km expected</string>
     <string name="bdm_tiles_leads">Leads</string>
-    <string name="bdm_tiles_break">Break used</string>
+    <string name="bdm_tiles_secondary">Km expected %1$s · Break used %2$s</string>
     <string name="bdm_tiles_minutes">%1$d of %2$d min</string>
     <string name="bdm_month">This month: %1$d visits · %2$d leads · %3$d converted · %4$s km</string>
     <string name="bdm_time_split">Time: travel %1$d min · meetings %2$d min · break %3$d min · office %4$d min</string>
     <string name="bdm_numbers_offline">Numbers need the internet. Your actions still work.</string>
-    <string name="bdm_refresh">Refresh</string>
 
     <!-- Visits tab -->
     <string name="bdm_visits_title">Today\'s visits</string>
     <string name="bdm_visits_empty">No visits yet today.</string>
+    <string name="bdm_visits_empty_body">Start your day on My day, then tap Start travel. Each visit shows here.</string>
     <string name="bdm_visit_km">%1$s km driven · %2$s km expected</string>
     <string name="bdm_visit_km_pending">%1$s km driven · estimate pending</string>
     <string name="bdm_visit_long">Longer route than expected</string>

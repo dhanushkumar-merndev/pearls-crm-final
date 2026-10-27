@@ -46,10 +46,13 @@ import com.pearl.crm.core.model.LeadStage
 import com.pearl.crm.core.model.LibraryItem
 import com.pearl.crm.core.model.LibraryKind
 import com.pearl.crm.core.model.LibrarySource
+import com.pearl.crm.core.ui.components.FieldError
+import com.pearl.crm.core.ui.components.Section
 import com.pearl.crm.core.ui.components.ButtonKind
 import com.pearl.crm.core.ui.components.PearlButton
 import com.pearl.crm.core.ui.library.LibraryPicker
 import com.pearl.crm.core.ui.theme.Pearl
+import com.pearl.crm.core.ui.theme.Spacing
 import java.time.LocalDate
 import java.time.LocalTime
 
@@ -148,14 +151,14 @@ fun CallNotesForm(
     }
 
     Column(
-        modifier.fillMaxWidth().verticalScroll(scroll).padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        modifier.fillMaxWidth().verticalScroll(scroll).padding(horizontal = Spacing.l, vertical = Spacing.s),
+        verticalArrangement = Arrangement.spacedBy(Spacing.l),
     ) {
         Text(stringResource(R.string.notes_title), style = MaterialTheme.typography.titleLarge)
         Text(leadName, color = Pearl.palette.textSecondary)
 
         Section(stringResource(R.string.notes_outcome), Modifier.bringIntoViewRequester(outcomeView)) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.s), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
                 CallOutcome.ALL.forEach { value ->
                     FilterChip(
                         selected = outcome == value,
@@ -195,7 +198,7 @@ fun CallNotesForm(
         )
 
         Section(stringResource(R.string.notes_next)) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.s), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
                 NextChoice.entries.forEach { choice ->
                     FilterChip(
                         selected = next == choice,
@@ -208,7 +211,7 @@ fun CallNotesForm(
         }
 
         Section(stringResource(R.string.notes_stage)) {
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.s), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
                 FilterChip(selected = stage == null, onClick = { stage = null }, label = { Text(stringResource(R.string.notes_stage_keep)) })
                 STAGES_AFTER_CALL.forEach { value ->
                     FilterChip(
@@ -240,7 +243,7 @@ fun CallNotesForm(
             VoiceNoteRecorder(voiceNote) { voiceNote = it }
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.m)) {
             PearlButton(
                 stringResource(R.string.notes_save),
                 Icons.Outlined.Check,
@@ -263,15 +266,3 @@ private val STAGES_AFTER_CALL = listOf(
     LeadStage.INTERESTED, LeadStage.NOT_REACHABLE, LeadStage.LOST, LeadStage.JUNK,
 )
 
-/** A form message under its field, with an error look. */
-@Composable
-fun FieldError(message: Int?, tag: String) {
-    if (message != null) {
-        Text(
-            stringResource(message),
-            color = MaterialTheme.colorScheme.error,
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.testTag(tag),
-        )
-    }
-}

@@ -25,6 +25,13 @@ class SettingsStore(private val prefs: SharedPreferences) {
             prefs.edit().apply { if (value == null) remove(KEY_BACKGROUND) else putLong(KEY_BACKGROUND, value) }.commit()
         }
 
+    /** The signed-in person's name from the last `me()`, so screens greet them by name even offline. */
+    var profileName: String?
+        get() = prefs.getString(KEY_PROFILE_NAME, null)
+        set(value) {
+            prefs.edit().putString(KEY_PROFILE_NAME, value).apply()
+        }
+
     /** Whose data the local database holds; another person logging in starts from empty. */
     var databaseOwner: String?
         get() = prefs.getString(KEY_OWNER, null)
@@ -67,6 +74,13 @@ class SettingsStore(private val prefs: SharedPreferences) {
             prefs.edit().putBoolean(KEY_POPUP, value).apply()
         }
 
+    /** The "swipe right to call" tip on Leads was shown once; it isn't shown again. */
+    var swipeHintSeen: Boolean
+        get() = prefs.getBoolean(KEY_SWIPE_HINT, false)
+        set(value) {
+            prefs.edit().putBoolean(KEY_SWIPE_HINT, value).apply()
+        }
+
     private fun readTheme(): ThemeMode =
         prefs.getString(KEY_THEME, null)?.let { name -> ThemeMode.entries.firstOrNull { it.name == name } } ?: ThemeMode.Dark
 
@@ -74,10 +88,12 @@ class SettingsStore(private val prefs: SharedPreferences) {
         const val KEY_THEME = "theme"
         const val KEY_BACKGROUND = "last_background_at"
         const val KEY_OWNER = "database_owner"
+        const val KEY_PROFILE_NAME = "profile_full_name"
         const val KEY_CALL_LOG = "call_log_imported_until"
         const val KEY_REC_FOLDER = "recording_folder"
         const val KEY_REC_MODE = "recording_mode"
         const val KEY_REC_MAX = "recording_max_seconds"
         const val KEY_POPUP = "caller_popup"
+        const val KEY_SWIPE_HINT = "swipe_hint_seen"
     }
 }

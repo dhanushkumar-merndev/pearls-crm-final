@@ -30,6 +30,7 @@ import com.pearl.crm.core.ui.components.ButtonKind
 import com.pearl.crm.core.ui.components.PearlButton
 import com.pearl.crm.core.ui.components.StatusLabel
 import com.pearl.crm.core.ui.components.StatusTone
+import com.pearl.crm.core.ui.theme.Spacing
 import kotlinx.coroutines.delay
 import java.io.File
 
@@ -69,14 +70,14 @@ fun VoiceNoteRecorder(clip: VoiceClip?, onClip: (VoiceClip?) -> Unit) {
     DisposableEffect(Unit) { onDispose { if (voice.recorder.isRecording) voice.recorder.stopAndDiscard() } }
 
     when {
-        recording -> Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+        recording -> Row(horizontalArrangement = Arrangement.spacedBy(Spacing.m), verticalAlignment = Alignment.CenterVertically) {
             StatusLabel(stringResource(R.string.voice_recording, seconds / 60, seconds % 60), StatusTone.Warning)
             PearlButton(stringResource(R.string.voice_stop), Icons.Outlined.Stop, {
                 recording = false
                 onClip(voice.recorder.stop()?.let { (f, s) -> VoiceClip(f, s) })
             }, kind = ButtonKind.Secondary)
         }
-        clip != null -> Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+        clip != null -> Row(horizontalArrangement = Arrangement.spacedBy(Spacing.m), verticalAlignment = Alignment.CenterVertically) {
             StatusLabel(stringResource(R.string.voice_ready, clip.seconds / 60, clip.seconds % 60), StatusTone.Good)
             PearlButton(stringResource(R.string.voice_delete), Icons.Outlined.Delete, {
                 clip.file.delete()

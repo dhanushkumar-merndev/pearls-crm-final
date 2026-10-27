@@ -35,7 +35,8 @@
     "sql:check": "tsx scripts/sql-check.ts",
     "advisors": "tsx scripts/advisors.ts",
     "perf": "tsx scripts/perf-check.ts",
-    "restore:drill": "tsx scripts/restore-drill.ts"
+    "restore:drill": "tsx scripts/restore-drill.ts",
+    "phone:test": "tsx scripts/phone-test.ts"
   },
   "devDependencies": {
     "@tigrisdata/cli": "3.16.0",

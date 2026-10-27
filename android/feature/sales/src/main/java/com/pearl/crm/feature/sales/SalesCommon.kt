@@ -5,25 +5,17 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.pearl.crm.core.model.CallOutcome
 import com.pearl.crm.core.model.IstDates
 import com.pearl.crm.core.model.LeadStage
-import com.pearl.crm.core.ui.theme.Pearl
 import java.time.LocalDate
 
 @Composable
@@ -136,20 +128,6 @@ fun rememberCallFlow(context: Context): CallFlow {
     saved = flow.started?.let { "${it.leadId}|${it.phone}|${it.startedAt}" }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { flow.onResume() }
     return flow
-}
-
-/** A titled block on a screen. */
-@Composable
-fun Section(title: String, modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(title, style = MaterialTheme.typography.titleMedium)
-        content()
-    }
-}
-
-@Composable
-fun Muted(text: String, modifier: Modifier = Modifier) {
-    Text(text, modifier = modifier, color = Pearl.palette.textSecondary)
 }
 
 /** "Call back 24/10/2026 11:00 AM", or overdue. */

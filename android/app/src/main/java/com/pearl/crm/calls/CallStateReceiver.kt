@@ -24,6 +24,7 @@ import com.pearl.crm.core.model.StaffRole
 import com.pearl.crm.core.model.TrackedCall
 import com.pearl.crm.core.sync.RecordingWorker
 import com.pearl.crm.push.Push
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.pearl.crm.feature.sales.R as SalesR
@@ -68,40 +69,47 @@ data class AfterCallRequest(
 class CallStateReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != TelephonyManager.ACTION_PHONE_STATE_CHANGED) return
-        val app = context.applicationContext as? PearlApplication ?: return
-        val container = app.container
-        val role = container.sessions.session.value?.staffRole
-        if (role != StaffRole.SalesExecutive && role != StaffRole.SalesManager) return
         val state = intent.getStringExtra(TelephonyManager.EXTRA_STATE) ?: return
         @Suppress("DEPRECATION")
         val number = intent.getStringExtra(TelephonyManager.EXTRA_INCOMING_NUMBER)
+        val work = handle(context, state, number) ?: return
+        // Keeps the receiver alive until the bubble / notes request is done.
+        val pending = goAsync()
+        work.invokeOnCompletion { pending.finish() }
+    }
+
+    /**
+     * One phone-state change ([state] is IDLE / RINGING / OFFHOOK). Returns the work it started,
+     * or null when there is nothing to do. The on-device tests call it directly: only the
+     * system may send the real broadcast.
+     */
+    internal fun handle(context: Context, state: String, number: String?): Job? {
+        val app = context.applicationContext as? PearlApplication ?: return null
+        val container = app.container
+        val role = container.sessions.session.value?.staffRole
+        if (role != StaffRole.SalesExecutive && role != StaffRole.SalesManager) return null
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val (next, event) = CallTracker.next(load(prefs), state, number, System.currentTimeMillis())
         save(prefs, next)
-        if (event == CallEvent.Nothing) return
+        if (event == CallEvent.Nothing) return null
 
-        val pending = goAsync()
-        container.scope.launch {
-            try {
-                when (event) {
-                    is CallEvent.Show -> {
-                        val last10 = Phones.normalize(event.number)?.last10 ?: return@launch
-                        val card = container.db.crmNumbers().card(last10) ?: return@launch
-                        if (container.settings.callerPopup) {
-                            val stage = card.stage?.let { STAGES[it] }?.let(context::getString)
-                            ContextCompat.getMainExecutor(context).execute { CallerOverlay.show(context, card, stage) }
-                        }
+        return container.scope.launch {
+            when (event) {
+                is CallEvent.Show -> {
+                    val last10 = Phones.normalize(event.number)?.last10 ?: return@launch
+                    val card = container.db.crmNumbers().card(last10) ?: return@launch
+                    if (container.settings.callerPopup) {
+                        val stage = card.stage?.let { STAGES[it] }?.let(context::getString)
+                        ContextCompat.getMainExecutor(context).execute { CallerOverlay.show(context, card, stage) }
                     }
-                    is CallEvent.Ended -> {
-                        ContextCompat.getMainExecutor(context).execute { CallerOverlay.hide(context) }
-                        afterCall(context, event.call, event.endedAt)
-                        // The dialer finishes writing its recording a few seconds after the call.
-                        RecordingWorker.schedule(context, delayMs = 20_000)
-                    }
-                    CallEvent.Nothing -> Unit
                 }
-            } finally {
-                pending.finish()
+                is CallEvent.Ended -> {
+                    ContextCompat.getMainExecutor(context).execute { CallerOverlay.hide(context) }
+                    afterCall(context, event.call, event.endedAt)
+                    // The dialer finishes writing its recording a few seconds after the call.
+                    RecordingWorker.schedule(context, delayMs = 20_000)
+                }
+                CallEvent.Nothing -> Unit
             }
         }
     }

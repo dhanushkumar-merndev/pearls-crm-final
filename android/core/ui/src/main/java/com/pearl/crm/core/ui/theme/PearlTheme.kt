@@ -1,5 +1,6 @@
 package com.pearl.crm.core.ui.theme
 
+import android.app.Activity
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -10,12 +11,15 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.view.WindowInsetsControllerCompat
 import com.pearl.crm.core.model.ThemeMode
 
 /** Colours Material has no slot for (secondary text, links, status), from the same tokens. */
@@ -31,6 +35,11 @@ data class PearlPalette(
     val goodText: Color,
     val badText: Color,
     val chartSeries: List<Color>,
+    /** Chart chrome (grid lines, axis line, axis labels, "the rest" grey), same as the web charts. */
+    val chartGrid: Color,
+    val chartAxis: Color,
+    val chartLabel: Color,
+    val chartEmphasisGray: Color,
     val good: Color = PearlColors.Status.Good,
     val warning: Color = PearlColors.Status.Warning,
     val serious: Color = PearlColors.Status.Serious,
@@ -38,11 +47,11 @@ data class PearlPalette(
 )
 
 private val DarkPalette = with(PearlColors.Dark) {
-    PearlPalette(Page, Sidebar, Raised, Text, TextSecondary, TextMuted, Link, GoodText, BadText, ChartSeries)
+    PearlPalette(Page, Sidebar, Raised, Text, TextSecondary, TextMuted, Link, GoodText, BadText, ChartSeries, ChartGrid, ChartAxis, ChartLabel, ChartEmphasisGray)
 }
 
 private val LightPalette = with(PearlColors.Light) {
-    PearlPalette(Page, Sidebar, Raised, Text, TextSecondary, TextMuted, Link, GoodText, BadText, ChartSeries)
+    PearlPalette(Page, Sidebar, Raised, Text, TextSecondary, TextMuted, Link, GoodText, BadText, ChartSeries, ChartGrid, ChartAxis, ChartLabel, ChartEmphasisGray)
 }
 
 private val DarkScheme = with(PearlColors.Dark) {
@@ -103,18 +112,24 @@ private val LightScheme = with(PearlColors.Light) {
     )
 }
 
-/** Big, readable text (PLAN.md B5: 16–18 px; tokens.json base 17). */
+/**
+ * Compact text (owner, 26/10/2026: "UI too big, reduce 20%"): about 20% under the Material sizes
+ * used before, body 14 sp. Sizes are in sp, so the phone's own font-size setting still applies.
+ */
 private val PearlTypography = Typography().run {
     copy(
-        bodyLarge = bodyLarge.copy(fontSize = 17.sp, lineHeight = 26.sp),
-        bodyMedium = bodyMedium.copy(fontSize = 16.sp, lineHeight = 24.sp),
-        bodySmall = bodySmall.copy(fontSize = 15.sp, lineHeight = 22.sp),
-        labelLarge = labelLarge.copy(fontSize = 17.sp, fontWeight = FontWeight.Medium),
-        labelMedium = labelMedium.copy(fontSize = 15.sp),
-        labelSmall = labelSmall.copy(fontSize = 14.sp),
-        titleLarge = TextStyle(fontSize = 24.sp, lineHeight = 32.sp, fontWeight = FontWeight.SemiBold),
-        titleMedium = titleMedium.copy(fontSize = 19.sp, fontWeight = FontWeight.SemiBold),
-        titleSmall = titleSmall.copy(fontSize = 17.sp, fontWeight = FontWeight.SemiBold),
+        headlineLarge = headlineLarge.copy(fontSize = 26.sp, lineHeight = 32.sp),
+        headlineMedium = headlineMedium.copy(fontSize = 22.sp, lineHeight = 29.sp),
+        headlineSmall = headlineSmall.copy(fontSize = 19.sp, lineHeight = 26.sp),
+        titleLarge = TextStyle(fontSize = 19.sp, lineHeight = 25.sp, fontWeight = FontWeight.SemiBold),
+        titleMedium = titleMedium.copy(fontSize = 16.sp, lineHeight = 22.sp, fontWeight = FontWeight.SemiBold),
+        titleSmall = titleSmall.copy(fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold),
+        bodyLarge = bodyLarge.copy(fontSize = 14.sp, lineHeight = 21.sp),
+        bodyMedium = bodyMedium.copy(fontSize = 13.sp, lineHeight = 20.sp),
+        bodySmall = bodySmall.copy(fontSize = 12.sp, lineHeight = 18.sp),
+        labelLarge = labelLarge.copy(fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.Medium),
+        labelMedium = labelMedium.copy(fontSize = 12.sp, lineHeight = 16.sp),
+        labelSmall = labelSmall.copy(fontSize = 11.sp, lineHeight = 16.sp),
     )
 }
 
@@ -134,6 +149,17 @@ fun PearlTheme(mode: ThemeMode = ThemeMode.Dark, content: @Composable () -> Unit
         ThemeMode.Dark -> true
         ThemeMode.Light -> false
         ThemeMode.System -> isSystemInDarkTheme()
+    }
+    // Status / nav bar icons follow the app's theme, not the phone's (the app is dark by default).
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (view.context as? Activity)?.window ?: return@SideEffect
+            WindowInsetsControllerCompat(window, view).apply {
+                isAppearanceLightStatusBars = !dark
+                isAppearanceLightNavigationBars = !dark
+            }
+        }
     }
     CompositionLocalProvider(LocalPearlPalette provides if (dark) DarkPalette else LightPalette) {
         MaterialTheme(
