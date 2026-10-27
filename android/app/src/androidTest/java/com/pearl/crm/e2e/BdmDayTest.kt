@@ -76,6 +76,24 @@ class BdmDayTest {
 
     private fun tag(t: String) = compose.onNodeWithTag(t).performScrollTo()
 
+    /**
+     * Scroll to [t], let the screen settle, then tap it: on a slow (software-drawn) emulator a tap
+     * sent while the cards above are still loading lands where the button used to be.
+     */
+    private fun tap(t: String) {
+        tag(t)
+        compose.waitForIdle()
+        compose.onNodeWithTag(t).performClick()
+    }
+
+    /** Tap [t] to open a dialog; if the dialog ([shows]) isn't up after 10 s the tap was lost, so tap once more. */
+    private fun open(t: String, shows: androidx.compose.ui.test.SemanticsMatcher) {
+        tap(t)
+        runCatching { compose.waitUntil(10_000) { compose.exists(shows) } }.onFailure { tap(t) }
+        compose.waitUntil(30_000) { compose.exists(shows) }
+        compose.waitForIdle()
+    }
+
     private fun waitForTag(t: String, timeoutMs: Long = 30_000) = compose.waitUntil(timeoutMs) { compose.exists(hasTestTag(t)) }
 
     private fun today(): JsonObject = runBlocking { Phone.rpc.call("bdm_today", JsonObject(emptyMap())).jsonObject }
@@ -86,7 +104,7 @@ class BdmDayTest {
         Phone.skipUnless(!c.bdm.day.value.open, "today's day is already started")
         gps = FakeGps(lat + 0.5, lng) // about 55 km north
         waitForTag("bdm-start")
-        tag("bdm-start").performClick()
+        tap("bdm-start")
         waitForTag("bdm-failure", 60_000)
         assertEquals(1, camera.photos)
         assertFalse("no day started", c.bdm.day.value.open)
@@ -101,14 +119,15 @@ class BdmDayTest {
         // Start: selfie + location at the office.
         if (!c.bdm.day.value.open) {
             waitForTag("bdm-start")
-            tag("bdm-start").performClick()
+            tap("bdm-start")
             compose.waitForText(text(BdmR.string.bdm_started_in_office), timeoutMs = 60_000)
         }
         compose.waitForText(text(BdmR.string.bdm_recording_route))
 
         // Travel: a destination is needed.
         waitForTag("bdm-travel")
-        tag("bdm-travel").performClick()
+        // Each dialog is its own window: wait until it is up before tapping in it.
+        open("bdm-travel", hasTestTag("bdm-go"))
         compose.onNodeWithTag("bdm-go").performClick()
         compose.waitForText(text(BdmR.string.bdm_destination_required))
         compose.onNodeWithTag("bdm-destination").performTextReplacement("E2E Partner Clinic")
@@ -122,21 +141,20 @@ class BdmDayTest {
         }
 
         // Reached, with a photo of the place.
-        tag("bdm-reached").performClick()
+        open("bdm-reached", hasTestTag("bdm-confirm-reached"))
         compose.button(text(BdmR.string.bdm_take_photo)).performClick()
         compose.waitForText(text(BdmR.string.bdm_photo_ready))
         compose.onNodeWithTag("bdm-confirm-reached").performClick()
         compose.waitForText(text(BdmR.string.bdm_at, "E2E Partner Clinic"))
 
         // A short meeting recording.
-        tag("bdm-record").performClick()
-        compose.waitForText(text(BdmR.string.bdm_stop_recording))
+        open("bdm-record", androidx.compose.ui.test.hasText(text(BdmR.string.bdm_stop_recording)))
         Thread.sleep(3_000)
         compose.button(text(BdmR.string.bdm_stop_recording)).performClick()
         compose.waitForText(text(BdmR.string.bdm_meeting_ready, 0, 0).substringBefore("0"), substring = true)
 
         // Complete: the outcome is needed, and a new lead needs a valid number.
-        tag("bdm-complete").performClick()
+        open("bdm-complete", hasTestTag("bdm-save-visit"))
         compose.onNodeWithTag("bdm-save-visit").performClick()
         compose.waitForText(text(BdmR.string.bdm_outcome_required))
         compose.onNodeWithTag("bdm-outcome").performTextReplacement("E2E met the doctor, will refer patients")
@@ -150,18 +168,17 @@ class BdmDayTest {
         waitForTag("bdm-travel")
 
         // A break: minutes between 5 and 180.
-        tag("bdm-break").performClick()
+        open("bdm-break", hasTestTag("bdm-break-minutes"))
         compose.onNodeWithTag("bdm-break-minutes").performTextReplacement("2")
         compose.onNodeWithTag("bdm-start-break").performClick()
         compose.waitForText(text(BdmR.string.bdm_break_minutes_invalid))
         compose.onNodeWithTag("bdm-break-minutes").performTextReplacement("15")
         compose.onNodeWithTag("bdm-start-break").performClick()
         waitForTag("bdm-end-break")
-        tag("bdm-end-break").performClick()
-        waitForTag("bdm-end-day")
+        open("bdm-end-break", hasTestTag("bdm-end-day"))
 
         // End of the day.
-        tag("bdm-end-day").performClick()
+        open("bdm-end-day", hasTestTag("bdm-end-confirm"))
         compose.onNodeWithTag("bdm-end-confirm").performClick()
         compose.waitForText(text(BdmR.string.bdm_day_ended), timeoutMs = 30_000)
 

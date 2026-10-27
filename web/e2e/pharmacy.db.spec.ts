@@ -40,7 +40,8 @@ test("purchase a new medicine, sell 3 on a pharmacy bill, write off 1", async ({
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(name);
   await page.getByRole("tab", { name: "Bills" }).click();
   await page.getByRole("button", { name: "New pharmacy bill" }).click();
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("Pharmacy invoice");
+  // Makes the bill on the server, then opens its page.
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Pharmacy invoice", { timeout: 30_000 });
   await page.getByRole("combobox", { name: "Medicine" }).click();
   await page.getByPlaceholder("Type to search…").fill(medicine);
   await page.getByRole("option", { name: new RegExp(medicine) }).first().click();

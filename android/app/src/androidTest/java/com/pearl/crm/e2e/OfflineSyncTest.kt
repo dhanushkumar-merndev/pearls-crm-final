@@ -112,9 +112,13 @@ class OfflineSyncTest {
         button(R.string.tab_settings).performClick()
         compose.waitForText(text(SettingsR.string.settings_failed_made, "\u0000").substringBefore("\u0000"), substring = true)
 
+        val tappedAt = System.currentTimeMillis()
         button(SettingsR.string.settings_retry).performScrollTo().performClick()
-        // Tried again, refused again.
-        compose.waitUntil(30_000) { runBlocking { c.db.outbox().get(id) }?.let { it.state == "failed" && it.attempts >= 2 } == true }
+        // Tried again, refused again: "Try again" puts it back in line (attempts start over, due now),
+        // the sync sends it and the server refuses it once more.
+        compose.waitUntil(30_000) {
+            runBlocking { c.db.outbox().get(id) }?.let { it.state == "failed" && it.attempts >= 1 && it.nextAttemptAt >= tappedAt } == true
+        }
 
         button(SettingsR.string.settings_discard).performScrollTo().performClick()
         compose.waitForText(text(SettingsR.string.settings_discard_title))

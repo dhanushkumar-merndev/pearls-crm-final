@@ -30,7 +30,8 @@ export async function login(page: Page, username: string, expectUrl: RegExp = /\
   await page.getByLabel("Username").fill(username);
   await page.getByLabel("Password", { exact: true }).fill(PASSWORD);
   await page.getByRole("button", { name: "Log in" }).click();
-  await expect(page).toHaveURL(expectUrl);
+  // Signing in is the slowest call on the free staging project when several browsers share it.
+  await expect(page).toHaveURL(expectUrl, { timeout: 30_000 });
 }
 
 /** Opens a page and waits until the app shell is interactive (keyboard shortcuts work). */

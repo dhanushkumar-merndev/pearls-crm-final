@@ -22,6 +22,7 @@ import com.pearl.crm.PearlApplication
 import com.pearl.crm.core.data.LeadDraft
 import com.pearl.crm.core.data.net.RpcClient
 import com.pearl.crm.core.data.net.defaultHttpClient
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
@@ -77,6 +78,8 @@ object Phone {
         if (!c.pins.hasPin.value) c.pins.set(PIN)
         c.settings.lastBackgroundAt = System.currentTimeMillis()
         c.lock.unlock()
+        // A change an earlier test left refused would make every later "all sent" check wait forever.
+        c.db.outbox().observeFailed().first().forEach { c.db.outbox().delete(it.id) }
         c.syncRunner.runOnce()
     }
 

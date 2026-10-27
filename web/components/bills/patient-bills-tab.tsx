@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { FilePlus2, Pill, Wallet } from "lucide-react";
+import { FilePlus2, Loader2, Pill, Wallet } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -32,21 +32,27 @@ export function PatientBillsTab({ patientId }: { patientId: string }) {
     queryKey: ["patient_balance", patientId],
     queryFn: () => rpc<Balance>("patient_balance", { p_patient_id: patientId }),
   });
+  // Which new bill is being made: its button spins until the bill page opens (a slow day can take seconds).
+  const [making, setMaking] = useState<"procedure_receipt" | "pharmacy_invoice" | null>(null);
   const create = useMutation({
     mutationFn: (type: "procedure_receipt" | "pharmacy_invoice") => rpc<Bill>("create_bill", { p_type: type, p_patient_id: patientId, p_links: {}, p_client_id: newId() }),
+    onMutate: (type) => setMaking(type),
     onSuccess: (b) => router.push(`/bills/${b.id}`),
-    onError: failed,
+    onError: (e) => {
+      setMaking(null);
+      failed(e);
+    },
   });
   const b = balance.data;
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap gap-2">
-        <Button disabled={create.isPending} onClick={() => create.mutate("procedure_receipt")}>
-          <FilePlus2 aria-hidden />
+        <Button disabled={making !== null} onClick={() => create.mutate("procedure_receipt")}>
+          {making === "procedure_receipt" ? <Loader2 aria-hidden className="animate-spin" /> : <FilePlus2 aria-hidden />}
           {t("newBill")}
         </Button>
-        <Button variant="secondary" disabled={create.isPending} onClick={() => create.mutate("pharmacy_invoice")}>
-          <Pill aria-hidden />
+        <Button variant="secondary" disabled={making !== null} onClick={() => create.mutate("pharmacy_invoice")}>
+          {making === "pharmacy_invoice" ? <Loader2 aria-hidden className="animate-spin" /> : <Pill aria-hidden />}
           {t("newPharmacyBill")}
         </Button>
         <Button variant="secondary" onClick={() => setPaying(true)}>

@@ -32,7 +32,12 @@ export default defineConfig({
     locale: "en-IN",
     timezoneId: "Asia/Kolkata",
   },
-  expect: { toHaveScreenshot: { maxDiffPixelRatio: 0.01, animations: "disabled" } },
+  expect: {
+    // Logged-in tests wait on the online (free) staging project: a save + reload can take over 5 s
+    // while three browsers share it.
+    timeout: process.env.E2E_DB ? 10_000 : 5_000,
+    toHaveScreenshot: { maxDiffPixelRatio: 0.01, animations: "disabled" },
+  },
   // channel "chromium" = full Chromium in new headless mode (no separate headless-shell download).
   projects: [
     { name: "setup", testMatch: /auth\.setup\.ts/, use: { channel: "chromium", headless: !HEADED, launchOptions: { args: headedArgs } } },

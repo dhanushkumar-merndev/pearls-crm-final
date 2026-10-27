@@ -72,14 +72,27 @@ export function PhoneScan({ token }: { token: string }) {
 
   useEffect(() => {
     warmUp();
-    void call<{ page_count: number; max_pages: number; uhid: string | null; clinic: string | null }>({ action: "open", token, device_key: key }).then(
-      ({ data, error }) => {
-        if (!data) return error === "link_expired" ? setScreen("expired") : error === "link_used" ? setScreen("used") : setScreen("error");
-        setInfo({ clinic: data.clinic, uhid: data.uhid, max_pages: data.max_pages });
-        setSent(data.page_count);
-        setScreen("ready");
-      },
-    );
+    let gone = false;
+    // A weak signal or a server just waking up answers "unknown": try twice more before giving up.
+    const open = async () => {
+      type Opened = { page_count: number; max_pages: number; uhid: string | null; clinic: string | null };
+      let result = await call<Opened>({ action: "open", token, device_key: key });
+      for (const wait of [1_500, 3_000]) {
+        if (result.data || result.error !== "unknown" || gone) break;
+        await new Promise((r) => setTimeout(r, wait));
+        result = await call<Opened>({ action: "open", token, device_key: key });
+      }
+      if (gone) return;
+      const { data, error } = result;
+      if (!data) return error === "link_expired" ? setScreen("expired") : error === "link_used" ? setScreen("used") : setScreen("error");
+      setInfo({ clinic: data.clinic, uhid: data.uhid, max_pages: data.max_pages });
+      setSent(data.page_count);
+      setScreen("ready");
+    };
+    void open();
+    return () => {
+      gone = true;
+    };
   }, [token, key]);
 
   const show = async (source: Pixels, settings: PageSettings) => {

@@ -130,14 +130,14 @@ test("phone scan: the link works on one phone, pages arrive live, and it stops w
   const phoneA = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true });
   const phone = await phoneA.newPage();
   await phone.goto(`/scan/${token}`);
-  await expect(phone.getByRole("button", { name: "Take a photo of the first page" })).toBeVisible();
+  await expect(phone.getByRole("button", { name: "Take a photo of the first page" })).toBeVisible({ timeout: 30_000 });
   await expect(dialog.getByText(/Phone connected/)).toBeVisible();
 
   // Single use: a second phone is refused.
   const phoneB = await browser.newContext();
   const other = await phoneB.newPage();
   await other.goto(`/scan/${token}`);
-  await expect(other.getByRole("heading", { name: "This code was opened on another phone" })).toBeVisible();
+  await expect(other.getByRole("heading", { name: "This code was opened on another phone" })).toBeVisible({ timeout: 30_000 });
   await phoneB.close();
 
   // A page from the phone arrives at the desk.
@@ -151,7 +151,7 @@ test("phone scan: the link works on one phone, pages arrive live, and it stops w
   await dialog.getByRole("button", { name: "Save document (1 page)" }).click();
   await expect(page.getByRole("row", { name: /E2E phone scan/ })).toBeVisible({ timeout: 60_000 });
   await phone.reload();
-  await expect(phone.getByRole("heading", { name: "This code has expired" })).toBeVisible();
+  await expect(phone.getByRole("heading", { name: "This code has expired" })).toBeVisible({ timeout: 30_000 });
   await phoneA.close();
 });
 
@@ -170,6 +170,6 @@ test("phone scan: a replaced code stops working at once", async ({ page, browser
   const ctx = await browser.newContext();
   const phone = await ctx.newPage();
   await phone.goto(`/scan/${token}`);
-  await expect(phone.getByRole("heading", { name: "This code has expired" })).toBeVisible();
+  await expect(phone.getByRole("heading", { name: "This code has expired" })).toBeVisible({ timeout: 30_000 });
   await ctx.close();
 });
