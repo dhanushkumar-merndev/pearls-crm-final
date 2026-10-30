@@ -43,3 +43,21 @@ export async function graphUrl(path: string, token: string, appSecret: string, p
   if (appSecret && token) url.searchParams.set("appsecret_proof", await hmacHex(appSecret, token));
   return url;
 }
+
+/** POST {phone-number-id}/messages (a message, or a read receipt + typing indicator). Never throws. */
+export async function postMessages(
+  body: Record<string, unknown>,
+  keys: { token: string; phoneNumberId: string; appSecret: string },
+): Promise<{ status: number; json: Record<string, unknown>; error?: string }> {
+  try {
+    const res = await fetch(await graphUrl(`${keys.phoneNumberId}/messages`, keys.token, keys.appSecret), {
+      method: "POST",
+      headers: { Authorization: `Bearer ${keys.token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(15_000),
+    });
+    return { status: res.status, json: (await res.json().catch(() => ({}))) as Record<string, unknown> };
+  } catch (e) {
+    return { status: 0, json: {}, error: (e as Error).message };
+  }
+}

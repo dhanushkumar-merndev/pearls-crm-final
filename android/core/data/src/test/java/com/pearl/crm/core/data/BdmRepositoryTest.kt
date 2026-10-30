@@ -200,6 +200,25 @@ class BdmRepositoryTest {
     }
 
     @Test
+    fun aLongDriveIsSentInPiecesTheServerAccepts() = runTest {
+        started()
+        // One reading a second at ~80 km/h: every reading is kept.
+        (1..2500).forEach { i -> repo.recordPoint(fix(i, lat = 12.9716 + i * 0.0002)) }
+        assertEquals(2500, repo.flushTrack(force = true))
+        val chunks = mutableListOf<JsonObject>()
+        while (true) {
+            val head = db.outbox().dueHeads(Long.MAX_VALUE, 10).singleOrNull { it.rpc == "bdm_upload_chunks" } ?: break
+            chunks += PearlJson.parseToJsonElement(head.args).jsonObject.getValue("p_chunks").jsonArray.single().jsonObject
+            db.outbox().delete(head.id)
+        }
+        assertEquals(listOf("0", "1", "2"), chunks.map { it.getValue("seq").jsonPrimitive.content })
+        assertEquals(listOf(1000, 1000, 500), chunks.map { it.getValue("offsets").jsonArray.size })
+        // Each piece is joined to the one before, so the distances add up to the whole drive.
+        val expected = Geo.distanceM(12.9716, 77.5946, 12.9716 + 2500 * 0.0002, 77.5946)
+        assertEquals(expected, chunks.sumOf { it.getValue("distance_m").jsonPrimitive.content.toDouble() }, expected * 0.01)
+    }
+
+    @Test
     fun standingStillSendsNothing() = runTest {
         started()
         (0..30).forEach { i -> repo.recordPoint(fix(i * 10, lat = 12.9716 + (if (i % 2 == 0) 0.00003 else -0.00003))) }

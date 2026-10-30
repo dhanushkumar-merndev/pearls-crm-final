@@ -269,7 +269,8 @@ export function AdminDashboard() {
             <StatTile label={t("bills")} value={String(k.bills)} current={k.bills} previous={pv?.bills} />
           </section>
 
-          <div className="grid items-start gap-4 xl:grid-cols-2">
+          {/* Cards in a row share one height; each chart grows to fill its card, and a lone last card spans the row (no holes). */}
+          <div className="grid gap-4 xl:grid-cols-2 xl:[&>*:last-child:nth-child(odd)]:col-span-2">
             <EChart
               title={t("trendTitle")}
               option={trend}

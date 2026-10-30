@@ -1,7 +1,7 @@
 "use client";
 
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarPlus, CalendarX2, Flag, IndianRupee, Link2, MessageSquarePlus, Pencil, Phone, PhoneCall, Trash2 } from "lucide-react";
+import { CalendarPlus, CalendarX2, Flag, IndianRupee, Link2, MessageCircle, MessageSquarePlus, Pencil, Phone, PhoneCall, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -102,6 +102,10 @@ export function LeadScreen({ initial }: { initial: LeadDetail }) {
             <a href={`tel:${l.phone_e164}`} className="inline-flex min-h-8 items-center gap-1 text-link underline-offset-4 hover:underline">
               <Phone aria-hidden className="size-4" />
               {l.phone_e164}
+            </a>
+            <a href="#whatsapp" className="inline-flex min-h-8 items-center gap-1 text-good-text underline-offset-4 hover:underline">
+              <MessageCircle aria-hidden className="size-4" />
+              {t("whatsappChat")}
             </a>
             {l.alt_phone_e164 && <span>{l.alt_phone_e164}</span>}
             <span>{t("cameIn", { date: formatDate(day(l.lead_date)), via: t(`via.${l.created_via}`) })}</span>
@@ -205,7 +209,9 @@ export function LeadScreen({ initial }: { initial: LeadDetail }) {
         <aside className="flex flex-col gap-5">
           <FollowupCard lead={l} onSaved={refresh} />
           <PatientCard lead={l} isAdmin={isAdmin} onLinked={refresh} />
-          <WhatsAppPanel leadId={l.id} canDrip={me?.role === "sales_manager" || isAdmin} />
+          <div id="whatsapp" className="scroll-mt-16">
+            <WhatsAppPanel leadId={l.id} canDrip={me?.role === "sales_manager" || isAdmin} />
+          </div>
           {l.duplicates.length > 0 && (
             <Card className="flex flex-col gap-2">
               <CardTitle>{t("sameNumber")}</CardTitle>

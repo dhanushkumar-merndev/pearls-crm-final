@@ -36,14 +36,14 @@ interface CreateResult {
 }
 
 /** New lead. Same number as an existing lead → shown first; "Save anyway" links the two. */
-export function NewLeadDialog({ canAssign, onDone }: { canAssign: boolean; onDone: () => void }) {
+export function NewLeadDialog({ canAssign, phone = null, onDone }: { canAssign: boolean; phone?: string | null; onDone: () => void }) {
   const t = useTranslations("leads");
   const router = useRouter();
   const queryClient = useQueryClient();
   const { saved, failed } = useFeedback();
   const staff = useSalesStaff();
   const [clientId] = useState(newId);
-  const [f, setF] = useState({ name: "", phone: "", alt_phone: "", email: "", treatment_text: "", referred_by_text: "", comments1: "", due: "", assigned_to: "" });
+  const [f, setF] = useState({ name: "", phone: phone ?? "", alt_phone: "", email: "", treatment_text: "", referred_by_text: "", comments1: "", due: "", assigned_to: "" });
   const [treatment, setTreatment] = useState<LibraryItem | null>(null);
   const [source, setSource] = useState<LibraryItem | null>(null);
   const [duplicates, setDuplicates] = useState<Duplicate[] | null>(null);

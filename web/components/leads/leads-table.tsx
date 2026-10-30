@@ -1,7 +1,7 @@
 "use client";
 
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, UserCheck, X } from "lucide-react";
+import { ArrowDownWideNarrow, ArrowUpNarrowWide, Download, UserCheck, X } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -31,6 +31,8 @@ interface Page {
 }
 const LIMIT = 25;
 const SORTS = ["lead_date", "sl_no", "name", "stage", "next_followup_at", "last_activity_at", "amount_finalised_paise", "assigned"] as const;
+/** Name and next call read best A→Z / soonest first; everything else newest / highest first. */
+const defaultDesc = (s: (typeof SORTS)[number]) => s !== "name" && s !== "next_followup_at";
 const day = (iso: string) => new Date(`${iso}T00:00:00+05:30`);
 const bulkAssignSchema = z.object({ to: requiredId() });
 
@@ -50,6 +52,7 @@ export function LeadsTable({ canAssign }: { canAssign: boolean }) {
   }));
   const [source, setSource] = useState<LibraryItem | null>(null);
   const [sort, setSort] = useState<(typeof SORTS)[number]>("lead_date");
+  const [desc, setDesc] = useState(true);
   const [offset, setOffset] = useState(0);
   const [selected, setSelected] = useState<string[]>([]);
   const [assignTo, setAssignTo] = useState("");
@@ -71,11 +74,11 @@ export function LeadsTable({ canAssign }: { canAssign: boolean }) {
     ...(source ? { source_ids: [source.id] } : {}),
   };
   const list = useQuery({
-    queryKey: ["leads_table", pFilters, sort, offset],
+    queryKey: ["leads_table", pFilters, sort, desc, offset],
     enabled: range.success,
     placeholderData: keepPreviousData,
     queryFn: () =>
-      rpc<Page>("leads_table", { p_filters: pFilters, p_sort: sort, p_desc: sort !== "name" && sort !== "next_followup_at", p_offset: offset, p_limit: LIMIT }),
+      rpc<Page>("leads_table", { p_filters: pFilters, p_sort: sort, p_desc: desc, p_offset: offset, p_limit: LIMIT }),
   });
   const set = (k: keyof typeof filters, v: string) => {
     const next = { ...filters, [k]: v };
@@ -143,10 +146,12 @@ export function LeadsTable({ canAssign }: { canAssign: boolean }) {
   return (
     <div className="flex flex-col gap-3">
       {/* Search is always in view; the other filters fold behind "Filters" on a phone. */}
-      <Field label={t("searchLabel")} className="max-w-xl">
-        {(a) => <Input {...a} type="search" placeholder={t("searchPlaceholder")} value={filters.q} onChange={(e) => set("q", e.target.value)} />}
-      </Field>
       <FilterBar
+        search={
+          <Field label={t("searchLabel")} className="w-full sm:w-64">
+            {(a) => <Input {...a} type="search" placeholder={t("searchPlaceholder")} value={filters.q} onChange={(e) => set("q", e.target.value)} />}
+          </Field>
+        }
         active={[filters.from, filters.to, filters.stage, filters.assigned_to, source, filters.due].filter(Boolean).length}
         actions={
           <Button variant="secondary" disabled={exporting || !range.success || !list.data?.total} onClick={() => void exportExcel()}>
@@ -203,7 +208,16 @@ export function LeadsTable({ canAssign }: { canAssign: boolean }) {
         </Field>
         <Field label={t("sortBy")}>
           {(a) => (
-            <Select {...a} value={sort} onChange={(e) => (setSort(e.target.value as (typeof SORTS)[number]), setOffset(0))}>
+            <Select
+              {...a}
+              value={sort}
+              onChange={(e) => {
+                const next = e.target.value as (typeof SORTS)[number];
+                setSort(next);
+                setDesc(defaultDesc(next));
+                setOffset(0);
+              }}
+            >
               {SORTS.map((s) => (
                 <option key={s} value={s}>
                   {t(`sort.${s}`)}
@@ -212,6 +226,10 @@ export function LeadsTable({ canAssign }: { canAssign: boolean }) {
             </Select>
           )}
         </Field>
+        <Button variant="secondary" aria-pressed={!desc} title={t("overdueFirst")} onClick={() => (setDesc((v) => !v), setOffset(0))}>
+          {desc ? <ArrowDownWideNarrow aria-hidden /> : <ArrowUpNarrowWide aria-hidden />}
+          {desc ? t("descending") : t("ascending")}
+        </Button>
       </FilterBar>
       {(filters.q || filters.due) && <p className="text-[0.9rem] text-text-secondary">{t("allDatesHint")}</p>}
 
@@ -338,11 +356,11 @@ export function LeadsTable({ canAssign }: { canAssign: boolean }) {
               <TD>
                 <button
                   type="button"
-                  className="-my-1 inline-flex min-h-10 items-center rounded-full focus-visible:outline-2"
+                  className="group -my-1 inline-flex min-h-10 cursor-pointer items-center rounded-full focus-visible:outline-2"
                   aria-label={t("changeStageOf", { name: r.name, stage: t(`stage.${r.stage}`) })}
                   onClick={() => setStageFor({ lead: r, stage: r.stage })}
                 >
-                  <StageBadge stage={r.stage} />
+                  <StageBadge stage={r.stage} editable />
                 </button>
                 {/* The agreed amount sits under the stage (one column fewer: the table fits a laptop). */}
                 {r.amount_finalised_paise !== null && (

@@ -22,6 +22,7 @@ import { getSupabaseBrowser } from "@/lib/supabase/client";
 import { useFeedback } from "@/lib/use-feedback";
 import { useZodForm } from "@/lib/use-zod-form";
 import { cn } from "@/lib/utils";
+import { ChatBot } from "./chat-bot";
 
 interface Overview {
   integration: { state: "ok" | "error" | "unknown" | "off"; last_ok_at: string | null; last_error: string | null; checked_at: string | null } | null;
@@ -158,6 +159,7 @@ export function WhatsAppAdminScreen({ webhookUrl }: { webhookUrl: string }) {
       )}
 
       <SettingsForm />
+      <ChatBot />
       <Templates />
 
       {o && o.failures.length > 0 && (

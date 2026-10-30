@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(46);
+select plan(48);
 
 create function pg_temp.login(p_id uuid)
 returns void
@@ -117,6 +117,9 @@ select is((select public.global_search('T5002') -> 0 ->> 'title'), 'Ravi Kumar',
 select is((select public.global_search('98450 99999') -> 0 ->> 'title'), 'Ravi Kumar', 'search by phone with spaces');
 -- Seven trailing digits: staging also holds test patients whose random numbers end in 9999.
 select is((select public.global_search('5099999') -> 0 ->> 'title'), 'Ravi Kumar', 'search by the last digits');
+select is((select public.global_search('98450999') -> 0 ->> 'title'), 'Ravi Kumar', 'search by the first digits of the number');
+select ok(exists (select 1 from jsonb_array_elements(public.global_search('4509999')) e where e ->> 'title' = 'Ravi Kumar'),
+  'search by digits from the middle of the number');
 select is((select public.global_search('ravi') -> 0 ->> 'title'), 'Ravi Kumar', 'search by part of the name');
 select is((select public.global_search('r')), '[]'::jsonb, 'one letter is too short to search');
 select is((select public.global_search('Ravi K') -> 0 ->> 'title'), 'Ravi Kumar', 'a name with a space');

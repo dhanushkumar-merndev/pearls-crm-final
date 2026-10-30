@@ -13,11 +13,14 @@ import { Button } from "./button";
  */
 export function FilterBar({
   children,
+  search,
   actions,
   active = 0,
   className,
 }: {
   children: ReactNode;
+  /** Never folded away: above the toggle on a phone, first in the filter row from "sm" up. */
+  search?: ReactNode;
   /** Always visible beside the toggle (e.g. Refresh). */
   actions?: ReactNode;
   /** How many filters are set (shown on the phone toggle). */
@@ -28,7 +31,9 @@ export function FilterBar({
   const [open, setOpen] = useState(false);
   const id = useId();
   return (
-    <div className={cn("flex flex-col gap-3", className)}>
+    // From "sm" up the inner filter box is `display: contents`, so search, filters and actions share one wrapping row.
+    <div className={cn("flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end", className)}>
+      {search}
       <div className="flex flex-wrap items-center gap-2 sm:hidden">
         <Button variant="secondary" aria-expanded={open} aria-controls={id} onClick={() => setOpen((v) => !v)}>
           <SlidersHorizontal aria-hidden />
@@ -36,7 +41,7 @@ export function FilterBar({
         </Button>
         {actions}
       </div>
-      <div id={id} className={cn("flex-wrap items-end gap-3 sm:flex", open ? "flex" : "hidden")}>
+      <div id={id} className={cn("flex-wrap items-end gap-3 sm:contents", open ? "flex" : "hidden")}>
         {children}
         {actions && <div className="hidden items-end gap-2 sm:flex">{actions}</div>}
       </div>

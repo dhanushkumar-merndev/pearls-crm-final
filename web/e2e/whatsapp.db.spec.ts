@@ -57,6 +57,22 @@ test.describe("reception", () => {
   });
 });
 
+test.describe("reception do not disturb", () => {
+  test.use({ storageState: STATE.reception });
+
+  test("WhatsApp chat link opens the tab; Do not disturb mutes the bot or automatic messages for one number", async ({ page }) => {
+    await newPatient(page);
+    await page.getByRole("button", { name: "WhatsApp chat" }).click();
+    await expect(page.getByRole("tab", { name: "WhatsApp" })).toHaveAttribute("aria-selected", "true");
+    await page.getByRole("button", { name: "Chat options" }).click();
+    await page.getByRole("menuitem", { name: "Do not disturb…" }).click();
+    const dialog = page.getByRole("dialog", { name: "Do not disturb" });
+    await dialog.getByLabel("Automatic messages off").check();
+    await dialog.getByRole("button", { name: "Save" }).click();
+    await expect(page.getByText("Do not disturb: automatic", { exact: true })).toBeVisible();
+  });
+});
+
 test.describe("reception inbox", () => {
   test.use({ storageState: STATE.reception });
 
@@ -86,6 +102,24 @@ test.describe("reception inbox", () => {
   });
 });
 
+test.describe("WhatsApp number filled in", () => {
+  // The inbox's Register / Add lead buttons for a number that isn't in the CRM pass it along.
+  test.describe("reception", () => {
+    test.use({ storageState: STATE.reception });
+    test("Register from the inbox starts with their WhatsApp number", async ({ page }) => {
+      await open(page, "/patients/new?phone=%2B919876543210");
+      await expect(page.getByLabel("Mobile number")).toHaveValue(/9876543210$/);
+    });
+  });
+  test.describe("sales manager", () => {
+    test.use({ storageState: STATE.manager });
+    test("Add lead from the inbox starts with their WhatsApp number", async ({ page }) => {
+      await open(page, "/leads?new=1&phone=%2B919876543210");
+      await expect(page.getByRole("dialog").getByLabel("Mobile", { exact: true })).toHaveValue(/9876543210$/);
+    });
+  });
+});
+
 test.describe("admin", () => {
   test.use({ storageState: STATE.admin });
 
@@ -102,6 +136,36 @@ test.describe("admin", () => {
     await page.getByRole("button", { name: "Save", exact: true }).click();
     await expect(page.getByText("Type a number.")).toBeVisible();
     await expect(price).toBeFocused();
+  });
+
+  test("chat bot: treatments and brochure link are checked before saving; the form waits for Meta", async ({ page }) => {
+    await open(page, "/admin/whatsapp");
+    const bot = page.getByRole("region", { name: "Chat bot" });
+    await expect(bot.getByText("Using a tap list")).toBeVisible();
+    await bot.getByLabel("Answer new numbers with the chat bot").check();
+    const first = bot.getByLabel("Treatment 1", { exact: true });
+    await expect(first).toBeVisible();
+    // An earlier run may have saved a treatment: start from an empty first row.
+    await first.fill("");
+    await bot.getByLabel("Brochure link").fill("http://not-secure.example/brochure.pdf");
+    await bot.getByRole("button", { name: "Save chat bot" }).click();
+    await expect(bot.getByText("Please fill this in.")).toBeVisible();
+    await expect(bot.getByText("A web address starting with https://", { exact: true })).toBeVisible();
+    // The first wrong field gets the cursor: the brochure link sits above the list.
+    await expect(bot.getByLabel("Brochure link")).toBeFocused();
+
+    await first.fill("E2E Treatment");
+    await bot.getByRole("button", { name: "Add treatment" }).click();
+    await bot.getByLabel("Treatment 2", { exact: true }).fill("e2e treatment");
+    await bot.getByLabel("Brochure link").fill("https://example.com/brochure.pdf");
+    await bot.getByRole("button", { name: "Save chat bot" }).click();
+    await expect(bot.getByText("This is already in the list.")).toBeVisible();
+    await bot.getByRole("button", { name: "Remove treatment 2" }).click();
+    // Leave the bot off for the other tests.
+    await bot.getByLabel("Answer new numbers with the chat bot").uncheck();
+    await bot.getByRole("button", { name: "Save chat bot" }).click();
+    await expect(page.getByText("Saved ✓")).toBeVisible();
+    await expect(bot.getByRole("heading", { name: "Recent bot chats" })).toBeVisible();
   });
 
   test("drip campaigns: a new campaign needs a name and its messages; lead campaigns start only on lead events", async ({ page }) => {

@@ -55,3 +55,6 @@ export const waTemplateSendSchema = z.object({ template_id: requiredId() });
 export const waTextSchema = z.object({ text: requiredText(4096) });
 /** Add a patient or lead to a drip campaign. */
 export const dripEnrollSchema = z.object({ campaign_id: requiredId() });
+
+/** The chat's ⋮ → Do not disturb → wa_dnd_set (per WhatsApp number). */
+export const waDndSchema = z.object({ bot: z.boolean(), auto: z.boolean() });

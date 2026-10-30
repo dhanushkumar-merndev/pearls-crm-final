@@ -144,7 +144,7 @@ html:has(.print-root) {
 .print-root table.lines th,
 .print-root table.lines td {
   border: 1px solid #000;
-  padding: 3px 5px;
+  padding: 4px 6px;
   vertical-align: top;
 }
 .print-root table.lines th {
@@ -160,8 +160,14 @@ html:has(.print-root) {
 .print-root table.lines tr {
   break-inside: avoid;
 }
+.print-root table.lines th.idx {
+  width: 2.2em;
+}
 .print-root table.lines tr.group td {
   background: #f5f5f5;
+  font-weight: 600;
+}
+.print-root table.lines tr.subtotal td {
   font-weight: 600;
 }
 .print-root .totals {

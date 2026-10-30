@@ -197,7 +197,7 @@ export function TodayBoard() {
       </div>
 
       {dash.data && (
-        <div className="grid items-start gap-4 xl:grid-cols-2">
+        <div className="grid gap-4 xl:grid-cols-2">
           <EChart
             title={t("arrivalsTitle")}
             option={arrivals}

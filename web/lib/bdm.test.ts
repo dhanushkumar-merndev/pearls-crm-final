@@ -6,7 +6,7 @@ const now = Date.parse("2027-01-15T08:00:00Z");
 const bdm = (over: Partial<LiveBdm> = {}): LiveBdm => ({
   staff_id: "s1", name: "Bhavya", state: "travelling", lat: 12.97, lng: 77.59, battery: 60, charging: false, gps_on: true,
   network: "4g", last_heartbeat_at: "2027-01-15T07:57:00Z", locate_requested_at: null,
-  day: { id: "d1", started_at: "2027-01-15T04:00:00Z", ended_at: null, flags: [], start_in_geofence: true }, ...over,
+  day: { id: "d1", started_at: "2027-01-15T04:00:00Z", ended_at: null, flags: [], start_in_geofence: true, route: [] }, ...over,
 });
 
 describe("BDM live status", () => {

@@ -2,13 +2,15 @@
 //   Every 5 minutes from the database timer (pg_cron → pg_net, header x-cron-secret): queues
 //   due reminders and drip steps first, then sends.
 //   From the web app right after a staff send (login token): sends the queue now.
+//   From the database when the chat bot queued a reply (cron secret, source "bot"): sends now.
 // Postgres hands out each queued message to one run only (wa_claim_batch) and records Meta's
 // answer (wa_mark_result): sent with Meta's id, retried later when temporary, failed otherwise.
 // Pure logic here; index.ts wires the real Graph API and database.
 import { z } from "zod";
 import { sameText } from "../_shared/meta.ts";
 
-export const dispatchSchema = z.object({ source: z.enum(["cron", "staff"]).optional() }).strict();
+export const dispatchSchema = z.object({ source: z.enum(["cron", "staff", "bot"]).optional() }).strict();
+export type Source = "cron" | "staff" | "bot";
 
 export const MAX_BATCHES = 5;
 export const BATCH_SIZE = 20;
@@ -20,6 +22,8 @@ export interface Claimed {
   text: string | null;
   vars: unknown[] | null;
   template: { name: string; language: string; components?: unknown } | null;
+  /** interactive: Meta's "interactive" object (buttons, the tick-box form); text: {preview_url}. */
+  payload?: Record<string, unknown> | null;
 }
 
 export type SendResult = { ok: true; id: string } | ({ ok: false } & SendError);
@@ -50,7 +54,12 @@ export function messageBody(m: Claimed): Record<string, unknown> | null {
   if (!/^[1-9][0-9]{7,14}$/.test(to)) return null;
   const base = { messaging_product: "whatsapp", recipient_type: "individual", to };
   if (m.kind === "text") {
-    return m.text?.trim() ? { ...base, type: "text", text: { preview_url: false, body: m.text.slice(0, 4096) } } : null;
+    const preview = m.payload?.preview_url === true;
+    return m.text?.trim() ? { ...base, type: "text", text: { preview_url: preview, body: m.text.slice(0, 4096) } } : null;
+  }
+  if (m.kind === "interactive") {
+    const i = m.payload;
+    return i && typeof i.type === "string" && typeof i.action === "object" ? { ...base, type: "interactive", interactive: i } : null;
   }
   if (m.kind === "template" && m.template?.name) {
     const params = (m.vars ?? []).map((v) => ({ type: "text", text: param(v) }));
@@ -90,7 +99,7 @@ async function must(p: Promise<{ data: unknown; error: { message: string } | nul
 }
 
 export interface Summary {
-  source: "cron" | "staff";
+  source: Source;
   reminders: number;
   drips: number;
   sent: number;
@@ -100,7 +109,7 @@ export interface Summary {
   error?: string;
 }
 
-export async function dispatch(opts: { source: "cron" | "staff"; configured: boolean }, deps: Deps): Promise<Summary> {
+export async function dispatch(opts: { source: Source; configured: boolean }, deps: Deps): Promise<Summary> {
   const s: Summary = { source: opts.source, reminders: 0, drips: 0, sent: 0, failed: 0, retry: 0 };
   if (opts.source === "cron") {
     s.reminders = Number(await must(deps.rpc("wa_due_reminders", {}))) || 0;

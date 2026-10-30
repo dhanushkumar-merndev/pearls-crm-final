@@ -4,7 +4,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(78);
+select plan(80);
 
 create function pg_temp.login(p_id uuid)
 returns void
@@ -291,6 +291,28 @@ select ok(not exists (select 1 from jsonb_array_elements(public.global_search('+
 select pg_temp.login('bbbbbbbb-0000-4000-a000-0000000000b1');
 select ok(exists (select 1 from jsonb_array_elements(public.global_search('+915000000002')) e
                   where e ->> 'id' = 'bbbbbbbb-3333-4000-a000-000000000002' and e ->> 'type' = 'lead'), 'reception finds leads by number');
+
+-- Overdue next calls come first in either direction, then the rest (owner, 30/10/2026).
+select pg_temp.login(null);
+update public.leads set next_followup_at = null where id::text like 'bbbbbbbb-3333-%';
+update public.leads set next_followup_at = now() - interval '1 hour'
+  where id in ('bbbbbbbb-3333-4000-a000-000000000001', 'bbbbbbbb-3333-4000-a000-000000000003');
+create function pg_temp.first_two(p_desc boolean)
+returns text[]
+language sql
+as $$
+  select (array_agg(r ->> 'id' order by o))[1:2]
+  from jsonb_array_elements(public.leads_table('{"q": "P9 Lead"}', 'sl_no', p_desc, 0, 100) -> 'rows') with ordinality e(r, o)
+  where r ->> 'id' like 'bbbbbbbb-3333-%';
+$$;
+grant execute on function pg_temp.first_two(boolean) to authenticated;
+select pg_temp.login('bbbbbbbb-0000-4000-a000-0000000000d1');
+select is(pg_temp.first_two(true), (select array_agg(id::text order by sl_no desc) from public.leads
+            where id in ('bbbbbbbb-3333-4000-a000-000000000001', 'bbbbbbbb-3333-4000-a000-000000000003')),
+  'newest first: overdue leads lead the table, newest of them first');
+select is(pg_temp.first_two(false), (select array_agg(id::text order by sl_no) from public.leads
+            where id in ('bbbbbbbb-3333-4000-a000-000000000001', 'bbbbbbbb-3333-4000-a000-000000000003')),
+  'oldest first: overdue leads still lead the table, oldest of them first');
 
 select * from finish();
 rollback;

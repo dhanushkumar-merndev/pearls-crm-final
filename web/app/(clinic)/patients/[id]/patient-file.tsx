@@ -1,7 +1,7 @@
 "use client";
 
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarCheck, CalendarPlus, GitMerge, Link2, Pencil, Phone, Printer, Save, Unlink, Users } from "lucide-react";
+import { CalendarCheck, CalendarPlus, GitMerge, Link2, MessageCircle, Pencil, Phone, Printer, Save, Unlink, Users } from "lucide-react";
 import { AppointmentActions, type ApptCard } from "@/components/appointments/appointment-actions";
 import { BookDialog } from "@/components/appointments/book-dialog";
 import { ApptStatusBadge } from "@/components/appointments/status";
@@ -73,6 +73,7 @@ export function PatientFile({ initial }: { initial: PatientHeader }) {
   const hit = { id: p.id, title: p.full_name, uhid: p.uhid, subtitle: p.uhid };
   // Patient messages are reception's (and the admin's) — Postgres checks the same.
   const canWhatsApp = me?.role === "receptionist" || me?.role === "admin";
+  const [tab, setTab] = useState("overview");
 
   return (
     <Page>
@@ -93,6 +94,13 @@ export function PatientFile({ initial }: { initial: PatientHeader }) {
                 <Phone aria-hidden className="size-4" />
                 {p.phone_e164}
               </a>
+            )}
+            {p.phone_e164 && canWhatsApp && (
+              <button type="button" onClick={() => setTab("whatsapp")}
+                className="inline-flex min-h-8 items-center gap-1 text-good-text underline-offset-4 hover:underline">
+                <MessageCircle aria-hidden className="size-4" />
+                {t("whatsappChat")}
+              </button>
             )}
           </span>
         }
@@ -131,7 +139,7 @@ export function PatientFile({ initial }: { initial: PatientHeader }) {
         }
       />
 
-      <Tabs defaultValue="overview" className="flex flex-col gap-4">
+      <Tabs value={tab} onValueChange={setTab} className="flex flex-col gap-4">
         <TabsList aria-label={t("sections")}>
           {(["overview", "appointments", "treatments", "ip", "bills", "documents", "whatsapp", "family", "timeline"] as const)
             .filter((tab) => tab !== "whatsapp" || canWhatsApp)

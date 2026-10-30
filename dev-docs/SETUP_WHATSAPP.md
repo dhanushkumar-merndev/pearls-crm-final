@@ -71,6 +71,9 @@ Messages the clinic starts must use a template that Meta has approved. Open **bu
 | `appointment_reminder` | Utility | `Hi {{1}}, a reminder of your appointment at {{2}} on {{3}} at {{4}}. Reply YES to confirm or NO to change it.` | `Yes, I'll come` · `Change time` |
 | `lead_welcome` | Marketing | `Hi {{1}}, thank you for contacting {{2}}. Our team will call you shortly. Reply STOP to stop these messages.` | `Stop messages` |
 | `followup_checkin` | Utility | `Hi {{1}}, this is {{2}}. How are you feeling after your treatment? Reply to this message if you have any questions.` | — |
+| `enquiry_followup` | Marketing | `Hello from {{1}}! You contacted us on WhatsApp about our treatments. Would you like our team to help you? Tap a button below or reply to this message.` | `Yes, please` · `Stop messages` |
+
+**Quicker: let the CRM submit them all.** In VS Code's terminal, in the project folder, run `pnpm wa:templates` (shows what it would send; changes nothing), then `pnpm wa:templates --submit`. It sends the five templates above for review and skips any that already exist. This needs the system user to have the WhatsApp account (step 3.2, **Full control**). Otherwise Meta answers "This API is not supported for this WhatsApp Business Account".
 
 You can write your own as well; Kannada and Hindi templates work the same way. Meta usually answers within an hour. Rejected templates show the reason in WhatsApp Manager.
 
@@ -80,7 +83,7 @@ You can write your own as well; Kannada and Hindi templates work the same way. M
 2. Click **Get templates from Meta**. The templates appear in the list with Meta's status.
 3. Click **Edit** on each one:
    - **Used for**: `appointment_booked` → Booking confirmation, `appointment_reminder` → Booking reminder, `lead_welcome` → New lead welcome, `followup_checkin` → Other (staff can send it, and drip campaigns can use it).
-   - **Value for {{1}}, {{2}} …**: for `appointment_booked`, {{1}} First name, {{2}} Clinic name, {{3}} Booking date, {{4}} Booking time, {{5}} Doctor.
+   - **Value for {{1}}, {{2}} …**: for `appointment_booked`, {{1}} First name, {{2}} Clinic name, {{3}} Booking date, {{4}} Booking time, {{5}} Doctor. For `enquiry_followup` (Used for: Other), {{1}} Clinic name: staff send it from the inbox to a number whose 24 hours have passed.
    - Click **Save**.
 4. Under **Settings**: tick **Send WhatsApp messages from the CRM**, check the quiet hours (default 9 pm to 9 am, India time), and click **Save**. Reminders go the number of hours before the booking set in **Admin → Settings → Appointments**.
 
@@ -94,6 +97,43 @@ You can write your own as well; Kannada and Hindi templates work the same way. M
 ## Chatting as a team
 
 The **WhatsApp** item in the menu (reception, sales managers, admin) is the team inbox. It lists every conversation you're allowed to reply to, newest first. Conversations with new replies show a count, and the menu shows how many conversations have unread replies. Everything updates by itself within a second or two: a reply, a message a colleague sends, or the Delivered/Read ticks. Opening a conversation marks it read for the whole team. Reception sees patients (and numbers that aren't in the CRM yet); sales managers see leads.
+
+## Chat bot (answers new numbers by itself)
+
+When someone new messages the clinic's WhatsApp number, the bot:
+
+1. sends a welcome with your **brochure link** and **website link** (each on its own line, with a preview);
+2. asks their **name**;
+3. asks which **treatments** they want: they tap **Choose treatments**, pick one, and the list comes back without it plus **✅ Done**, so they can pick as many as they like (or reply with numbers like `1, 3`);
+4. asks their **area or city**;
+5. shows everything, **with their WhatsApp number**, and two buttons: **Confirm** / **Cancel**.
+
+**Confirm** makes a lead (source **WhatsApp**) and gives it to the next sales person, who gets a notification. **Cancel** saves nothing.
+
+The bot reads typed messages only. A photo, voice note, video, file or sticker gets "Sorry, I can only read typed messages…" and the question again. An emoji reaction gets no reply.
+
+The bot does **not** answer existing patients, numbers that already have an open lead, chats a staff member has replied to (a staff reply takes over), or numbers that sent STOP. Each number can start at most **5 chats a day** (you can change this). After 3 answers it can't use, the bot stops and leaves the chat to staff.
+
+**In the team inbox** (reception and admin), a number that isn't a patient or lead yet shows the whole chat: their messages on the left, the clinic's and the bot's on the right. You can reply from there. **Register** and **Add lead** open the form with their WhatsApp number already filled in, and once saved the chat shows their name.
+
+**The 24-hour window.** The label at the top of a chat says until when you can type freely (Meta's rule: 24 hours after their last message). When it ends, the label changes to **Templates only** by itself and the reply box offers approved templates.
+
+**Do not disturb (one number).** In any chat, click **⋮ → Do not disturb…** and tick:
+- **Chat bot off**: the bot never answers this number (a chat it is in goes to staff);
+- **Automatic messages off**: no booking confirmations, reminders, campaign messages or new-lead welcome.
+
+Staff can still send messages by hand. The chat header shows **Do not disturb: …** while it is on. This is different from **STOP**, which stops everything.
+
+The patient page and the lead page have a green **WhatsApp chat** link next to the phone number.
+
+**Set it up:** **Admin → WhatsApp → Chat bot**.
+1. Type the treatments (up to 20, each up to 30 letters). Use the arrows to change the order.
+2. Paste the **Brochure link** and the **Website link** (both must start with `https://`; for a Google Drive PDF choose **Share → Anyone with the link**).
+3. Optional: open **Messages the bot sends** to change any text. An empty box uses the grey text.
+4. Tick **Answer new numbers with the chat bot** and click **Save chat bot**. **Send WhatsApp messages from the CRM** (in Settings above) must be ticked as well.
+5. Optional, later: **Tick-box form** shows all treatments at once with tick boxes. Meta allows it only for a **verified business** (business.facebook.com → **Security Centre → Start verification**). Until then the bot uses the tap list above, which works without it. After verification, click **Set up tick-box form**.
+
+Bot replies are free: Meta doesn't charge for replies within 24 hours of the person's message.
 
 ## Drip campaigns
 

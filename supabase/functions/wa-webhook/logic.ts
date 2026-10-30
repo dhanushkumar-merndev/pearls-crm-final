@@ -4,6 +4,8 @@
 //        • statuses move our messages up (sent → delivered → read, or failed);
 //        • incoming messages are stored and short replies understood: YES / ಹೌದು / हाँ confirm
 //          the next booking, NO / change ask for a call back, STOP / START switch messages off/on.
+//        • when the chat bot answered a message, the person sees blue ticks and "typing…" at once
+//          and the replies are sent straight from here (replyNow), not by a second function.
 // Every step is safe to repeat (Meta re-sends a delivery until it gets a 200): Postgres ignores
 // a status that is not higher and an incoming message id it already has. Each event is logged
 // AFTER it was applied, so a database error (500) lets Meta's retry apply it.
@@ -114,6 +116,9 @@ const messageSchema = z.object({
     .object({
       button_reply: z.object({ id: z.string().optional(), title: z.string().optional() }).optional(),
       list_reply: z.object({ id: z.string().optional(), title: z.string().optional() }).optional(),
+      // The tick-box form (WhatsApp Flow) sent back: its answers as a JSON string.
+      nfm_reply: z.object({ name: z.string().optional(), body: z.string().optional(), response_json: z.string().max(20_000).optional() })
+        .optional(),
     })
     .optional(),
   image: caption,
@@ -148,11 +153,28 @@ export interface InboundEvent {
     at: string | null;
     context_wa_id: string | null;
     action: ReplyAction | null;
+    /** The id of a reply button / list row we sent (the chat bot's "bot_confirm" / "bot_cancel"). */
+    reply_id: string | null;
+    /** A filled-in tick-box form: {choices: [...]} (the chat bot's treatment list). */
+    form: { choices: string[] } | null;
   };
   raw: unknown;
 }
 
 const iso = (s: string | undefined) => (s ? new Date(Number(s) * 1000).toISOString() : null);
+
+const formSchema = z.object({ choices: z.array(z.string().max(100)).max(20) });
+
+/** A form's response_json → the ticked choices, or null when it isn't ours / not readable. */
+export function parseForm(responseJson: string | undefined): { choices: string[] } | null {
+  if (!responseJson) return null;
+  try {
+    const parsed = formSchema.safeParse(JSON.parse(responseJson));
+    return parsed.success ? { choices: parsed.data.choices } : null;
+  } catch {
+    return null;
+  }
+}
 const MEDIA = new Set(["image", "video", "audio", "document", "sticker"]);
 
 /** One incoming message → what Postgres stores. */
@@ -160,6 +182,8 @@ export function toInbound(m: z.infer<typeof messageSchema>): InboundEvent["inbou
   let kind: InboundEvent["inbound"]["kind"] = "other";
   let text: string | null = null;
   let action: ReplyAction | null = null;
+  let replyId: string | null = null;
+  let form: { choices: string[] } | null = null;
   if (m.type === "text" && m.text) {
     kind = "text";
     text = m.text.body;
@@ -168,10 +192,15 @@ export function toInbound(m: z.infer<typeof messageSchema>): InboundEvent["inbou
     kind = "button_reply";
     text = m.button.text ?? m.button.payload ?? null;
     action = classifyButton(m.button.payload, m.button.text);
+  } else if (m.type === "interactive" && m.interactive?.nfm_reply) {
+    kind = "button_reply";
+    form = parseForm(m.interactive.nfm_reply.response_json);
+    text = form ? `✔ ${form.choices.join(", ")}` : (m.interactive.nfm_reply.body ?? "[form]");
   } else if (m.type === "interactive" && m.interactive) {
     const r = m.interactive.button_reply ?? m.interactive.list_reply;
     kind = "button_reply";
     text = r?.title ?? r?.id ?? null;
+    replyId = r?.id?.slice(0, 200) ?? null;
     action = classifyButton(r?.id, r?.title);
   } else if (MEDIA.has(m.type)) {
     kind = "media";
@@ -188,6 +217,8 @@ export function toInbound(m: z.infer<typeof messageSchema>): InboundEvent["inbou
     at: iso(m.timestamp),
     context_wa_id: m.context?.id ?? null,
     action,
+    reply_id: replyId,
+    form,
   };
 }
 
@@ -238,6 +269,7 @@ async function must(p: Promise<{ data: unknown; error: { message: string } | nul
 export async function applyDelivery(body: unknown, deps: Deps) {
   const { statuses, messages } = parseDelivery(body);
   const result = { statuses: 0, messages: 0, actions: [] as string[] };
+  const botAnswered: string[] = [];
   for (const s of statuses) {
     await must(deps.rpc("wa_status_update", {
       p_wa_message_id: s.wa_message_id, p_status: s.status, p_at: s.at, p_error_code: s.error_code, p_error_text: s.error_text,
@@ -246,12 +278,30 @@ export async function applyDelivery(body: unknown, deps: Deps) {
     result.statuses++;
   }
   for (const m of messages) {
-    const done = (await must(deps.rpc("wa_inbound", { p: m.inbound }))) as { action?: string | null } | null;
+    const done = (await must(deps.rpc("wa_inbound", { p: m.inbound }))) as { action?: string | null; bot?: number } | null;
     if (done?.action) result.actions.push(done.action);
+    if ((done?.bot ?? 0) > 0) botAnswered.push(m.inbound.wa_message_id);
     await must(deps.rpc("wa_webhook_seen", { p_key: m.key, p_kind: "message", p_payload: m.raw }));
     result.messages++;
   }
-  return result;
+  return { result, botAnswered };
+}
+
+export interface ReplyDeps {
+  /** Blue ticks + "typing…" on the person's message (Meta: read receipt with a typing indicator). */
+  markReadTyping: (waMessageId: string) => Promise<void>;
+  /** Sends the queued replies (wa-dispatch's logic, source "bot"). */
+  flush: () => Promise<void>;
+}
+
+/**
+ * After Meta has its 200: ticks and "typing…" first (only for messages the bot answers, so a
+ * patient never sees "read" when staff haven't read it), then the bot's replies. A failed tick
+ * doesn't stop the replies; anything left queued goes with the 5-minute dispatcher.
+ */
+export async function replyNow(waMessageIds: string[], deps: ReplyDeps): Promise<void> {
+  await Promise.all(waMessageIds.map((id) => deps.markReadTyping(id).catch((e) => console.error("typing", e))));
+  await deps.flush();
 }
 
 export interface WebhookInput {
@@ -276,5 +326,6 @@ export async function webhook(input: WebhookInput, secrets: { appSecret: string;
   } catch {
     return { status: 400, json: { error: "invalid_input" } };
   }
-  return { status: 200, json: await applyDelivery(body, deps) };
+  const { result, botAnswered } = await applyDelivery(body, deps);
+  return botAnswered.length ? { status: 200, json: result, replyTo: botAnswered } : { status: 200, json: result };
 }

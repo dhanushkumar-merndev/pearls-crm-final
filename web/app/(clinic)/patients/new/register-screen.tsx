@@ -56,7 +56,7 @@ interface LeadForRegistration {
   patient_id: string | null;
 }
 
-export function RegisterScreen({ requestId, leadId = null }: { requestId: string | null; leadId?: string | null }) {
+export function RegisterScreen({ requestId, leadId = null, phone = null }: { requestId: string | null; leadId?: string | null; phone?: string | null }) {
   const t = useTranslations("common");
   const r = useTranslations("register");
   // Registering a lead who came in (sales booked them): start from what sales typed.
@@ -104,7 +104,7 @@ export function RegisterScreen({ requestId, leadId = null }: { requestId: string
       requestId={requestId}
       requestStatus={request.data?.status ?? null}
       lead={lead.data ? { id: lead.data.id, sl_no: lead.data.sl_no } : null}
-      initial={request.data ? draftFrom(request.data.payload) : (fromLead ?? emptyDraft())}
+      initial={request.data ? draftFrom(request.data.payload) : (fromLead ?? (phone ? draftFrom({ phone_e164: phone }) : emptyDraft()))}
     />
   );
 }

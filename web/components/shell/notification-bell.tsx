@@ -79,20 +79,27 @@ export function NotificationBell({ staffId }: { staffId: string }) {
           )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80">
+      {/* Never taller than the screen: the heading and "Mark all as read" stay put, the list scrolls. */}
+      <DropdownMenuContent
+        align="end"
+        collisionPadding={12}
+        className="flex max-h-[min(32rem,calc(var(--radix-dropdown-menu-content-available-height)-0.5rem))] w-80 flex-col"
+      >
         <DropdownMenuLabel>{t("unread", { count: unread })}</DropdownMenuLabel>
         {(data ?? []).length === 0 && <p className="px-3 py-4 text-text-secondary">{t("empty")}</p>}
-        {(data ?? []).map((n) => (
-          <DropdownMenuItem key={n.id} asChild={Boolean(n.link)} className="flex-col items-start gap-0.5 py-2">
-            {n.link ? (
-              <Link href={n.link}>
+        <div className="-mx-1.5 min-h-0 flex-1 overflow-y-auto overscroll-contain px-1.5">
+          {(data ?? []).map((n) => (
+            <DropdownMenuItem key={n.id} asChild={Boolean(n.link)} className="flex-col items-start gap-0.5 py-2">
+              {n.link ? (
+                <Link href={n.link}>
+                  <NotificationText n={n} />
+                </Link>
+              ) : (
                 <NotificationText n={n} />
-              </Link>
-            ) : (
-              <NotificationText n={n} />
-            )}
-          </DropdownMenuItem>
-        ))}
+              )}
+            </DropdownMenuItem>
+          ))}
+        </div>
         {unread > 0 && (
           <>
             <DropdownMenuSeparator />

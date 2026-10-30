@@ -1,7 +1,7 @@
 // deno-lint-ignore-file require-await -- fakes implement async interfaces without awaiting
 import { assertEquals } from "@std/assert";
 import { hmacHex } from "../_shared/meta.ts";
-import { classifyButton, classifyReply, normalizeReply, parseDelivery, webhook, type Deps } from "./logic.ts";
+import { classifyButton, classifyReply, normalizeReply, parseDelivery, parseForm, replyNow, webhook, type Deps } from "./logic.ts";
 
 const SECRET = "test-wa-secret";
 const enc = (s: string) => new TextEncoder().encode(s);
@@ -69,6 +69,25 @@ Deno.test("parseDelivery: statuses, texts, buttons and media; bad items skipped"
   assertEquals(parseDelivery(change({ statuses: "x" })), { statuses: [], messages: [] });
 });
 
+Deno.test("parseDelivery: the bot's buttons keep their id; a filled-in tick-box form gives the choices", () => {
+  const { messages } = parseDelivery(change({
+    messages: [
+      { from: "919845012345", id: "wamid.B1", type: "interactive", interactive: { type: "button_reply", button_reply: { id: "bot_confirm", title: "Confirm" } } },
+      { from: "919845012345", id: "wamid.F1", type: "interactive", interactive: { type: "nfm_reply", nfm_reply: {
+        name: "flow", body: "Sent", response_json: JSON.stringify({ flow_token: "abc", choices: ["Hair transplant", "Acne"] }),
+      } } },
+      { from: "919845012345", id: "wamid.F2", type: "interactive", interactive: { type: "nfm_reply", nfm_reply: { body: "Sent", response_json: "{not json" } } },
+    ],
+  }));
+  assertEquals(messages.map((m) => [m.inbound.kind, m.inbound.text, m.inbound.action, m.inbound.reply_id, m.inbound.form]), [
+    ["button_reply", "Confirm", "confirm", "bot_confirm", null],
+    ["button_reply", "✔ Hair transplant, Acne", null, null, { choices: ["Hair transplant", "Acne"] }],
+    ["button_reply", "Sent", null, null, null],
+  ]);
+  assertEquals(parseForm(JSON.stringify({ choices: "x" })), null);
+  assertEquals(parseForm(undefined), null);
+});
+
 function fakeDeps(fail?: string) {
   const calls: { fn: string; args: Record<string, unknown> }[] = [];
   const deps: Deps = {
@@ -130,4 +149,33 @@ Deno.test("webhook: a database error is a 500 before the event is logged (Meta r
   }
   assertEquals(threw, true);
   assertEquals(calls.map((c) => c.fn), ["wa_inbound"]);
+});
+
+Deno.test("webhook: messages the bot answered are handed back for ticks + typing; others are not", async () => {
+  const calls: string[] = [];
+  const deps: Deps = {
+    rpc: async (fn, args) => {
+      calls.push(fn);
+      if (fn === "wa_inbound") {
+        const text = (args.p as { text: string }).text;
+        return { data: { status: "new", action: null, bot: text === "Hi" ? 2 : 0 }, error: null };
+      }
+      return { data: true, error: null };
+    },
+  };
+  const body = JSON.stringify(change({ messages: [textMsg("wamid.BOT", "Hi"), textMsg("wamid.STAFF", "Where is my report")] }));
+  const res = await webhook({ method: "POST", params: new URLSearchParams(), signature: await signed(body), raw: enc(body) }, { appSecret: SECRET, verifyToken: "vt" }, deps);
+  assertEquals(res, { status: 200, json: { statuses: 0, messages: 2, actions: [] }, replyTo: ["wamid.BOT"] });
+});
+
+Deno.test("replyNow: ticks + typing first, then the replies; a failed tick still sends", async () => {
+  const order: string[] = [];
+  await replyNow(["wamid.1", "wamid.2"], {
+    markReadTyping: async (id) => {
+      order.push(`typing ${id}`);
+      if (id === "wamid.2") throw new Error("Meta down");
+    },
+    flush: async () => void order.push("send"),
+  });
+  assertEquals(order, ["typing wamid.1", "typing wamid.2", "send"]);
 });

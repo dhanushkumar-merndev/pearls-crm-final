@@ -1,15 +1,18 @@
 "use client";
 
-import { useInfiniteQuery } from "@tanstack/react-query";
-import { ArrowLeft, CheckCheck, FileUser, MessageCircle, Phone, Search, Target, UserPlus } from "lucide-react";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, CheckCheck, EllipsisVertical, FileUser, MessageCircle, MoonStar, Phone, Search, Target, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { formatDate, formatTime } from "@pearl/shared";
 import { ChatAvatar } from "@/components/whatsapp/chat-avatar";
-import { WhatsAppPanel } from "@/components/whatsapp/whatsapp-panel";
+import { DndBadge, DndDialog, useDnd } from "@/components/whatsapp/dnd";
+import { ApiComposer, ChatMessages, ChatStateChip, useWindowOpen, WhatsAppPanel, type WaMessage } from "@/components/whatsapp/whatsapp-panel";
 import { Button } from "@/components/ui/button";
+import { Dialog } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { LoadMore } from "@/components/ui/load-more";
 import { RowSkeletons } from "@/components/ui/skeletons";
@@ -30,6 +33,15 @@ interface Conversation {
   last_direction: "outbound" | "inbound";
   last_status: string;
   unread_count: number;
+}
+
+/** wa_number_thread: one page of a number's chat, and whether WhatsApp may be sent to it now. */
+interface NumberThread {
+  items: WaMessage[];
+  next_cursor: string | null;
+  enabled: boolean;
+  opted_out: boolean;
+  window_open_until: string | null;
 }
 
 /** Today → time; earlier → date. */
@@ -82,7 +94,7 @@ export function InboxScreen() {
   // WhatsApp Web: the page is exactly the workspace's height; only the list and the messages scroll.
   // Phone width: the list, or (once one is chosen) the chat with a back arrow.
   return (
-    <div className="-mx-4 -mt-3 -mb-8 flex h-[calc(100dvh-3.5rem)] min-h-[30rem] overflow-hidden border-t border-border md:-mx-6 lg:mx-0 lg:mt-0 lg:mb-0 lg:h-[calc(100dvh-3.5rem-2.75rem)] lg:rounded-2xl lg:border">
+    <div className="-mx-4 -mt-3 -mb-8 flex h-[calc(100dvh-3.5rem)] min-h-[30rem] overflow-hidden border-t border-border md:-mx-6 lg:mx-0 lg:mt-0 lg:-mb-6 lg:h-[calc(100dvh-3.5rem-1.25rem)] lg:rounded-xl lg:border">
       <section
         aria-label={t("conversations")}
         className={cn("flex w-full min-w-0 flex-col border-border bg-card lg:w-[22rem] lg:shrink-0 lg:border-r", current && "hidden lg:flex")}
@@ -192,14 +204,51 @@ export function InboxScreen() {
   );
 }
 
-/** A number that is neither a patient nor a lead: who it is, and how to take them on. */
+/** A number that is neither a patient nor a lead: the whole chat (e.g. with the chat bot), a reply box, and how to take them on. */
 function UnknownNumber({ c, onBack }: { c: Conversation; onBack: () => void }) {
   const t = useTranslations("waInbox");
   const w = useTranslations("whatsapp");
   const me = useMe();
+  const queryClient = useQueryClient();
+  const [dndOpen, setDndOpen] = useState(false);
+  const key = ["wa_number_thread", c.phone_e164];
+  const thread = useInfiniteQuery({
+    queryKey: key,
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam }) => rpc<NumberThread>("wa_number_thread", { p_phone: c.phone_e164, p_cursor: pageParam, p_limit: 30 }),
+    getNextPageParam: (last) => last.next_cursor,
+    refetchInterval: 120_000,
+  });
+  useLiveWhatsApp(c.phone_e164, [key]);
+  const head = thread.data?.pages[0];
+  const windowOpen = useWindowOpen(head?.window_open_until);
+  const target = { phone: c.phone_e164 };
+  const dnd = useDnd(target);
+  const items = (thread.data?.pages.flatMap((p) => p.items) ?? []).slice().reverse();
+  // Open = read for the team, as with patients and leads.
+  const newestInbound = items.findLast((m) => m.direction === "inbound")?.id;
+  useEffect(() => {
+    if (!newestInbound) return;
+    void rpc<number>("wa_number_mark_read", { p_phone: c.phone_e164 })
+      .then((n) => {
+        if (n > 0) {
+          void queryClient.invalidateQueries({ queryKey: ["nav_badges"] });
+          void queryClient.invalidateQueries({ queryKey: ["wa_inbox"] });
+        }
+      })
+      .catch(() => undefined);
+  }, [newestInbound, c.phone_e164, queryClient]);
+  const phone = encodeURIComponent(c.phone_e164);
+  const refresh = () => void queryClient.invalidateQueries({ queryKey: key });
+  const chip = head && (
+    <span className="inline-flex flex-wrap items-center gap-1.5">
+      <ChatStateChip optedOut={head.opted_out} api={head.enabled} enabled={head.enabled} windowOpen={windowOpen} until={head.window_open_until} />
+      <DndBadge dnd={dnd.data} />
+    </span>
+  );
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex min-h-16 items-center gap-2 border-b border-border px-2 py-2 sm:px-4">
+      <div className="flex min-h-16 flex-wrap items-center gap-2 border-b border-border px-2 py-2 sm:px-4">
         <Button variant="ghost" size="icon" className="lg:hidden" onClick={onBack} aria-label={w("backToChats")}>
           <ArrowLeft aria-hidden />
         </Button>
@@ -208,37 +257,76 @@ function UnknownNumber({ c, onBack }: { c: Conversation; onBack: () => void }) {
           <h2 className="truncate font-semibold">{c.phone_e164}</h2>
           <p className="truncate text-[0.9rem] text-text-secondary">{t("unknown")}</p>
         </div>
-      </div>
-      <div className="chat-wall flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
-        <p className="max-w-prose rounded-xl border border-border bg-card p-3 text-[0.95rem] text-text-secondary">{t("unknownHint")}</p>
-        {c.last_preview && (
-          <p className="chat-in max-w-[85%] self-start rounded-2xl rounded-tl-sm border border-border px-3 py-2 whitespace-pre-wrap shadow-sm">{c.last_preview}</p>
-        )}
-      </div>
-      <div className="flex flex-wrap gap-2 border-t border-border px-3 py-2.5 sm:px-4">
-        <Button asChild variant="secondary">
-          <a href={`tel:${c.phone_e164}`}>
-            <Phone aria-hidden />
-            {t("call")}
-          </a>
-        </Button>
-        {(me?.role === "receptionist" || me?.role === "admin") && (
+        <span className="hidden md:inline-flex">{chip}</span>
+        <div className="flex flex-wrap items-center gap-1.5">
           <Button asChild variant="secondary">
-            <Link href="/patients/new">
-              <UserPlus aria-hidden />
-              {t("register")}
-            </Link>
+            <a href={`tel:${c.phone_e164}`}>
+              <Phone aria-hidden />
+              {t("call")}
+            </a>
           </Button>
-        )}
-        {(me?.role === "sales_manager" || me?.role === "admin") && (
-          <Button asChild variant="secondary">
-            <Link href="/leads?new=1">
-              <Target aria-hidden />
-              {t("addLead")}
-            </Link>
-          </Button>
-        )}
+          {(me?.role === "receptionist" || me?.role === "admin") && (
+            <Button asChild variant="secondary">
+              <Link href={`/patients/new?phone=${phone}`}>
+                <UserPlus aria-hidden />
+                {t("register")}
+              </Link>
+            </Button>
+          )}
+          {(me?.role === "sales_manager" || me?.role === "admin") && (
+            <Button asChild variant="secondary">
+              <Link href={`/leads?new=1&phone=${phone}`}>
+                <Target aria-hidden />
+                {t("addLead")}
+              </Link>
+            </Button>
+          )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" aria-label={w("chatOptions")}>
+                <EllipsisVertical aria-hidden />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={() => setDndOpen(true)}>
+                <MoonStar aria-hidden />
+                {w("dnd.menu")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
+      {chip && <div className="border-b border-border px-4 py-1.5 md:hidden">{chip}</div>}
+      <p className="border-b border-border bg-card px-4 py-1.5 text-[0.9rem] text-text-secondary">{t("unknownHint")}</p>
+      {thread.isPending ? (
+        <div className="chat-wall min-h-0 flex-1 p-4">
+          <RowSkeletons rows={3} />
+        </div>
+      ) : thread.isError ? (
+        <p className="chat-wall min-h-0 flex-1 p-4 text-text-secondary">{w("cantLoad")}</p>
+      ) : (
+        <ChatMessages
+          items={items}
+          hasMore={thread.hasNextPage}
+          loadingMore={thread.isFetchingNextPage}
+          onMore={() => void thread.fetchNextPage()}
+          className="min-h-0 flex-1"
+        />
+      )}
+      {head && (
+        <div className="border-t border-border bg-card px-3 py-2 sm:px-4">
+          {head.opted_out ? (
+            <p className="text-[0.95rem] text-text-secondary">{w("optedOutHint")}</p>
+          ) : head.enabled ? (
+            <ApiComposer target={target} windowOpen={windowOpen} onSent={refresh} />
+          ) : (
+            <p className="text-[0.95rem] text-text-secondary">{w("apiOff")}</p>
+          )}
+        </div>
+      )}
+      <Dialog open={dndOpen} onOpenChange={setDndOpen}>
+        {dndOpen && <DndDialog target={target} current={dnd.data} onDone={() => setDndOpen(false)} />}
+      </Dialog>
     </div>
   );
 }

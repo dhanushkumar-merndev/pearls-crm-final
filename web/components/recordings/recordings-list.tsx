@@ -1,7 +1,7 @@
 "use client";
 
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { CloudDownload, Play } from "lucide-react";
+import { CloudDownload, MapPin, Mic, Phone, Play, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -54,6 +54,8 @@ const STATUS_KIND: Record<RecordingStatus, StatusKind> = {
   archived: "serious",
 };
 
+const KIND_ICON: Record<RecordingRow["kind"], LucideIcon> = { call: Phone, visit: MapPin, voice_note: Mic };
+
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
 /** Recordings, newest first: play the synced ones, ask the phone for the others. */
@@ -74,8 +76,8 @@ export function RecordingsList({ filters = {}, showLead = true }: { filters?: Re
   if (list.isPending) return <RowSkeletons rows={3} />;
   if (items.length === 0) return <p className="text-text-secondary">{t("empty")}</p>;
   return (
-    <div className="flex flex-col gap-2">
-      <ul className="flex flex-col gap-2">
+    <div className="flex flex-col gap-3">
+      <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card">
         {items.map((r) => (
           <RecordingItem key={r.id} r={r} showLead={showLead} canRequest={canRequest} queryKey={key} />
         ))}
@@ -107,46 +109,67 @@ function RecordingItem({ r, showLead, canRequest, queryKey }: { r: RecordingRow;
   });
   const waitingForPhone = r.status !== "synced" && r.status !== "archived";
 
+  const KindIcon = KIND_ICON[r.kind];
+  const title = showLead && r.lead_id ? `${r.lead_name ?? r.phone_e164 ?? ""}${r.sl_no ? ` #${r.sl_no}` : ""}` : null;
+
   return (
-    <li className="flex flex-col gap-1.5 rounded-xl border border-border p-3">
-      {/* Same three lines on every item: who, when and what, then the state. */}
-      {showLead && r.lead_id && (
-        <Link href={`/leads/${r.lead_id}`} className="self-start font-medium text-link underline-offset-4 hover:underline">
-          {r.lead_name ?? r.phone_e164}
-          {r.sl_no ? ` (#${r.sl_no})` : ""}
-        </Link>
+    <li className="flex flex-col gap-3 px-4 py-3">
+      {/* One row: what it is and who, then its state and the one action on the right. */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="flex min-w-0 flex-1 items-start gap-3">
+          <span aria-hidden className="mt-0.5 inline-flex size-9 shrink-0 items-center justify-center rounded-full bg-secondary text-text-secondary">
+            <KindIcon className="size-4" />
+          </span>
+          <div className="flex min-w-0 flex-col gap-0.5">
+            {title ? (
+              <Link href={`/leads/${r.lead_id}`} className="self-start truncate font-medium text-link underline-offset-4 hover:underline">
+                {title}
+              </Link>
+            ) : (
+              <span className="font-medium">{t(`kind.${r.kind}`)}</span>
+            )}
+            <p className="flex flex-wrap items-center gap-x-1.5 text-[0.9rem] text-text-secondary">
+              {title && <span>{t(`kind.${r.kind}`)}</span>}
+              {title && <span aria-hidden>·</span>}
+              <span className="tabular-nums">{mmss(r.duration_s)}</span>
+              <span aria-hidden>·</span>
+              <span>{r.staff_name}</span>
+              <span aria-hidden>·</span>
+              <span className="tabular-nums">{formatDateTime(new Date(r.recorded_at))}</span>
+            </p>
+            {r.notes && <p className="line-clamp-2 text-[0.9rem] whitespace-pre-wrap">{r.notes}</p>}
+            {r.trimmed && r.uploaded_s != null && <p className="text-[0.9rem] text-text-secondary">{t("trimmed", { minutes: Math.round(r.uploaded_s / 60) })}</p>}
+            {r.status === "failed" && r.error && <p className="text-[0.9rem] text-bad-text">{t("failedBecause", { error: r.error })}</p>}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 pl-12 sm:shrink-0 sm:justify-end sm:pl-0">
+          {r.needs_review && <StatusBadge kind="serious" label={t("checkMatch")} />}
+          <div className="flex flex-col items-start gap-0.5 sm:items-end">
+            <StatusBadge kind={STATUS_KIND[r.status]} label={t(`status.${r.status}`)} />
+            {r.sync_requested_at && waitingForPhone && (
+              <span className="text-[0.85rem] text-text-secondary">{t("askedAt", { at: formatDateTime(new Date(r.sync_requested_at)) })}</span>
+            )}
+          </div>
+          {r.file_id && !src && (
+            <Button variant="secondary" disabled={play.isPending} onClick={() => play.mutate()}>
+              <Play aria-hidden />
+              {t("play")}
+            </Button>
+          )}
+          {canRequest && waitingForPhone && !r.sync_requested_at && (
+            <Button variant="secondary" disabled={request.isPending} onClick={() => request.mutate()}>
+              <CloudDownload aria-hidden />
+              {t("requestSync")}
+            </Button>
+          )}
+        </div>
+      </div>
+      {src && (
+        <div className="sm:pl-12">
+          <audio controls autoPlay src={src} className="w-full" aria-label={t("player")} />
+        </div>
       )}
-      <p className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
-        <span className="font-medium">{formatDateTime(new Date(r.recorded_at))}</span>
-        <span>{t(`kind.${r.kind}`)}</span>
-        <span className="tabular-nums text-text-secondary">{mmss(r.duration_s)}</span>
-        <span className="text-text-secondary">{r.staff_name}</span>
-      </p>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <StatusBadge kind={STATUS_KIND[r.status]} label={t(`status.${r.status}`)} />
-        {r.sync_requested_at && waitingForPhone && <span className="text-text-secondary">{t("askedAt", { at: formatDateTime(new Date(r.sync_requested_at)) })}</span>}
-        {r.needs_review && <StatusBadge kind="serious" label={t("checkMatch")} />}
-      </div>
-      {r.trimmed && r.uploaded_s != null && <p className="text-text-secondary">{t("trimmed", { minutes: Math.round(r.uploaded_s / 60) })}</p>}
-      {r.notes && <p className="whitespace-pre-wrap text-text-secondary">{r.notes}</p>}
-      {r.status === "failed" && r.error && <p className="text-text-secondary">{t("failedBecause", { error: r.error })}</p>}
-      <div className="flex flex-wrap items-center gap-2">
-        {r.file_id && !src && (
-          <Button variant="secondary" disabled={play.isPending} onClick={() => play.mutate()}>
-            <Play aria-hidden />
-            {t("play")}
-          </Button>
-        )}
-        {src && (
-          <audio controls autoPlay src={src} className="w-full max-w-xl" aria-label={t("player")} />
-        )}
-        {canRequest && waitingForPhone && !r.sync_requested_at && (
-          <Button variant="secondary" disabled={request.isPending} onClick={() => request.mutate()}>
-            <CloudDownload aria-hidden />
-            {t("requestSync")}
-          </Button>
-        )}
-      </div>
     </li>
   );
 }

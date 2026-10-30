@@ -115,7 +115,7 @@ export function AppShell({ me, idleMinutes, children }: { me: Me; idleMinutes: n
           >
             <Search aria-hidden className="size-4" />
             <span className="flex-1 truncate">{t("search.placeholder")}</span>
-            <kbd className="hidden rounded-md border border-border px-1.5 text-[0.9rem] sm:inline">/</kbd>
+            <kbd className="hidden size-6 items-center justify-center rounded-md border border-border font-sans text-[0.85rem] leading-none sm:inline-flex">/</kbd>
           </button>
           <NotificationBell staffId={me.id} />
         </header>

@@ -1,5 +1,5 @@
 import { fail, handler, json, readJson } from "../_shared/http.ts";
-import { graphUrl } from "../_shared/meta.ts";
+import { postMessages } from "../_shared/meta.ts";
 import { callerClient, serviceClient } from "../_shared/supabase.ts";
 import { classifyError, cronOk, dispatch, dispatchSchema, type Deps } from "./logic.ts";
 
@@ -15,20 +15,11 @@ const deps: Deps = {
     return { data, error: error ? { message: error.message } : null };
   },
   async send(body) {
-    try {
-      const res = await fetch(await graphUrl(`${phoneNumberId}/messages`, token, appSecret), {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-        signal: AbortSignal.timeout(15_000),
-      });
-      const out = (await res.json().catch(() => ({}))) as { messages?: { id?: string }[]; error?: Parameters<typeof classifyError>[1] };
-      const id = out.messages?.[0]?.id;
-      if (res.ok && typeof id === "string") return { ok: true, id };
-      return { ok: false, ...classifyError(res.status, out.error) };
-    } catch (e) {
-      return { ok: false, ...classifyError(0, { message: (e as Error).message }) };
-    }
+    const r = await postMessages(body, { token, phoneNumberId, appSecret });
+    if (r.error !== undefined) return { ok: false, ...classifyError(0, { message: r.error }) };
+    const id = (r.json.messages as { id?: string }[] | undefined)?.[0]?.id;
+    if (r.status >= 200 && r.status < 300 && typeof id === "string") return { ok: true, id };
+    return { ok: false, ...classifyError(r.status, r.json.error as Parameters<typeof classifyError>[1]) };
   },
 };
 
@@ -43,6 +34,7 @@ Deno.serve(handler(async (req) => {
   }
   const parsed = dispatchSchema.safeParse((await readJson(req)) ?? {});
   if (!parsed.success) return fail("invalid_input");
-  // Reminders and drips only on the timer, never because someone clicked.
-  return json(await dispatch({ source: cron ? "cron" : "staff", configured: !!(token && phoneNumberId) }, deps));
+  // Reminders and drips only on the timer, never because someone clicked or the bot replied.
+  const source = cron ? (parsed.data.source === "bot" ? "bot" : "cron") : "staff";
+  return json(await dispatch({ source, configured: !!(token && phoneNumberId) }, deps));
 }));

@@ -3,11 +3,12 @@
 import { Eye, EyeOff, Info, LoaderCircle, LogIn } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { loginSchema, toLoginEmail, type LoginInput } from "@pearl/shared";
 import { Button } from "@/components/ui/button";
-import { FieldError, Input, Label } from "@/components/ui/input";
+import { FieldError, Input } from "@/components/ui/input";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
+import { cn } from "@/lib/utils";
 
 type LoginField = keyof LoginInput;
 const FIELDS: readonly LoginField[] = ["username", "password"];
@@ -80,11 +81,8 @@ export function LoginForm({ next, notice, signOutFirst }: { next: string; notice
   }
 
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-5" noValidate>
-      <div className="text-center">
-        <h1 className="text-[1.75rem] font-semibold tracking-tight">{t("title")}</h1>
-        <p className="mt-1 text-balance text-text-secondary">{t("subtitle")}</p>
-      </div>
+    <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
+      <h1 className="mb-3 text-center text-[2rem] font-semibold tracking-tight">{t("title")}</h1>
 
       {notice && (
         <p className="flex items-start gap-2 rounded-xl border border-border bg-secondary p-3 text-[0.95rem]" role="status">
@@ -93,38 +91,43 @@ export function LoginForm({ next, notice, signOutFirst }: { next: string; notice
         </p>
       )}
 
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="username">{t("username")}</Label>
-        <Input
-          id="username"
-          name="username"
-          autoComplete="username"
-          autoCapitalize="none"
-          spellCheck={false}
-          required
-          onChange={() => clearFieldError("username")}
-          {...a11y("username")}
-        />
+      <div className="flex flex-col gap-1.5">
+        <div className="relative">
+          <Input
+            id="username"
+            name="username"
+            placeholder=" "
+            autoComplete="username"
+            autoCapitalize="none"
+            spellCheck={false}
+            required
+            className={PILL}
+            onChange={() => clearFieldError("username")}
+            {...a11y("username")}
+          />
+          <FloatingLabel htmlFor="username">{t("username")}</FloatingLabel>
+        </div>
         <FieldError id="username-error">{fieldErrors.username}</FieldError>
       </div>
 
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="password">{t("password")}</Label>
+      <div className="flex flex-col gap-1.5">
         <div className="relative">
           <Input
             id="password"
             name="password"
             type={showPassword ? "text" : "password"}
+            placeholder=" "
             autoComplete="current-password"
             required
-            className="pr-14"
+            className={cn(PILL, "pr-14")}
             onChange={() => clearFieldError("password")}
             {...a11y("password")}
           />
+          <FloatingLabel htmlFor="password">{t("password")}</FloatingLabel>
           <Button
             variant="ghost"
             size="icon"
-            className="absolute top-1/2 right-0.5 -translate-y-1/2"
+            className="absolute top-1/2 right-1.5 -translate-y-1/2"
             onClick={() => setShowPassword((v) => !v)}
             aria-label={showPassword ? t("hidePassword") : t("showPassword")}
             aria-pressed={showPassword}
@@ -137,10 +140,32 @@ export function LoginForm({ next, notice, signOutFirst }: { next: string; notice
 
       <FieldError id="login-error">{error}</FieldError>
 
-      <Button type="submit" size="lg" disabled={busy} className="w-full">
+      <Button type="submit" size="lg" disabled={busy} className="min-h-12 w-full rounded-full">
         {busy ? <LoaderCircle aria-hidden className="animate-spin" /> : <LogIn aria-hidden />}
         {busy ? t("submitting") : t("submit")}
       </Button>
+
+      <p className="text-center text-[0.95rem] text-balance text-text-secondary">{t("forgotHint")}</p>
     </form>
+  );
+}
+
+/** Pill input; the focus colour is the border itself, like the ChatGPT sign-in. */
+const PILL = "peer min-h-12 rounded-full px-5 outline-none focus-visible:outline-none focus:border-ring focus:ring-1 focus:ring-ring aria-invalid:focus:border-status-critical aria-invalid:focus:ring-status-critical";
+
+/** Sits inside the empty input like a placeholder; moves up into the border once focused or filled. */
+function FloatingLabel({ htmlFor, children }: { htmlFor: string; children: ReactNode }) {
+  return (
+    <label
+      htmlFor={htmlFor}
+      className={cn(
+        "pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 bg-background px-1 text-base text-text-secondary transition-all",
+        "peer-focus:top-0 peer-focus:text-xs peer-focus:text-ring",
+        "peer-[:not(:placeholder-shown)]:top-0 peer-[:not(:placeholder-shown)]:text-xs",
+        "peer-autofill:top-0 peer-autofill:text-xs peer-aria-invalid:text-bad-text",
+      )}
+    >
+      {children}
+    </label>
   );
 }

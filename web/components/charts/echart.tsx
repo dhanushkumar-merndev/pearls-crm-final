@@ -108,7 +108,7 @@ export function EChart({ title, description, option, table, height, rows, empty 
       </div>
 
       {empty ? (
-        <p className="flex min-h-24 items-center justify-center gap-2 rounded-xl border border-dashed border-border text-text-secondary">
+        <p className="flex min-h-24 flex-1 items-center justify-center gap-2 rounded-xl border border-dashed border-border text-text-secondary">
           <ChartNoAxesColumn aria-hidden className="size-5" />
           {c("noData")}
         </p>
@@ -138,7 +138,7 @@ export function EChart({ title, description, option, table, height, rows, empty 
           </table>
         </div>
       ) : (
-        <div className="relative" style={{ height: boxHeight }}>
+        <div className="relative flex-1" style={{ minHeight: boxHeight }}>
           {!chart && (
             <>
               <Skeleton className="absolute inset-0" />

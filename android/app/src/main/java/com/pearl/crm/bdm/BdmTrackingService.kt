@@ -35,9 +35,10 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 /**
- * Keeps the BDM's route while the day is open: a reading every 10 seconds (the track filter
- * removes standing-still jitter), a chunk every few minutes, a heartbeat for the live map, and
- * "location switched off" reported to the admin. Runs as a visible foreground service
+ * Keeps the BDM's route while the day is open: a reading every second, saved on the phone (the
+ * track filter keeps a point every ~15 m, so the line follows the roads), uploaded every few
+ * minutes (admin setting), a heartbeat for the live map, and "location switched off" reported
+ * to the admin. Runs as a visible foreground service
  * ("Your day is being recorded") started from the app, so it needs no background permission.
  */
 class BdmTrackingService : Service() {
@@ -73,7 +74,7 @@ class BdmTrackingService : Service() {
     private fun start() {
         lastGpsOn = container.location.enabled()
         ContextCompat.registerReceiver(this, providers, IntentFilter(LocationManager.PROVIDERS_CHANGED_ACTION), ContextCompat.RECEIVER_NOT_EXPORTED)
-        stopTracking = container.location.track(intervalMs = 10_000, minDistanceM = 0f) { p ->
+        stopTracking = container.location.track(intervalMs = 1_000, minDistanceM = 0f) { p ->
             scope.launch {
                 container.bdm.recordPoint(p)
                 if (p.mock && !mockReported) {

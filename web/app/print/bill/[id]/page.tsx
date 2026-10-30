@@ -36,7 +36,9 @@ export default async function PrintBillPage({ params }: { params: Promise<{ id: 
   const final = b.bill_type === "final_bill";
   const grand = b.total_paise + b.carried_in_paise;
   const received = b.payments.reduce((s, p) => s + p.amount_paise, 0);
-  const cols = 6 + (pharmacy ? 2 : 0) + (hasTax ? 3 : 0);
+  // #, particulars, SAC/HSN, rate, qty, disc., amount (+ batch, mfr. / taxable, CGST, SGST).
+  const cols = 7 + (pharmacy ? 2 : 0) + (hasTax ? 3 : 0);
+  const hasReference = b.payments.some((p) => p.reference);
 
   // Final bill: lines grouped by category with a subtotal each (PLAN.md C6).
   const groups = new Map<string, BillItem[]>();
@@ -102,7 +104,7 @@ export default async function PrintBillPage({ params }: { params: Promise<{ id: 
         <table className="lines">
           <thead>
             <tr>
-              <th>#</th>
+              <th className="num idx">#</th>
               <th>{t("particulars")}</th>
               <th>{pharmacy ? t("hsn") : t("sac")}</th>
               {pharmacy && <th>{t("batchExpiry")}</th>}
@@ -201,12 +203,20 @@ export default async function PrintBillPage({ params }: { params: Promise<{ id: 
           <>
             <h2>{t("payments")}</h2>
             <table className="lines">
+              <thead>
+                <tr>
+                  <th>{t("date")}</th>
+                  <th>{t("mode")}</th>
+                  {hasReference && <th>{t("reference")}</th>}
+                  <th className="num">{t("amount")}</th>
+                </tr>
+              </thead>
               <tbody>
                 {b.payments.map((p, i) => (
                   <tr key={i}>
                     <td>{formatDateTime(new Date(p.received_at))}</td>
                     <td>{p.mode}</td>
-                    <td>{p.reference ?? ""}</td>
+                    {hasReference && <td>{p.reference ?? ""}</td>}
                     <td className="num">{formatINR(p.amount_paise)}</td>
                   </tr>
                 ))}
@@ -291,7 +301,7 @@ function GroupRows({
         </tr>
       ))}
       {group && (
-        <tr>
+        <tr className="subtotal">
           <td colSpan={cols - 1} className="num">
             {subtotalLabel}
           </td>

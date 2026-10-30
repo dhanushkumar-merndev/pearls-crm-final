@@ -9,6 +9,10 @@ import { z } from "zod";
 const hhmm = z.string({ error: "time" }).regex(/^([01][0-9]|2[0-3]):[0-5][0-9]$/, { error: "time" });
 const num = () => z.number({ error: (iss) => (iss.input === undefined ? "required" : "number") });
 const int = (min: number, max: number) => num().int({ error: "wholeNumber" }).min(min, { error: "min" }).max(max, { error: "max" });
+/** A chat-bot message: blank → null (the built-in text). */
+const botText = (max: number) =>
+  z.preprocess((v) => (typeof v === "string" && v.trim() === "" ? null : v), z.string().trim().max(max, { error: "max" }).nullable())
+    .default(null);
 
 export const SETTINGS_SCHEMAS = {
   ui: z.object({ default_theme: z.enum(["dark", "light", "system"]).default("dark") }),
@@ -79,6 +83,47 @@ export const SETTINGS_SCHEMAS = {
     /** Sent once after someone writes STOP. Empty = the built-in text. */
     stop_reply: z.string().trim().max(1000, { error: "max" }).nullable().default(null),
   }),
+  /**
+   * WhatsApp chat bot (Admin → WhatsApp → Chat bot). Texts: empty = the built-in English one;
+   * {clinic} {brochure} {website} {name} {phone} {products} {location} are filled in. Treatments: 30
+   * characters and 20 items at most (Meta's tick-box limits). flow_id / flow_draft_id are set by
+   * "Set up tick-box form" (wa-templates-sync), not typed.
+   */
+  wa_bot: z
+    .object({
+      enabled: z.boolean().default(false),
+      brochure_url: z
+        .url({ protocol: /^https$/, error: "url" })
+        .max(500, { error: "max" })
+        .nullable()
+        .default(null),
+      website_url: z
+        .url({ protocol: /^https$/, error: "url" })
+        .max(500, { error: "max" })
+        .nullable()
+        .default(null),
+      products: z
+        .array(z.string().trim().min(1, { error: "required" }).max(30, { error: "max" }))
+        .max(20, { error: "tooMany" })
+        .refine((list) => new Set(list.map((p) => p.toLowerCase())).size === list.length, { error: "duplicateValue" })
+        .default([]),
+      daily_chat_limit: int(1, 50).default(5),
+      intro_text: botText(1000),
+      name_text: botText(500),
+      products_text: botText(500),
+      location_text: botText(500),
+      summary_text: botText(900),
+      done_text: botText(500),
+      cancelled_text: botText(500),
+      sorry_text: botText(200),
+      media_text: botText(300),
+      form_button: botText(30),
+      confirm_button: botText(20),
+      cancel_button: botText(20),
+      flow_id: z.string().regex(/^[0-9]{5,30}$/).nullable().default(null),
+      flow_draft_id: z.string().regex(/^[0-9]{5,30}$/).nullable().default(null),
+    })
+    .refine((v) => !v.enabled || v.products.length > 0, { path: ["products"], error: "botNeedsProducts" }),
   notifications: z.object({
     daily_summary_enabled: z.boolean().default(true),
     daily_summary_time: hhmm.default("20:00"),

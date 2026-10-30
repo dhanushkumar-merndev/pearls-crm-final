@@ -24,6 +24,7 @@ build/
 coverage/
 *.tsbuildinfo
 next-env.d.ts
+web/public/maplibre/
 
 # Test output
 playwright-report/

@@ -125,3 +125,23 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* MapLibre's zoom buttons and credits follow the theme (the dark map otherwise has white boxes). */
+.maplibregl-ctrl-group:not(:empty),
+.maplibregl-ctrl.maplibregl-ctrl-attrib,
+.maplibregl-ctrl.maplibregl-ctrl-attrib.maplibregl-compact {
+  background: var(--card);
+  color: var(--card-foreground);
+  box-shadow: 0 0 0 1px var(--border);
+}
+.maplibregl-ctrl-group button + button {
+  border-top-color: var(--border);
+}
+.maplibregl-ctrl.maplibregl-ctrl-attrib a {
+  color: inherit;
+}
+.dark .maplibregl-ctrl button .maplibregl-ctrl-icon,
+.dark .maplibregl-ctrl .maplibregl-ctrl-attrib-button {
+  background-color: transparent;
+  filter: invert(1);
+}

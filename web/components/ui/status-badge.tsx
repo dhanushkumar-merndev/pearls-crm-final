@@ -1,4 +1,5 @@
 import { CircleAlert, CircleCheck, CircleX, Clock, type LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
 import type { StatusKind } from "@pearl/shared";
 import { cn } from "@/lib/utils";
 
@@ -17,7 +18,18 @@ const ICON_COLOUR: Record<StatusKind, string> = {
 };
 
 /** Status is always icon + words, never colour alone ("Confirmed ✅", "Waiting ⏳"). */
-export function StatusBadge({ kind, label, className }: { kind: StatusKind; label: string; className?: string }) {
+export function StatusBadge({
+  kind,
+  label,
+  className,
+  children,
+}: {
+  kind: StatusKind;
+  label: string;
+  className?: string;
+  /** Shown after the label, e.g. a chevron when the badge opens a menu. */
+  children?: ReactNode;
+}) {
   const Icon = ICONS[kind];
   return (
     <span
@@ -28,6 +40,7 @@ export function StatusBadge({ kind, label, className }: { kind: StatusKind; labe
     >
       <Icon aria-hidden className={cn("size-4", ICON_COLOUR[kind])} />
       {label}
+      {children}
     </span>
   );
 }

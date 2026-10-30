@@ -398,9 +398,9 @@ class BdmRepository(
         }
 
     /**
-     * Packs the points recorded so far into one chunk and queues it. Points older than a
-     * minute are packed (or all of them when [force], e.g. at end of day). Returns the number
-     * of points kept after cleaning (0 = nothing to send).
+     * Packs the points recorded so far into chunks (at most [MAX_CHUNK_POINTS] each) and queues
+     * them. Points older than a minute are packed (or all of them when [force], e.g. at end of
+     * day). Returns the number of points kept after cleaning (0 = nothing to send).
      */
     suspend fun flushTrack(force: Boolean = false): Int {
         val d = _day.value
@@ -411,10 +411,13 @@ class BdmRepository(
         val last = lastKept(dayId)
         val kept = TrackFilter.filter(raw.map { it.toRaw() }, last)
         val cutoff = raw.maxOf { it.t }
-        val chunk = TrackChunk.of(kept, last)
         db.withTransaction {
-            if (chunk != null) {
-                val seq = nextSeq(dayId)
+            // A reading every second can keep thousands of points between uploads: send them in
+            // pieces the server accepts, each joined to the one before.
+            var seq = nextSeq(dayId)
+            var before = last
+            for (piece in kept.chunked(MAX_CHUNK_POINTS)) {
+                val chunk = TrackChunk.of(piece, before) ?: continue
                 val id = newClientId()
                 outbox.enqueue(
                     "bdm_upload_chunks",
@@ -437,8 +440,11 @@ class BdmRepository(
                     entityKey = "bdm-track:$dayId",
                     clientId = id,
                 )
-                val k = kept.last()
-                prefs.edit().putInt(KEY_SEQ + dayId, seq + 1).putString(KEY_LAST + dayId, "${k.t}|${k.lat}|${k.lng}|${k.accuracyM}").apply()
+                seq += 1
+                before = piece.last()
+            }
+            before?.let { k ->
+                prefs.edit().putInt(KEY_SEQ + dayId, seq).putString(KEY_LAST + dayId, "${k.t}|${k.lat}|${k.lng}|${k.accuracyM}").apply()
             }
             db.trackPoints().deleteUpTo(dayId, cutoff)
         }
@@ -534,6 +540,9 @@ class BdmRepository(
         private const val KEY_PHOTOS = "photos"
         private const val KEY_HEARTBEAT = "heartbeat_minutes"
         private const val KEY_UPLOAD = "upload_minutes"
+
+        /** Points per upload piece; the server takes up to 2000 (location_chunks.points). */
+        const val MAX_CHUNK_POINTS = 1000
 
         /** Retries of the same upload reuse the same file id on the server. */
         fun selfieClientId(dayClientId: String): String = java.util.UUID.nameUUIDFromBytes("selfie|$dayClientId".toByteArray()).toString()

@@ -5,8 +5,8 @@ import { BatteryMedium, Crosshair, Download, MapPinOff, Route } from "lucide-rea
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
-import { formatDateTime, istDateString, type StatusKind } from "@pearl/shared";
-import { BdmMap, type MapMarker, type MarkerTone } from "@/components/bdm/bdm-map";
+import { decodePolyline, formatDateTime, istDateString, type StatusKind } from "@pearl/shared";
+import { BdmMap, type MapMarker, type MapPath, type MarkerTone } from "@/components/bdm/bdm-map";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Field, PageHeader } from "@/components/ui/form";
@@ -21,6 +21,8 @@ import { useDateRangeCheck } from "@/lib/use-date-range";
 import { useFeedback } from "@/lib/use-feedback";
 
 const BADGE: Record<MarkerTone, StatusKind> = { good: "good", warning: "warning", critical: "critical", muted: "serious" };
+/** Each BDM's route colour on the live map, in list order (categorical --chart-1…8). */
+const routeColour = (i: number) => (i % 8) + 1;
 
 /** The admin's BDM page: who is where right now (live), each day's sheet, and the Excel report. */
 export function BdmScreen() {
@@ -39,6 +41,14 @@ export function BdmScreen() {
         .map((b) => ({ id: b.staff_id, lat: b.lat!, lng: b.lng!, label: `${b.name}: ${t(`state.${b.state}`)}`, tone: bdmTone(b, now) })),
     [people, now, t],
   );
+  // The road each BDM has taken today (uploaded every few minutes by the phone).
+  const paths: MapPath[] = useMemo(
+    () =>
+      people.flatMap((b, i) =>
+        b.day && b.day.route.length > 0 ? [{ id: b.staff_id, colour: routeColour(i), points: b.day.route.flatMap((p) => decodePolyline(p)) }] : [],
+      ),
+    [people],
+  );
   const locate = useMutation({
     mutationFn: (staffId: string) => rpc("bdm_locate_now", { p_staff_id: staffId }),
     onSuccess: () => saved(t("locateAsked")),
@@ -49,17 +59,20 @@ export function BdmScreen() {
     <Page>
       <PageHeader title={t("title")} description={t("description")} />
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]">
-        <BdmMap markers={markers} label={t("mapLabel")} className="h-72 sm:h-96 xl:h-[28rem]" />
+        <BdmMap markers={markers} paths={paths} label={t("mapLabel")} className="h-72 sm:h-96 xl:h-[28rem]" />
         <section aria-label={t("people")} className="flex flex-col gap-2">
           {live.isPending && <RowSkeletons rows={3} />}
           {live.isSuccess && people.length === 0 && <p className="text-text-secondary">{t("nobody")}</p>}
           <ul className="flex flex-col gap-2">
-            {people.map((b) => {
+            {people.map((b, i) => {
               const tone = bdmTone(b, now);
               const silent = minutesSince(b.last_heartbeat_at, now);
               return (
                 <li key={b.staff_id} className="flex flex-col gap-1 rounded-xl border border-border p-3">
                   <div className="flex flex-wrap items-center gap-2">
+                    {b.day && b.day.route.length > 0 && (
+                      <span aria-hidden className="h-1 w-4 rounded-full" style={{ background: `var(--chart-${routeColour(i)})` }} title={t("routeToday")} />
+                    )}
                     <span className="font-medium">{b.name}</span>
                     <StatusBadge kind={BADGE[tone]} label={b.day?.ended_at ? t("dayEnded") : !b.day ? t("notStarted") : t(`state.${b.state}`)} />
                   </div>

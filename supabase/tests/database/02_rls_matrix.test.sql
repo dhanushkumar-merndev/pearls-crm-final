@@ -84,6 +84,7 @@ insert into public.usage_counters (month, metric, value) values ('2030-01-01', '
 insert into public.idempotency_keys (key, fn) values (gen_random_uuid(), 'fixture');
 insert into public.wa_webhook_events (event_key, kind) values ('fixture:' || gen_random_uuid(), 'other');
 insert into public.wa_messages (phone_e164, direction, kind, status) values ('+919000000999', 'inbound', 'text', 'received');
+insert into public.wa_bot_sessions (phone_e164, started_on) values ('+919000000998', current_date);
 insert into public.notification_rules (type, push) values ('fixture_rule', false);
 insert into public.backup_batches (kind, status) values ('database', 'done');
 insert into public.backup_items (batch_id, table_name) select id, 'fixture' from public.backup_batches limit 1;
@@ -97,7 +98,7 @@ declare
   n bigint;
   found_rows text[] := '{}';
   admin_only text[] := array['audit_log', 'number_series', 'client_errors', 'integration_status',
-                             'job_runs', 'usage_counters', 'wa_webhook_events', 'wa_messages',
+                             'job_runs', 'usage_counters', 'wa_webhook_events', 'wa_messages', 'wa_bot_sessions',
                              'notification_rules', 'backup_batches', 'backup_items'];
 begin
   for r in select * from (values

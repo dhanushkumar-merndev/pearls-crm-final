@@ -16,7 +16,15 @@ export interface LiveBdm {
   network: string | null;
   last_heartbeat_at: string | null;
   locate_requested_at: string | null;
-  day: { id: string; started_at: string; ended_at: string | null; flags: string[]; start_in_geofence: boolean | null } | null;
+  day: {
+    id: string;
+    started_at: string;
+    ended_at: string | null;
+    flags: string[];
+    start_in_geofence: boolean | null;
+    /** Today's uploaded route pieces (encoded polylines), in order. */
+    route: string[];
+  } | null;
 }
 
 /** Silent longer than this (the watchdog's default) shows as a problem. */

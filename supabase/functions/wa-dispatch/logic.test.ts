@@ -39,6 +39,7 @@ Deno.test("cron secret: both must be set and equal", () => {
 Deno.test("request body: only an optional source", () => {
   assertEquals(dispatchSchema.safeParse({}).success, true);
   assertEquals(dispatchSchema.safeParse({ source: "cron" }).success, true);
+  assertEquals(dispatchSchema.safeParse({ source: "bot" }).success, true);
   assertEquals(dispatchSchema.safeParse({ source: "evil" }).success, false);
   assertEquals(dispatchSchema.safeParse({ source: "cron", extra: 1 }).success, false);
 });
@@ -57,6 +58,18 @@ Deno.test("message bodies: template parameters cleaned, text kept, junk refused"
   assertEquals(messageBody(txt("3", "  ")), null);
   assertEquals(messageBody({ ...txt("4"), to: "12" }), null);
   assertEquals(messageBody({ ...tpl("5"), template: null }), null);
+});
+
+Deno.test("message bodies: bot buttons and the tick-box form go as interactive; a brochure link gets its preview", () => {
+  const buttons = { type: "button", body: { text: "Is this correct?" }, action: { buttons: [{ type: "reply", reply: { id: "bot_confirm", title: "Confirm" } }] } };
+  assertEquals(messageBody({ ...txt("1", "Is this correct?"), kind: "interactive", payload: buttons }), {
+    messaging_product: "whatsapp", recipient_type: "individual", to: "919845012345", type: "interactive", interactive: buttons,
+  });
+  assertEquals(messageBody({ ...txt("2"), kind: "interactive", payload: null }), null);
+  assertEquals(messageBody({ ...txt("3"), kind: "interactive", payload: { type: "button" } }), null);
+  assertEquals((messageBody({ ...txt("4", "Brochure: https://x.example/b.pdf"), payload: { preview_url: true } }) as { text: unknown }).text, {
+    preview_url: true, body: "Brochure: https://x.example/b.pdf",
+  });
 });
 
 Deno.test("Meta errors: temporary ones retried, token problems flagged, others final", () => {
@@ -84,6 +97,13 @@ Deno.test("staff run: no reminders or drips, just the queue", async () => {
   const { deps, calls } = fakeDeps({ batches: [[txt("m1")]] });
   const s = await dispatch({ source: "staff", configured: true }, deps);
   assertEquals([s.reminders, s.drips, s.sent], [0, 0, 1]);
+  assertEquals(calls.some((c) => c.fn === "wa_due_reminders" || c.fn === "wa_drip_due"), false);
+});
+
+Deno.test("bot run: replies sent at once, no reminders or drips", async () => {
+  const { deps, calls } = fakeDeps({ batches: [[txt("m1")]] });
+  const s = await dispatch({ source: "bot", configured: true }, deps);
+  assertEquals([s.source, s.reminders, s.drips, s.sent], ["bot", 0, 0, 1]);
   assertEquals(calls.some((c) => c.fn === "wa_due_reminders" || c.fn === "wa_drip_due"), false);
 });
 

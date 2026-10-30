@@ -14,7 +14,7 @@ import { MoreMenu } from "@/components/ui/more-menu";
 import { Page, PageHeader } from "@/components/ui/page";
 
 /** Leads: the managers' table, with New lead (also the sidebar's main button), import, pool and dashboard. */
-export function LeadsScreen({ openNew }: { openNew: boolean }) {
+export function LeadsScreen({ openNew, phone = null }: { openNew: boolean; phone?: string | null }) {
   const t = useTranslations("leads");
   const router = useRouter();
   const pathname = usePathname();
@@ -59,7 +59,7 @@ export function LeadsScreen({ openNew }: { openNew: boolean }) {
       />
       <LeadsTable canAssign />
       <Dialog open={creating} onOpenChange={(o) => !o && close()}>
-        {creating && <NewLeadDialog canAssign onDone={close} />}
+        {creating && <NewLeadDialog canAssign phone={openNew ? phone : null} onDone={close} />}
       </Dialog>
     </Page>
   );

@@ -1,17 +1,21 @@
 // deno-lint-ignore-file require-await -- fakes implement async interfaces without awaiting
 import { assertEquals, assertRejects } from "@std/assert";
-import { GraphError, paramCount, run, syncSchema, toRow, type Deps, type GraphTemplate } from "./logic.ts";
+import { flowJson, GraphError, paramCount, run, syncSchema, toRow, type Deps, type GraphTemplate } from "./logic.ts";
 
 const reminder: GraphTemplate = {
   id: "111", name: "appointment_reminder", language: "en", category: "UTILITY", status: "APPROVED",
   components: [{ type: "HEADER", text: "Reminder" }, { type: "BODY", text: "Hi {{1}}, see you on {{2}} at {{3}}." }],
 };
 
-function fakeDeps(opts: { templates?: GraphTemplate[]; graphFails?: boolean; dbFails?: boolean } = {}) {
+function fakeDeps(
+  opts: { templates?: GraphTemplate[]; graphFails?: boolean; dbFails?: boolean; flow?: { flow_id?: string | null; flow_draft_id?: string | null }; publishFails?: string } = {},
+) {
   const calls: { fn: string; args: Record<string, unknown> }[] = [];
+  const graph: string[] = [];
   const deps: Deps = {
     rpc: async (fn, args) => {
       calls.push({ fn, args });
+      if (fn === "wa_bot_flow_get") return { data: { flow_id: null, flow_draft_id: null, ...opts.flow }, error: null };
       if (opts.dbFails && fn === "wa_templates_upsert") return { data: null, error: { message: "db down" } };
       if (fn === "wa_templates_upsert") return { data: (args.p_templates as unknown[]).length, error: null };
       return { data: null, error: null };
@@ -24,13 +28,26 @@ function fakeDeps(opts: { templates?: GraphTemplate[]; graphFails?: boolean; dbF
       if (opts.graphFails) throw new GraphError("Invalid OAuth access token");
       return { display_phone_number: "+91 98450 00000", verified_name: "Test Clinic", quality_rating: "GREEN" };
     },
+    createFlow: async (name, json) => {
+      graph.push(`create ${name} ${JSON.parse(json).version}`);
+      return "1234567890";
+    },
+    publishFlow: async (id) => {
+      graph.push(`publish ${id}`);
+      if (opts.publishFails) throw new GraphError(opts.publishFails);
+    },
+    now: () => 42,
   };
-  return { deps, calls };
+  return { deps, calls, graph };
 }
 
-Deno.test("request body: only sync or test", () => {
+Deno.test("request body: sync, test, or flow with a title and button", () => {
   assertEquals(syncSchema.safeParse({ action: "sync" }).success, true);
   assertEquals(syncSchema.safeParse({ action: "test" }).success, true);
+  assertEquals(syncSchema.safeParse({ action: "flow", title: "Treatments", button: "Send" }).success, true);
+  assertEquals(syncSchema.safeParse({ action: "flow", title: "", button: "Send" }).success, false);
+  assertEquals(syncSchema.safeParse({ action: "flow", title: "x".repeat(31), button: "Send" }).success, false);
+  assertEquals(syncSchema.safeParse({ action: "sync", title: "x" }).success, false);
   assertEquals(syncSchema.safeParse({ action: "drop" }).success, false);
   assertEquals(syncSchema.safeParse(null).success, false);
 });
@@ -83,4 +100,42 @@ Deno.test("keys missing: 503 not_configured, Meta never called", async () => {
 Deno.test("a database error is not blamed on Meta", async () => {
   const { deps } = fakeDeps({ dbFails: true });
   await assertRejects(() => run("sync", true, deps), Error, "db down");
+});
+
+Deno.test("flow JSON: one screen, tick boxes from the message data, sends the choices back", () => {
+  const f = flowJson("Treatments", "Send");
+  const screen = f.screens[0]!;
+  assertEquals([screen.id, screen.title, screen.terminal], ["PICK", "Treatments", true]);
+  assertEquals(screen.layout.children[0], {
+    type: "CheckboxGroup", name: "choices", label: "${data.label}", "data-source": "${data.options}", required: true, "min-selected-items": 1,
+  });
+  assertEquals(screen.layout.children[1]!["on-click-action"], { name: "complete", payload: { choices: "${form.choices}" } });
+});
+
+Deno.test("flow: made as a draft, saved, published, saved as published", async () => {
+  const { deps, calls, graph } = fakeDeps();
+  assertEquals(await run({ action: "flow", title: "Treatments", button: "Send" }, true, deps), {
+    status: 200, body: { action: "flow", flow_id: "1234567890", published: true },
+  });
+  assertEquals(graph, ["create crm_treatments_42 7.1", "publish 1234567890"]);
+  assertEquals(calls.filter((c) => c.fn === "wa_bot_flow_saved").map((c) => c.args.p_published), [false, true]);
+});
+
+Deno.test("flow: Meta won't publish (business not verified) → 502 with the reason, the draft is kept", async () => {
+  const { deps, calls } = fakeDeps({ publishFails: "Business is not verified" });
+  assertEquals(await run({ action: "flow", title: "T", button: "B" }, true, deps), {
+    status: 502, body: { error: "whatsapp_api", detail: "Business is not verified" },
+  });
+  assertEquals(calls.filter((c) => c.fn === "wa_bot_flow_saved").map((c) => [c.args.p_flow_id, c.args.p_published]), [["1234567890", false]]);
+});
+
+Deno.test("flow: pressing again publishes the saved draft (no second form); a published one is left alone", async () => {
+  const again = fakeDeps({ flow: { flow_draft_id: "5555555" } });
+  await run({ action: "flow", title: "T", button: "B" }, true, again.deps);
+  assertEquals(again.graph, ["publish 5555555"]);
+  const done = fakeDeps({ flow: { flow_id: "7777777" } });
+  assertEquals(await run({ action: "flow", title: "T", button: "B" }, true, done.deps), {
+    status: 200, body: { action: "flow", flow_id: "7777777", published: true },
+  });
+  assertEquals(done.graph, []);
 });

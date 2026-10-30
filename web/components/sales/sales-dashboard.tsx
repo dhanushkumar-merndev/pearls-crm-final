@@ -241,7 +241,7 @@ export function SalesDashboard() {
       )}
 
       {d && (
-        <div className="grid items-start gap-4 xl:grid-cols-2">
+        <div className="grid gap-4 xl:grid-cols-2">
           <EChart
             title={t("funnelTitle")}
             description={t("funnelHint", { lost: d.funnel.lost, junk: d.funnel.junk })}

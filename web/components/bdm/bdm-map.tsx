@@ -3,12 +3,13 @@
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { Map as MlMap, Marker } from "maplibre-gl";
 import { useTranslations } from "next-intl";
+import { useTheme } from "next-themes";
 import { useEffect, useRef, useState } from "react";
 import type { LatLng } from "@pearl/shared";
 import { cn } from "@/lib/utils";
 
-/** OpenFreeMap: free tiles, business use allowed (PLAN.md A2 "Maps"). */
-const STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
+/** OpenFreeMap: free tiles, business use allowed (PLAN.md A2 "Maps"). Dark map in the dark theme. */
+const STYLE_URL = { dark: "https://tiles.openfreemap.org/styles/dark", light: "https://tiles.openfreemap.org/styles/liberty" };
 const INDIA: [number, number] = [77.5946, 12.9716];
 
 export type MarkerTone = "good" | "warning" | "critical" | "muted";
@@ -24,6 +25,8 @@ export interface MapMarker {
 export interface MapPath {
   id: string;
   points: LatLng[];
+  /** Categorical colour 1–8 (--chart-n), e.g. one per BDM on the live map. Default 1. */
+  colour?: number;
 }
 
 const TONE_VAR: Record<MarkerTone, string> = {
@@ -73,12 +76,16 @@ export function BdmMap({
   label: string;
 }) {
   const t = useTranslations("bdm");
+  const mode: keyof typeof STYLE_URL = useTheme().resolvedTheme === "light" ? "light" : "dark";
+  const modeAtStart = useRef(mode);
   const box = useRef<HTMLDivElement>(null);
   const map = useRef<MlMap | null>(null);
   const lib = useRef<typeof import("maplibre-gl") | null>(null);
   const placed = useRef<Marker[]>([]);
   const cursorMarker = useRef<Marker | null>(null);
-  const [ready, setReady] = useState(false);
+  // Goes up each time a map style has loaded (first load, and after a dark/light switch wipes the route layer).
+  const [styleLoads, setStyleLoads] = useState(0);
+  const ready = styleLoads > 0;
   const [failed, setFailed] = useState(false);
   const fitted = useRef(false);
 
@@ -88,19 +95,21 @@ export function BdmMap({
       try {
         const maplibre = await import("maplibre-gl");
         if (cancelled || !box.current) return;
+        // Served from public/ (scripts/copy-map-worker.mjs): the bundled copy can't find its worker.
+        maplibre.setWorkerUrl(`${location.origin}/maplibre/maplibre-gl-worker.mjs`);
         lib.current = maplibre;
-        const m = new maplibre.Map({ container: box.current, style: STYLE_URL, center: INDIA, zoom: 10, attributionControl: { compact: true } });
+        const m = new maplibre.Map({ container: box.current, style: STYLE_URL[modeAtStart.current], center: INDIA, zoom: 10, attributionControl: { compact: true } });
         m.addControl(new maplibre.NavigationControl({ showCompass: false }), "top-right");
-        m.on("load", () => {
+        m.on("style.load", () => {
           m.addSource("routes", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
           m.addLayer({
             id: "routes",
             type: "line",
             source: "routes",
             layout: { "line-join": "round", "line-cap": "round" },
-            paint: { "line-color": token("--chart-1"), "line-width": 4 },
+            paint: { "line-color": ["get", "colour"], "line-width": 4 },
           });
-          if (!cancelled) setReady(true);
+          if (!cancelled) setStyleLoads((n) => n + 1);
         });
         m.on("error", () => undefined);
         map.current = m;
@@ -115,6 +124,14 @@ export function BdmMap({
     };
   }, []);
 
+  // Dark / light switch: load the other map style (the route layer is added again on "style.load").
+  useEffect(() => {
+    const m = map.current;
+    if (!ready || !m || modeAtStart.current === mode) return;
+    modeAtStart.current = mode;
+    m.setStyle(STYLE_URL[mode], { diff: false });
+  }, [ready, mode]);
+
   useEffect(() => {
     const m = map.current;
     const maplibre = lib.current;
@@ -126,7 +143,7 @@ export function BdmMap({
       type: "FeatureCollection",
       features: paths
         .filter((p) => p.points.length > 1)
-        .map((p) => ({ type: "Feature", properties: { id: p.id }, geometry: { type: "LineString", coordinates: p.points.map(([la, lg]) => [lg, la]) } })),
+        .map((p) => ({ type: "Feature", properties: { id: p.id, colour: token(`--chart-${p.colour ?? 1}`) }, geometry: { type: "LineString", coordinates: p.points.map(([la, lg]) => [lg, la]) } })),
     });
     // Frame everything once (later updates keep the person's own zoom).
     const all: [number, number][] = [...markers.map((mk) => [mk.lng, mk.lat] as [number, number]), ...paths.flatMap((p) => p.points.map(([la, lg]) => [lg, la] as [number, number]))];
@@ -135,7 +152,7 @@ export function BdmMap({
       m.fitBounds(bounds, { padding: 48, maxZoom: 15, duration: 0 });
       fitted.current = true;
     }
-  }, [ready, markers, paths]);
+  }, [ready, styleLoads, markers, paths]);
 
   useEffect(() => {
     const m = map.current;

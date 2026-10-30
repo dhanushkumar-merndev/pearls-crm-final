@@ -30,6 +30,7 @@
     "supabase:configure": "tsx scripts/supabase-configure.ts",
     "staging:bootstrap": "tsx scripts/staging-bootstrap.ts",
     "sql": "tsx scripts/sql.ts",
+    "wa:templates": "tsx scripts/wa-templates.ts",
     "precommit:scan": "tsx scripts/precommit-scan.ts",
     "vectors": "pnpm --filter @pearl/shared vectors",
     "sql:check": "tsx scripts/sql-check.ts",

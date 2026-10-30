@@ -28,8 +28,8 @@ export function RecordingsScreen() {
   return (
     <Page>
       <PageHeader title={t("title")} description={t("description")} />
-      <div className="flex flex-wrap gap-4">
-        <Field label={t("filterStatus")} className="w-64">
+      <div className="flex flex-wrap gap-3">
+        <Field label={t("filterStatus")} className="w-52">
           {(a) => (
             <Select {...a} value={status ?? ""} onChange={(e) => go("status", e.target.value)}>
               <option value="">{t("any")}</option>
@@ -41,7 +41,7 @@ export function RecordingsScreen() {
             </Select>
           )}
         </Field>
-        <Field label={t("filterKind")} className="w-64">
+        <Field label={t("filterKind")} className="w-52">
           {(a) => (
             <Select {...a} value={kind ?? ""} onChange={(e) => go("kind", e.target.value)}>
               <option value="">{t("any")}</option>

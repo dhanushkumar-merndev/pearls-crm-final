@@ -68,8 +68,8 @@
     "markAllRead": "Mark all as read"
   },
   "login": {
-    "title": "Log in",
-    "subtitle": "Use the username and password your admin gave you.",
+    "title": "Welcome back",
+    "forgotHint": "Forgot password? Ask your admin to reset it.",
     "password": "Password",
     "showPassword": "Show password",
     "hidePassword": "Hide password",
@@ -281,7 +281,8 @@
     "time": "Choose a time, e.g. 10:30.",
     "reasonShort": "Please write a few words (at least 3 letters).",
     "pickSlot": "Please choose a time slot.",
-    "rangeTooLong": "Choose at most one year."
+    "rangeTooLong": "Choose at most one year.",
+    "botNeedsProducts": "Add at least one treatment before switching the bot on."
   },
   "picker": {
     "choose": "Choose…",
@@ -956,6 +957,7 @@
     "newCode": "New code now"
   },
   "patientFile": {
+    "whatsappChat": "WhatsApp chat",
     "age": "{n} years",
     "ageAbout": "about {n} years",
     "allergies": "Allergies: {list}",
@@ -1725,6 +1727,8 @@
     "received": "Received",
     "balance": "Balance",
     "payments": "Payments",
+    "mode": "Mode",
+    "reference": "Reference",
     "belowAgreed": "Below agreed price",
     "terms": "Terms & conditions",
     "for": "For",
@@ -2225,6 +2229,7 @@
     "privacy": "Photos go only to the clinic. Nothing is kept on this phone after sending."
   },
   "leads": {
+    "whatsappChat": "WhatsApp chat",
     "title": "Leads",
     "description": "Every enquiry from ads, calls, walk-ins and referrals: who owns it, where it stands and when to call next.",
     "newLead": "New lead",
@@ -2321,6 +2326,9 @@
     "selected": "{n} selected",
     "selectLead": "Select {name}",
     "sortBy": "Sort by",
+    "descending": "Descending",
+    "ascending": "Ascending",
+    "overdueFirst": "Leads with an overdue next call always come first, then the rest, both in this order",
     "stageSaved": "Stage: {stage} ✓",
     "stageTitle": "Stage of {name}",
     "treatmentHint": "From the treatment list, or type it in the next box.",
@@ -2349,11 +2357,11 @@
       "uhid": "UHID"
     },
     "sort": {
-      "lead_date": "Date (newest)",
+      "lead_date": "Date",
       "sl_no": "Lead no.",
-      "name": "Name (A–Z)",
+      "name": "Name",
       "stage": "Stage",
-      "next_followup_at": "Next call (soonest)",
+      "next_followup_at": "Next call",
       "last_activity_at": "Last activity",
       "amount_finalised_paise": "Agreed amount",
       "assigned": "Owner"
@@ -2610,6 +2618,21 @@
     "manualNumber": "Manual WhatsApp for this number",
     "apiOff": "WhatsApp sending is off",
     "windowOpen": "Can reply freely until {time}",
+    "dnd": {
+      "menu": "Do not disturb…",
+      "title": "Do not disturb",
+      "description": "For this WhatsApp number only. Staff can still send messages by hand.",
+      "bot": "Chat bot off",
+      "botHint": "The chat bot never answers this number. A chat it is in now goes to staff.",
+      "auto": "Automatic messages off",
+      "autoHint": "No booking confirmations, reminders, campaign messages or new-lead welcome.",
+      "save": "Save",
+      "saving": "Saving…",
+      "saved": "Do not disturb saved ✓",
+      "badgeBoth": "Do not disturb: bot and automatic",
+      "badgeBot": "Do not disturb: bot",
+      "badgeAuto": "Do not disturb: automatic"
+    },
     "templatesOnly": "Templates only",
     "noPhone": "There is no phone number to message.",
     "conversation": "Conversation",
@@ -2729,7 +2752,8 @@
       "appointment_reminder": "Booking reminder",
       "lead_welcome": "New lead welcome",
       "followup": "Follow-up",
-      "other": "Other"
+      "other": "Other",
+      "bot": "Chat bot"
     },
     "dripsLink": "Drip campaigns →",
     "settingsTitle": "Settings",
@@ -2787,7 +2811,102 @@
     "valueFor": "Value for {n}",
     "chooseValue": "Choose a value",
     "activeField": "Offer this template",
-    "activeHint": "Switched off: staff can't pick it and nothing automatic uses it."
+    "activeHint": "Switched off: staff can't pick it and nothing automatic uses it.",
+    "bot": {
+      "title": "Chat bot",
+      "description": "Answers new numbers that message the clinic: sends a welcome and the brochure link, then asks for their name, the treatments they want (tick boxes), and their area. It shows everything with their WhatsApp number to Confirm or Cancel. Confirm makes a lead with source WhatsApp, given to the next sales person.",
+      "enabled": "Answer new numbers with the chat bot",
+      "enabledHint": "Needs “Send WhatsApp messages from the CRM” switched on below. Existing patients, open leads, chats staff have joined and numbers that sent STOP are never answered by the bot.",
+      "brochure": "Brochure link",
+      "brochureHint": "A web address starting with https:// (for example a PDF on Google Drive set to “Anyone with the link”). Sent with the welcome message.",
+      "website": "Website link",
+      "websiteHint": "A web address starting with https://. Sent under the brochure link in the welcome message.",
+      "dailyLimit": "Chats per number per day",
+      "dailyLimitHint": "After this many chats in one day (India time), the bot stops answering that number until tomorrow. Staff can still reply.",
+      "products": "Treatments to choose from",
+      "productsHint": "Shown as tick boxes, in this order. Up to {max}, each up to 30 letters.",
+      "productN": "Treatment {n}",
+      "moveUp": "Move treatment {n} up",
+      "moveDown": "Move treatment {n} down",
+      "remove": "Remove treatment {n}",
+      "addProduct": "Add treatment",
+      "textsTitle": "Messages the bot sends",
+      "textsHint": "Leave a box empty to use the text shown in grey. These are filled in for you: {clinic} clinic name, {brochure} brochure link, {website} website link, {name}, {phone} their WhatsApp number, {products} the treatments they chose, {location} their area.",
+      "text": {
+        "intro_text": "1. Welcome",
+        "name_text": "2. Ask for the name",
+        "products_text": "3. Ask for treatments",
+        "location_text": "4. Ask for the area",
+        "summary_text": "5. Summary to confirm",
+        "done_text": "6. After Confirm",
+        "cancelled_text": "After Cancel",
+        "sorry_text": "When an answer isn't clear",
+        "media_text": "When they send a photo, voice note or file",
+        "form_button": "Tick-box button",
+        "confirm_button": "Confirm button",
+        "cancel_button": "Cancel button"
+      },
+      "default": {
+        "intro_text": "Hi! 👋 Thank you for contacting {clinic}. (The brochure and website links are added on their own lines.)",
+        "name_text": "May I know your name?",
+        "products_text": "Thanks, {name}! Which treatments are you interested in?",
+        "location_text": "Which area or city are you in?",
+        "summary_text": "Please check your details: Name: {name} · WhatsApp number: {phone} · Treatments: {products} · Area / city: {location} · Is this correct?",
+        "done_text": "Thank you, {name}! Our team will call you soon on {phone}.",
+        "cancelled_text": "Okay, cancelled. Nothing was saved. Message us any time to start again.",
+        "sorry_text": "Sorry, I didn't get that.",
+        "media_text": "Sorry, I can only read typed messages. I can't open photos, voice notes, videos or files. Please type your answer.",
+        "form_button": "Choose treatments",
+        "confirm_button": "Confirm",
+        "cancel_button": "Cancel"
+      },
+      "saving": "Saving…",
+      "save": "Save chat bot",
+      "formCard": "Tick-box form",
+      "formState": {
+        "ready": "Ready",
+        "draft": "Waiting for Meta",
+        "none": "Using a tap list"
+      },
+      "formHint": {
+        "ready": "People tick their treatments in a small form inside WhatsApp. Changing the treatment list above needs no new form.",
+        "none": "Until the form is set up, people tap treatments one at a time from a WhatsApp list (or reply with numbers like 1, 3). Click Set up to make the tick-box form at Meta.",
+        "draft": "Meta made the form but hasn't published it yet. Meta publishes forms only for a verified business (business.facebook.com → Security Centre → Verification). Until then people tap treatments from a list. Click Try again after verification."
+      },
+      "formTitle": "Choose treatments",
+      "formSend": "Send",
+      "formSetUp": "Set up tick-box form",
+      "formRetry": "Try again",
+      "formWorking": "Talking to Meta…",
+      "formReady": "The tick-box form is ready.",
+      "formStop": "Stop using the form",
+      "chatsTitle": "Recent bot chats",
+      "chatsSummary": "Today: {today} · In progress: {active} · This month: {total} chats, {confirmed} confirmed, {cancelled} cancelled",
+      "noChats": "No chats yet.",
+      "col": {
+        "when": "Started",
+        "phone": "WhatsApp number",
+        "name": "Name",
+        "products": "Treatments",
+        "location": "Area",
+        "result": "Result"
+      },
+      "status": {
+        "active": "In progress",
+        "confirmed": "Confirmed",
+        "cancelled": "Cancelled",
+        "expired": "No answer",
+        "stopped": "Ended",
+        "handed_over": "Staff took over"
+      },
+      "step": {
+        "name": "Waiting for name",
+        "products": "Waiting for treatments",
+        "location": "Waiting for area",
+        "confirm": "Waiting for Confirm"
+      },
+      "openLead": "Open lead"
+    }
   },
   "drips": {
     "title": "Drip campaigns",
@@ -2863,7 +2982,7 @@
     "pick": "Choose a conversation on the left to read and reply.",
     "openPatient": "Open the patient file",
     "openLead": "Open the lead",
-    "unknownHint": "This number isn't a patient or a lead yet. Register them or add them as a lead, then reply from their page (WhatsApp tab).",
+    "unknownHint": "This number isn't a patient or a lead yet. You can reply here; register them or add them as a lead to keep the chat on their page.",
     "call": "Call",
     "register": "Register patient",
     "addLead": "Add as lead",
@@ -2907,6 +3026,7 @@
   "bdm": {
     "title": "BDM field work",
     "description": "Where each business development manager is right now, their day sheets and the monthly report. Updates live.",
+    "routeToday": "Their route today on the map",
     "mapLabel": "Map of BDMs",
     "people": "BDMs",
     "loading": "Loading…",

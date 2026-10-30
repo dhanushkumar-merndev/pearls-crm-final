@@ -11,6 +11,7 @@ import {
   Clock,
   EllipsisVertical,
   Hand,
+  MoonStar,
   ListChecks,
   Pause,
   Play,
@@ -40,8 +41,9 @@ import { useLiveWhatsApp } from "@/lib/realtime";
 import { waLink } from "@/lib/whatsapp";
 import { cn } from "@/lib/utils";
 import { ChatAvatar } from "./chat-avatar";
+import { DndBadge, DndDialog, useDnd, type ChatTarget } from "./dnd";
 
-interface WaMessage {
+export interface WaMessage {
   id: string;
   direction: "outbound" | "inbound";
   kind: string;
@@ -92,6 +94,41 @@ const STATUS_ICON = { queued: Clock, sent: Check, delivered: CheckCheck, read: C
 // Statuses worth words in the bubble; the rest are a tick (with the word for screen readers).
 const STATUS_IN_WORDS = new Set(["queued", "failed", "manual"]);
 
+/**
+ * Meta's 24-hour window: open until `until`; flips to closed by itself when the time passes, so
+ * the composer offers templates only without a reload.
+ */
+export function useWindowOpen(until: string | null | undefined): boolean {
+  const end = until ? new Date(until).getTime() : 0;
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const left = end - Date.now();
+    if (left <= 0) return;
+    const id = setTimeout(() => setNow(Date.now()), Math.min(left + 500, 2_147_483_647));
+    return () => clearTimeout(id);
+  }, [end]);
+  return end > now;
+}
+
+/** Can they get WhatsApp from the CRM now: stopped, off/manual, free reply until …, or templates only. */
+export function ChatStateChip({ optedOut, api, enabled, windowOpen, until }: {
+  optedOut: boolean;
+  api: boolean;
+  enabled: boolean;
+  windowOpen: boolean;
+  until: string | null;
+}) {
+  const t = useTranslations("whatsapp");
+  if (optedOut) return <StatusBadge kind="critical" label={t("optedOut")} />;
+  if (!api) return <StatusBadge kind="serious" label={enabled ? t("manualNumber") : t("apiOff")} />;
+  if (windowOpen && until) {
+    const end = new Date(until);
+    const time = formatDate(end) === formatDate(new Date()) ? formatTime(end) : formatDateTime(end);
+    return <StatusBadge kind="good" label={t("windowOpen", { time })} />;
+  }
+  return <StatusBadge kind="warning" label={t("templatesOnly")} />;
+}
+
 /** The person the chat is with, for the inbox's chat header (avatar, name, link to their page). */
 export interface ChatContact {
   name: string;
@@ -123,8 +160,9 @@ export function WhatsAppPanel({ patientId, leadId, canDrip, contact }: { patient
   const t = useTranslations("whatsapp");
   const queryClient = useQueryClient();
   const { saved, failed } = useFeedback();
-  const dayLabel = useDayLabel();
   const [dripDialog, setDripDialog] = useState<"list" | "enroll" | null>(null);
+  const [dndOpen, setDndOpen] = useState(false);
+  const target: ChatTarget = { patientId, leadId };
   const key = ["wa_thread", patientId ?? null, leadId ?? null];
   const thread = useInfiniteQuery({
     queryKey: key,
@@ -136,16 +174,11 @@ export function WhatsAppPanel({ patientId, leadId, canDrip, contact }: { patient
     refetchInterval: 120_000,
   });
   const head = thread.data?.pages[0];
+  const windowOpen = useWindowOpen(head?.window_open_until);
+  const dnd = useDnd(target, !!head?.phone_e164);
   const items = (thread.data?.pages.flatMap((p) => p.items) ?? []).slice().reverse();
   const refresh = () => void queryClient.invalidateQueries({ queryKey: key });
   useLiveWhatsApp(head?.phone_e164 ?? undefined, [key, ["drip_enrollments"]], !!head?.phone_e164);
-  // Like a chat: keep the newest message in view when one arrives.
-  const listRef = useRef<HTMLOListElement>(null);
-  const newestId = items.at(-1)?.id;
-  useEffect(() => {
-    const el = listRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [newestId]);
   // Open = read for the team: clears the unread count in the inbox and the menu badge.
   const newestInbound = items.findLast((m) => m.direction === "inbound")?.id;
   useEffect(() => {
@@ -174,21 +207,17 @@ export function WhatsAppPanel({ patientId, leadId, canDrip, contact }: { patient
   if (thread.isPending) return <div className={inbox ? "p-4" : undefined}><RowSkeletons rows={3} /></div>;
   if (thread.isError || !head) return <p className={cn("text-text-secondary", inbox && "p-4")}>{t("cantLoad")}</p>;
   const api = head.enabled && head.wa_mode !== "manual";
-  const windowOpen = !!head.window_open_until && new Date(head.window_open_until) > new Date();
   const drips = canDrip && !!head.phone_e164;
 
-  const chip = head.opted_out ? (
-    <StatusBadge kind="critical" label={t("optedOut")} />
-  ) : !api ? (
-    <StatusBadge kind="serious" label={head.enabled ? t("manualNumber") : t("apiOff")} />
-  ) : windowOpen ? (
-    <StatusBadge kind="good" label={t("windowOpen", { time: formatTime(new Date(head.window_open_until!)) })} />
-  ) : (
-    <StatusBadge kind="warning" label={t("templatesOnly")} />
+  const chip = (
+    <span className="inline-flex flex-wrap items-center gap-1.5">
+      <ChatStateChip optedOut={head.opted_out} api={api} enabled={head.enabled} windowOpen={windowOpen} until={head.window_open_until} />
+      <DndBadge dnd={dnd.data} />
+    </span>
   );
 
   // The ⋮ menu: what WhatsApp Web keeps there too (campaigns in the inbox, stop messages).
-  const showMenu = (inbox && drips) || (!head.opted_out && !!head.phone_e164);
+  const showMenu = (inbox && drips) || !!head.phone_e164;
   const menu = showMenu && (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -208,6 +237,12 @@ export function WhatsAppPanel({ patientId, leadId, canDrip, contact }: { patient
               {t("drips")}
             </DropdownMenuItem>
           </>
+        )}
+        {head.phone_e164 && (
+          <DropdownMenuItem onSelect={() => setDndOpen(true)}>
+            <MoonStar aria-hidden />
+            {t("dnd.menu")}
+          </DropdownMenuItem>
         )}
         {!head.opted_out && head.phone_e164 && (
           <DropdownMenuItem disabled={optOut.isPending} onSelect={() => optOut.mutate(true)}>
@@ -257,35 +292,13 @@ export function WhatsAppPanel({ patientId, leadId, canDrip, contact }: { patient
     <>
       {/* The chip moves under the header on a phone-width inbox (no room beside the name). */}
       {inbox && <div className="border-b border-border px-4 py-1.5 md:hidden">{chip}</div>}
-      <ol
-        ref={listRef}
-        aria-live="polite"
-        aria-label={t("conversation")}
-        className={cn("chat-wall flex flex-col gap-1.5 overflow-y-auto px-3 py-3 sm:px-6", inbox ? "min-h-0 flex-1" : "h-[24rem] max-h-[60dvh]")}
-      >
-        {thread.hasNextPage && (
-          <li className="self-center pb-2">
-            <LoadMore hasMore loading={thread.isFetchingNextPage} onClick={() => void thread.fetchNextPage()}>
-              {t("older")}
-            </LoadMore>
-          </li>
-        )}
-        {items.length === 0 && <li className="m-auto rounded-full bg-card px-4 py-1.5 text-text-secondary">{t("empty")}</li>}
-        {items.map((m, i) => {
-          const d = new Date(m.created_at);
-          const newDay = i === 0 || formatDate(new Date(items[i - 1]!.created_at)) !== formatDate(d);
-          return (
-            <Fragment key={m.id}>
-              {newDay && (
-                <li className="my-1.5 self-center rounded-full border border-border bg-card px-3 py-0.5 text-[0.9rem] text-text-secondary shadow-sm">
-                  {dayLabel(d)}
-                </li>
-              )}
-              <Bubble m={m} />
-            </Fragment>
-          );
-        })}
-      </ol>
+      <ChatMessages
+        items={items}
+        hasMore={thread.hasNextPage}
+        loadingMore={thread.isFetchingNextPage}
+        onMore={() => void thread.fetchNextPage()}
+        className={inbox ? "min-h-0 flex-1" : "h-[24rem] max-h-[60dvh]"}
+      />
       <div className="border-t border-border bg-card px-3 py-2.5 sm:px-4">
         {head.opted_out ? (
           <div className="flex flex-wrap items-center gap-3">
@@ -296,7 +309,7 @@ export function WhatsAppPanel({ patientId, leadId, canDrip, contact }: { patient
             </Button>
           </div>
         ) : api ? (
-          <ApiComposer patientId={patientId} leadId={leadId} windowOpen={windowOpen} onSent={refresh} />
+          <ApiComposer target={target} windowOpen={windowOpen} onSent={refresh} />
         ) : (
           <ManualComposer patientId={patientId} leadId={leadId} phone={head.phone_e164} enabled={head.enabled} onSent={refresh} />
         )}
@@ -320,6 +333,9 @@ export function WhatsAppPanel({ patientId, leadId, canDrip, contact }: { patient
           {drips && <Drips patientId={patientId} leadId={leadId} />}
         </div>
       )}
+      <Dialog open={dndOpen} onOpenChange={setDndOpen}>
+        {dndOpen && <DndDialog target={target} current={dnd.data} onDone={() => setDndOpen(false)} />}
+      </Dialog>
       {inbox && drips && (
         <Dialog open={dripDialog !== null} onOpenChange={(o) => !o && setDripDialog(null)}>
           {dripDialog === "list" && (
@@ -351,34 +367,92 @@ export function WhatsAppPanel({ patientId, leadId, canDrip, contact }: { patient
   );
 }
 
+/**
+ * The conversation, oldest first: a day line between days, our messages (staff, bot, automatic)
+ * on the right, theirs on the left; keeps the newest in view when one arrives.
+ */
+export function ChatMessages({ items, hasMore, loadingMore, onMore, className }: {
+  items: WaMessage[];
+  hasMore: boolean;
+  loadingMore: boolean;
+  onMore: () => void;
+  className?: string;
+}) {
+  const t = useTranslations("whatsapp");
+  const dayLabel = useDayLabel();
+  const listRef = useRef<HTMLOListElement>(null);
+  const newestId = items.at(-1)?.id;
+  useEffect(() => {
+    const el = listRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [newestId]);
+  return (
+    <ol
+      ref={listRef}
+      aria-live="polite"
+      aria-label={t("conversation")}
+      className={cn("chat-wall flex flex-col gap-1 overflow-y-auto px-3 py-2 sm:px-6", className)}
+    >
+      {hasMore && (
+        <li className="self-center pb-2">
+          <LoadMore hasMore loading={loadingMore} onClick={onMore}>
+            {t("older")}
+          </LoadMore>
+        </li>
+      )}
+      {items.length === 0 && <li className="m-auto rounded-full bg-card px-4 py-1.5 text-text-secondary">{t("empty")}</li>}
+      {items.map((m, i) => {
+        const d = new Date(m.created_at);
+        const newDay = i === 0 || formatDate(new Date(items[i - 1]!.created_at)) !== formatDate(d);
+        return (
+          <Fragment key={m.id}>
+            {newDay && (
+              <li className="my-1 self-center rounded-md border border-border bg-card px-2.5 py-0.5 text-[0.85rem] text-text-secondary shadow-sm">
+                {dayLabel(d)}
+              </li>
+            )}
+            <Bubble m={m} />
+          </Fragment>
+        );
+      })}
+    </ol>
+  );
+}
+
 function Bubble({ m }: { m: WaMessage }) {
   const t = useTranslations("whatsapp");
   const Icon = STATUS_ICON[m.status];
   const out = m.direction === "outbound";
   const text = m.kind === "template" ? fillTemplate(m.body, m.vars) : (m.body ?? "");
   const at = new Date(m.created_at);
+  const meta = (
+    <>
+      {m.action && <span className="font-medium text-foreground">{t(`action.${m.action}`)}</span>}
+      {m.sent_by_name && <span>{m.sent_by_name}</span>}
+      <time dateTime={m.created_at} title={formatDateTime(at)} className="tabular-nums">
+        {formatTime(at)}
+      </time>
+      {out && (
+        <span className={cn("inline-flex items-center gap-1", m.status === "failed" && "text-bad-text", m.status === "read" && "text-link")}>
+          <Icon aria-hidden className="size-4" />
+          {STATUS_IN_WORDS.has(m.status) ? t(`status.${m.status}`) : <span className="sr-only">{t(`status.${m.status}`)}</span>}
+        </span>
+      )}
+    </>
+  );
+  // Like WhatsApp: the time and ticks float at the end of the last line when there is room, else below it.
   return (
     <li
       className={cn(
-        "flex max-w-[85%] flex-col gap-0.5 rounded-2xl px-3 pt-1.5 pb-1 shadow-sm sm:max-w-[70%]",
-        out ? "chat-out self-end rounded-tr-sm" : "chat-in self-start rounded-tl-sm border border-border",
+        "flex max-w-[85%] flex-col rounded-lg px-2.5 py-1 shadow-sm sm:max-w-[70%]",
+        out ? "chat-out self-end rounded-tr-none" : "chat-in self-start rounded-tl-none border border-border",
       )}
     >
       {m.template && <span className="text-[0.9rem] text-text-secondary">{t("template", { name: m.template })}</span>}
-      <p className="whitespace-pre-wrap break-words">{text || "—"}</p>
-      <span className="flex flex-wrap items-center justify-end gap-x-2 self-end text-[0.9rem] text-text-secondary">
-        {m.action && <span className="font-medium text-foreground">{t(`action.${m.action}`)}</span>}
-        {m.sent_by_name && <span>{m.sent_by_name}</span>}
-        <time dateTime={m.created_at} title={formatDateTime(at)} className="tabular-nums">
-          {formatTime(at)}
-        </time>
-        {out && (
-          <span className={cn("inline-flex items-center gap-1", m.status === "failed" && "text-bad-text", m.status === "read" && "text-link")}>
-            <Icon aria-hidden className="size-4" />
-            {STATUS_IN_WORDS.has(m.status) ? t(`status.${m.status}`) : <span className="sr-only">{t(`status.${m.status}`)}</span>}
-          </span>
-        )}
-      </span>
+      <p className="flow-root whitespace-pre-wrap break-words">
+        {text || "—"}
+        <span className="float-right mt-1 ml-3 flex items-center gap-x-2 text-[0.85rem] leading-5 text-text-secondary">{meta}</span>
+      </p>
       {m.status === "failed" && m.error_text && <span className="text-[0.9rem] text-bad-text">{m.error_text}</span>}
     </li>
   );
@@ -407,7 +481,8 @@ function SendButton({ label, busy, onClick }: { label: string; busy: boolean; on
   );
 }
 
-function ApiComposer({ patientId, leadId, windowOpen, onSent }: { patientId?: string; leadId?: string; windowOpen: boolean; onSent: () => void }) {
+/** Send through the API: a template, or free text inside the 24-hour window. */
+export function ApiComposer({ target, windowOpen, onSent }: { target: ChatTarget; windowOpen: boolean; onSent: () => void }) {
   const t = useTranslations("whatsapp");
   const { saved, failed } = useFeedback();
   const [mode, setMode] = useState<"template" | "text">(windowOpen ? "text" : "template");
@@ -427,7 +502,9 @@ function ApiComposer({ patientId, leadId, windowOpen, onSent }: { patientId?: st
   const picked = templates.data?.find((x) => x.id === templateId);
   const send = useMutation({
     mutationFn: (p: { template_id?: string; text?: string }) =>
-      rpc("wa_send", { p: { patient_id: patientId ?? null, lead_id: leadId ?? null, ...p }, p_client_id: clientId }),
+      target.phone
+        ? rpc("wa_number_send", { p_phone: target.phone, p, p_client_id: clientId })
+        : rpc("wa_send", { p: { patient_id: target.patientId ?? null, lead_id: target.leadId ?? null, ...p }, p_client_id: clientId }),
     onSuccess: () => {
       saved(t("queued"));
       setText("");

@@ -10,7 +10,7 @@ const visual = !process.env.CI;
 test("logged-out visitors are sent to the login page", async ({ page }) => {
   await page.goto("/home");
   await expect(page).toHaveURL(/\/login\?next=%2Fhome$/);
-  await expect(page.getByRole("heading", { name: "Log in" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
 });
 
 test("the ChatGPT-style dark theme is the default", async ({ page }) => {
@@ -34,7 +34,7 @@ for (const theme of ["dark", "light"] as const) {
   test(`login page has no serious accessibility problems (${theme})`, async ({ page }) => {
     await page.addInitScript((t) => localStorage.setItem("theme", t), theme);
     await page.goto("/login");
-    await expect(page.getByRole("heading", { name: "Log in" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
     const results = await new AxeBuilder({ page }).analyze();
     const serious = results.violations.filter((v) => v.impact === "serious" || v.impact === "critical");
     expect(serious.map((v) => `${v.id}: ${v.help}`)).toEqual([]);

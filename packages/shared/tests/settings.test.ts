@@ -44,6 +44,25 @@ describe("settings", () => {
     expect(validateSettings("whatsapp", { quiet_start: "09:00", quiet_end: "09:00" }).ok).toBe(true);
   });
 
+  it("wa_bot: off, 5 chats a day, built-in texts; list and link checked", () => {
+    const b = readSettings("wa_bot", {});
+    expect([b.enabled, b.daily_chat_limit, b.products, b.brochure_url, b.intro_text, b.flow_id]).toEqual([false, 5, [], null, null, null]);
+    expect(validateSettings("wa_bot", { enabled: true })).toEqual({ ok: false, field: "products" });
+    expect(validateSettings("wa_bot", { enabled: true, products: ["Hair transplant", "Acne care"] }).ok).toBe(true);
+    expect(validateSettings("wa_bot", { products: ["Acne", "acne"] })).toEqual({ ok: false, field: "products" });
+    expect(validateSettings("wa_bot", { products: ["x".repeat(31)] })).toEqual({ ok: false, field: "products.0" });
+    expect(validateSettings("wa_bot", { products: Array.from({ length: 21 }, (_, i) => `T${i}`) })).toEqual({ ok: false, field: "products" });
+    expect(validateSettings("wa_bot", { brochure_url: "http://insecure.example/b.pdf" })).toEqual({ ok: false, field: "brochure_url" });
+    expect(validateSettings("wa_bot", { brochure_url: "https://example.com/brochure.pdf" }).ok).toBe(true);
+    expect(validateSettings("wa_bot", { website_url: "not a link" })).toEqual({ ok: false, field: "website_url" });
+    expect(validateSettings("wa_bot", { website_url: "https://example.com" }).ok).toBe(true);
+    expect(validateSettings("wa_bot", { daily_chat_limit: 0 })).toEqual({ ok: false, field: "daily_chat_limit" });
+    expect(validateSettings("wa_bot", { confirm_button: "x".repeat(21) })).toEqual({ ok: false, field: "confirm_button" });
+    // A cleared text box means "use the built-in text".
+    const cleared = validateSettings("wa_bot", { intro_text: "   " });
+    expect(cleared.ok && cleared.value.intro_text).toBeNull();
+  });
+
   it("storage meter limits and the daily summary's extra addresses", () => {
     expect(readSettings("storage", {})).toEqual({ db_limit_mb: 500, files_limit_gb: 5, monthly_writes_limit: 10000, backup_reminder: true });
     expect(validateSettings("storage", { db_limit_mb: 0 })).toEqual({ ok: false, field: "db_limit_mb" });
