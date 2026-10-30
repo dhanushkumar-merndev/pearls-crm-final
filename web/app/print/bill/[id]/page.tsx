@@ -303,8 +303,9 @@ function GroupRows({
         </tr>
       )}
       {items.map((i) => {
-        // Medicine details (and SAC codes) under the name instead of extra columns.
-        const details = pharmacy
+        // Medicine details (and SAC codes) under the name instead of extra columns. A medicine
+        // carried into a final bill keeps its HSN · batch · expiry.
+        const details = pharmacy || i.pharmacy_item_id
           ? [
               i.hsn_sac && `${t("hsn")} ${i.hsn_sac}`,
               i.batch_no && `${t("batch")} ${i.batch_no}`,
