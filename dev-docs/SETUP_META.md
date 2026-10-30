@@ -23,12 +23,11 @@ You need: the clinic's **Facebook Page**, admin access to the clinic's **Meta Bu
 1. Open **business.facebook.com → Settings (gear) → Users → System users → Add**. Name: `crm`. Role: **Admin**. Click **Create system user**.
 2. With `crm` selected, click **Assign assets → Pages**, tick the clinic's Page, switch on **Manage Page** (full control), **Save changes**.
 3. Click **Generate new token**. App: `Clinic CRM`. Token expiry: **Never**. Tick these permissions:
-   `leads_retrieval`, `pages_manage_metadata`, `pages_show_list`, `pages_read_engagement`, `ads_management`.
-   Click **Generate token** and copy it.
-4. That token is a *user* token; the CRM needs the **Page** token. In a browser open (replace `TOKEN`):
-   `https://graph.facebook.com/v23.0/me/accounts?access_token=TOKEN`
-   Find the clinic's Page in the answer. Copy its `"access_token"` → `META_PAGE_ACCESS_TOKEN=` and its `"id"` → `META_PAGE_ID=`.
-5. Make up a long random password-like text (at least 20 letters and numbers) → `META_WEBHOOK_VERIFY_TOKEN=`.
+   `leads_retrieval`, `pages_manage_metadata`, `pages_show_list`, `pages_read_engagement`, `ads_management`, `ads_read`.
+   Click **Generate token** and copy it → `META_PAGE_ACCESS_TOKEN=`. (The CRM asks Meta for the Page's own key by itself.)
+4. For the **Ads** page: still in **System users** with `crm` selected, click **Assign assets → Ad accounts**, tick the clinic's ad account, switch on **View performance** (or Manage), **Save changes**.
+5. The Page id: open the clinic's Facebook Page → **About** → **Page transparency** → **Page ID** → `META_PAGE_ID=`.
+6. Make up a long random password-like text (at least 20 letters and numbers) → `META_WEBHOOK_VERIFY_TOKEN=`.
 
 ## 3. Send the keys to the server
 
@@ -47,13 +46,9 @@ The second command copies the keys to the online server. It never prints them.
 2. Back on developers.facebook.com → your app → **Webhooks** (add the product "Webhooks" if you don't see it) → choose **Page** in the dropdown → **Subscribe to this object**.
 3. Callback URL: paste. Verify token: the same text you put in `META_WEBHOOK_VERIFY_TOKEN`. Click **Verify and save**. (If it says it couldn't verify, check that step 3 ran without errors.)
 4. In the list of fields, find **leadgen** → **Subscribe**.
-5. Connect the Page to the app: open in a browser (replace `PAGE_ID` and `PAGE_TOKEN`):
-   `https://graph.facebook.com/v23.0/PAGE_ID/subscribed_apps?subscribed_fields=leadgen&access_token=PAGE_TOKEN`
-   It must be sent as a **POST**. Easiest: in the terminal
-   ```
-   curl -X POST "https://graph.facebook.com/v23.0/PAGE_ID/subscribed_apps?subscribed_fields=leadgen&access_token=PAGE_TOKEN"
-   ```
-   The answer is `{"success":true}`.
+5. Back in the CRM: **Admin → Meta lead ads → Is it connected? → Check connection**. Every row should show ✓.
+   - **Page sends new leads here ✗** → click **Connect page**.
+   - Any other ✗ → the row says what to fix (usually a permission missing from step 2: make a new token with it ticked, then run section 3 again).
 6. Switch the app to **Live** (top bar of the app dashboard). Meta may ask for a privacy policy URL: the clinic website's privacy page.
 
 ## 5. Test it
@@ -69,6 +64,13 @@ The second command copies the keys to the online server. It never prints them.
 ## 7. Your own form questions
 
 Name (or first + last name), phone number and email are read automatically. Every other answer (city, "Which treatment?", …) is kept in the lead's **More comments** as "Question: answer". To put an answer somewhere better, open **Admin → Meta lead ads → Extra form questions**, type the question's key exactly as in the Meta form (Ads Manager → Forms library → the form → the question's "key"), and choose where it goes (Treatment, Comments, Alternate mobile, or Ignore).
+
+## 8. The Ads page
+
+**Ads** in the side menu (sales managers and admins): every campaign with what it cost and what it brought in — Meta's lead count, the leads in the CRM, bookings, patients, money collected, cost per lead and per patient. Click a campaign for its days, its ads and its leads.
+
+- The numbers refresh every 3 hours by themselves; **Sync now** fetches them straight away.
+- **Import past leads** brings in form fills from before the CRM was connected (last 7, 30 or 90 days). It is quiet: no alert per lead, no WhatsApp welcome; each owner gets one alert. Numbers already in the CRM are not added again, and running it twice adds nothing twice.
 
 ## Good to know
 

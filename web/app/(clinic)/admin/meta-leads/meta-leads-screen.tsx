@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { z } from "zod";
 import { formatDateTime, readSettings, requiredChoice, requiredText } from "@pearl/shared";
+import { MetaConnectionCheck } from "@/components/ads/meta-connection-check";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Field, PageHeader, Select } from "@/components/ui/form";
@@ -134,6 +135,12 @@ export function MetaLeadsScreen({ webhookUrl }: { webhookUrl: string }) {
         <Link href="/leads/pool" className="self-start text-link underline-offset-4 hover:underline">
           {t("poolLink")}
         </Link>
+      </Card>
+
+      <Card className="flex flex-col gap-3">
+        <CardTitle>{t("checkTitle")}</CardTitle>
+        <CardDescription>{t("checkHint")}</CardDescription>
+        <MetaConnectionCheck />
       </Card>
 
       <Card className="flex flex-col gap-3">

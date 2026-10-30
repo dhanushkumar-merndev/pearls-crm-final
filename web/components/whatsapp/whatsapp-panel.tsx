@@ -73,6 +73,8 @@ interface WaTemplate {
   name: string;
   body_text: string | null;
   category: string;
+  param_count: number;
+  variable_map: string[];
 }
 
 interface Enrollment {
@@ -484,7 +486,7 @@ function SendButton({ label, busy, onClick }: { label: string; busy: boolean; on
 /** Send through the API: a template, or free text inside the 24-hour window. */
 export function ApiComposer({ target, windowOpen, onSent }: { target: ChatTarget; windowOpen: boolean; onSent: () => void }) {
   const t = useTranslations("whatsapp");
-  const { saved, failed } = useFeedback();
+  const { failed } = useFeedback();
   const [mode, setMode] = useState<"template" | "text">(windowOpen ? "text" : "template");
   const [templateId, setTemplateId] = useState("");
   const [text, setText] = useState("");
@@ -494,19 +496,26 @@ export function ApiComposer({ target, windowOpen, onSent }: { target: ChatTarget
     queryKey: ["wa_templates", "usable"],
     queryFn: async () =>
       unwrap(
-        await getSupabaseBrowser().from("wa_templates").select("id, name, body_text, category").eq("active", true).eq("status", "APPROVED").order("name"),
+        await getSupabaseBrowser().from("wa_templates").select("id, name, body_text, category, param_count, variable_map").eq("active", true).eq("status", "APPROVED").order("name"),
       ) as WaTemplate[],
   });
   const tplChecks = useZodForm(waTemplateSendSchema);
   const textChecks = useZodForm(waTextSchema);
   const picked = templates.data?.find((x) => x.id === templateId);
+  const v = useTranslations("waAdmin.var");
+  // The CRM fills {{1}}, {{2}}… itself from the template's values (Admin → WhatsApp → Edit); shown as [Clinic name].
+  const valuesSet = !picked || (picked.variable_map ?? []).length === picked.param_count;
+  const preview = picked?.body_text?.replace(/\{\{(\d+)\}\}/g, (all, n: string) => {
+    const key = picked.variable_map?.[Number(n) - 1];
+    return key ? `[${v(key as "name")}]` : all;
+  });
   const send = useMutation({
     mutationFn: (p: { template_id?: string; text?: string }) =>
       target.phone
         ? rpc("wa_number_send", { p_phone: target.phone, p, p_client_id: clientId })
         : rpc("wa_send", { p: { patient_id: target.patientId ?? null, lead_id: target.leadId ?? null, ...p }, p_client_id: clientId }),
+    // No toast: the message shows in the chat at once, with its ticks.
     onSuccess: () => {
-      saved(t("queued"));
       setText("");
       setTemplateId("");
       setClientId(newId());
@@ -549,7 +558,8 @@ export function ApiComposer({ target, windowOpen, onSent }: { target: ChatTarget
       </div>
       {effective === "template" ? (
         <>
-          {picked?.body_text && <p className="rounded-xl border border-border p-2.5 whitespace-pre-wrap text-text-secondary">{picked.body_text}</p>}
+          {preview && <p className="rounded-xl border border-border p-2.5 whitespace-pre-wrap text-text-secondary">{preview}</p>}
+          {!valuesSet && <p className="text-[0.9rem] text-bad-text">{t("templateValuesMissing")}</p>}
           <div className="flex items-start gap-2">
             <Field
               label={t("templateField")}
@@ -576,7 +586,7 @@ export function ApiComposer({ target, windowOpen, onSent }: { target: ChatTarget
                 </Select>
               )}
             </Field>
-            <SendButton label={send.isPending ? t("sending") : t("send")} busy={send.isPending} onClick={sendTemplate} />
+            <SendButton label={send.isPending ? t("sending") : t("send")} busy={send.isPending || !valuesSet} onClick={sendTemplate} />
           </div>
         </>
       ) : (

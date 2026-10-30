@@ -19,6 +19,7 @@ const graphLead: GraphLead = {
     { name: "which_treatment?", values: ["Rhinoplasty"] },
     { name: "city", values: ["Mysuru"] },
   ],
+  campaign_id: "9",
   campaign_name: "Nose Oct",
   ad_name: "Ad 1",
   form_id: "77",
@@ -88,7 +89,7 @@ Deno.test("a new leadgen id: answers fetched, mapped and saved", async () => {
     treatment_text: "Rhinoplasty",
     comments2: "city: Mysuru",
     source_code: "instagram",
-    source_detail: { campaign: "Nose Oct", ad: "Ad 1", form_id: "77", platform: "ig" },
+    source_detail: { campaign: "Nose Oct", campaign_id: "9", ad: "Ad 1", form_id: "77", platform: "ig" },
   });
 });
 

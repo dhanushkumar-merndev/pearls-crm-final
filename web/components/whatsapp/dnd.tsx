@@ -27,9 +27,11 @@ interface Dnd {
 const args = (t: ChatTarget) => ({ p_patient_id: t.patientId ?? null, p_lead_id: t.leadId ?? null, p_phone: t.phone ?? null });
 
 /** Do not disturb for this number: the chat bot and/or automatic messages switched off. */
+const dndKey = (t: ChatTarget) => ["wa_dnd", t.patientId ?? null, t.leadId ?? null, t.phone ?? null];
+
 export function useDnd(target: ChatTarget, enabled = true) {
   return useQuery({
-    queryKey: ["wa_dnd", target.patientId ?? null, target.leadId ?? null, target.phone ?? null],
+    queryKey: dndKey(target),
     enabled,
     queryFn: () => rpc<Dnd>("wa_dnd_get", args(target)),
   });
@@ -50,8 +52,10 @@ export function DndDialog({ target, current, onDone }: { target: ChatTarget; cur
   const checks = useZodForm(waDndSchema);
   const save = useMutation({
     mutationFn: (d: Dnd) => rpc<Dnd>("wa_dnd_set", { ...args(target), p_bot: d.bot, p_auto: d.auto }),
-    onSuccess: () => {
+    onSuccess: (res) => {
       saved(t("saved"));
+      // The save answers with the new state: the badge changes at once, without another round trip.
+      queryClient.setQueryData(dndKey(target), res);
       void queryClient.invalidateQueries({ queryKey: ["wa_dnd"] });
       onDone();
     },

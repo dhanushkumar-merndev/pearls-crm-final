@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { formatDate, istDateString } from "@pearl/shared";
 import { BookDialog } from "@/components/appointments/book-dialog";
+import { ClearFilters } from "@/components/ui/filter-bar";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Field, PageHeader } from "@/components/ui/form";
@@ -37,8 +38,10 @@ interface Due {
 export function SessionsScreen() {
   const t = useTranslations("sessionsDue");
   const c = useTranslations("common");
-  const [from, setFrom] = useState(() => istDateString(new Date()));
-  const [to, setTo] = useState(() => istDateString(new Date(Date.now() + 6 * 86_400_000)));
+  // Today and the next six days; the ✕ goes back to these.
+  const [start] = useState(() => ({ from: istDateString(new Date()), to: istDateString(new Date(Date.now() + 6 * 86_400_000)) }));
+  const [from, setFrom] = useState(start.from);
+  const [to, setTo] = useState(start.to);
   const [booking, setBooking] = useState<Due | null>(null);
   const rangeCheck = useDateRangeCheck(from, to);
   const list = useInfiniteQuery({
@@ -55,6 +58,10 @@ export function SessionsScreen() {
       <div className="flex flex-wrap items-end gap-3">
         <Field label={t("from")} error={rangeCheck.fromError}>{(a) => <Input {...a} type="date" value={from} onChange={(e) => setFrom(e.target.value)} />}</Field>
         <Field label={t("to")} error={rangeCheck.toError}>{(a) => <Input {...a} type="date" value={to} onChange={(e) => setTo(e.target.value)} />}</Field>
+        <ClearFilters
+          show={from !== start.from || to !== start.to}
+          onClear={() => (setFrom(start.from), setTo(start.to))}
+        />
       </div>
       <Table>
         <THead>

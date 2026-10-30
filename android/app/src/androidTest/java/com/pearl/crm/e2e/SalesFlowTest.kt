@@ -234,4 +234,56 @@ class SalesFlowTest {
         compose.onAllNodes(androidx.compose.ui.test.hasScrollAction()).onFirst().performScrollToNode(hasText(name, substring = true))
         compose.waitForText(name, substring = true)
     }
+
+    // A-SAL-10…12: input edge cases (TEST_CASES.md "Edge cases every form shares").
+
+    private fun newLeadForm(name: String, phone: String) {
+        tab(R.string.tab_leads)
+        button(SalesR.string.leads_new).performClick()
+        compose.onNodeWithTag("new-lead-name").performTextReplacement(name)
+        compose.onNodeWithTag("new-lead-phone").performTextReplacement(phone)
+    }
+
+    @Test
+    fun aNumberWithPlus91AndSpacesIsSavedAsTenDigitsAndATamilNameIsKept() {
+        val phone = Phone.uniquePhone()
+        val name = "E2E முருகன் राम ${System.currentTimeMillis()}"
+        newLeadForm(name, "+91 ${phone.take(5)} ${phone.drop(5)}")
+        compose.onNodeWithTag("new-lead-save").performClick()
+        compose.waitForText(text(SalesR.string.lead_change_stage))
+        Phone.sentAll()
+        val rows = Phone.serverLeads(phone)
+        assertEquals(1, rows.size)
+        assertEquals("+91$phone", rows[0]["phone_e164"]?.jsonPrimitive?.content)
+        assertEquals(name, rows[0]["name"]?.jsonPrimitive?.content)
+    }
+
+    @Test
+    fun saveTappedTwiceQuicklyStillMakesOneLead() {
+        val phone = Phone.uniquePhone()
+        newLeadForm("E2E Twice ${System.currentTimeMillis()}", phone)
+        compose.onNodeWithTag("new-lead-save").performClick()
+        runCatching { compose.onNodeWithTag("new-lead-save").performClick() } // may already be gone
+        compose.waitForText(text(SalesR.string.lead_change_stage))
+        Phone.sentAll()
+        assertEquals(1, Phone.serverLeadCount(phone))
+    }
+
+    @Test
+    fun turningThePhoneSidewaysKeepsWhatWasTyped() {
+        val phone = Phone.uniquePhone()
+        val name = "E2E Rotate ${System.currentTimeMillis()}"
+        newLeadForm(name, phone)
+        try {
+            Phone.device.setOrientationLeft()
+            compose.waitForIdle()
+            Phone.device.setOrientationNatural()
+            compose.waitForIdle()
+        } finally {
+            Phone.device.unfreezeRotation()
+        }
+        compose.waitUntil(10_000) { compose.exists(hasTestTag("new-lead-name") and hasText(name)) }
+        compose.waitUntil(10_000) { compose.exists(hasTestTag("new-lead-phone") and hasText(phone)) }
+        button(SalesR.string.new_lead_cancel).performClick()
+    }
 }

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { formatDateTime, istDateString } from "@pearl/shared";
+import { ClearFilters } from "@/components/ui/filter-bar";
 import { Field, Select } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Pager } from "@/components/ui/pager";
@@ -35,8 +36,10 @@ export const admissionBadge = (s: AdmissionStatus) => (s === "admitted" ? "warni
 /** IP stays: "admitted now" (no date range) or by admission date (≤ 1 year). With patientId: that patient's stays. */
 export function AdmissionsTable({ patientId }: { patientId?: string }) {
   const t = useTranslations("ip");
-  const [status, setStatus] = useState<"" | AdmissionStatus>(patientId ? "" : "admitted");
-  const [range, setRange] = useState(() => ({ from: istDateString(new Date(Date.now() - 90 * 86_400_000)), to: istDateString(new Date()) }));
+  const [status, setStatus] = useState<"" | AdmissionStatus>(() => (patientId ? "" : "admitted"));
+  const startRange = () => ({ from: istDateString(new Date(Date.now() - 90 * 86_400_000)), to: istDateString(new Date()) });
+  const startStatus = patientId ? "" : "admitted";
+  const [range, setRange] = useState(startRange);
   const [offset, setOffset] = useState(0);
   const rangeCheck = useDateRangeCheck(range.from, range.to);
   const list = useQuery({
@@ -73,6 +76,10 @@ export function AdmissionsTable({ patientId }: { patientId?: string }) {
             </Field>
           </>
         )}
+        <ClearFilters
+          show={status !== startStatus || range.from !== startRange().from || range.to !== startRange().to}
+          onClear={() => (setStatus(startStatus), setRange(startRange()), setOffset(0))}
+        />
       </div>
       {list.isError && <p className="text-bad-text">{t("rangeTooWide")}</p>}
       <Table>

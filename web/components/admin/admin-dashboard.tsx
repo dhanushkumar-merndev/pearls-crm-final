@@ -203,6 +203,8 @@ export function AdminDashboard() {
       <PageHeader title={t("title")} description={t("description")} />
       <FilterBar
         active={preset === "mtd" ? 0 : 1}
+        canClear={preset !== "mtd"}
+        onClear={() => (setPreset("mtd"), setCustom(rangeFor("mtd")))}
         actions={
           <Button variant="ghost" disabled={dash.isFetching} onClick={() => void dash.refetch()}>
             <RefreshCw aria-hidden className={dash.isFetching ? "animate-spin" : undefined} />

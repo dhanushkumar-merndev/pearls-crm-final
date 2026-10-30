@@ -283,7 +283,7 @@ export function ChatBot() {
 
           <details className="rounded-xl border border-border p-4">
             <summary className="cursor-pointer font-medium">{t("textsTitle")}</summary>
-            <p className="mt-2 text-[0.9rem] text-text-secondary">{t("textsHint")}</p>
+            <p className="mt-2 text-[0.9rem] text-text-secondary">{t.raw("textsHint")}</p>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               {TEXTS.map(([k, rows]) => (
                 <Field key={k} label={t(`text.${k}`)} error={checks.error(k)} className={k === "summary_text" || k === "intro_text" ? "sm:col-span-2" : undefined}>
@@ -292,7 +292,7 @@ export function ChatBot() {
                       {...a}
                       rows={rows}
                       className="min-h-0"
-                      placeholder={t(`default.${k}`)}
+                      placeholder={t.raw(`default.${k}`)}
                       value={form[k] ?? ""}
                       onChange={(e) => set(k, e.target.value)}
                     />
@@ -305,7 +305,7 @@ export function ChatBot() {
                     <Input
                       {...a}
                       maxLength={k === "form_button" ? 30 : 20}
-                      placeholder={t(`default.${k}`)}
+                      placeholder={t.raw(`default.${k}`)}
                       value={form[k] ?? ""}
                       onChange={(e) => set(k, e.target.value)}
                     />

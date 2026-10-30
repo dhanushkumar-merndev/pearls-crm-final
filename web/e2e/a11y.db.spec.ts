@@ -8,9 +8,18 @@ import { open, STATE } from "./helpers";
 test.skip(!process.env.E2E_DB, "needs the Supabase backend (E2E_DB=1)");
 
 async function sweep(page: Page, path: string) {
+  // W-ACC-18: screen text that is missing from messages/en.json or can't be filled in
+  // (next-intl MISSING_MESSAGE / FORMATTING_ERROR) fails the page too.
+  const textErrors: string[] = [];
+  page.on("console", (m) => {
+    if (m.type() === "error" && /MISSING_MESSAGE|FORMATTING_ERROR|INVALID_MESSAGE/.test(m.text())) textErrors.push(m.text().slice(0, 200));
+  });
   await open(page, path);
   await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible();
   await expect(page.getByText(/^(Loading…|Loading chart…)$/)).toHaveCount(0, { timeout: 20_000 });
+  // Folded panels (<details>) are opened so their text and fields are checked as well.
+  await page.locator("details:not([open])").evaluateAll((els) => els.forEach((e) => ((e as HTMLDetailsElement).open = true)));
+  expect(textErrors, `${path}: screen text errors`).toEqual([]);
   const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
   const bad = results.violations
     .filter((v) => v.impact === "serious" || v.impact === "critical")

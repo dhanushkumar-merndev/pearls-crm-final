@@ -160,6 +160,8 @@ export function SalesDashboard() {
     <div className="flex flex-col gap-5">
       <FilterBar
         active={(preset === "mtd" ? 0 : 1) + (staffId ? 1 : 0)}
+        canClear={preset !== "mtd" || !!staffId}
+        onClear={() => (setPreset("mtd"), setCustom(rangeFor("mtd")), setStaffId(""))}
         actions={
           <Button variant="ghost" disabled={dash.isFetching} onClick={() => void dash.refetch()}>
             <RefreshCw aria-hidden className={dash.isFetching ? "animate-spin" : undefined} />

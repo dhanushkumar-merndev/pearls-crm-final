@@ -3,7 +3,8 @@
 //   POST from Meta: signed with the app secret (X-Hub-Signature-256). Each leadgen id is
 //        handled once: the form answers are fetched from the Graph API, mapped to lead
 //        fields, and Postgres makes the lead (number dedupe, round-robin owner, notification).
-//   POST from an admin (login token): {action: "retry", leadgen_id} tries a failed one again.
+//   POST from an admin (login token): {action: "retry", leadgen_id} tries a failed one again;
+//        "check", "connect" and "import" are in admin.ts.
 // Pure logic here; index.ts wires the real Graph API and database.
 import { z } from "zod";
 import { challenge, GRAPH_VERSION, hmacHex, signatureOk } from "../_shared/meta.ts";
@@ -14,7 +15,7 @@ export { challenge, GRAPH_VERSION, hmacHex, signatureOk };
 /** An admin's "Try again" from the web app (login token, no Meta signature). */
 export const retrySchema = z.object({ action: z.literal("retry"), leadgen_id: z.string().regex(/^[0-9]{5,30}$/) });
 
-export const GRAPH_FIELDS = "field_data,created_time,ad_id,ad_name,adset_name,campaign_name,form_id,platform";
+export const GRAPH_FIELDS = "field_data,created_time,ad_id,ad_name,adset_name,campaign_id,campaign_name,form_id,platform";
 
 export type LeadField = "name" | "phone" | "alt_phone" | "email" | "treatment_text" | "comments1" | "comments2" | "ignore";
 const LEAD_FIELDS: ReadonlySet<string> = new Set<LeadField>([
@@ -42,6 +43,7 @@ export interface GraphLead {
   ad_id?: string;
   ad_name?: string;
   adset_name?: string;
+  campaign_id?: string;
   campaign_name?: string;
   form_id?: string;
   platform?: string;
@@ -115,7 +117,7 @@ export function mapLead(lead: GraphLead, fieldMap: Record<string, string>): Mapp
   const name = got.name?.[0] || [parts.first_name, parts.last_name].filter(Boolean).join(" ") || phone.e164;
   const detail: Record<string, string> = {};
   for (const [k, v] of Object.entries({
-    campaign: lead.campaign_name, adset: lead.adset_name, ad: lead.ad_name, ad_id: lead.ad_id,
+    campaign: lead.campaign_name, campaign_id: lead.campaign_id, adset: lead.adset_name, ad: lead.ad_name, ad_id: lead.ad_id,
     form_id: lead.form_id, platform: lead.platform,
   })) if (v) detail[k] = String(v);
   const out: MappedLead = {

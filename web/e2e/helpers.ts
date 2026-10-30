@@ -72,16 +72,29 @@ function backend(): { url: string; anonKey: string } {
  */
 export async function rpcAs<T>(page: Page, fn: string, args: Record<string, unknown>): Promise<T> {
   const { url, anonKey } = backend();
+  const res = await page.request.post(`${url}/rest/v1/rpc/${fn}`, {
+    headers: { apikey: anonKey, Authorization: `Bearer ${await accessToken(page)}`, "Content-Type": "application/json" },
+    data: args,
+  });
+  if (!res.ok()) throw new Error(`${fn}: HTTP ${res.status()} ${await res.text()}`);
+  return (await res.json()) as T;
+}
+
+/** Reads rows as the person logged in on [page] (RLS applies), e.g. `selectAs(page, "clinic_settings?branch_code=eq.main")`. */
+export async function selectAs<T>(page: Page, query: string): Promise<T[]> {
+  const { url, anonKey } = backend();
+  const res = await page.request.get(`${url}/rest/v1/${query}`, {
+    headers: { apikey: anonKey, Authorization: `Bearer ${await accessToken(page)}` },
+  });
+  if (!res.ok()) throw new Error(`${query}: HTTP ${res.status()} ${await res.text()}`);
+  return (await res.json()) as T[];
+}
+
+async function accessToken(page: Page): Promise<string> {
   const parts = (await page.context().cookies())
     .filter((c) => /^sb-.+-auth-token(\.\d+)?$/.test(c.name))
     .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
   let raw = decodeURIComponent(parts.map((c) => c.value).join(""));
   if (raw.startsWith("base64-")) raw = Buffer.from(raw.slice("base64-".length), "base64").toString("utf8");
-  const token = (JSON.parse(raw) as { access_token: string }).access_token;
-  const res = await page.request.post(`${url}/rest/v1/rpc/${fn}`, {
-    headers: { apikey: anonKey, Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    data: args,
-  });
-  if (!res.ok()) throw new Error(`${fn}: HTTP ${res.status()} ${await res.text()}`);
-  return (await res.json()) as T;
+  return (JSON.parse(raw) as { access_token: string }).access_token;
 }

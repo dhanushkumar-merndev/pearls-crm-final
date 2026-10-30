@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { formatINR } from "@pearl/shared";
 import { useDebounced } from "@/components/library-combobox";
+import { ClearFilters } from "@/components/ui/filter-bar";
 import { Field, Select } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Pager } from "@/components/ui/pager";
@@ -67,6 +68,7 @@ export function StockTable() {
             </Select>
           )}
         </Field>
+        <ClearFilters show={!!q || view !== "all"} onClear={() => (setQ(""), setView("all"), setOffset(0))} />
       </div>
       {list.data && <p className="text-text-secondary">{t("stockSum", { n: list.data.total, amount: formatINR(list.data.value_paise) })}</p>}
       <Table>

@@ -164,7 +164,7 @@ test.describe("admin", () => {
     await expect(page.getByText("Login turned back on ✓").first()).toBeVisible();
     await row.getByRole("button", { name: /password/i }).click();
     const newPassword = `${PASSWORD}x9`;
-    await dialog.getByLabel("New password").fill(newPassword);
+    await dialog.getByLabel("New password", { exact: true }).fill(newPassword);
     await dialog.getByRole("button", { name: "Set password" }).click();
     await expect(page.getByText("Password set ✓").first()).toBeVisible();
 
@@ -177,6 +177,76 @@ test.describe("admin", () => {
     await theirs.close();
 
     // Tidy: the test login is switched off again.
+    await row.getByRole("button", { name: "Deactivate" }).click();
+    await dialog.getByLabel("Reason").fill("E2E test finished");
+    await dialog.getByRole("button", { name: "Deactivate" }).click();
+    await expect(row.getByText("Deactivated")).toBeVisible();
+  });
+
+  // W-ACC-17: on a throwaway login, never the shared fake users.
+  test("staff change their own password: empty, wrong current, weak and mismatched refused; the new one works", async ({ page, browser, baseURL }) => {
+    test.setTimeout(120_000);
+    const stamp = Date.now().toString(36);
+    const username = `e2e.pw.${stamp}`;
+    await open(page, "/admin/users");
+    await page.getByRole("button", { name: "Add staff" }).click();
+    const dialog = page.getByRole("dialog");
+    await dialog.getByLabel("Full name").fill(`E2E Password ${stamp}`);
+    await choose(page, dialog.getByLabel("Role"), "Receptionist");
+    await dialog.getByLabel("Username").fill(username);
+    await dialog.getByLabel("Mobile number").fill(uniquePhone());
+    await dialog.getByLabel("First password").fill(PASSWORD);
+    await dialog.getByRole("button", { name: "Create login" }).click();
+    await expect(page.getByText(/Login created ✓/).first()).toBeVisible();
+
+    const theirs = await browser.newContext({ baseURL, storageState: { cookies: [], origins: [] } });
+    const them = await theirs.newPage();
+    await login(them, username);
+    await open(them, "/account/password");
+    const current = them.getByLabel("Current password");
+    const next = them.getByLabel("New password", { exact: true });
+    const again = them.getByLabel("Type the new password again");
+    const save = them.getByRole("button", { name: "Change password" });
+
+    await save.click();
+    await expect(current).toHaveAttribute("aria-invalid", "true");
+    await expect(current).toBeFocused();
+
+    const newPassword = `${PASSWORD}Q7`;
+    await current.fill(PASSWORD);
+    await next.fill("abcdefgh"); // no number
+    await again.fill("abcdefgh");
+    await save.click();
+    await expect(them.getByText("Use at least 8 characters with letters and numbers.").first()).toBeVisible();
+
+    await next.fill(newPassword);
+    await again.fill(`${newPassword}x`);
+    await save.click();
+    await expect(them.getByText("The two passwords are not the same.").first()).toBeVisible();
+
+    await current.fill("not-my-password-1");
+    await again.fill(newPassword);
+    await save.click();
+    await expect(them.getByText("The current password is not right.").first()).toBeVisible();
+
+    await current.fill(PASSWORD);
+    await save.click();
+    await expect(them.getByText("Password changed ✓").first()).toBeVisible();
+
+    // The old password no longer works; the new one does.
+    await them.context().clearCookies();
+    await them.goto("/login");
+    await them.getByLabel("Username").fill(username);
+    await them.getByLabel("Password", { exact: true }).fill(PASSWORD);
+    await them.getByRole("button", { name: "Log in" }).click();
+    await expect(them).toHaveURL(/\/login/);
+    await them.getByLabel("Password", { exact: true }).fill(newPassword);
+    await them.getByRole("button", { name: "Log in" }).click();
+    await expect(them).toHaveURL(/\/home$/, { timeout: 30_000 });
+    await theirs.close();
+
+    await page.getByLabel("Search staff by name").fill(`E2E Password ${stamp}`);
+    const row = page.getByRole("row").filter({ hasText: username });
     await row.getByRole("button", { name: "Deactivate" }).click();
     await dialog.getByLabel("Reason").fill("E2E test finished");
     await dialog.getByRole("button", { name: "Deactivate" }).click();

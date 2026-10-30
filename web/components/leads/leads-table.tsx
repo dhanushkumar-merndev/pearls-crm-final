@@ -36,20 +36,25 @@ const defaultDesc = (s: (typeof SORTS)[number]) => s !== "name" && s !== "next_f
 const day = (iso: string) => new Date(`${iso}T00:00:00+05:30`);
 const bulkAssignSchema = z.object({ to: requiredId() });
 
-/** Managers' leads table: filters, server paging (exact count), inline stage / owner / due date, bulk assign, CSV export. */
-export function LeadsTable({ canAssign }: { canAssign: boolean }) {
-  const t = useTranslations("leads");
-  const queryClient = useQueryClient();
-  const { saved, failed } = useFeedback();
-  const staff = useSalesStaff();
-  const [filters, setFilters] = useState(() => ({
+/** The filters the table opens with: the last 90 days, nothing else. */
+function startFilters() {
+  return {
     from: istDateString(new Date(Date.now() - 89 * 86_400_000)),
     to: istDateString(new Date()),
     q: "",
     stage: "",
     assigned_to: "",
     due: "",
-  }));
+  };
+}
+
+/** Managers' leads table: filters, server paging (exact count), inline stage / owner / due date, bulk assign, CSV export. */
+export function LeadsTable({ canAssign }: { canAssign: boolean }) {
+  const t = useTranslations("leads");
+  const queryClient = useQueryClient();
+  const { saved, failed } = useFeedback();
+  const staff = useSalesStaff();
+  const [filters, setFilters] = useState(startFilters);
   const [source, setSource] = useState<LibraryItem | null>(null);
   const [sort, setSort] = useState<(typeof SORTS)[number]>("lead_date");
   const [desc, setDesc] = useState(true);
@@ -86,6 +91,18 @@ export function LeadsTable({ canAssign }: { canAssign: boolean }) {
     setOffset(0);
     setSelected([]);
     if (k === "from" || k === "to") rangeChecks.validate({ from: next.from, to: next.to });
+  };
+  const start = startFilters();
+  const changed =
+    (Object.keys(start) as (keyof typeof start)[]).some((k) => filters[k] !== start[k]) || !!source || sort !== "lead_date" || !desc;
+  const clearFilters = () => {
+    setFilters(startFilters());
+    setSource(null);
+    setSort("lead_date");
+    setDesc(defaultDesc("lead_date"));
+    setOffset(0);
+    setSelected([]);
+    rangeChecks.clearAll();
   };
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: ["leads_table"] });
@@ -153,6 +170,8 @@ export function LeadsTable({ canAssign }: { canAssign: boolean }) {
           </Field>
         }
         active={[filters.from, filters.to, filters.stage, filters.assigned_to, source, filters.due].filter(Boolean).length}
+        canClear={changed}
+        onClear={clearFilters}
         actions={
           <Button variant="secondary" disabled={exporting || !range.success || !list.data?.total} onClick={() => void exportExcel()}>
             <Download aria-hidden />

@@ -14,6 +14,8 @@ export type Source = "cron" | "staff" | "bot";
 
 export const MAX_BATCHES = 5;
 export const BATCH_SIZE = 20;
+/** Numbers sent to at the same time (Meta allows far more; this keeps a run gentle). */
+export const PARALLEL = 5;
 
 export interface Claimed {
   id: string;
@@ -122,26 +124,34 @@ export async function dispatch(opts: { source: Source; configured: boolean }, de
     return s;
   }
   let authError: string | undefined;
+  const sendOne = async (m: Claimed) => {
+    const body = messageBody(m);
+    let r: SendResult;
+    if (authError) r = { ok: false, code: "auth", text: authError, retry: true, auth: true }; // don't hammer Meta with a bad token
+    else if (!body) r = { ok: false, code: "bad_message", text: "Nothing to send (no text, template or valid number)", retry: false, auth: false };
+    else r = await deps.send(body);
+    if (r.ok) {
+      await must(deps.rpc("wa_mark_result", { p_id: m.id, p_wa_message_id: r.id }));
+      s.sent++;
+    } else {
+      await must(deps.rpc("wa_mark_result", {
+        p_id: m.id, p_wa_message_id: null, p_error_code: r.code, p_error_text: r.text, p_retry: r.retry,
+      }));
+      if (r.retry) s.retry++;
+      else s.failed++;
+      if (r.auth) authError ??= r.text;
+    }
+  };
   for (let b = 0; b < MAX_BATCHES && !authError; b++) {
     const batch = ((await must(deps.rpc("wa_claim_batch", { p_limit: BATCH_SIZE }))) ?? []) as Claimed[];
     if (!batch.length) break;
-    for (const m of batch) {
-      const body = messageBody(m);
-      let r: SendResult;
-      if (authError) r = { ok: false, code: "auth", text: authError, retry: true, auth: true }; // don't hammer Meta with a bad token
-      else if (!body) r = { ok: false, code: "bad_message", text: "Nothing to send (no text, template or valid number)", retry: false, auth: false };
-      else r = await deps.send(body);
-      if (r.ok) {
-        await must(deps.rpc("wa_mark_result", { p_id: m.id, p_wa_message_id: r.id }));
-        s.sent++;
-      } else {
-        await must(deps.rpc("wa_mark_result", {
-          p_id: m.id, p_wa_message_id: null, p_error_code: r.code, p_error_text: r.text, p_retry: r.retry,
-        }));
-        if (r.retry) s.retry++;
-        else s.failed++;
-        if (r.auth) authError ??= r.text;
-      }
+    // Different numbers at the same time, one number's messages in order (the bot's
+    // "Hi!" must arrive before its question).
+    const byNumber = [...Map.groupBy(batch, (m) => m.to).values()];
+    for (let i = 0; i < byNumber.length; i += PARALLEL) {
+      await Promise.all(byNumber.slice(i, i + PARALLEL).map(async (msgs) => {
+        for (const m of msgs) await sendOne(m);
+      }));
     }
     if (batch.length < BATCH_SIZE) break;
   }

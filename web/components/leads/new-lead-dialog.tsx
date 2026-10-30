@@ -5,7 +5,7 @@ import { ArrowLeft, ExternalLink, Save, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { z } from "zod";
 import { formatDate, fromIstDateTimeLocal, newLeadSchema } from "@pearl/shared";
 import { LibraryCombobox, type LibraryItem } from "@/components/library-combobox";
@@ -84,9 +84,14 @@ export function NewLeadDialog({ canAssign, phone = null, onDone }: { canAssign: 
       if (!checks.fromServer(e, { name: "name", phone: "phone", assigned_to: "assigned_to" })) failed(e);
     },
   });
+  // A quick double click must send one save: the button is disabled only after the next render.
+  const sending = useRef(false);
   const submit = (force: boolean) => {
+    if (sending.current) return;
     const d = checks.validate(values());
-    if (d) create.mutate({ d, force });
+    if (!d) return;
+    sending.current = true;
+    create.mutate({ d, force }, { onSettled: () => void (sending.current = false) });
   };
 
   if (duplicates) {

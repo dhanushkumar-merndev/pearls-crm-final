@@ -92,7 +92,9 @@ select is_empty($$ select who || ' ' || tbl from findings where op = 'delete' $$
 select results_eq($$ select who || ' ' || tbl from findings where op = 'update' order by 1 $$, $$ values ('receptionist suppliers') $$,
   'the only direct update outside admin is reception editing suppliers');
 select is_empty($$ select who || ' ' || tbl from findings
-                   where op = 'select' and who in ('bdm', 'sales_executive') and tbl not in (select tbl from shared_lists) $$,
+                   where op = 'select' and who in ('bdm', 'sales_executive') and tbl not in (select tbl from shared_lists)
+                     -- Sales executives send WhatsApp to their leads: they read the approved templates (wording only, no patient data).
+                     and not (who = 'sales_executive' and tbl = 'wa_templates') $$,
   'BDMs and sales executives with nothing assigned see only the shared lists');
 select is_empty($$ select who || ' ' || tbl from findings where op = 'select' and tbl = 'staff' and n > 1 and who in ('bdm', 'sales_executive', 'gone') $$,
   'and of the staff table only their own row');

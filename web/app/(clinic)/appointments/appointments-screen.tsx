@@ -285,6 +285,8 @@ function TableView() {
     <div className="flex flex-col gap-3">
       <FilterBar
         active={[filters.status].filter(Boolean).length}
+        canClear={filters.from !== today || filters.to !== today || !!filters.status || sort !== "slot_start"}
+        onClear={() => (setFilters({ from: today, to: today, status: "" }), setSort("slot_start"), setOffset(0))}
         actions={
           <Button variant="secondary" disabled={exporting || !list.data?.total} onClick={() => void exportExcel()}>
             <Download aria-hidden />

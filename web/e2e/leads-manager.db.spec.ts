@@ -49,3 +49,15 @@ test("leads dashboard opens with its numbers and a chart table", async ({ page }
     await expect(page.getByRole("table").first()).toBeVisible();
   }
 });
+
+test("clear filters: the round ✕ shows once a filter is set and puts them all back", async ({ page }) => {
+  await open(page, "/leads");
+  const clear = page.getByRole("button", { name: "Clear filters" });
+  await expect(clear).toHaveCount(0);
+  await page.getByLabel("Search", { exact: true }).fill("nobody at all");
+  await page.getByRole("button", { name: "Descending" }).click();
+  await clear.click();
+  await expect(page.getByLabel("Search", { exact: true })).toHaveValue("");
+  await expect(page.getByRole("button", { name: "Descending" })).toBeVisible();
+  await expect(clear).toHaveCount(0);
+});

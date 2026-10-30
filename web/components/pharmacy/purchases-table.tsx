@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { formatDate, formatINR, istDateString } from "@pearl/shared";
+import { ClearFilters } from "@/components/ui/filter-bar";
 import { Field, Select } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Pager } from "@/components/ui/pager";
@@ -32,11 +33,9 @@ const LIMIT = 25;
 /** Supplier invoices by date (range ≤ 1 year), offset paging with an exact count. */
 export function PurchasesTable() {
   const t = useTranslations("pharmacy");
-  const [filters, setFilters] = useState(() => ({
-    from: istDateString(new Date(Date.now() - 90 * 86_400_000)),
-    to: istDateString(new Date()),
-    status: "",
-  }));
+  const startFilters = () => ({ from: istDateString(new Date(Date.now() - 90 * 86_400_000)), to: istDateString(new Date()), status: "" });
+  const [filters, setFilters] = useState(startFilters);
+  const start = startFilters();
   const [offset, setOffset] = useState(0);
   const rangeCheck = useDateRangeCheck(filters.from, filters.to);
   const list = useQuery({
@@ -65,6 +64,10 @@ export function PurchasesTable() {
             </Select>
           )}
         </Field>
+        <ClearFilters
+          show={filters.from !== start.from || filters.to !== start.to || !!filters.status}
+          onClear={() => (setFilters(startFilters()), setOffset(0))}
+        />
       </div>
       {list.isError && <p className="text-bad-text">{t("rangeTooWide")}</p>}
       {list.data && <p className="text-text-secondary">{t("purchaseSum", { n: list.data.total, amount: formatINR(list.data.sum_paise) })}</p>}

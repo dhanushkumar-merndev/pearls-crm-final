@@ -4,7 +4,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(7);
+select plan(8);
 
 select is_empty($$
   select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
@@ -88,6 +88,11 @@ insert into public.wa_bot_sessions (phone_e164, started_on) values ('+9190000009
 insert into public.notification_rules (type, push) values ('fixture_rule', false);
 insert into public.backup_batches (kind, status) values ('database', 'done');
 insert into public.backup_items (batch_id, table_name) select id, 'fixture' from public.backup_batches limit 1;
+-- Phase 16: the Meta ad account copy (sales managers and admins only).
+insert into public.ad_account (id, name) values ('3333', 'Fixture ads');
+insert into public.ad_campaigns (id, account_id, name) values ('33331', '3333', 'Fixture campaign');
+insert into public.ad_ads (id, campaign_id, name) values ('33332', '33331', 'Fixture ad');
+insert into public.ad_daily (campaign_id, day) values ('33331', '2030-01-01');
 
 create temp table violations (finding text) on commit drop;
 
@@ -122,6 +127,36 @@ end $$;
 
 select is_empty($$ select * from violations $$,
   'non-admins see no rows in admin-only system tables');
+
+-- Ad numbers: sales managers (and admins) only.
+do $$
+declare
+  r record;
+  t text;
+  n bigint;
+  found_rows text[] := '{}';
+begin
+  for r in select * from (values
+    ('33333333-0000-4000-a000-0000000000b1', 'receptionist', false),
+    ('33333333-0000-4000-a000-0000000000c1', 'sales_executive', false),
+    ('33333333-0000-4000-a000-0000000000d1', 'bdm', false),
+    ('33333333-0000-4000-a000-0000000000c2', 'sales_manager', true),
+    ('33333333-0000-4000-a000-00000000000a', 'admin', true)) as x (id, who, sees)
+  loop
+    perform set_config('request.jwt.claims', json_build_object('sub', r.id, 'role', 'authenticated')::text, true);
+    execute 'set local role authenticated';
+    foreach t in array array['ad_account', 'ad_campaigns', 'ad_ads', 'ad_daily'] loop
+      execute format('select count(*) from public.%I', t) into n;
+      if (n > 0) <> r.sees then
+        found_rows := found_rows || format('%s saw %s rows in %s', r.who, n, t);
+      end if;
+    end loop;
+    execute 'reset role';
+  end loop;
+  insert into violations select unnest(found_rows);
+end $$;
+
+select is_empty($$ select * from violations $$, 'only sales managers and admins see the ad numbers');
 
 select * from finish();
 rollback;

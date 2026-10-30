@@ -9,6 +9,14 @@
 html:has(.print-root) {
   font-size: 17px;
 }
+/* Paper is white even with "Background graphics" on: the dark app theme must not print.
+   !important: the theme switcher sets color-scheme inline on <html>, and Chromium paints the
+   page margins in that scheme's colour. */
+html:has(.print-root),
+html:has(.print-root) body {
+  background: #ffffff;
+  color-scheme: light !important;
+}
 .print-root {
   background: #ffffff;
   color: #000000;
@@ -39,27 +47,79 @@ html:has(.print-root) {
   padding: 0 20px;
   cursor: pointer;
 }
+/* Letterhead: logo + name + address | contacts; on bills a thin line of legal ids below. */
+.print-root .lh {
+  margin-bottom: 10px;
+}
 .print-root .letterhead {
   display: flex;
   align-items: center;
-  gap: 12px;
-  border-bottom: 2px solid #000;
+  justify-content: space-between;
+  gap: 16px;
   padding-bottom: 8px;
-  margin-bottom: 10px;
+  border-bottom: 1.5px solid #000;
 }
-.print-root .letterhead img {
-  height: 56px;
+.print-root .lh-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 9pt;
+  line-height: 1.35;
+  color: #333;
+}
+.print-root .lh-brand img {
+  height: 58px;
   width: auto;
 }
 .print-root .letterhead h1 {
-  font-size: 18pt;
-  margin: 0;
+  font-size: 15pt;
+  font-weight: 700;
+  line-height: 1.15;
+  margin: 0 0 1px;
+  color: #000;
+}
+.print-root .lh-legal {
+  font-style: italic;
+}
+.print-root .lh-contact {
+  text-align: right;
+  font-size: 9pt;
+  line-height: 1.45;
+  color: #333;
+  white-space: nowrap;
+}
+.print-root .lh-phones {
+  font-weight: 600;
+  color: #000;
+}
+.print-root .lh-ids {
+  padding: 3px 0;
+  border-bottom: 0.5px solid #999;
+  font-size: 8.5pt;
+  text-align: center;
+  color: #333;
+  white-space: pre;
+}
+/* The logo, faint behind the page; fixed so it repeats on every printed page. */
+.print-root .watermark {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  width: 120mm;
+  transform: translate(-50%, -50%);
+  opacity: 0.07;
+  pointer-events: none;
+}
+.print-root .watermark img {
+  width: 100%;
+  height: auto;
 }
 .print-root .muted {
   color: #333;
 }
 .print-root h2 {
   font-size: 12pt;
+  font-weight: 700;
   margin: 12px 0 4px;
   border-bottom: 1px solid #000;
 }
@@ -116,11 +176,12 @@ html:has(.print-root) {
   }
 }
 .print-root .doc-title {
-  text-align: center;
-  font-size: 14pt;
+  font-size: 11pt;
   font-weight: 700;
-  letter-spacing: 0.04em;
-  margin: 4px 0 8px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin: 2px 0 6px;
+  text-align: center;
 }
 .print-root .copy {
   float: right;
@@ -128,69 +189,211 @@ html:has(.print-root) {
   padding: 1px 8px;
   font-size: 9pt;
 }
-.print-root .meta {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2px 16px;
-  border: 1px solid #000;
-  padding: 6px 8px;
-  margin-bottom: 8px;
-}
-.print-root table.lines {
-  width: 100%;
-  border-collapse: collapse;
+
+/* Bill: title + number/date, who it is for, the lines, then totals beside the small tables. */
+.print-root .bill {
   font-size: 10pt;
+  line-height: 1.4;
 }
-.print-root table.lines th,
-.print-root table.lines td {
-  border: 1px solid #000;
-  padding: 4px 6px;
-  vertical-align: top;
+.print-root .bill-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 12px 0 10px;
 }
-.print-root table.lines th {
-  background: #eeeeee;
+.print-root .bill .doc-title {
+  margin: 0;
+  font-size: 14pt;
+  letter-spacing: 0.06em;
   text-align: left;
 }
-.print-root table.lines td.num,
-.print-root table.lines th.num {
+.print-root .bill-ref {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin: 0;
+}
+.print-root .bill-ref dt,
+.print-root .facts dt,
+.print-root .parties .label,
+.print-root table.mini caption {
+  font-size: 7.5pt;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #555;
+}
+.print-root .bill-ref dd {
+  margin: 0;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.print-root .bill-ref .copy {
+  float: none;
+  border-radius: 999px;
+  font-size: 8pt;
+  padding: 1px 10px;
+}
+.print-root .parties {
+  display: grid;
+  grid-template-columns: 1.25fr 1fr;
+  gap: 18px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  border: 0.5px solid #999;
+  border-radius: 6px;
+  break-inside: avoid;
+}
+.print-root .patient-name {
+  font-size: 12pt;
+  font-weight: 700;
+  margin: 1px 0;
+}
+.print-root .soft {
+  color: #555;
+}
+.print-root .facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 12px;
+  margin: 0;
+  align-content: start;
+}
+.print-root .facts > div {
+  display: contents;
+}
+.print-root .facts dt {
+  align-self: center;
+}
+.print-root .facts dd {
+  margin: 0;
+}
+/* Lines: horizontal rules only; medicine details on a small second line. */
+.print-root table.items {
+  width: 100%;
+  border-collapse: collapse;
+}
+.print-root table.items th {
+  padding: 5px 6px;
+  border-top: 1.5px solid #000;
+  border-bottom: 1.5px solid #000;
+  font-size: 8pt;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-align: left;
+  text-transform: uppercase;
+}
+.print-root table.items td {
+  padding: 6px 6px;
+  border-bottom: 0.5px solid #bbb;
+  vertical-align: top;
+}
+.print-root table.items tr {
+  break-inside: avoid;
+}
+.print-root table.items .num {
   text-align: right;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-.print-root table.lines tr {
+.print-root table.items .idx {
+  width: 2em;
+  color: #555;
+}
+.print-root table.items .nowrap {
+  white-space: nowrap;
+}
+.print-root .item-name {
+  font-weight: 600;
+}
+.print-root .item-sub {
+  margin-top: 1px;
+  font-size: 8pt;
+  color: #555;
+  white-space: pre-wrap;
+}
+.print-root table.items tr.group td {
+  padding-top: 10px;
+  border-bottom: 0;
+  font-size: 8.5pt;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.print-root table.items tr.subtotal td {
+  border-bottom: 1px solid #000;
+  font-weight: 600;
+}
+.print-root .summary {
+  display: grid;
+  grid-template-columns: 1fr 44%;
+  gap: 24px;
+  margin-top: 12px;
   break-inside: avoid;
 }
-.print-root table.lines th.idx {
-  width: 2.2em;
+.print-root .summary-left {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
-.print-root table.lines tr.group td {
-  background: #f5f5f5;
-  font-weight: 600;
+.print-root table.mini {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 8.5pt;
 }
-.print-root table.lines tr.subtotal td {
+.print-root table.mini caption {
+  text-align: left;
+  padding-bottom: 2px;
+}
+.print-root table.mini th {
   font-weight: 600;
+  text-align: left;
+  border-bottom: 0.5px solid #000;
+  padding: 2px 4px;
+}
+.print-root table.mini td {
+  border-bottom: 0.5px solid #ddd;
+  padding: 2px 4px;
+}
+.print-root table.mini .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 .print-root .totals {
-  margin-left: auto;
-  width: 55%;
+  width: 100%;
   border-collapse: collapse;
-  margin-top: 6px;
 }
 .print-root .totals td {
-  padding: 2px 5px;
+  padding: 2px 0;
   font-variant-numeric: tabular-nums;
 }
 .print-root .totals td:last-child {
   text-align: right;
+  white-space: nowrap;
+}
+.print-root .totals tr.soft td {
+  font-size: 9pt;
 }
 .print-root .totals tr.grand td {
-  border-top: 2px solid #000;
+  padding: 6px 0;
+  border-top: 1.5px solid #000;
+  border-bottom: 1.5px solid #000;
+  font-size: 13pt;
   font-weight: 700;
-  font-size: 12pt;
+}
+.print-root .totals tr.grand + tr td {
+  padding-top: 5px;
+}
+.print-root .totals tr.due td {
+  font-weight: 700;
 }
 .print-root .words {
-  margin-top: 6px;
-  font-weight: 600;
+  margin: 8px 0 0;
+  font-size: 9pt;
+  font-style: italic;
+  text-align: right;
 }
 .print-root .stamp {
   position: fixed;
@@ -204,14 +407,49 @@ html:has(.print-root) {
   transform: rotate(-24deg);
   pointer-events: none;
 }
+/* Terms in two columns on the left, the signature on the right. */
+.print-root .bill-foot {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 24px;
+  margin-top: 18px;
+  padding-top: 8px;
+  border-top: 0.5px solid #999;
+  break-inside: avoid;
+}
+.print-root h2.terms-title {
+  border: 0;
+  margin: 0 0 3px;
+  font-size: 8pt;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
 .print-root ol.terms {
-  margin: 4px 0 0 18px;
+  columns: 2;
+  column-gap: 20px;
+  list-style: decimal;
+  margin: 0 0 0 14px;
   padding: 0;
-  font-size: 9pt;
+  font-size: 7.5pt;
+  line-height: 1.35;
+  color: #333;
+}
+.print-root ol.terms li {
+  break-inside: avoid;
+  margin-bottom: 1px;
 }
 .print-root .signatory {
-  margin-top: 28px;
-  text-align: right;
+  grid-column: 2;
+  min-width: 52mm;
+  text-align: center;
+  font-size: 9pt;
+}
+.print-root .signatory .sign-line {
+  height: 34px;
+  border-bottom: 0.5px solid #000;
+  margin-bottom: 3px;
 }
 
 /* Discharge summary (Phase 7): the letterhead repeats on every printed page. */

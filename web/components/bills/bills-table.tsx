@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { formatDate, formatINR, istDateString } from "@pearl/shared";
+import { ClearFilters } from "@/components/ui/filter-bar";
 import { Button } from "@/components/ui/button";
 import { Field, Select } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -40,16 +41,17 @@ interface Page {
 const LIMIT = 25;
 
 /** Bills with filters and offset paging (exact count). With patientId: that patient's bills, all dates. */
+/** The last 30 days, every type and status. */
+function startFilters() {
+  return { from: istDateString(new Date(Date.now() - 30 * 86_400_000)), to: istDateString(new Date()), status: "", bill_type: "" };
+}
+
 export function BillsTable({ patientId }: { patientId?: string }) {
   const t = useTranslations("bills");
   const b = useTranslations("bill");
   const { failed } = useFeedback();
-  const [filters, setFilters] = useState(() => ({
-    from: istDateString(new Date(Date.now() - 30 * 86_400_000)),
-    to: istDateString(new Date()),
-    status: "",
-    bill_type: "",
-  }));
+  const [filters, setFilters] = useState(startFilters);
+  const start = startFilters();
   const [offset, setOffset] = useState(0);
   const [exporting, setExporting] = useState(false);
   const args = (o: number, limit: number) => ({
@@ -137,6 +139,10 @@ export function BillsTable({ patientId }: { patientId?: string }) {
             </Select>
           )}
         </Field>
+        <ClearFilters
+          show={(Object.keys(start) as (keyof typeof start)[]).some((k) => filters[k] !== start[k])}
+          onClear={() => (setFilters(startFilters()), setOffset(0))}
+        />
         {!patientId && (
           <Button variant="secondary" disabled={exporting || !list.data?.total} onClick={() => void exportExcel()}>
             <Download aria-hidden />

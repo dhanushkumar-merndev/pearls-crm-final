@@ -7,6 +7,7 @@ import { formatDateTime, istDayStart } from "@pearl/shared";
 import { Field, PageHeader, Select } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { LoadMore } from "@/components/ui/load-more";
+import { ClearFilters } from "@/components/ui/filter-bar";
 import { Page, useAdminBack } from "@/components/ui/page";
 import { RowSkeletons } from "@/components/ui/skeletons";
 import { EmptyRow, Table, TD, TH, THead, TR, wrapText } from "@/components/ui/table";
@@ -62,7 +63,7 @@ export function AuditScreen() {
   return (
     <Page>
       <PageHeader back={adminBack} title={t("title")} description={t("description")} />
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid items-end gap-3 sm:grid-cols-[1fr_1fr_1fr_auto]">
         <Field label={t("what")}>
           {(a) => (
             <Select {...a} value={table} onChange={(e) => setTable(e.target.value)}>
@@ -77,6 +78,7 @@ export function AuditScreen() {
         </Field>
         <Field label={t("from")}>{(a) => <Input {...a} type="date" value={from} onChange={(e) => setFrom(e.target.value)} />}</Field>
         <Field label={t("to")} error={orderBad ? v("dateOrder") : undefined}>{(a) => <Input {...a} type="date" value={to} onChange={(e) => setTo(e.target.value)} />}</Field>
+        <ClearFilters show={!!(table || from || to)} onClear={() => (setTable(""), setFrom(""), setTo(""))} />
       </div>
       <Table>
         <THead>

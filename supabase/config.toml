@@ -483,3 +483,8 @@ import_map = "./functions/deno.json"
 [functions.daily-summary]
 verify_jwt = false
 import_map = "./functions/deno.json"
+
+# Ads (Phase 16): the database timer (x-cron-secret) or "Sync now" by a sales manager / admin (login checked in code).
+[functions.meta-ads]
+verify_jwt = false
+import_map = "./functions/deno.json"

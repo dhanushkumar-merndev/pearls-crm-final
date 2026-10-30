@@ -151,3 +151,28 @@ Deno.test("full batches keep going (up to the limit), a short batch ends the run
   assertEquals(s.sent, 21);
   assertEquals(calls.filter((c) => c.fn === "wa_claim_batch").length, 2);
 });
+
+Deno.test("different numbers go out together; one number's messages stay in order", async () => {
+  const to = (n: string) => `+9198450${n}`;
+  const batch = [
+    { ...txt("a1", "Hi!"), to: to("11111") },
+    { ...txt("b1", "Hello"), to: to("22222") },
+    { ...txt("a2", "Your name?"), to: to("11111") },
+  ];
+  let open = 0;
+  let most = 0;
+  const order: string[] = [];
+  const { deps } = fakeDeps({ batches: [batch] });
+  deps.send = async (body) => {
+    open++;
+    most = Math.max(most, open);
+    await new Promise((r) => setTimeout(r, 5));
+    order.push((body.text as { body: string }).body);
+    open--;
+    return { ok: true, id: `wamid.${order.length}` };
+  };
+  const s = await dispatch({ source: "staff", configured: true }, deps);
+  assertEquals(s.sent, 3);
+  assertEquals(most, 2);
+  assertEquals(order.indexOf("Hi!") < order.indexOf("Your name?"), true);
+});
