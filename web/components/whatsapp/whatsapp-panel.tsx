@@ -395,7 +395,9 @@ export function ChatMessages({ items, hasMore, loadingMore, onMore, className }:
       ref={listRef}
       aria-live="polite"
       aria-label={t("conversation")}
-      className={cn("chat-wall flex flex-col gap-1 overflow-y-auto px-3 py-2 sm:px-6", className)}
+      // relative: the screen-reader-only labels (absolute) stay inside this scroll box instead of
+      // stretching the page below the inbox.
+      className={cn("chat-wall relative flex flex-col gap-1 overflow-y-auto px-3 py-2 sm:px-6", className)}
     >
       {hasMore && (
         <li className="self-center pb-2">
