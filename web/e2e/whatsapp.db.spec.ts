@@ -253,18 +253,25 @@ test.describe("send now, or within 5 minutes", () => {
   test.use({ storageState: STATE.admin });
   // Both calls are answered here, so nothing is queued and no WhatsApp message goes out (safe on a live number).
   test("when the instant send can't reach the server, staff are told it goes out within 5 minutes", async ({ page }) => {
+    test.setTimeout(90_000); // may look through several chats for one that can send
     await page.route(/\/rest\/v1\/rpc\/wa_(number_)?send/, (r) => r.fulfill({ status: 200, contentType: "application/json", body: "null" }));
     await page.route(/\/functions\/v1\/wa-dispatch/, (r) => r.abort("failed"));
     await open(page, "/whatsapp");
-    const chat = page.getByRole("region", { name: "Conversations" }).locator("button:not([aria-pressed])").first();
-    await expect(chat.or(page.getByText("No WhatsApp conversations yet.")).first()).toBeVisible({ timeout: 20_000 });
-    test.skip(!(await chat.count()), "no conversation on this database");
-    await chat.click();
+    const chats = page.getByRole("region", { name: "Conversations" }).locator("button:not([aria-pressed])");
+    await expect(chats.first().or(page.getByText("No WhatsApp conversations yet.")).first()).toBeVisible({ timeout: 20_000 });
+    // A chat where a free message can go out through the API: open 24-hour window and WhatsApp on.
+    // (The newest chats may be test patients with no window; CI's database has WhatsApp off.)
     const box = page.getByPlaceholder("Type a message").first();
-    const visible = await box.waitFor({ timeout: 10_000 }).then(() => true, () => false);
-    test.skip(!visible, "no open 24-hour window, or WhatsApp is off on this database");
-    await box.fill("E2E faked send");
-    await page.getByRole("button", { name: "Send", exact: true }).first().click();
+    const send = page.getByRole("button", { name: "Send", exact: true }).first();
+    let found = false;
+    for (let i = 0; i < Math.min(await chats.count(), 8) && !found; i++) {
+      await chats.nth(i).click();
+      if (!(await box.waitFor({ timeout: 5_000 }).then(() => true, () => false))) continue;
+      await box.fill("E2E faked send");
+      found = (await send.count()) > 0;
+    }
+    test.skip(!found, "no chat with an open 24-hour window and automatic WhatsApp on this database");
+    await send.click();
     await expect(page.getByText("Saved. It couldn't go out at once, so it will be sent within 5 minutes.")).toBeVisible();
   });
 
