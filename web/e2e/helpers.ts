@@ -81,6 +81,16 @@ export async function rpcAs<T>(page: Page, fn: string, args: Record<string, unkn
 }
 
 /** Reads rows as the person logged in on [page] (RLS applies), e.g. `selectAs(page, "clinic_settings?branch_code=eq.main")`. */
+/** Calls an Edge Function as the person logged in on [page]; returns the HTTP status and body text. */
+export async function functionAs(page: Page, name: string, body: Record<string, unknown>): Promise<{ status: number; text: string }> {
+  const { url, anonKey } = backend();
+  const res = await page.request.post(`${url}/functions/v1/${name}`, {
+    headers: { apikey: anonKey, Authorization: `Bearer ${await accessToken(page)}`, "Content-Type": "application/json" },
+    data: body,
+  });
+  return { status: res.status(), text: await res.text() };
+}
+
 export async function selectAs<T>(page: Page, query: string): Promise<T[]> {
   const { url, anonKey } = backend();
   const res = await page.request.get(`${url}/rest/v1/${query}`, {

@@ -22,6 +22,7 @@ import {
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Fragment, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { toast } from "sonner";
 import { formatDate, formatDateTime, formatTime } from "@pearl/shared";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
@@ -519,8 +520,8 @@ export function ApiComposer({ target, windowOpen, onSent }: { target: ChatTarget
       setText("");
       setTemplateId("");
       setClientId(newId());
-      // Send now instead of waiting for the 5-minute run; if this fails, that run sends it.
-      void callFunction("wa-dispatch", { source: "staff" }).catch(() => undefined).finally(onSent);
+      // Send now instead of waiting for the 5-minute run; if this fails, that run sends it (and staff are told).
+      void callFunction("wa-dispatch", { source: "staff" }).catch(() => toast.info(t("sendLater"))).finally(onSent);
       onSent();
     },
     onError: failed,

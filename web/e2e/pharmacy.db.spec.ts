@@ -4,6 +4,8 @@ import { choose, open, STATE, uniquePhone } from "./helpers";
 // Phase 6: buy in → sell from the FEFO batch → stock and ledger follow. Needs a backend (E2E_DB=1).
 test.skip(!process.env.E2E_DB, "needs the Supabase backend (E2E_DB=1)");
 test.use({ storageState: STATE.reception });
+// Five screens in one flow (purchase, patient, bill, stock, adjust): over 30 s when staging is busy.
+test.setTimeout(90_000);
 
 test("purchase a new medicine, sell 3 on a pharmacy bill, write off 1", async ({ page }) => {
   const stamp = Date.now();
@@ -42,13 +44,20 @@ test("purchase a new medicine, sell 3 on a pharmacy bill, write off 1", async ({
   await page.getByRole("button", { name: "New pharmacy bill" }).click();
   // Makes the bill on the server, then opens its page.
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Pharmacy invoice", { timeout: 30_000 });
+  // A slow server: the medicine's batches take 3 s. Qty and Finalize straight after the pick must
+  // still work (the first click used to do nothing: the check ran on the half-filled line, 31/10/2026).
+  await page.route(/\/rest\/v1\/rpc\/batches_for_sale/, async (r) => {
+    await new Promise((done) => setTimeout(done, 3_000));
+    await r.continue();
+  });
   await page.getByRole("combobox", { name: "Medicine" }).click();
   await page.getByPlaceholder("Type to search…").fill(medicine);
   await page.getByRole("option", { name: new RegExp(medicine) }).first().click();
-  // FEFO picks the batch by itself (the dropdown shows the chosen one).
-  await expect(page.getByLabel("Batch", { exact: true })).toHaveText(/E2EB1 · exp 12\/2030 · 10 left/);
   await page.getByLabel("Qty", { exact: true }).fill("3");
+  await expect(page.getByRole("button", { name: "Loading…" })).toBeDisabled();
   await page.getByRole("button", { name: "Finalize bill" }).click();
+  // FEFO picked the batch by itself (the dropdown shows the chosen one).
+  await expect(page.getByLabel("Batch", { exact: true })).toHaveText(/E2EB1 · exp 12\/2030 · 10 left/);
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByText("Bill total ₹30.00", { exact: false })).toBeVisible();
   await dialog.getByRole("combobox", { name: "Mode" }).click();

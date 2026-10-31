@@ -11,6 +11,19 @@ Deno.test("only listed web addresses are allowed", () => {
   assertEquals(allowOrigin("https://anything.example", ["*"]), "*");
 });
 
+Deno.test("a listed local address lets every local address in; previews of the listed Vercel site too", () => {
+  for (const o of ["http://127.0.0.1:3000", "http://localhost:3417", "http://192.168.1.5:3000", "http://10.0.0.7:3000", "http://172.20.1.2:3000"]) {
+    assertEquals(allowOrigin(o, allowed), o);
+  }
+  assertEquals(allowOrigin("http://172.32.1.2:3000", allowed), null); // not a private range
+  assertEquals(allowOrigin("http://127.0.0.1:3000", ["https://pearl-sales.vercel.app"]), null); // live only: no local
+  assertEquals(allowOrigin("https://pearl-sales-git-main-team.vercel.app", allowed), "https://pearl-sales-git-main-team.vercel.app");
+  assertEquals(allowOrigin("https://pearl-salesx.vercel.app", allowed), null);
+  assertEquals(allowOrigin("https://other-app.vercel.app", allowed), null);
+  assertEquals(allowOrigin("http://pearl-sales-x.vercel.app", allowed), null);
+  assertEquals(allowOrigin("https://pearl-sales-x.vercel.app.evil.example", allowed), null);
+});
+
 Deno.test("handler answers preflight, refuses GET and hides crashes", async () => {
   const h = handler(() => {
     throw new Error("boom");

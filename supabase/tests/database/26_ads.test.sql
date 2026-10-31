@@ -5,7 +5,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(41);
+select plan(43);
 
 create function pg_temp.login(p_id uuid)
 returns void
@@ -130,7 +130,10 @@ select throws_ok($$ select public.ads_campaign('26777', '2030-05-01', '2030-05-3
 ------------------------------------------------------------------------------
 select is(public.ads_sync_request(), true, 'a manager may press Sync now…');
 select is(public.ads_sync_request(), false, '…but not twice in a minute');
-select is((select count(*)::int from public.ad_campaigns), 2, 'a manager reads the campaigns');
+-- Only this test's two (the online project also holds the clinic's real campaigns).
+select is((select count(*)::int from public.ad_campaigns where id in ('26001', '26002')), 2, 'a manager reads the campaigns');
+select lives_ok($$ select public.ads_overview('2028-06-01', '2030-05-31') $$, 'the Ads page takes up to 24 months');
+select throws_ok($$ select public.ads_overview('2028-01-01', '2030-05-31') $$, 'P0001', 'invalid_input', 'but not longer');
 select throws_ok($$ select public.ads_save_daily('[]') $$, '42501', null, 'staff cannot write ad numbers');
 select pg_temp.login('26262626-0000-4000-a000-0000000000c1');
 select is((select count(*)::int from public.ad_daily), 0, 'a salesperson sees no ad numbers');

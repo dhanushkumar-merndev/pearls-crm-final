@@ -32,7 +32,9 @@ test("appointments table: impossible and too-long ranges are refused; Excel down
   await page.getByLabel("To").fill("2026-12-31");
   await choose(page, page.getByLabel("Sort by"), "Doctor");
   const excel = page.getByRole("button", { name: "Download Excel" });
-  test.skip(await excel.isDisabled(), "no appointments in 2026 on this database");
+  // The button turns on once the list has loaded; looking straight away skipped with 133 appointments (31/10/2026).
+  const hasRows = await expect(excel).toBeEnabled({ timeout: 20_000 }).then(() => true, () => false);
+  test.skip(!hasRows, "no appointments in 2026 on this database");
   const download = page.waitForEvent("download");
   await excel.click();
   expect((await download).suggestedFilename()).toMatch(/\.xlsx$/);
@@ -51,7 +53,9 @@ test("bills table: date checks, a status filter, and Excel", async ({ page }) =>
   await expect(page.getByRole("row").filter({ has: page.getByRole("link") }).filter({ hasNotText: "Draft" })).toHaveCount(0);
   await choose(page, page.getByLabel("Status"), "All");
   const excel = page.getByRole("button", { name: "Download Excel" });
-  test.skip(await excel.isDisabled(), "no bills in 2026 on this database");
+  // The button turns on once the list has loaded; looking straight away skipped with 133 appointments (31/10/2026).
+  const hasRows = await expect(excel).toBeEnabled({ timeout: 20_000 }).then(() => true, () => false);
+  test.skip(!hasRows, "no bills in 2026 on this database");
   const download = page.waitForEvent("download");
   await excel.click();
   expect((await download).suggestedFilename()).toMatch(/\.xlsx$/);
@@ -83,13 +87,14 @@ test("follow-ups: a task needs what to do; added, then done with an outcome", as
   await dialog.getByRole("button", { name: /Add|Save/ }).last().click();
   await expect(page.getByText("Follow-up added ✓").first()).toBeVisible();
 
-  // Due today or later: find it in Today / Upcoming.
-  for (const tab of ["Today", "Upcoming"]) {
-    await page.getByRole("tab", { name: tab }).click();
-    if (await page.getByRole("row").filter({ hasText: name }).count()) break;
-  }
+  // Due in a week (the default): Upcoming, maybe past the first page (50) when many are due sooner.
+  await page.getByRole("tab", { name: "Upcoming" }).click();
   const row = page.getByRole("row").filter({ hasText: name });
-  await expect(row).toBeVisible();
+  await expect(async () => {
+    const more = page.getByRole("button", { name: "Load more" });
+    if (!(await row.count()) && (await more.isVisible())) await more.click();
+    await expect(row).toBeVisible({ timeout: 3_000 });
+  }).toPass({ timeout: 60_000 });
   await row.getByRole("button", { name: "Done" }).click();
   await dialog.getByLabel("Outcome").fill("E2E spoke, healing well");
   await dialog.getByRole("button", { name: "Done" }).click();

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useIsFetching, useIsMutating, useMutation, useQueryClient } from "@tanstack/react-query";
 import { CheckCheck, CirclePlus, Save, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -160,6 +160,15 @@ export function BillEditor({
 
   const previews = useMemo(() => lines.map((l) => previewLine(l, taxInclusive)), [lines, taxInclusive]);
   const totals = useMemo(() => computeBillTotals(previews.map((p) => p.result).filter((r): r is LineResult => r !== null)), [previews]);
+
+  // A picker or the final-bill tools still waiting for the server (a medicine's batches, a service
+  // added on the fly, the bill reloading after "Include bills"): the line isn't complete yet, so Save
+  // and Finalize wait too. Clicked meanwhile, the check failed and the late answer cleared its
+  // message, so the click seemed to do nothing on a slow server (31/10/2026).
+  const fetching = useIsFetching({ predicate: (q) => q.queryKey[0] === "batches" || (q.queryKey[0] === "bill" && q.queryKey[1] === bill.id) });
+  const creating = useIsMutating({ mutationKey: ["library_create"] });
+  const waiting = fetching + creating > 0;
+  const c = useTranslations("common");
 
   /** Every line and header field checked before anything is sent. */
   const checkAll = () => checks.validate({ doctor, referred_by: referredBy, lines, reason }) !== null;
@@ -398,7 +407,7 @@ export function BillEditor({
           <Field label={t("amendReason")} className="min-w-72" error={checks.error("reason")}>
             {(a) => <Input {...a} maxLength={300} value={reason} onChange={(e) => (setReason(e.target.value), checks.clear("reason"))} />}
           </Field>
-          <Button disabled={save.isPending} onClick={() => checkAll() && save.mutate()}>
+          <Button disabled={save.isPending || waiting} onClick={() => checkAll() && save.mutate()}>
             <Save aria-hidden />
             {t("saveAmendment")}
           </Button>
@@ -409,13 +418,13 @@ export function BillEditor({
             <X aria-hidden />
             {t("discardDraft")}
           </Button>
-          <Button variant="secondary" disabled={save.isPending} onClick={() => checkAll() && save.mutate()}>
+          <Button variant="secondary" disabled={save.isPending || waiting} onClick={() => checkAll() && save.mutate()}>
             <Save aria-hidden />
             {t("saveDraft")}
           </Button>
-          <Button disabled={save.isPending} onClick={() => void saveThenFinalize()}>
+          <Button disabled={save.isPending || waiting} onClick={() => void saveThenFinalize()}>
             <CheckCheck aria-hidden />
-            {t("finalize")}
+            {waiting ? c("loading") : t("finalize")}
           </Button>
         </StickyActions>
       )}

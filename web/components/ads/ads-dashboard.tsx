@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, FileInput, RefreshCw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useMemo, useState } from "react";
-import { formatDateTime, formatINR, formatINRShort } from "@pearl/shared";
+import { adsDateRangeSchema, ADS_MAX_RANGE_DAYS, formatDateTime, formatINR, formatINRShort, istDateString } from "@pearl/shared";
 import { EChart } from "@/components/charts/echart";
 import { StatTile } from "@/components/kpi/stat-tile";
 import { Button } from "@/components/ui/button";
@@ -12,12 +12,14 @@ import { Dialog } from "@/components/ui/dialog";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { Field, Select } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Pager } from "@/components/ui/pager";
 import { Sheet } from "@/components/ui/sheet";
 import { CardSkeleton, TileSkeletons } from "@/components/ui/skeletons";
 import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
-import { PRESETS, rangeFor, type Preset } from "@/lib/periods";
+import { rangeFor, type Preset } from "@/lib/periods";
 import { callFunction, rpc } from "@/lib/rpc";
 import { useDateRangeCheck } from "@/lib/use-date-range";
+import { useFeedback } from "@/lib/use-feedback";
 import { cn } from "@/lib/utils";
 import { CampaignStatus, dayLabel, money, num, ratio, roas } from "./ad-format";
 import { CampaignSheet } from "./campaign-sheet";
@@ -82,6 +84,20 @@ const STATUSES = ["", "active", "paused", "off"] as const;
 type StatusFilter = (typeof STATUSES)[number];
 type SortKey = "spend" | "meta_leads" | "cpl" | "crm_leads" | "booked" | "converted" | "cpp" | "collected";
 
+/** The dashboard periods plus "all": the last 24 months (the longest the Ads page allows). */
+const ADS_PRESETS = ["today", "7d", "mtd", "lastMonth", "all", "custom"] as const;
+type AdsPreset = (typeof ADS_PRESETS)[number];
+/** The Campaigns table can follow the page's period or have its own. */
+type TablePreset = "page" | AdsPreset;
+const PAGE_SIZE = 10;
+
+function adsRange(preset: AdsPreset, custom: { from: string; to: string }) {
+  if (preset === "custom") return custom;
+  if (preset !== "all") return rangeFor(preset as Exclude<Preset, "custom">);
+  const now = new Date();
+  return { from: istDateString(new Date(now.getTime() - ADS_MAX_RANGE_DAYS * 86_400_000)), to: istDateString(now) };
+}
+
 function statusGroup(s: string | null): Exclude<StatusFilter, ""> {
   if (s === "ACTIVE") return "active";
   if (s && s.includes("PAUSED")) return "paused";
@@ -103,15 +119,21 @@ function sortValue(c: AdCampaignRow, key: SortKey): number {
 export function AdsDashboard() {
   const t = useTranslations("ads");
   const queryClient = useQueryClient();
-  const [preset, setPreset] = useState<Preset>("mtd");
+  const { errorMessage } = useFeedback();
+  const [preset, setPreset] = useState<AdsPreset>("mtd");
   const [custom, setCustom] = useState(() => rangeFor("mtd"));
   const [status, setStatus] = useState<StatusFilter>("");
   const [q, setQ] = useState("");
   const [sort, setSort] = useState<{ key: SortKey; desc: boolean }>({ key: "spend", desc: true });
   const [openId, setOpenId] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
-  const range = preset === "custom" ? custom : rangeFor(preset);
-  const check = useDateRangeCheck(range.from, range.to);
+  const [tablePreset, setTablePreset] = useState<TablePreset>("page");
+  const [tableCustom, setTableCustom] = useState(() => rangeFor("mtd"));
+  const [offset, setOffset] = useState(0);
+  const range = adsRange(preset, custom);
+  const check = useDateRangeCheck(range.from, range.to, adsDateRangeSchema);
+  const tableRange = tablePreset === "page" ? range : adsRange(tablePreset, tableCustom);
+  const tableCheck = useDateRangeCheck(tableRange.from, tableRange.to, adsDateRangeSchema);
 
   const overview = useQuery({
     queryKey: ["ads_overview", range.from, range.to],
@@ -125,10 +147,18 @@ export function AdsDashboard() {
   });
   const d = overview.data;
   const tl = d?.totals;
+  // The table's own period: the same cached call when it matches the page's.
+  const tableQuery = useQuery({
+    queryKey: ["ads_overview", tableRange.from, tableRange.to],
+    enabled: tableCheck.valid,
+    staleTime: 60_000,
+    queryFn: () => rpc<Overview>("ads_overview", { p_from: tableRange.from, p_to: tableRange.to }),
+  });
+  const td = tableQuery.data;
 
   const rows = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    const list = (d?.campaigns ?? []).filter(
+    const list = (td?.campaigns ?? []).filter(
       (c) => (!status || statusGroup(c.effective_status) === status) && (!needle || c.name.toLowerCase().includes(needle)),
     );
     const dir = sort.desc ? -1 : 1;
@@ -141,7 +171,25 @@ export function AdsDashboard() {
       if (!Number.isFinite(y)) return -1;
       return (x - y) * dir;
     });
-  }, [d, q, status, sort]);
+  }, [td, q, status, sort]);
+  // Totals of every campaign that passes the filters (all pages, not only this one).
+  const sum = useMemo(
+    () =>
+      rows.reduce(
+        (a, c) => ({
+          spend: a.spend + c.spend,
+          meta_leads: a.meta_leads + c.meta_leads,
+          crm_leads: a.crm_leads + c.crm_leads,
+          booked: a.booked + c.booked,
+          converted: a.converted + c.converted,
+          collected: a.collected + c.collected,
+        }),
+        { spend: 0, meta_leads: 0, crm_leads: 0, booked: 0, converted: 0, collected: 0 },
+      ),
+    [rows],
+  );
+  const start = offset < rows.length ? offset : 0;
+  const pageRows = rows.slice(start, start + PAGE_SIZE);
   const chartRows = useMemo(() => [...(d?.campaigns ?? [])].filter((c) => c.spend > 0 || c.crm_leads > 0).slice(0, 10), [d]);
 
   const spendPerDay = useCallback(
@@ -203,8 +251,12 @@ export function AdsDashboard() {
     setCustom(rangeFor("mtd"));
     setStatus("");
     setQ("");
+    setOffset(0);
   };
-  const sortBy = (key: SortKey) => setSort((s) => (s.key === key ? { key, desc: !s.desc } : { key, desc: key !== "cpl" && key !== "cpp" }));
+  const sortBy = (key: SortKey) => {
+    setSort((s) => (s.key === key ? { key, desc: !s.desc } : { key, desc: key !== "cpl" && key !== "cpp" }));
+    setOffset(0);
+  };
   const head = (key: SortKey, label: string) => (
     <TH className="text-right" aria-sort={sort.key === key ? (sort.desc ? "descending" : "ascending") : undefined}>
       <button type="button" className="inline-flex items-center gap-1 hover:text-foreground" onClick={() => sortBy(key)}>
@@ -254,14 +306,14 @@ export function AdsDashboard() {
         </p>
       ) : sync.isError ? (
         <p className="text-bad-text" role="alert">
-          {t("syncFailed", { reason: "" })}
+          {t("syncFailed", { reason: errorMessage(sync.error) })}
         </p>
       ) : null}
 
       <FilterBar
         search={
           <Field label={t("search")} className="w-full sm:w-64">
-            {(a) => <Input {...a} type="search" placeholder={t("searchPlaceholder")} value={q} onChange={(e) => setQ(e.target.value)} />}
+            {(a) => <Input {...a} type="search" placeholder={t("searchPlaceholder")} value={q} onChange={(e) => (setQ(e.target.value), setOffset(0))} />}
           </Field>
         }
         active={(preset === "mtd" ? 0 : 1) + (status ? 1 : 0)}
@@ -276,8 +328,8 @@ export function AdsDashboard() {
       >
         <Field label={t("period")}>
           {(a) => (
-            <Select {...a} value={preset} onChange={(e) => setPreset(e.target.value as Preset)}>
-              {PRESETS.map((p) => (
+            <Select {...a} value={preset} onChange={(e) => setPreset(e.target.value as AdsPreset)}>
+              {ADS_PRESETS.map((p) => (
                 <option key={p} value={p}>
                   {t(`preset.${p}`)}
                 </option>
@@ -297,7 +349,7 @@ export function AdsDashboard() {
         )}
         <Field label={t("status")}>
           {(a) => (
-            <Select {...a} value={status} onChange={(e) => setStatus(e.target.value as StatusFilter)}>
+            <Select {...a} value={status} onChange={(e) => (setStatus(e.target.value as StatusFilter), setOffset(0))}>
               {STATUSES.map((s) => (
                 <option key={s} value={s}>
                   {t(`statusFilter.${s || "all"}`)}
@@ -376,10 +428,41 @@ export function AdsDashboard() {
       )}
 
       {d && (
-        <section className="flex flex-col gap-2">
-          <h2 className="text-lg font-semibold">{t("campaigns")}</h2>
-          <p className="text-[0.95rem] text-text-secondary">{t("campaignsHelp")}</p>
-          <Table data-testid="ads-campaigns">
+        <section className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
+            <div className="mr-auto">
+              <h2 className="text-lg font-semibold">{t("campaigns")}</h2>
+              <p className="text-[0.95rem] text-text-secondary">{t("campaignsHelp")}</p>
+            </div>
+            <Field label={t("tablePeriod")}>
+              {(a) => (
+                <Select {...a} value={tablePreset} onChange={(e) => (setTablePreset(e.target.value as TablePreset), setOffset(0))}>
+                  <option value="page">{t("samePeriod")}</option>
+                  {ADS_PRESETS.map((p) => (
+                    <option key={p} value={p}>
+                      {t(`preset.${p}`)}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </Field>
+            {tablePreset === "custom" && (
+              <>
+                <Field label={t("tableFrom")} error={tableCheck.fromError}>
+                  {(a) => (
+                    <Input {...a} type="date" value={tableCustom.from} onChange={(e) => (setTableCustom((c) => ({ ...c, from: e.target.value })), setOffset(0))} />
+                  )}
+                </Field>
+                <Field label={t("tableTo")} error={tableCheck.toError}>
+                  {(a) => (
+                    <Input {...a} type="date" value={tableCustom.to} onChange={(e) => (setTableCustom((c) => ({ ...c, to: e.target.value })), setOffset(0))} />
+                  )}
+                </Field>
+              </>
+            )}
+          </div>
+          {tableQuery.isError && <p className="text-bad-text">{t("loadFailed")}</p>}
+          <Table data-testid="ads-campaigns" aria-busy={tableQuery.isFetching}>
             <THead>
               <tr>
                 <TH>{t("campaign")}</TH>
@@ -394,8 +477,8 @@ export function AdsDashboard() {
               </tr>
             </THead>
             <tbody>
-              {rows.length === 0 && <EmptyRow colSpan={9}>{d.campaigns.length ? t("noMatch") : t("noCampaigns")}</EmptyRow>}
-              {rows.map((c) => (
+              {td && rows.length === 0 && <EmptyRow colSpan={9}>{td.campaigns.length ? t("noMatch") : t("noCampaigns")}</EmptyRow>}
+              {pageRows.map((c) => (
                 <TR key={c.id} className="cursor-pointer hover:bg-accent/40" onClick={() => setOpenId(c.id)}>
                   <TD className="max-w-[22rem]">
                     <button
@@ -418,12 +501,28 @@ export function AdsDashboard() {
                 </TR>
               ))}
             </tbody>
+            {rows.length > 0 && (
+              <tfoot data-testid="ads-campaigns-total" className="border-t-2 border-border font-semibold">
+                <tr>
+                  <TD>{t("totalRow", { n: rows.length })}</TD>
+                  <TD className="text-right tabular-nums">{formatINR(sum.spend)}</TD>
+                  <TD className="text-right tabular-nums">{num(sum.meta_leads)}</TD>
+                  <TD className="text-right tabular-nums">{money(ratio(sum.spend, sum.meta_leads))}</TD>
+                  <TD className="text-right tabular-nums">{num(sum.crm_leads)}</TD>
+                  <TD className="text-right tabular-nums">{num(sum.booked)}</TD>
+                  <TD className="text-right tabular-nums">{num(sum.converted)}</TD>
+                  <TD className="text-right tabular-nums">{money(ratio(sum.spend, sum.converted))}</TD>
+                  <TD className="text-right tabular-nums">{formatINR(sum.collected)}</TD>
+                </tr>
+              </tfoot>
+            )}
           </Table>
+          <Pager offset={start} limit={PAGE_SIZE} total={rows.length} onOffset={setOffset} />
         </section>
       )}
 
       <Sheet open={!!openId} onOpenChange={(o) => !o && setOpenId(null)}>
-        {openId && <CampaignSheet id={openId} from={range.from} to={range.to} row={d?.campaigns.find((c) => c.id === openId)} />}
+        {openId && <CampaignSheet id={openId} from={tableRange.from} to={tableRange.to} row={td?.campaigns.find((c) => c.id === openId)} />}
       </Sheet>
       <Dialog open={importing} onOpenChange={setImporting}>
         {importing && <ImportLeadsDialog onDone={() => void queryClient.invalidateQueries({ queryKey: ["ads_overview"] })} />}

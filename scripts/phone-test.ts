@@ -23,7 +23,7 @@ const env = loadEnv();
 const args = process.argv.slice(2);
 const realCall = args.includes("--real-call");
 const emulator = args.includes("--emulator");
-const classes = args.filter((a) => !a.startsWith("--"));
+const classes = args.filter((a) => !a.startsWith("--")).flatMap((a) => a.split(",")).map((c) => c.trim()).filter(Boolean);
 
 const sdk = readFileSync(resolve(root, "android/local.properties"), "utf8").match(/^sdk\.dir=(.*)$/m)?.[1]?.trim();
 if (!sdk) throw new Error("android/local.properties has no sdk.dir");

@@ -13,7 +13,25 @@ The written list of what is tested, numbered so a failing test points to a case 
 
 Status: ✔ passed · ✖ failed · ⏭ skipped (reason given) · ✋ manual check · ⏳ not run yet.
 
-**Last full run: 30/10/2026** on the online staging project (2 browsers, headless). Web: 324 tests —
+**Last full run: 31/10/2026, after every fix of the day** (Finalize wait, error messages, Ads 24 months,
+self-registration screen): web headless (2 browsers), 330 tests — 320 passed, 0 failed, 8 skipped (same 8),
+2 passed on the retry (phone scan: making the test patient took over 10 s on the busy server; the step now
+waits 30 s and the scanning file passes 11/11 twice without retries).
+Then the 3 skips that were not WhatsApp: the Excel test skipped because it looked at the button before the
+list had loaded (133 appointments in 2026) — it now waits, and both Excel downloads run (reception-day 8/8).
+The 2 "no server" login tests run with the backend address pointing nowhere:
+`NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:59999 pnpm exec playwright test e2e/login.spec.ts` → 13/13.
+Left skipped on purpose: the 5 WhatsApp tests while the live number is connected (W-WA-12).
+
+Earlier the same day: web headless (2 browsers), full suite run
+again after the fixes: 324 tests — 316 passed (3 of them on the retry: staging statement timeouts under
+load), 0 failed, 8 skipped (same 8 as below). Fixed on the way: the follow-up test pages with "Load more"
+once more than 50 follow-ups are due sooner; the pharmacy flow test gets 90 s like the other long flows. Phone on the emulator (Pixel_10_Pro, Android 17):
+41 tests — 39 passed, 0 failed, 2 skipped (real call, push). Database 879/879 (13_leads now 82: call logs
+older than 60 days are not synced). Speed (`pnpm perf --pending`, two-year seed, 30 runs, quiet server): all 33 screens inside budget
+(admin year money p95 217 ms, phone first sync p95 68 ms); see continue.md session 13.
+
+Previous run: 30/10/2026 on the online staging project (2 browsers, headless). Web: 324 tests —
 316 passed, 0 failed, 8 skipped, 0 passed only on a retry (311 desktop, 12 phone-width, 1 login setup).
 Skipped on purpose: 5 WhatsApp tests while WhatsApp is live on staging (W-WA-12), 2 "no server" login
 tests (they need the server switched off), 1 Excel download (no appointments in the chosen range).
@@ -144,6 +162,8 @@ Hidden while the filters are as the page opened; shows after a change; one click
 | W-WA-20 | Bot: intro, name, tap list + Done, area, summary, confirm makes one lead / cancel nothing; 5 chats a day; 3 bad answers → staff; photos → "typed messages only"; silent for patients, open leads, staff-handled chats, STOP | `24_wa_bot` (DB) + ✋ HAND_TEST E | ✔ / ✋ |
 | W-WA-21 | Unknown numbers: whole chat shown, 24-hour window, templates only after it | `16_wa_inbox` (DB) + ✋ HAND_TEST E | ✔ / ✋ |
 | W-WA-22 | DND: bot silent, automatic messages dropped, staff can still send | `25_wa_dnd` (DB) | ✔ |
+| W-WA-23 | Instant send can't reach the server: staff are told it goes out within 5 minutes (the 5-minute run sends it). Faked in the browser, so safe on a live number | `whatsapp.db.spec.ts` | ✔ |
+| W-WA-24 | Functions accept the web app from any local address (localhost / 127.0.0.1 any port / same Wi-Fi) when a local one is listed, and previews of the listed Vercel site; other sites refused | `_shared/http.test.ts` (Deno) | ✔ |
 
 ## Web — reception
 
@@ -165,9 +185,10 @@ Hidden while the filters are as the page opened; shows after a change; one click
 | W-REC-14 | Advance kept for later bills; refund over the advance refused; balance tiles update | `reception-day.db.spec.ts` | ✔ |
 | W-REC-15 | Receptionist discount above the limit (Settings → Billing) refused at save; within it the bill finalizes and is locked (no editing, no amend) | `reception-day.db.spec.ts` | ✔ |
 | W-REC-16 | Sessions to book and admissions lists open | `reception-day.db.spec.ts` | ✔ |
-| W-REC-17 | Self-registration from the QR: form, captcha, check & save / discard | `04_patients` (DB) + ✋ phone scan of the QR | ✔ / ✋ |
+| W-REC-17 | Self-registration from the QR: form, captcha, check & save / discard (discard needs a reason; Check & save opens the form filled in; nothing waiting says so) | `04_patients` (DB) + `discharge-review.db.spec.ts` (screen, form answered in the browser) + ✋ phone scan of the QR | ✔ / ✋ |
 | W-REC-30 | Pharmacy: an expired batch can't be bought in | `billing-edges.db.spec.ts`, `09_pharmacy` (DB) | ✔ |
 | W-REC-31 | Pharmacy: the batch expiring first is sold first (FEFO) | `billing-edges.db.spec.ts`, `pharmacy.db.spec.ts` | ✔ |
+| W-REC-32 | Slow server: Finalize / Save clicked while a picker still waits for its answer (a medicine's batches, a service added on the fly, the bill reloading after "Include bills") wait ("Loading…") instead of doing nothing; the first click then works (bug found 31/10/2026: the check ran on the half-filled line and the late answer cleared its message) | `pharmacy.db.spec.ts` (batches answered 3 s late; fails on the old editor) | ✔ |
 | W-REC-32 | Pharmacy: selling more than the batch holds is refused | `billing-edges.db.spec.ts` | ✔ |
 
 ## Web — sales manager
@@ -183,6 +204,9 @@ Hidden while the filters are as the page opened; shows after a change; one click
 | W-MGR-11 | Lead pool: round-robin state shown; pool saves | `leads-manager.db.spec.ts` | ✔ |
 | W-MGR-12 | Leads dashboard opens, chart as a table | `leads-manager.db.spec.ts` | ✔ |
 | W-MGR-13 | Round-robin skips inactive people and people not in the pool | `13_leads` (DB) | ✔ |
+| W-MGR-20 | Ads page: tiles, filters with clear, campaign side panel; reception has no Ads page | `ads.db.spec.ts` | ✔ |
+| W-MGR-21 | Ads periods up to 24 months ("Last 24 months"); 25 months refused on screen and by the server; the campaigns table has its own period, a total row for every campaign that passes the filters, 10 rows a page | `ads.db.spec.ts`, `26_ads` (DB), `date-range.test.ts` | ✔ |
+| W-MGR-22 | Sync now / Meta page when the server function can't be reached: "Couldn't reach the server … (meta-ads: …)", not only "Something went wrong" (31/10/2026) | `ads.db.spec.ts` | ✔ |
 
 ## Android — everyone
 
@@ -223,29 +247,29 @@ Hidden while the filters are as the page opened; shows after a change; one click
 | A-SAL-07 | Booking: doctor needed; first free day/time picked; shows as waiting for confirmation | `SalesFlowTest` | ✔ |
 | A-SAL-08 | My day tiles and the chart as a table | `SalesFlowTest` | ✔ |
 | A-SAL-09 | Follow-ups list the next call | `SalesFlowTest` | ✔ |
-| A-SAL-20 | A call with a known lead: bubble with the name during the call, gone after; notes sheet opens; result required; call saved once as outgoing | `CallerTest` (simulated call states) | ✔ emulator · ✖ Realme phone: it blocks the test switches (mock location / draw over apps) |
-| A-SAL-21 | Incoming call: bubble while ringing; a missed call still asks for notes (length 0) | `CallerTest` | ✔ emulator · ✖ Realme phone: it blocks the test switches (mock location / draw over apps) |
-| A-SAL-22 | A number the CRM doesn't know: no bubble, no notes | `CallerTest` | ✔ emulator · ✖ Realme phone: it blocks the test switches (mock location / draw over apps) |
-| A-SAL-23 | Pop-up switched off: nothing shown | `CallerTest` | ✔ emulator · ✖ Realme phone: it blocks the test switches (mock location / draw over apps) |
-| A-SAL-24 | Without "draw over other apps": the notes come as a notification that opens the sheet | `CallerTest` | ✔ emulator · ✖ Realme phone: it blocks the test switches (mock location / draw over apps) |
-| A-SAL-26 | Calls setup screen shows each permission done / not done; pop-up switch kept; "look for recordings" waits for a folder | `CallSetupTest` | ✔ emulator · ✖ Realme phone: it blocks the test switches (mock location / draw over apps) |
-| A-SAL-27 | A permission taken away shows as not done | `CallSetupTest` | ✔ emulator · ✖ Realme phone: it blocks the test switches (mock location / draw over apps) |
-| A-SAL-28 | Recordings on this phone starts empty | `CallSetupTest` | ✔ emulator · ✖ Realme phone: it blocks the test switches (mock location / draw over apps) |
+| A-SAL-20 | A call with a known lead: bubble with the name during the call, gone after; notes sheet opens; result required; call saved once as outgoing | `CallerTest` (simulated call states) | ✔ emulator (31/10) · ⏭ Realme phone: it refuses the test switches (mock location / draw over apps), so the test can't start there; not an app fault |
+| A-SAL-21 | Incoming call: bubble while ringing; a missed call still asks for notes (length 0) | `CallerTest` | ✔ emulator (31/10) · ⏭ Realme phone: it refuses the test switches (mock location / draw over apps), so the test can't start there; not an app fault |
+| A-SAL-22 | A number the CRM doesn't know: no bubble, no notes | `CallerTest` | ✔ emulator (31/10) · ⏭ Realme phone: it refuses the test switches (mock location / draw over apps), so the test can't start there; not an app fault |
+| A-SAL-23 | Pop-up switched off: nothing shown | `CallerTest` | ✔ emulator (31/10) · ⏭ Realme phone: it refuses the test switches (mock location / draw over apps), so the test can't start there; not an app fault |
+| A-SAL-24 | Without "draw over other apps": the notes come as a notification that opens the sheet | `CallerTest` | ✔ emulator (31/10) · ⏭ Realme phone: it refuses the test switches (mock location / draw over apps), so the test can't start there; not an app fault |
+| A-SAL-26 | Calls setup screen shows each permission done / not done; pop-up switch kept; "look for recordings" waits for a folder | `CallSetupTest` | ✔ emulator (31/10) · ⏭ Realme phone: it refuses the test switches (mock location / draw over apps), so the test can't start there; not an app fault |
+| A-SAL-27 | A permission taken away shows as not done | `CallSetupTest` | ✔ emulator (31/10) · ⏭ Realme phone: it refuses the test switches (mock location / draw over apps), so the test can't start there; not an app fault |
+| A-SAL-28 | Recordings on this phone starts empty | `CallSetupTest` | ✔ emulator (31/10) · ⏭ Realme phone: it refuses the test switches (mock location / draw over apps), so the test can't start there; not an app fault |
 | A-SAL-30 | One real call: bubble during the call, notes with the real length from the call log, saved once (the call-log import doesn't add it again) | `RealCallTest` (`--real-call`, someone answers) | ⏭ opt-in (`--real-call`), HAND_TEST C |
 
 ## Android — BDM
 
 | ID | Case and edge cases | Test | Status |
 |---|---|---|---|
-| A-BDM-01 | Starting the day 55 km from the office is refused (selfie taken, no day started) | `BdmDayTest` (pretend GPS + camera) | ✔ emulator · ✖ Realme phone: it blocks the test switches (mock location / draw over apps) |
-| A-BDM-02 | Start at the office: "Day started at the office", route recording on | `BdmDayTest` | ✔ emulator · ✖ Realme phone: it blocks the test switches (mock location / draw over apps) |
-| A-BDM-03 | Travel needs a destination | `BdmDayTest` | ✔ emulator · ✖ Realme phone: it blocks the test switches (mock location / draw over apps) |
-| A-BDM-04 | Reached with a photo of the place | `BdmDayTest` | ✔ emulator · ✖ Realme phone: it blocks the test switches (mock location / draw over apps) |
-| A-BDM-05 | Meeting recording, stopped and attached | `BdmDayTest` | ✔ emulator · ✖ Realme phone: it blocks the test switches (mock location / draw over apps) |
-| A-BDM-06 | Complete: outcome required; a new lead needs a valid number | `BdmDayTest` | ✔ emulator · ✖ Realme phone: it blocks the test switches (mock location / draw over apps) |
-| A-BDM-07 | Break: 5–180 minutes; end break | `BdmDayTest` | ✔ emulator · ✖ Realme phone: it blocks the test switches (mock location / draw over apps) |
-| A-BDM-08 | End the day (confirmed); server has the day ended and one finished visit | `BdmDayTest` | ✔ emulator · ✖ Realme phone: it blocks the test switches (mock location / draw over apps) |
-| A-BDM-09 | Fake (mock) locations are flagged on the day and never counted as kilometres | `BdmDayTest`, `19_bdm` (DB), JVM track filter | ✔ emulator · ✖ Realme phone: it blocks the test switches (mock location / draw over apps) |
+| A-BDM-01 | Starting the day 55 km from the office is refused (selfie taken, no day started) | `BdmDayTest` (pretend GPS + camera) | ✔ emulator (31/10) · ⏭ Realme phone: it refuses the test switches (mock location / draw over apps), so the test can't start there; not an app fault |
+| A-BDM-02 | Start at the office: "Day started at the office", route recording on | `BdmDayTest` | ✔ emulator (31/10) · ⏭ Realme phone: it refuses the test switches (mock location / draw over apps), so the test can't start there; not an app fault |
+| A-BDM-03 | Travel needs a destination | `BdmDayTest` | ✔ emulator (31/10) · ⏭ Realme phone: it refuses the test switches (mock location / draw over apps), so the test can't start there; not an app fault |
+| A-BDM-04 | Reached with a photo of the place | `BdmDayTest` | ✔ emulator (31/10) · ⏭ Realme phone: it refuses the test switches (mock location / draw over apps), so the test can't start there; not an app fault |
+| A-BDM-05 | Meeting recording, stopped and attached | `BdmDayTest` | ✔ emulator (31/10) · ⏭ Realme phone: it refuses the test switches (mock location / draw over apps), so the test can't start there; not an app fault |
+| A-BDM-06 | Complete: outcome required; a new lead needs a valid number | `BdmDayTest` | ✔ emulator (31/10) · ⏭ Realme phone: it refuses the test switches (mock location / draw over apps), so the test can't start there; not an app fault |
+| A-BDM-07 | Break: 5–180 minutes; end break | `BdmDayTest` | ✔ emulator (31/10) · ⏭ Realme phone: it refuses the test switches (mock location / draw over apps), so the test can't start there; not an app fault |
+| A-BDM-08 | End the day (confirmed); server has the day ended and one finished visit | `BdmDayTest` | ✔ emulator (31/10) · ⏭ Realme phone: it refuses the test switches (mock location / draw over apps), so the test can't start there; not an app fault |
+| A-BDM-09 | Fake (mock) locations are flagged on the day and never counted as kilometres | `BdmDayTest`, `19_bdm` (DB), JVM track filter | ✔ emulator (31/10) · ⏭ Realme phone: it refuses the test switches (mock location / draw over apps), so the test can't start there; not an app fault |
 | A-BDM-10 | Geofence maths, auto-end, alerts, trips | `19_bdm`, `20_geo_vectors` (DB) | ✔ |
 
 ## Manual field checks (can't be automated honestly)

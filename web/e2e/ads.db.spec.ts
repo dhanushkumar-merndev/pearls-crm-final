@@ -31,6 +31,49 @@ test("ads page: tiles, filters with clear, campaign side panel", async ({ page }
   }
 });
 
+test("campaigns table: its own period, up to 24 months, a total of every campaign, 10 per page", async ({ page }) => {
+  await open(page, "/ads");
+  const table = page.getByTestId("ads-campaigns");
+  await expect(table).toBeVisible({ timeout: 20_000 });
+
+  // The page itself: more than a year is fine now, more than 24 months is not.
+  await choose(page, page.getByLabel("Period", { exact: true }), "Last 24 months");
+  await expect(page.getByTestId("ads-tiles")).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText("Choose at most 24 months.")).toHaveCount(0);
+
+  // The table's own period, with its own dates and check.
+  await choose(page, page.getByLabel("Period for this table"), "Choose dates");
+  await page.getByLabel("Table from").fill("2023-01-01");
+  await expect(page.getByText("Choose at most 24 months.")).toBeVisible();
+  await page.getByLabel("Table from").fill("2025-01-01");
+  await expect(page.getByText("Choose at most 24 months.")).toHaveCount(0);
+
+  // The total row counts every campaign that passes the filters, not only the page shown.
+  const rows = table.locator("tbody tr");
+  await expect(rows.first()).toBeVisible({ timeout: 20_000 });
+  const total = page.getByTestId("ads-campaigns-total");
+  if (await total.count()) {
+    const n = Number((await total.locator("td").first().textContent())?.match(/(\d+) campaigns?/)?.[1]);
+    expect(await rows.count()).toBe(Math.min(n, 10));
+    if (n > 10) {
+      await expect(page.getByText(`Rows 1–10 of ${n}`)).toBeVisible();
+      await page.getByRole("button", { name: "Next" }).click();
+      await expect(page.getByText(`Rows 11–${Math.min(n, 20)} of ${n}`)).toBeVisible();
+      await expect(total).toContainText(`${n} campaigns`);
+    }
+  }
+});
+
+test("Sync now: when the server can't be reached the message says so (and why), not only 'went wrong'", async ({ page }) => {
+  // The browser gets no answer at all, as when this web address isn't allowed to call functions (31/10/2026).
+  await page.route(/\/functions\/v1\/meta-ads/, (r) => r.abort("failed"));
+  await open(page, "/ads");
+  const sync = page.getByRole("button", { name: "Sync now" });
+  test.skip(!(await sync.count()), "no Sync now for this login");
+  await sync.click();
+  await expect(page.getByText(/Couldn't reach the server\. .*\(meta-ads: /).first()).toBeVisible({ timeout: 15_000 });
+});
+
 test("ads page: the sidebar has it, and Import past leads explains itself", async ({ page }) => {
   await open(page, "/home");
   await page.getByRole("link", { name: "Ads", exact: true }).first().click();

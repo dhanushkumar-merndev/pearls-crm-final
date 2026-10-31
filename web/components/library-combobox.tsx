@@ -1,6 +1,6 @@
 "use client";
 
-import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Command } from "cmdk";
 import { Check, ChevronsUpDown, LoaderCircle, Plus, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -108,14 +108,17 @@ export function LibraryCombobox({
   const exact = items.some((i) => i.label.toLowerCase() === q.trim().toLowerCase());
   const showCreate = allowCreate && q.trim().length > 0 && !exact && !query.isFetching;
 
+  // Keyed so a form can wait for it (the bill editor holds Save / Finalize until the item is picked).
+  const createItem = useMutation({
+    mutationKey: ["library_create", kind],
+    mutationFn: (label: string) =>
+      rpc<LibraryItem>("library_create", { p_kind: kind, p_payload: { label, ...createDefaults }, p_client_id: newId() }),
+  });
+
   async function create() {
     setCreating(true);
     try {
-      const item = await rpc<LibraryItem>("library_create", {
-        p_kind: kind,
-        p_payload: { label: q.trim(), ...createDefaults },
-        p_client_id: newId(),
-      });
+      const item = await createItem.mutateAsync(q.trim());
       // Pick it at once; the list refreshes behind (a save pressed meanwhile must see the item).
       onChange(item);
       void queryClient.invalidateQueries({ queryKey: ["library", kind] });

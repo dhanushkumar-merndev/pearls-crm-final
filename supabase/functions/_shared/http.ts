@@ -14,10 +14,27 @@ export const corsHeaders: Record<string, string> = {
   Vary: "Origin",
 };
 
-/** The Access-Control-Allow-Origin value for this caller, or null to leave it out. */
+// This PC (any port) or another device on the same Wi-Fi: the dev server's "Local" and "Network" addresses.
+const LOCAL = /^http:\/\/(localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+)(:\d+)?$/;
+// A Vercel preview of a listed site: https://pearl-sales.vercel.app → https://pearl-sales-<anything>.vercel.app.
+const vercelPreview = (origin: string, site: string) => {
+  const m = /^https:\/\/([a-z0-9-]+)\.vercel\.app$/.exec(site);
+  return !!m && origin.startsWith(`https://${m[1]}-`) && /^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(origin);
+};
+
+/**
+ * The Access-Control-Allow-Origin value for this caller, or null to leave it out. Besides the listed
+ * addresses: any local one when a local one is listed, and the listed Vercel site's previews
+ * (31/10/2026: the app opened at 127.0.0.1:3000 could not reach any function, so Sync now and
+ * WhatsApp's send-now failed). The functions check the login token themselves; this only lets
+ * a browser read the answer.
+ */
 export function allowOrigin(origin: string | null, allowed: string[] = allowedOrigins): string | null {
   if (allowed.includes("*")) return "*";
-  return origin && allowed.includes(origin) ? origin : null;
+  if (!origin) return null;
+  if (allowed.includes(origin)) return origin;
+  if (LOCAL.test(origin) && allowed.some((o) => LOCAL.test(o))) return origin;
+  return allowed.some((site) => vercelPreview(origin, site)) ? origin : null;
 }
 
 export function json(body: unknown, status = 200): Response {

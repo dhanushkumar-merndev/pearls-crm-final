@@ -16,7 +16,8 @@ async function newPatientDocuments(page: Page, label: string) {
   await page.getByLabel("Full name").fill(name);
   await page.getByLabel("Mobile number").fill(uniquePhone());
   await page.getByRole("button", { name: "Save patient" }).first().click();
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(name);
+  // Same-person check, save, then the new page: past 10 s on a busy free-plan server (31/10/2026).
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(name, { timeout: 30_000 });
   await page.getByRole("tab", { name: /Documents/ }).click();
   return name;
 }

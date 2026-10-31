@@ -83,10 +83,17 @@ export const logCallSchema = z.object({
   next_followup: optionalDateTime(),
 });
 
-/** Date range filters on sales tables: at most a year (the server refuses more). */
-export const dateRangeSchema = z
-  .object({ from: requiredDate(), to: requiredDate() })
-  .superRefine((d, ctx) => {
+/** Longest Ads range: 24 months (owner 31/10/2026; the server refuses more). */
+export const ADS_MAX_RANGE_DAYS = 731;
+
+/** A from–to filter of at most `maxDays` days; `message` is the validation key when it is longer. */
+export const dateRangeSchemaFor = (maxDays: number, message = "rangeTooLong") =>
+  z.object({ from: requiredDate(), to: requiredDate() }).superRefine((d, ctx) => {
     if (d.to < d.from) ctx.addIssue({ code: "custom", path: ["to"], message: "dateOrder" });
-    else if ((Date.parse(d.to) - Date.parse(d.from)) / 86_400_000 > 366) ctx.addIssue({ code: "custom", path: ["to"], message: "rangeTooLong" });
+    else if ((Date.parse(d.to) - Date.parse(d.from)) / 86_400_000 > maxDays) ctx.addIssue({ code: "custom", path: ["to"], message });
   });
+
+/** Date range filters on sales tables: at most a year (the server refuses more). */
+export const dateRangeSchema = dateRangeSchemaFor(366);
+/** The Ads page: up to 24 months. */
+export const adsDateRangeSchema = dateRangeSchemaFor(ADS_MAX_RANGE_DAYS, "rangeTooLongAds");

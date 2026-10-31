@@ -4,7 +4,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(80);
+select plan(82);
 
 create function pg_temp.login(p_id uuid)
 returns void
@@ -220,6 +220,18 @@ select isnt(public.sync_pull(jsonb_build_object('leads', public.sync_pull('{"lea
               -> 'entities' -> 'leads' -> 'rows' -> 0 ->> 'id',
             public.sync_pull('{"leads": null}', 1) -> 'entities' -> 'leads' -> 'rows' -> 0 ->> 'id',
   'the next marker continues after the last row');
+-- Call logs: only the last 60 days go to the phone (an old call, last changed long ago, is skipped).
+select pg_temp.login(null);
+insert into public.call_logs (id, staff_id, phone_e164, direction, started_at, duration_s, outcome, source, created_at, updated_at) values
+  ('bbbbbbbb-5555-4000-a000-000000000001', 'bbbbbbbb-0000-4000-a000-0000000000c1', '+915000000091', 'outgoing',
+   now() - interval '3 days', 60, 'connected', 'app', now() - interval '3 days', now() - interval '3 days'),
+  ('bbbbbbbb-5555-4000-a000-000000000002', 'bbbbbbbb-0000-4000-a000-0000000000c1', '+915000000092', 'outgoing',
+   now() - interval '90 days', 60, 'connected', 'app', now() - interval '90 days', now() - interval '90 days');
+select pg_temp.login('bbbbbbbb-0000-4000-a000-0000000000c1');
+select ok(public.sync_pull('{"call_logs": null}', 500) -> 'entities' -> 'call_logs' -> 'rows' @> '[{"id": "bbbbbbbb-5555-4000-a000-000000000001"}]',
+  'the phone pulls this week''s calls');
+select ok(not (public.sync_pull('{"call_logs": null}', 500) -> 'entities' -> 'call_logs' -> 'rows' @> '[{"id": "bbbbbbbb-5555-4000-a000-000000000002"}]'),
+  'but not a call from three months ago');
 select pg_temp.login('bbbbbbbb-0000-4000-a000-0000000000d1');
 select is(public.assign_leads(array['bbbbbbbb-3333-4000-a000-000000000001'::uuid], 'bbbbbbbb-0000-4000-a000-0000000000c2', 'covering leave'), 1,
   'the manager reassigns a lead');

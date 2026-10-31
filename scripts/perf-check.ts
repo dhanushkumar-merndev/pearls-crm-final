@@ -111,9 +111,11 @@ select (select name from names where n = 1 + g % 300) || ' L' || g, '+91' || (80
 from generate_series(1, 30000) g
 join sources s on s.n = 1 + g % (select count(*) from sources);
 
-insert into public.call_logs (id, staff_id, lead_id, phone_e164, direction, started_at, duration_s, outcome, source)
+-- Saved when the call ended (as the phone does), not all "now": the phone's sync reads by updated_at.
+insert into public.call_logs (id, staff_id, lead_id, phone_e164, direction, started_at, duration_s, outcome, source, created_at, updated_at)
 select gen_random_uuid(), l.assigned_to, l.id, l.phone_e164, 'outgoing', l.created_at + (k || ' hours')::interval, 30 + k * 40,
-       (array['connected','no_answer','busy','connected'])[1 + k % 4]::public.call_outcome, 'app'
+       (array['connected','no_answer','busy','connected'])[1 + k % 4]::public.call_outcome, 'app',
+       l.created_at + (k || ' hours')::interval + interval '5 minutes', l.created_at + (k || ' hours')::interval + interval '5 minutes'
 from public.leads l cross join generate_series(1, 2) k where l.assigned_to = any (array[${SALES.map((s) => `'${s}'::uuid`).join(", ")}]);
 
 insert into public.wa_messages (phone_e164, patient_id, direction, kind, status, status_rank, est_cost_paise, created_at)
@@ -203,6 +205,29 @@ const CASES: { name: string; as: string; budget: number; sql: string }[] = [
   },
   { name: "WhatsApp inbox", as: RECEPTION, budget: 300, sql: "select public.wa_inbox(false, null, 50)" },
   { name: "audit log page", as: ADMIN, budget: 300, sql: "select public.audit_list(null, null, null, null, null, null, 50)" },
+  // Added 31/10/2026: calls made on every keystroke / page open, and screens built after phase 15.
+  { name: "new patient: same-person check", as: RECEPTION, budget: 150, sql: "select public.find_patient_matches('+917000012345', 'Kavya Nair 12345', null)" },
+  { name: "service picker", as: RECEPTION, budget: 150, sql: "select public.library_search('service', 'cons', null, 10)" },
+  { name: "medicine picker", as: RECEPTION, budget: 150, sql: "select public.library_search('pharmacy_item', 'demo', null, 10)" },
+  { name: "sidebar badges", as: RECEPTION, budget: 150, sql: "select public.nav_badges()" },
+  { name: "slot board (today)", as: RECEPTION, budget: 300, sql: `select public.slot_board(${today}, null)` },
+  { name: "follow-ups overdue", as: RECEPTION, budget: 300, sql: "select public.followups_list('overdue', null, null, 50)" },
+  { name: "patient header", as: RECEPTION, budget: 300, sql: "select public.patient_header((select id from public.patients where uhid = 'PERF-012345'))" },
+  {
+    name: "patient timeline", as: RECEPTION, budget: 300,
+    sql: "select public.patient_timeline((select id from public.patients where uhid = 'PERF-012345'), null, null, 30)",
+  },
+  { name: "stock table", as: RECEPTION, budget: 300, sql: "select public.stock_table('{}'::jsonb, 0, 100)" },
+  { name: "admissions table", as: RECEPTION, budget: 300, sql: "select public.admissions_table('{}'::jsonb, 0, 100)" },
+  { name: "lead page", as: MANAGER, budget: 300, sql: "select public.lead_detail((select id from public.leads where phone_e164 = '+918000012345'))" },
+  { name: "call recordings", as: MANAGER, budget: 300, sql: "select public.recordings_list('{}'::jsonb, null, 50)" },
+  { name: "BDM live map", as: ADMIN, budget: 300, sql: "select public.bdm_live()" },
+  { name: "ads overview (month)", as: ADMIN, budget: 300, sql: `select public.ads_overview(${today} - 29, ${today})` },
+  // The phone's first sync after login: 5,000 leads per executive in the seed, one page of 200.
+  {
+    name: "phone sync (first page)", as: SALES[0]!, budget: 300,
+    sql: `select public.sync_pull('{"leads": "", "followups": "", "appointments": "", "call_logs": "", "crm_numbers": "", "lookup_values": ""}'::jsonb, 200)`,
+  },
 ];
 
 if (process.env.PERF_EXTRA) CASES.push(...(JSON.parse(readFileSync(process.env.PERF_EXTRA, "utf8")) as typeof CASES));

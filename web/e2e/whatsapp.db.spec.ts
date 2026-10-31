@@ -248,3 +248,23 @@ test.describe("sales manager", () => {
     await expect(page.getByRole("heading", { name: "Drip campaigns" })).toBeVisible();
   });
 });
+
+test.describe("send now, or within 5 minutes", () => {
+  test.use({ storageState: STATE.admin });
+  // Both calls are answered here, so nothing is queued and no WhatsApp message goes out (safe on a live number).
+  test("when the instant send can't reach the server, staff are told it goes out within 5 minutes", async ({ page }) => {
+    await page.route(/\/rest\/v1\/rpc\/wa_(number_)?send/, (r) => r.fulfill({ status: 200, contentType: "application/json", body: "null" }));
+    await page.route(/\/functions\/v1\/wa-dispatch/, (r) => r.abort("failed"));
+    await open(page, "/whatsapp");
+    const chat = page.getByRole("region", { name: "Conversations" }).locator("button:not([aria-pressed])").first();
+    await expect(chat.or(page.getByText("No WhatsApp conversations yet.")).first()).toBeVisible({ timeout: 20_000 });
+    test.skip(!(await chat.count()), "no conversation on this database");
+    await chat.click();
+    const box = page.getByPlaceholder("Type a message").first();
+    const visible = await box.waitFor({ timeout: 10_000 }).then(() => true, () => false);
+    test.skip(!visible, "no open 24-hour window, or WhatsApp is off on this database");
+    await box.fill("E2E faked send");
+    await page.getByRole("button", { name: "Send", exact: true }).first().click();
+    await expect(page.getByText("Saved. It couldn't go out at once, so it will be sent within 5 minutes.")).toBeVisible();
+  });
+});
