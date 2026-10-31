@@ -267,4 +267,27 @@ test.describe("send now, or within 5 minutes", () => {
     await page.getByRole("button", { name: "Send", exact: true }).first().click();
     await expect(page.getByText("Saved. It couldn't go out at once, so it will be sent within 5 minutes.")).toBeVisible();
   });
+
+  test("a new outgoing message reads 'Sending…'; only one still queued after 20 s reads 'Waiting to send'", async ({ page }) => {
+    // Two made-up messages are added to the chat as the browser loads it: nothing is saved or sent.
+    const fake = (body: string, ageMs: number) => ({
+      id: crypto.randomUUID(), direction: "outbound", kind: "text", body, vars: [], status: "queued",
+      status_at: new Date(Date.now() - ageMs).toISOString(), error_text: null,
+      created_at: new Date(Date.now() - ageMs).toISOString(), template: null, sent_by_name: "E2E", action: null,
+    });
+    await page.route(/\/rest\/v1\/rpc\/wa_(number_)?thread$/, async (r) => {
+      const res = await r.fetch();
+      const body = await res.json();
+      body.items = [fake("E2E just sent", 0), fake("E2E sent a minute ago", 60_000), ...(body.items ?? [])];
+      await r.fulfill({ response: res, json: body });
+    });
+    await open(page, "/whatsapp");
+    const chat = page.getByRole("region", { name: "Conversations" }).locator("button:not([aria-pressed])").first();
+    await expect(chat.or(page.getByText("No WhatsApp conversations yet.")).first()).toBeVisible({ timeout: 20_000 });
+    test.skip(!(await chat.count()), "no conversation on this database");
+    await chat.click();
+    const list = page.getByRole("list", { name: "Conversation" });
+    await expect(list.getByRole("listitem").filter({ hasText: "E2E just sent" })).toContainText("Sending…");
+    await expect(list.getByRole("listitem").filter({ hasText: "E2E sent a minute ago" })).toContainText("Waiting to send");
+  });
 });

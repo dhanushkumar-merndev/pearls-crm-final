@@ -164,6 +164,7 @@ Hidden while the filters are as the page opened; shows after a change; one click
 | W-WA-22 | DND: bot silent, automatic messages dropped, staff can still send | `25_wa_dnd` (DB) | ✔ |
 | W-WA-23 | Instant send can't reach the server: staff are told it goes out within 5 minutes (the 5-minute run sends it). Faked in the browser, so safe on a live number | `whatsapp.db.spec.ts` | ✔ |
 | W-WA-24 | Functions accept the web app from any local address (localhost / 127.0.0.1 any port / same Wi-Fi) when a local one is listed, and previews of the listed Vercel site; other sites refused | `_shared/http.test.ts` (Deno) | ✔ |
+| W-WA-25 | A new outgoing message reads "Sending…" (spinner) while it goes out (1–3 s through Meta); "Waiting to send" only when still queued after 20 s | `whatsapp.db.spec.ts` (messages added in the browser) | ✔ |
 
 ## Web — reception
 

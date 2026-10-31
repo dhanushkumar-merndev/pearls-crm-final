@@ -11,6 +11,7 @@ import {
   Clock,
   EllipsisVertical,
   Hand,
+  LoaderCircle,
   MoonStar,
   ListChecks,
   Pause,
@@ -422,9 +423,29 @@ export function ChatMessages({ items, hasMore, loadingMore, onMore, className }:
   );
 }
 
+/** How long a new outgoing message reads "Sending…": it goes out at once (staff send-now, the bot). */
+const SENDING_MS = 20_000;
+
+/**
+ * True while a queued message is new enough to be on its way: Meta takes 1–3 s, and "Waiting to
+ * send" then read as stuck (owner 31/10/2026). After that it really waits for the 5-minute run.
+ */
+function useSending(m: WaMessage) {
+  const created = Date.parse(m.created_at);
+  const [now, setNow] = useState(() => Date.now());
+  const fresh = m.direction === "outbound" && m.status === "queued" && now - created < SENDING_MS;
+  useEffect(() => {
+    if (!fresh) return;
+    const id = setTimeout(() => setNow(Date.now()), Math.max(created + SENDING_MS - Date.now(), 0) + 50);
+    return () => clearTimeout(id);
+  }, [fresh, created]);
+  return fresh;
+}
+
 function Bubble({ m }: { m: WaMessage }) {
   const t = useTranslations("whatsapp");
-  const Icon = STATUS_ICON[m.status];
+  const sending = useSending(m);
+  const Icon = sending ? LoaderCircle : STATUS_ICON[m.status];
   const out = m.direction === "outbound";
   const text = m.kind === "template" ? fillTemplate(m.body, m.vars) : (m.body ?? "");
   const at = new Date(m.created_at);
@@ -437,8 +458,8 @@ function Bubble({ m }: { m: WaMessage }) {
       </time>
       {out && (
         <span className={cn("inline-flex items-center gap-1", m.status === "failed" && "text-bad-text", m.status === "read" && "text-link")}>
-          <Icon aria-hidden className="size-4" />
-          {STATUS_IN_WORDS.has(m.status) ? t(`status.${m.status}`) : <span className="sr-only">{t(`status.${m.status}`)}</span>}
+          <Icon aria-hidden className={cn("size-4", sending && "animate-spin")} />
+          {sending ? t("sending") : STATUS_IN_WORDS.has(m.status) ? t(`status.${m.status}`) : <span className="sr-only">{t(`status.${m.status}`)}</span>}
         </span>
       )}
     </>
