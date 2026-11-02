@@ -6,6 +6,7 @@ import com.pearl.crm.ui.pin.BiometricUnlock
 import androidx.fragment.app.FragmentActivity
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.key
 import androidx.activity.compose.LocalActivity
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -90,6 +91,8 @@ fun AppRoot(container: AppContainer) {
                 )
             }
         }
-        else -> HomeScreen(container, current)
+        // Each person (and role) gets its own screen history: one kept from someone else holds screens
+        // this menu does not have, and Android restoring it (rotation, dark mode, app reopened) crashes.
+        else -> key(current.staffId, current.staffRole) { HomeScreen(container, current) }
     }
 }

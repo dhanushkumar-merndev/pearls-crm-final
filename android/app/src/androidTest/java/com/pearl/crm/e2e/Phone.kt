@@ -43,6 +43,12 @@ import java.util.UUID
  */
 object Phone {
     const val PIN = "2468"
+
+    init {
+        // A test can't touch the fingerprint sensor: tests use the PIN, as on a phone without one.
+        // BiometricLockTest switches the fingerprint path on with a pretend prompt.
+        com.pearl.crm.ui.pin.BiometricUnlock.availableForTests = false
+    }
     private val instrumentation get() = InstrumentationRegistry.getInstrumentation()
 
     fun arg(name: String): String? = InstrumentationRegistry.getArguments().getString(name)?.takeIf { it.isNotBlank() }

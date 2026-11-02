@@ -19,6 +19,7 @@ import com.pearl.crm.e2e.Phone.text
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -82,13 +83,18 @@ class LoginPinTest {
         }
     }
 
+    /** Since 02/11/2026 reception and admin use the app for alerts only (work stays on the web). */
     @Test
-    fun receptionIsSentToTheWebApp() {
+    fun receptionGetsAlertsOnly() {
         Phone.signedOut()
         logIn("reception", Phone.password)
-        compose.waitForText(text(R.string.use_web_title))
-        compose.onNodeWithText(text(R.string.use_web_sign_out)).performClick()
-        compose.waitForText(text(R.string.login_title))
+        compose.waitForText(text(R.string.pin_create_title))
+        typePin(Phone.PIN, R.string.pin_next)
+        compose.waitForText(text(R.string.pin_confirm_title))
+        typePin(Phone.PIN, R.string.pin_save)
+        compose.waitForText(text(R.string.alerts_intro), timeoutMs = 30_000)
+        compose.onNodeWithText(text(R.string.tab_settings)).assertIsDisplayed()
+        assertTrue("no sales tabs", compose.onAllNodes(hasText(text(R.string.tab_my_day))).fetchSemanticsNodes().isEmpty())
     }
 
     @Test

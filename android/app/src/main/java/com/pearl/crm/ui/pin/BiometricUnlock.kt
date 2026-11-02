@@ -1,6 +1,7 @@
 package com.pearl.crm.ui.pin
 
 import android.content.Context
+import androidx.annotation.VisibleForTesting
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
@@ -14,11 +15,22 @@ import androidx.fragment.app.FragmentActivity
 object BiometricUnlock {
     private const val ALLOWED = BiometricManager.Authenticators.BIOMETRIC_WEAK
 
+    /** On-device tests only (a test can't touch the sensor): pretend the phone has / hasn't a fingerprint. */
+    @VisibleForTesting
+    @Volatile
+    var availableForTests: Boolean? = null
+
+    /** On-device tests only: stands in for the phone's prompt (call onSuccess = "finger read"). */
+    @VisibleForTesting
+    @Volatile
+    var promptForTests: ((onSuccess: () -> Unit) -> Unit)? = null
+
     /** The phone has a fingerprint or face set up that apps may use. */
     fun available(context: Context): Boolean =
-        BiometricManager.from(context).canAuthenticate(ALLOWED) == BiometricManager.BIOMETRIC_SUCCESS
+        availableForTests ?: (BiometricManager.from(context).canAuthenticate(ALLOWED) == BiometricManager.BIOMETRIC_SUCCESS)
 
     fun prompt(activity: FragmentActivity, title: String, subtitle: String, usePin: String, onSuccess: () -> Unit) {
+        promptForTests?.let { return it(onSuccess) }
         val callback = object : BiometricPrompt.AuthenticationCallback() {
             override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) = onSuccess()
             // Cancelled, "Use PIN" or too many tries: the PIN pad stays on screen.

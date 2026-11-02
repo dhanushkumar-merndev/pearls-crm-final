@@ -239,9 +239,11 @@ class AppContainer(private val context: Context) {
     /** "Sign out" in Settings: ends the session and removes this person's data from the phone. */
     suspend fun signOutByChoice() {
         scheduler.stopAll()
-        sessions.signOut(SignOutReason.UserChoice)
+        // Data first, so the login screen never appears with it still on the phone.
         withContext(Dispatchers.IO) { db.clearAllTables() }
         bdm.clear()
-        settings.databaseOwner = null
+        sessions.signOut(SignOutReason.UserChoice)
+        // databaseOwner stays: if a sync still in flight wrote anything, someone else logging in
+        // next starts from empty anyway (onSignedIn); the same person just gets their own data back.
     }
 }
