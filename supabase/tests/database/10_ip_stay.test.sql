@@ -4,7 +4,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(58);
+select plan(67);
 
 create function pg_temp.login(p_id uuid)
 returns void
@@ -219,6 +219,35 @@ select lives_ok($$ select public.update_admission('aaaaaaaa-4444-4000-a000-00000
   'admin adds the surgeon (with a wrong surgery date)');
 select throws_ok($$ select public.finalize_discharge_summary('aaaaaaaa-6666-4000-a000-000000000002', 1) $$,
   'P0001', 'dates_invalid', 'surgery outside the stay is refused');
+
+------------------------------------------------------------------------------
+-- "Add charge" on the stay page (owner, 02/11/2026): lines go on the stay's draft final bill
+------------------------------------------------------------------------------
+select pg_temp.login('aaaaaaaa-0000-4000-a000-0000000000b1');
+create temp table c1 on commit drop as select public.add_stay_charge('aaaaaaaa-4444-4000-a000-000000000002',
+  jsonb_build_object('description', 'Nursing care', 'rate_paise', 150000, 'qty', 2), 'aaaaaaaa-7777-4000-a000-000000000001') as r;
+grant select on c1 to authenticated;
+select is((select jsonb_array_length(r -> 'charges') from c1), 1, 'the charge shows on the stay');
+select is((select (r ->> 'charges_total_paise')::bigint from c1), 300000::bigint, 'running total = ₹1,500 × 2');
+select is((select count(*)::int from public.bills where admission_id = 'aaaaaaaa-4444-4000-a000-000000000002'
+             and bill_type = 'final_bill' and status = 'draft'), 1, 'the first charge opens a draft final bill for the stay');
+select is(jsonb_array_length(public.add_stay_charge('aaaaaaaa-4444-4000-a000-000000000002',
+  jsonb_build_object('description', 'Nursing care', 'rate_paise', 150000, 'qty', 2), 'aaaaaaaa-7777-4000-a000-000000000001') -> 'charges'),
+  1, 'retrying the same charge adds nothing');
+select is(jsonb_array_length(public.add_stay_charge('aaaaaaaa-4444-4000-a000-000000000002',
+  jsonb_build_object('description', 'Dressing', 'rate_paise', 50000), gen_random_uuid()) -> 'charges'),
+  2, 'a second charge goes on the same draft final bill');
+select is((select count(*)::int from public.bills where admission_id = 'aaaaaaaa-4444-4000-a000-000000000002'
+             and bill_type = 'final_bill' and status <> 'cancelled'), 1, 'still one final bill for the stay');
+select throws_ok($$ select public.add_stay_charge('aaaaaaaa-4444-4000-a000-000000000002',
+  jsonb_build_object('description', 'Old', 'rate_paise', 100, 'service_date', (current_date - 30)::text), gen_random_uuid()) $$,
+  'P0001', 'invalid_input', 'a charge dated before the admission is refused');
+select throws_ok($$ select public.add_stay_charge('aaaaaaaa-4444-4000-a000-000000000002',
+  jsonb_build_object('description', ' ', 'rate_paise', 100), gen_random_uuid()) $$,
+  'P0001', 'invalid_input', 'a charge needs a description');
+select throws_ok($$ select public.add_stay_charge('aaaaaaaa-4444-4000-a000-000000000002',
+  jsonb_build_object('description', 'Zero', 'rate_paise', 100, 'qty', 0), gen_random_uuid()) $$,
+  'P0001', 'invalid_quantity', 'quantity must be more than 0');
 
 ------------------------------------------------------------------------------
 -- Roles

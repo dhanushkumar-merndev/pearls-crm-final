@@ -33,4 +33,18 @@ export interface Admission {
   surgeons: { doctor_id: string; role: "primary" | "assistant" | "visiting"; name: string }[];
   bills: { id: string; bill_type: BillType; bill_no: string | null; status: BillStatus; total_paise: number; bill_at: string | null; consolidated_into_id: string | null }[];
   summary: { id: string; status: "draft" | "finalized" | "cancelled"; version: number } | null;
+  /** Every line of the stay's bills (carried-in copies left out), oldest first. */
+  charges: {
+    id: string;
+    bill_id: string;
+    bill_type: BillType;
+    bill_no: string | null;
+    bill_status: BillStatus;
+    service_date: string;
+    description: string;
+    qty: number;
+    rate_paise: number;
+    total_paise: number;
+  }[];
+  charges_total_paise: number;
 }

@@ -3,7 +3,7 @@ import type { z } from "zod";
 import { clinicProfileSchema, createStaffSchema, numberSeriesSchema } from "./admin";
 import { bookSchema, cancelSchema } from "./appointments";
 import { billSchema, finalizeSchema, paymentSchema } from "./billing";
-import { admissionSchema, doctorHoursSchema, doctorLeaveSchema, editTreatmentSchema, followupSchema, startTreatmentSchema } from "./clinical";
+import { admissionSchema, doctorHoursSchema, doctorLeaveSchema, editTreatmentSchema, followupSchema, startTreatmentSchema, stayChargeSchema } from "./clinical";
 import { backupSchema, purgeSchema, targetSchema } from "./ops";
 import { adjustStockSchema, purchaseSchema } from "./pharmacy";
 import { dripCampaignSchema, dripEnrollSchema, templateSchema, waTemplateSendSchema, waTextSchema } from "./whatsapp";
@@ -185,5 +185,23 @@ describe("backup centre and targets", () => {
     expect(errs(targetSchema, { value: "12.5" })).toEqual({ value: "wholeNumber" });
     expect(targetSchema.safeParse({ value: "" }).success).toBe(true);
     expect(targetSchema.safeParse({ value: " 40 " }).success).toBe(true);
+  });
+});
+
+describe("stayChargeSchema (Add charge on an IP stay)", () => {
+  const schema = stayChargeSchema("2026-10-30", "2026-11-02");
+  const ok = { service: null, description: "Nursing care", category: null, date: "2026-11-01", qty: "2", rate_paise: 150000 };
+  it("accepts a typed charge on a day of the stay", () => {
+    expect(schema.parse(ok)).toEqual({ service: null, description: "Nursing care", category: null, date: "2026-11-01", qty: 2, rate_paise: 150000 });
+  });
+  it("needs what it is and a rate", () => {
+    expect(errs(schema, { ...ok, description: " ", rate_paise: null })).toEqual({ description: "required", rate_paise: "required" });
+  });
+  it("refuses a day before the admission or after today", () => {
+    expect(errs(schema, { ...ok, date: "2026-10-29" })).toEqual({ date: "ip.chargeDateOutside" });
+    expect(errs(schema, { ...ok, date: "2026-11-03" })).toEqual({ date: "ip.chargeDateOutside" });
+  });
+  it("refuses a zero quantity", () => {
+    expect(errs(schema, { ...ok, qty: "0" })).toEqual({ qty: "min" });
   });
 });
