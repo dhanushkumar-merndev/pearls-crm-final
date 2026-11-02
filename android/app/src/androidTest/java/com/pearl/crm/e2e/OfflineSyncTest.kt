@@ -40,7 +40,7 @@ class OfflineSyncTest {
     @Before
     fun signIn() {
         Phone.grant(Manifest.permission.POST_NOTIFICATIONS)
-        Phone.signedIn("sales")
+        Phone.signedIn(Phone.SALES)
         compose.waitForText(text(R.string.tab_my_day))
     }
 

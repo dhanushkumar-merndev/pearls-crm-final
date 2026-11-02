@@ -200,7 +200,7 @@ class BdmRepository(
         private set(v) = prefs.edit().putInt(KEY_HEARTBEAT, v).apply()
 
     var uploadMinutes: Int
-        get() = prefs.getInt(KEY_UPLOAD, 5)
+        get() = prefs.getInt(KEY_UPLOAD, 60)
         private set(v) = prefs.edit().putInt(KEY_UPLOAD, v).apply()
 
     private val dayKey get() = "bdm-day:${_day.value.dayId}"
@@ -448,6 +448,16 @@ class BdmRepository(
         val d = _day.value
         if (!d.open) return
         db.trackPoints().insert(TrackPointEntity(dayId = d.dayId!!, t = p.t, lat = p.lat, lng = p.lng, accuracy = p.accuracyM, mock = p.mock))
+    }
+
+    /**
+     * The newest reading of today's route if it is at most [maxAgeMs] old: the 5-minute heartbeat
+     * sends it so the admin's live map stays current while the route itself goes up once an hour.
+     */
+    suspend fun latestPoint(maxAgeMs: Long = 2 * 60_000L): RawPoint? {
+        val dayId = _day.value.takeIf { it.open }?.dayId ?: return null
+        val p = db.trackPoints().latest(dayId)?.toRaw() ?: lastKept(dayId) ?: return null
+        return p.takeIf { clock() - it.t <= maxAgeMs }
     }
 
     private fun nextSeq(dayId: String?): Int = prefs.getInt(KEY_SEQ + dayId, 0)

@@ -54,7 +54,7 @@ class RealCallTest {
 
         Phone.grant(Manifest.permission.POST_NOTIFICATIONS, Manifest.permission.READ_PHONE_STATE, Manifest.permission.READ_CALL_LOG)
         Phone.shell("appops set ${Phone.app.packageName} SYSTEM_ALERT_WINDOW allow")
-        Phone.signedIn("sales")
+        Phone.signedIn(Phone.SALES)
         c.settings.callerPopup = true
         compose.waitForText(text(R.string.tab_my_day))
 

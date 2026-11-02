@@ -56,7 +56,12 @@ import com.pearl.crm.core.ui.theme.Pearl
 import com.pearl.crm.core.ui.theme.Spacing
 
 /** A queued change the server refused; the person decides to try again or discard it. */
-data class FailedChange(val id: String, val code: String, val createdAt: Long, val rpc: String = "")
+data class FailedChange(val id: String, val code: String, val createdAt: Long, val rpc: String = "") {
+    /** A field-day change whose day the server no longer has (removed there): it can never be saved. */
+    val dayGone: Boolean get() = rpc.startsWith("bdm_") && code == "not_found"
+}
+
+private const val DISCARD_ALL = "*all*"
 
 data class SettingsUiState(
     val fullName: String?,
@@ -136,7 +141,10 @@ fun SettingsScreen(
                 state.failed.forEach { change ->
                     HorizontalDivider()
                     Text(stringResource(changeLabel(change.rpc)), style = MaterialTheme.typography.titleSmall)
-                    StatusLabel(errorMessage(change.code), StatusTone.Critical)
+                    StatusLabel(
+                        if (change.dayGone) stringResource(R.string.change_bdm_gone) else errorMessage(change.code),
+                        StatusTone.Critical,
+                    )
                     Text(
                         stringResource(R.string.settings_failed_made, IstDates.formatDateTime(change.createdAt)),
                         style = MaterialTheme.typography.bodySmall,
@@ -146,6 +154,17 @@ fun SettingsScreen(
                         PearlButton(stringResource(R.string.settings_retry), Icons.Outlined.Refresh, { onRetry(change.id) }, kind = ButtonKind.Tonal, small = true)
                         PearlButton(stringResource(R.string.settings_discard), Icons.Outlined.Delete, { discarding = change.id }, kind = ButtonKind.Quiet, small = true)
                     }
+                }
+                if (state.failed.size > 1) {
+                    HorizontalDivider()
+                    PearlButton(
+                        stringResource(R.string.settings_discard_all, state.failed.size),
+                        Icons.Outlined.Delete,
+                        { discarding = DISCARD_ALL },
+                        kind = ButtonKind.Quiet,
+                        small = true,
+                        modifier = Modifier.testTag("discard-all"),
+                    )
                 }
             }
         }
@@ -226,9 +245,15 @@ fun SettingsScreen(
     }
 
     discarding?.let { id ->
+        val all = id == DISCARD_ALL
         AlertDialog(
             onDismissRequest = { discarding = null },
-            title = { Text(stringResource(R.string.settings_discard_title)) },
+            title = {
+                Text(
+                    if (all) stringResource(R.string.settings_discard_all_title, state.failed.size)
+                    else stringResource(R.string.settings_discard_title),
+                )
+            },
             text = { Text(stringResource(R.string.settings_discard_body)) },
             confirmButton = {
                 PearlButton(
@@ -236,7 +261,7 @@ fun SettingsScreen(
                     Icons.Outlined.Delete,
                     {
                         discarding = null
-                        onDiscard(id)
+                        if (all) state.failed.forEach { onDiscard(it.id) } else onDiscard(id)
                     },
                     kind = ButtonKind.Danger,
                 )

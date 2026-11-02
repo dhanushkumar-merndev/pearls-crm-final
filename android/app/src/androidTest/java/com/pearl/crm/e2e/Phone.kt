@@ -44,6 +44,13 @@ import java.util.UUID
 object Phone {
     const val PIN = "2468"
 
+    /**
+     * Test-only logins. The owner tries the app by hand as "sales" / "bdm"; the tests start and end
+     * days and `pnpm phone:test` resets them, so they must never use those two.
+     */
+    const val SALES = "e2e_sales"
+    const val BDM = "e2e_bdm"
+
     init {
         // A test can't touch the fingerprint sensor: tests use the PIN, as on a phone without one.
         // BiometricLockTest switches the fingerprint path on with a pretend prompt.

@@ -44,7 +44,7 @@ class SalesDayTest {
     fun setUp() {
         Phone.skipUnless(office != null, "no active office on staging (Admin → Offices)")
         Phone.grant(Manifest.permission.POST_NOTIFICATIONS, Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
-        Phone.signedIn("sales")
+        Phone.signedIn(Phone.SALES)
         runBlocking { c.bdm.refreshFromServer() }
         Phone.skipUnless(!c.bdm.day.value.ended && !c.bdm.day.value.open, "today's sales day already started: reset it first")
         // The card reads the location permission when it opens: open it again now it is granted.

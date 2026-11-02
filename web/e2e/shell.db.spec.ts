@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
-import { open, STATE } from "./helpers";
+import { open, STATE, USERNAME } from "./helpers";
 
 // Needs a backend with seed data: local (`pnpm db:start`) or staging (E2E_PASSWORD). E2E_DB=1.
 test.skip(!process.env.E2E_DB, "needs the Supabase backend (E2E_DB=1)");
@@ -78,7 +78,7 @@ test("a receptionist logs in and does not see admin pages", async ({ page }) => 
 });
 
 test("sales executives are pointed to the Android app", async ({ page }) => {
-  await login(page, "sales");
+  await login(page, USERNAME.sales);
   await expect(page).toHaveURL(/\/use-the-app$/);
   await expect(page.getByRole("heading", { name: "Please use the mobile app" })).toBeVisible();
 });

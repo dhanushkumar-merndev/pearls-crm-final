@@ -83,7 +83,15 @@ test("a sales executive asks to start away; the admin needs a note to say no, th
   type Req = { id: string; name: string; status: string };
   const ask = (reason: string) =>
     rpcAs<Req>(sales, "day_start_request", { p: { client_id: randomUUID(), lat: 12.9806, lng: 77.5946, accuracy: 15, reason } });
-  const first = await ask(`E2E working from a client site ${Date.now()}`);
+  let first: Req;
+  try {
+    first = await ask(`E2E working from a client site ${Date.now()}`);
+  } catch (e) {
+    // The phone tests (same test login) may have started today's day already: nothing to ask.
+    await salesCtx.close();
+    test.skip(String(e).includes("day_already_started"), "the test sales login already started today's day");
+    throw e;
+  }
 
   await open(page, "/bdm");
   const card = page.getByRole("region", { name: "Start-day requests" });

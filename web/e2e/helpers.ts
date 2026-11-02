@@ -15,6 +15,18 @@ export const STATE = {
   bdm: "e2e/.auth/bdm.json",
 } as const;
 
+/**
+ * The username each saved login signs in with. The phone roles use test-only logins: the owner
+ * tries the app by hand as "sales" / "bdm", and a test must never change their day.
+ */
+export const USERNAME: Record<keyof typeof STATE, string> = {
+  admin: "admin",
+  reception: "reception",
+  manager: "manager",
+  sales: "e2e_sales",
+  bdm: "e2e_bdm",
+};
+
 /** Roles that work in the phone app, not the web. */
 export const PHONE_ROLES = new Set<string>(["sales", "bdm"]);
 

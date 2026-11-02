@@ -39,4 +39,7 @@ interface TrackPointDao {
 
     @Query("SELECT COUNT(*) FROM track_points")
     suspend fun count(): Int
+
+    @Query("SELECT * FROM track_points WHERE day_id = :dayId ORDER BY t DESC LIMIT 1")
+    suspend fun latest(dayId: String): TrackPointEntity?
 }

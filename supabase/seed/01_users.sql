@@ -2,6 +2,8 @@
 -- `pnpm staging:bootstrap` with a random password (STAGING_TEST_PASSWORD).
 -- Every login is a USERNAME + password (password for all: Pearl@2026):
 --   admin · reception · reception2 · manager · sales · bdm
+-- plus e2e_sales · e2e_bdm, used only by the automated tests (the owner tries the app
+-- by hand as sales / bdm, and a test must never reset their day).
 
 do $$
 declare
@@ -14,7 +16,9 @@ begin
       ('00000000-0000-4000-a000-000000000003'::uuid, 'manager',    'sales_manager',            'Manoj Manager'),
       ('00000000-0000-4000-a000-000000000004'::uuid, 'sales',      'sales_executive',          'Sunil Sales'),
       ('00000000-0000-4000-a000-000000000005'::uuid, 'bdm',        'bdm',                      'Bhavya BDM'),
-      ('00000000-0000-4000-a000-000000000006'::uuid, 'reception2', 'receptionist',             'Radha Reception')
+      ('00000000-0000-4000-a000-000000000006'::uuid, 'reception2', 'receptionist',             'Radha Reception'),
+      ('00000000-0000-4000-a000-000000000007'::uuid, 'e2e_sales',  'sales_executive',          'Test Sales (automatic)'),
+      ('00000000-0000-4000-a000-000000000008'::uuid, 'e2e_bdm',    'bdm',                      'Test BDM (automatic)')
     ) as t (id, username, role, full_name)
   loop
     insert into auth.users (

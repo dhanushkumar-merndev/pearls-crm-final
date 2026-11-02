@@ -74,6 +74,8 @@ Every login is a **username + password** (no email, no codes). All passwords: **
 | `sales` | Sales executive | "Please use the mobile app" |
 | `bdm` | BDM | "Please use the mobile app" |
 
+Two more, **for the automatic tests only**: `e2e_sales` (sales executive) and `e2e_bdm` (BDM). The tests start, end and reset *their* field days, so try the app by hand with `sales` / `bdm` and your day is never touched. Online (staging) they exist too, with the staging test password.
+
 Forgot a password? The admin sets a new one: **Admin → Staff logins → Password**.
 
 To stop everything: press **Ctrl + C** in the terminal running `pnpm dev`, then:

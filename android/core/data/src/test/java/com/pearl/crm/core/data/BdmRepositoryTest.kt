@@ -200,6 +200,23 @@ class BdmRepositoryTest {
     }
 
     @Test
+    fun theHeartbeatGetsTheNewestReadingEvenWhenTheRouteGoesUpHourly() = runTest {
+        assertEquals(null, repo.latestPoint()) // no day
+        started()
+        repo.recordPoint(fix(0))
+        repo.recordPoint(fix(30, lat = 12.9736))
+        now += 40_000
+        assertEquals(12.9736, repo.latestPoint()!!.lat, 1e-9)
+        // After an upload the points leave the phone: the last one sent still counts.
+        now += 60_000
+        repo.flushTrack(force = true)
+        assertEquals(12.9736, repo.latestPoint()!!.lat, 1e-9)
+        // Too old to show as "now" on the admin's map.
+        now += 3 * 60_000
+        assertEquals(null, repo.latestPoint())
+    }
+
+    @Test
     fun aLongDriveIsSentInPiecesTheServerAccepts() = runTest {
         started()
         // One reading a second at ~80 km/h: every reading is kept.

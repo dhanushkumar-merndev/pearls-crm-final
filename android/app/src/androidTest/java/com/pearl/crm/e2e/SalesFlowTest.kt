@@ -44,7 +44,7 @@ class SalesFlowTest {
     fun signIn() {
         // No system dialog over the app in the middle of a test.
         Phone.grant(Manifest.permission.POST_NOTIFICATIONS)
-        Phone.signedIn("sales")
+        Phone.signedIn(Phone.SALES)
         compose.waitForText(text(R.string.tab_my_day))
     }
 

@@ -73,7 +73,7 @@ class BiometricLockTest {
 
     @Test
     fun loginAsksForTheFingerprintNotAPin() {
-        logIn("sales")
+        logIn(Phone.SALES)
         compose.waitForText(text(R.string.biometric_setup_title))
         assertTrue("no PIN pad on the setup screen", compose.onAllNodes(hasTestTag("pin-key-1")).fetchSemanticsNodes().isEmpty())
         compose.onNodeWithTag("biometric-setup").performClick()
@@ -89,7 +89,7 @@ class BiometricLockTest {
 
     @Test
     fun theLockIsAPlainScreenAndTheFingerOpensIt() {
-        logIn("sales")
+        logIn(Phone.SALES)
         compose.waitForText(text(R.string.biometric_setup_title))
         compose.onNodeWithTag("biometric-setup").performClick()
         compose.waitForText(text(R.string.tab_my_day))
@@ -110,7 +110,7 @@ class BiometricLockTest {
 
     @Test
     fun whenTheFingerDoesntReadLogInWithThePassword() {
-        logIn("sales")
+        logIn(Phone.SALES)
         compose.waitForText(text(R.string.biometric_setup_title))
         compose.onNodeWithTag("biometric-setup").performClick()
         compose.waitForText(text(R.string.tab_my_day))
@@ -127,7 +127,7 @@ class BiometricLockTest {
     @Test
     fun aPhoneWithoutAFingerprintStillUsesAPin() {
         BiometricUnlock.availableForTests = false
-        logIn("sales")
+        logIn(Phone.SALES)
         compose.waitForText(text(R.string.pin_create_title))
         assertEquals(null, c.settings.biometricLock.value.takeIf { it })
     }

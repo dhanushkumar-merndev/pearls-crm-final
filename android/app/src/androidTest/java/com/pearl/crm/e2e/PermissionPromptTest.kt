@@ -33,7 +33,7 @@ class PermissionPromptTest {
         Phone.grant(Manifest.permission.POST_NOTIFICATIONS)
         Phone.shell("pm revoke ${Phone.app.packageName} ${Manifest.permission.ACCESS_FINE_LOCATION}")
         Phone.shell("pm revoke ${Phone.app.packageName} ${Manifest.permission.ACCESS_COARSE_LOCATION}")
-        Phone.signedIn("bdm")
+        Phone.signedIn(Phone.BDM)
         compose.activityRule.scenario.recreate()
         val allow = text(BdmR.string.bdm_allow_location)
         compose.waitForText(allow)

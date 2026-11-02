@@ -26,6 +26,9 @@
     <string name="settings_discard_title">Discard this change?</string>
     <string name="settings_discard_body">It was never saved on the server. Discarding it removes it from this phone too.</string>
     <string name="settings_keep">Keep it</string>
+    <string name="change_bdm_gone">This field day is no longer on the server (it was removed), so this change can\'t be saved. Discard it, then start the day again if you need to.</string>
+    <string name="settings_discard_all">Discard all (%1$d)</string>
+    <string name="settings_discard_all_title">Discard all %1$d changes?</string>
 
     <string name="settings_theme">Theme</string>
     <string name="settings_theme_dark">Dark</string>

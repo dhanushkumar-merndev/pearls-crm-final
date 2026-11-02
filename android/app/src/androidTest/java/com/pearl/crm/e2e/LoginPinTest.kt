@@ -66,7 +66,7 @@ class LoginPinTest {
     @Test
     fun wrongPasswordGetsAFriendlyMessage() {
         Phone.signedOut()
-        logIn("sales", "not-the-password-1")
+        logIn(Phone.SALES, "not-the-password-1")
         compose.waitForText(text(R.string.login_wrong))
         assertNull(c.sessions.session.value)
     }
@@ -76,7 +76,7 @@ class LoginPinTest {
         Phone.signedOut()
         try {
             Phone.online(false)
-            logIn("sales", Phone.password)
+            logIn(Phone.SALES, Phone.password)
             compose.waitForText(text(R.string.login_offline))
         } finally {
             Phone.online(true)
@@ -100,7 +100,7 @@ class LoginPinTest {
     @Test
     fun loginThenPinsThatDontMatchThenAPinThatWorks() {
         Phone.signedOut()
-        logIn("sales", Phone.password)
+        logIn(Phone.SALES, Phone.password)
         compose.waitForText(text(R.string.pin_create_title))
         typePin("2468", R.string.pin_next)
         compose.waitForText(text(R.string.pin_confirm_title))
@@ -112,12 +112,12 @@ class LoginPinTest {
         compose.waitForText(text(R.string.pin_confirm_title))
         typePin(Phone.PIN, R.string.pin_save)
         compose.waitForText(text(R.string.tab_my_day))
-        assertEquals("sales", c.sessions.session.value?.username)
+        assertEquals(Phone.SALES, c.sessions.session.value?.username)
     }
 
     @Test
     fun underFiveMinutesAwayNoPinIsAsked() {
-        Phone.signedIn("sales")
+        Phone.signedIn(Phone.SALES)
         compose.waitForText(text(R.string.tab_my_day))
         c.settings.lastBackgroundAt = System.currentTimeMillis() - 60_000
         c.lock.onForeground()
@@ -127,7 +127,7 @@ class LoginPinTest {
 
     @Test
     fun afterFiveMinutesThePinIsAskedAndAWrongOneCountsDown() {
-        Phone.signedIn("sales")
+        Phone.signedIn(Phone.SALES)
         lockNow()
         typePin("0000", R.string.pin_unlock)
         // "Wrong PIN. N tries left …": the words before the number.
@@ -138,7 +138,7 @@ class LoginPinTest {
 
     @Test
     fun forgotPinMeansLoggingInAgain() {
-        Phone.signedIn("sales")
+        Phone.signedIn(Phone.SALES)
         lockNow()
         compose.onNodeWithText(text(R.string.pin_forgot)).performClick()
         compose.onNodeWithText(text(R.string.pin_forgot_confirm)).performClick()
@@ -148,7 +148,7 @@ class LoginPinTest {
 
     @Test
     fun signOutRemovesThisPersonsDataFromThePhone() {
-        Phone.signedIn("sales")
+        Phone.signedIn(Phone.SALES)
         compose.waitForText(text(R.string.tab_settings))
         compose.onNodeWithText(text(R.string.tab_settings)).performClick()
         compose.waitForText(text(SettingsR.string.settings_sign_out))

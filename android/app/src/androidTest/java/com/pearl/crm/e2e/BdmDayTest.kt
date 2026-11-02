@@ -59,7 +59,7 @@ class BdmDayTest {
             Manifest.permission.POST_NOTIFICATIONS, Manifest.permission.ACCESS_FINE_LOCATION,
             Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.RECORD_AUDIO,
         )
-        Phone.signedIn("bdm")
+        Phone.signedIn(Phone.BDM)
         runBlocking { c.bdm.refreshFromServer() }
         Phone.skipUnless(!c.bdm.day.value.ended, "today's BDM day already ended: run through `pnpm phone:test` (it resets the day)")
         // The day screen reads the location permission when it opens: open it again now it is granted.

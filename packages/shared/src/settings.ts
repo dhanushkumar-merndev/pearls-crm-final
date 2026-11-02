@@ -73,7 +73,8 @@ export const SETTINGS_SCHEMAS = {
   bdm: z.object({
     require_selfie: z.boolean().default(true),
     heartbeat_minutes: int(1, 30).default(5),
-    upload_minutes: int(1, 60).default(5),
+    /** GPS is read every second and kept on the phone; the route goes up this often (owner: hourly). */
+    upload_minutes: int(1, 60).default(60),
     no_heartbeat_alert_minutes: int(5, 180).default(15),
     break_grace_minutes: int(0, 60).default(5),
     late_start_time: hhmm.default("10:30"),

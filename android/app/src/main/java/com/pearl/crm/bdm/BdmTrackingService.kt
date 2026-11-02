@@ -36,8 +36,9 @@ import kotlinx.coroutines.launch
 
 /**
  * Keeps the BDM's route while the day is open: a reading every second, saved on the phone (the
- * track filter keeps a point every ~15 m, so the line follows the roads), uploaded every few
- * minutes (admin setting), a heartbeat for the live map, and "location switched off" reported
+ * track filter keeps a point every ~15 m, so the line follows the roads), uploaded once an hour
+ * (admin setting "upload_minutes"), a heartbeat with the newest reading for the live map (every
+ * 5 minutes), and "location switched off" reported
  * to the admin. Runs as a visible foreground service
  * ("Your day is being recorded") started from the app, so it needs no background permission.
  */
@@ -105,7 +106,7 @@ class BdmTrackingService : Service() {
 
     private suspend fun heartbeat() {
         val reply = try {
-            container.bdm.heartbeat(status(fix = null))
+            container.bdm.heartbeat(status(fix = container.bdm.latestPoint()))
         } catch (_: RpcFailure) {
             return
         }

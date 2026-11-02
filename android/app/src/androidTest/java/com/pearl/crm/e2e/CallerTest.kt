@@ -20,6 +20,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -46,7 +47,7 @@ class CallerTest {
     fun setUp() {
         Phone.grant(Manifest.permission.POST_NOTIFICATIONS, Manifest.permission.READ_PHONE_STATE, Manifest.permission.READ_CALL_LOG)
         Phone.shell("appops set ${Phone.app.packageName} SYSTEM_ALERT_WINDOW allow")
-        Phone.signedIn("sales")
+        Phone.signedIn(Phone.SALES)
         c.settings.callerPopup = true
         compose.waitForText(text(R.string.tab_my_day))
     }
@@ -128,13 +129,14 @@ class CallerTest {
 
     @Test
     fun withThePopUpSwitchedOffNothingIsShown() {
-        val (_, phone) = knownLead("E2E Popup Off ${System.currentTimeMillis()}")
+        val (id, phone) = knownLead("E2E Popup Off ${System.currentTimeMillis()}")
         c.settings.callerPopup = false
         phoneSays(CallTracker.OFFHOOK, "+91$phone")
         assertFalse(Phone.device.wait(Until.hasObject(bubble), 5_000))
         phoneSays(CallTracker.IDLE, null)
         Thread.sleep(3_000)
-        assertNull(c.pendingAfterCall.value)
+        // Only this call counts: an earlier test's missed call can reopen the app a moment late.
+        assertNotEquals("no notes asked for this call", id, c.pendingAfterCall.value?.leadId)
     }
 
     @Test

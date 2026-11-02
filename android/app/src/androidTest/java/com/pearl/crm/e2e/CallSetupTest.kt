@@ -43,7 +43,7 @@ class CallSetupTest {
         Phone.shell("appops set ${Phone.app.packageName} SYSTEM_ALERT_WINDOW allow")
         c.settings.recordingFolder = null
         c.settings.callerPopup = true
-        Phone.signedIn("sales")
+        Phone.signedIn(Phone.SALES)
         compose.waitForText(text(R.string.tab_my_day))
         compose.button(text(R.string.tab_settings)).performClick()
     }

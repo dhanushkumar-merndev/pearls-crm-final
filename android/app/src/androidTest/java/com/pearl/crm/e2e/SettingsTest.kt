@@ -1,8 +1,10 @@
 package com.pearl.crm.e2e
 
 import android.Manifest
+import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -11,6 +13,7 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.pearl.crm.MainActivity
 import com.pearl.crm.R
+import com.pearl.crm.core.data.db.OutboxItem
 import com.pearl.crm.core.data.security.PinCheck
 import com.pearl.crm.core.model.ThemeMode
 import com.pearl.crm.e2e.Phone.c
@@ -22,6 +25,7 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.util.UUID
 import com.pearl.crm.feature.settings.R as SettingsR
 
 /** A-SYS-14…17: Settings — change PIN, sign out asks first, theme kept, offline strip (TEST_CASES.md). */
@@ -36,7 +40,7 @@ class SettingsTest {
     @Before
     fun signIn() {
         Phone.grant(Manifest.permission.POST_NOTIFICATIONS)
-        Phone.signedIn("sales")
+        Phone.signedIn(Phone.SALES)
         compose.waitForText(text(R.string.tab_settings))
         compose.onNodeWithText(text(R.string.tab_settings)).performClick()
         compose.waitForText(text(SettingsR.string.settings_title))
@@ -85,9 +89,29 @@ class SettingsTest {
         compose.waitForText(text(SettingsR.string.settings_sign_out_title))
         compose.onNode(hasText(text(SettingsR.string.settings_stay)) and hasClickAction()).performClick()
         compose.waitUntil(10_000) { !compose.exists(hasText(text(SettingsR.string.settings_sign_out_title))) }
-        assertEquals("sales", c.sessions.session.value?.username)
+        assertEquals(Phone.SALES, c.sessions.session.value?.username)
         // Still on Settings ("Settings" is both the title and the tab, so look for its own row).
         compose.waitForText(text(SettingsR.string.settings_change_pin))
+    }
+
+    @Test
+    fun fieldDayChangesWhoseDayWasRemovedSaySoAndGoInOneTap() {
+        // Owner, 02/11/2026: changes for a field day that was removed on the server kept failing
+        // with "We couldn't find that" and had to be discarded one by one.
+        val ids = List(2) { UUID.randomUUID().toString() }
+        runBlocking {
+            ids.forEach { id ->
+                val at = System.currentTimeMillis()
+                c.db.outbox().enqueue(OutboxItem(id, 0, "bdm_end_day", "{}", "bdm-day:gone-$id", "user", at, 0, Long.MAX_VALUE, null, "pending"))
+                c.db.outbox().markFailed(id, "not_found")
+            }
+        }
+        compose.waitForText(text(SettingsR.string.change_bdm_gone))
+        compose.onNodeWithTag("discard-all").performScrollTo().performClick()
+        compose.waitForText(text(SettingsR.string.settings_discard_all_title, 2))
+        compose.onNode(hasText(text(SettingsR.string.settings_discard)) and hasClickAction() and hasAnyAncestor(isDialog())).performClick()
+        compose.waitUntil(10_000) { runBlocking { ids.all { c.db.outbox().get(it) == null } } }
+        compose.waitUntil(10_000) { !compose.exists(hasText(text(SettingsR.string.change_bdm_gone))) }
     }
 
     @Test

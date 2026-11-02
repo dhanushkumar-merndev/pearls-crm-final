@@ -2,7 +2,9 @@
  * Prepares the online staging project after `pnpm deploy:supabase` (pnpm staging:bootstrap).
  * Safe to run again: it only adds what is missing.
  *   1. STAGING_TEST_PASSWORD in .env (generated if empty, letters and digits)
- *   2. One fake login per role — usernames admin / reception / manager / sales / bdm
+ *   2. One fake login per role — usernames admin / reception / manager / sales / bdm — plus
+ *      e2e_sales / e2e_bdm for the automated tests only (the owner tries the app by hand as
+ *      sales / bdm; a test resets its own day and must never touch theirs)
  *      (username + password only, like every staff login), created through the Auth
  *      Admin API; an existing login gets the current password
  *   3. Their public.staff rows
@@ -24,6 +26,8 @@ const USERS = [
   { username: "manager", role: "sales_manager", fullName: "Manoj Manager", phone: "+919000000003" },
   { username: "sales", role: "sales_executive", fullName: "Sunil Sales", phone: "+919000000004" },
   { username: "bdm", role: "bdm", fullName: "Bhavya BDM", phone: "+919000000005" },
+  { username: "e2e_sales", role: "sales_executive", fullName: "Test Sales (automatic)", phone: "+919000000007" },
+  { username: "e2e_bdm", role: "bdm", fullName: "Test BDM (automatic)", phone: "+919000000008" },
 ].map((u) => ({ ...u, email: toLoginEmail(u.username) }));
 
 function generatePassword(length = 20): string {
@@ -96,7 +100,7 @@ try {
       [ids.get(u.email), u.role, u.fullName, u.username, u.phone],
     );
   }
-  console.log(`✔ staff rows: ${USERS.length} (one per role)`);
+  console.log(`✔ staff rows: ${USERS.length}`);
 
   await db.query(readFileSync(resolve(root, "supabase/seed/02_demo_settings.sql"), "utf8"));
   console.log("✔ demo clinic, doctors, libraries and settings present (existing rows left as they are)");

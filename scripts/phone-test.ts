@@ -56,16 +56,19 @@ for (const pkg of ["com.pearl.crm", "com.pearl.crm.test"]) {
 
 const runnerArgs: Record<string, string> = { e2ePassword: password };
 
-// A BDM starts one day per date: today's day of the fake staging BDM is removed so it can start
-// again. The BDM test also needs where an office is (its pretend GPS starts there).
+// A BDM starts one day per date: today's day of the TEST BDM / sales login (e2e_*, never the
+// owner's "bdm" / "sales") is removed so it can start again. The BDM test also needs where an office is (its pretend GPS starts there).
 const url = env.get("DATABASE_URL");
 if (url) {
   const db = new pg.Client({ connectionString: url });
   await db.connect();
+  await db.query(
+    `delete from public.day_start_requests r using public.staff s
+      where s.id = r.staff_id and s.username in ('e2e_bdm', 'e2e_sales') and r.work_date = (now() at time zone 'Asia/Kolkata')::date`);
   const { rowCount } = await db.query(
     `delete from public.bdm_days d using public.staff s
-      where s.id = d.staff_id and s.username = 'bdm' and d.work_date = (now() at time zone 'Asia/Kolkata')::date`);
-  if (rowCount) console.log("• reset today's day of the test BDM on staging");
+      where s.id = d.staff_id and s.username in ('e2e_bdm', 'e2e_sales') and d.work_date = (now() at time zone 'Asia/Kolkata')::date`);
+  if (rowCount) console.log("• reset today's day of the test logins (e2e_bdm, e2e_sales) on staging");
   const office = (await db.query<{ lat: number; lng: number }>(
     "select lat, lng from public.offices where active order by created_at limit 1")).rows[0];
   if (office) Object.assign(runnerArgs, { officeLat: String(office.lat), officeLng: String(office.lng) });
