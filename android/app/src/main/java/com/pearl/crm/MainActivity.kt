@@ -2,7 +2,7 @@ package com.pearl.crm
 
 import android.content.Intent
 import android.os.Bundle
-import androidx.activity.ComponentActivity
+import androidx.fragment.app.FragmentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,7 +15,8 @@ import com.pearl.crm.core.ui.theme.PearlTheme
 import com.pearl.crm.calls.AfterCallRequest
 import com.pearl.crm.ui.AppRoot
 
-class MainActivity : ComponentActivity() {
+/** A FragmentActivity (still a ComponentActivity): the fingerprint / face prompt needs one. */
+class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)

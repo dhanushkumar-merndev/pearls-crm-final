@@ -1,5 +1,10 @@
 package com.pearl.crm.ui
 
+import com.pearl.crm.ui.pin.BiometricUnlock
+import androidx.fragment.app.FragmentActivity
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.remember
+import androidx.activity.compose.LocalActivity
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.res.stringResource
@@ -46,12 +51,21 @@ fun AppRoot(container: AppContainer) {
         locked -> {
             val vm = viewModel(key = "pin") { PinViewModel(container.pins, container.lock, container.sessions) }
             val state by vm.state.collectAsStateWithLifecycle()
+            val activity = LocalActivity.current as? FragmentActivity
+            val context = LocalContext.current
+            val title = stringResource(R.string.biometric_title)
+            val subtitle = stringResource(R.string.biometric_subtitle)
+            val usePin = stringResource(R.string.biometric_use_pin)
+            val biometric = remember(activity) {
+                activity?.takeIf { container.settings.biometricUnlock && BiometricUnlock.available(context) }
+            }
             PinUnlockScreen(
                 title = stringResource(R.string.pin_unlock_title),
                 triesLeft = state.triesLeft,
                 busy = state.busy,
                 onUnlock = { vm.check(it) },
                 onForgot = vm::forgot,
+                onBiometric = biometric?.let { a -> { BiometricUnlock.prompt(a, title, subtitle, usePin, vm::biometricOk) } },
             )
         }
         else -> HomeScreen(container, current)

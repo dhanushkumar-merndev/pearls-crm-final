@@ -1,5 +1,6 @@
 package com.pearl.crm.ui.home
 
+import androidx.compose.runtime.mutableStateOf
 import android.Manifest
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -314,6 +315,9 @@ private fun SettingsRoute(
     val failed by remember { outbox.observeFailed() }.collectAsStateWithLifecycle(emptyList())
     val lastPull by remember { container.db.syncMarkers().observeLastPull() }.collectAsStateWithLifecycle(null)
     val scope = container.scope
+    val context = LocalContext.current
+    val canBiometric = remember { com.pearl.crm.ui.pin.BiometricUnlock.available(context) }
+    var biometric by remember { mutableStateOf(container.settings.biometricUnlock) }
     SettingsScreen(
         state = SettingsUiState(
             fullName = profile?.fullName,
@@ -340,6 +344,11 @@ private fun SettingsRoute(
         onSignOut = { scope.launch { container.signOutByChoice() } },
         onCallSetup = onCallSetup,
         onRecordings = onRecordings,
+        biometric = biometric.takeIf { canBiometric },
+        onBiometricChange = {
+            biometric = it
+            container.settings.biometricUnlock = it
+        },
     )
 }
 

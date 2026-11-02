@@ -44,6 +44,10 @@
     <string name="pin_save">Save PIN</string>
     <string name="pin_unlock_title">Enter your PIN</string>
     <string name="pin_unlock">Unlock</string>
+    <string name="pin_use_biometric">Use fingerprint or face</string>
+    <string name="biometric_title">Unlock Pearl CRM</string>
+    <string name="biometric_subtitle">Touch the fingerprint sensor or look at the phone</string>
+    <string name="biometric_use_pin">Use PIN</string>
     <plurals name="pin_wrong">
         <item quantity="one">Wrong PIN. %1$d try left before you must log in again.</item>
         <item quantity="other">Wrong PIN. %1$d tries left before you must log in again.</item>

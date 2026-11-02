@@ -17,6 +17,7 @@ import androidx.compose.material.icons.automirrored.outlined.Backspace
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.automirrored.outlined.Login
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Fingerprint
 import androidx.compose.material.icons.outlined.LockOpen
 import androidx.compose.material.icons.outlined.Save
 import androidx.compose.material3.AlertDialog
@@ -26,6 +27,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -171,8 +173,11 @@ fun PinUnlockScreen(
     onUnlock: (String) -> Unit,
     onForgot: (() -> Unit)? = null,
     onCancel: (() -> Unit)? = null,
+    /** Fingerprint / face: asked straight away, and again from its button; null = PIN only. */
+    onBiometric: (() -> Unit)? = null,
 ) {
     var entry by remember { mutableStateOf("") }
+    LaunchedEffect(onBiometric != null) { onBiometric?.invoke() }
     var forgotOpen by rememberSaveable { mutableStateOf(false) }
     val valid = PinStore.isValidPin(entry)
 
@@ -187,6 +192,9 @@ fun PinUnlockScreen(
         triesLeft?.let { StatusLabel(pluralStringResource(R.plurals.pin_wrong, it, it), StatusTone.Critical) }
         PinPad(entry, { entry = it }, enabled = !busy)
         PearlButton(stringResource(R.string.pin_unlock), Icons.Outlined.LockOpen, ::submit, Modifier.fillMaxWidth(), enabled = valid, busy = busy)
+        onBiometric?.let {
+            PearlButton(stringResource(R.string.pin_use_biometric), Icons.Outlined.Fingerprint, it, Modifier.fillMaxWidth().testTag("pin-biometric"), kind = ButtonKind.Tonal)
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
             onForgot?.let {
                 PearlButton(stringResource(R.string.pin_forgot), Icons.AutoMirrored.Outlined.HelpOutline, { forgotOpen = true }, kind = ButtonKind.Quiet)

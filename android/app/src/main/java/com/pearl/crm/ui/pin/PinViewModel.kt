@@ -55,6 +55,12 @@ class PinViewModel(
         }
     }
 
+    /** The phone confirmed the fingerprint or face. */
+    fun biometricOk() {
+        _state.value = PinUiState()
+        lock.unlock()
+    }
+
     fun forgot() {
         viewModelScope.launch {
             pins.clear()

@@ -74,6 +74,13 @@ class SettingsStore(private val prefs: SharedPreferences) {
             prefs.edit().putBoolean(KEY_POPUP, value).apply()
         }
 
+    /** Unlock with fingerprint or face instead of typing the PIN (where the phone has one set up). */
+    var biometricUnlock: Boolean
+        get() = prefs.getBoolean(KEY_BIOMETRIC, true)
+        set(value) {
+            prefs.edit().putBoolean(KEY_BIOMETRIC, value).apply()
+        }
+
     /** The "swipe right to call" tip on Leads was shown once; it isn't shown again. */
     var swipeHintSeen: Boolean
         get() = prefs.getBoolean(KEY_SWIPE_HINT, false)
@@ -95,5 +102,6 @@ class SettingsStore(private val prefs: SharedPreferences) {
         const val KEY_REC_MAX = "recording_max_seconds"
         const val KEY_POPUP = "caller_popup"
         const val KEY_SWIPE_HINT = "swipe_hint_seen"
+        const val KEY_BIOMETRIC = "biometric_unlock"
     }
 }
