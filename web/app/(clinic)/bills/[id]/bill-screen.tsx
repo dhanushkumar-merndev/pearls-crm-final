@@ -25,6 +25,7 @@ import { useMe } from "@/lib/use-me";
 import { applyAdvanceSchema } from "@/lib/schemas/billing";
 import { reasonSchema } from "@/lib/schemas/clinical";
 import { useFeedback } from "@/lib/use-feedback";
+import { cn } from "@/lib/utils";
 import { useZodForm } from "@/lib/use-zod-form";
 
 interface PrintData extends Bill {
@@ -206,8 +207,11 @@ function BillView({ bill: b }: { bill: Bill }) {
           <span className="border-t border-border pt-1 text-right text-lg font-semibold">{formatINR(payable(b))}</span>
           <span className="text-text-secondary">{t("received")}</span>
           <span className="text-right">{formatINR(b.received_paise)}</span>
-          <span className="font-semibold">{t("balance")}</span>
-          <span className="text-right font-semibold">{formatINR(payable(b) - b.received_paise)}</span>
+          {/* Money still due stands out in yellow (owner, 02/11/2026); nothing due stays plain. */}
+          <span className={cn("font-semibold", payable(b) - b.received_paise > 0 && "text-status-warning")}>{t("balance")}</span>
+          <span className={cn("text-right font-semibold", payable(b) - b.received_paise > 0 && "text-status-warning")} data-testid="bill-balance">
+            {formatINR(payable(b) - b.received_paise)}
+          </span>
         </Card>
       </div>
     </div>
