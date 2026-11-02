@@ -54,7 +54,7 @@ export function PaymentDialog({
       }),
     onSuccess: (_, d) => {
       saved(t(`saved.${kind}`, { amount: formatINR(d.amount) }));
-      for (const key of ["bill", "bills", "patient_balance", "patient_timeline"]) void queryClient.invalidateQueries({ queryKey: [key] });
+      for (const key of ["bill", "bills", "patient_balance", "patient_dues", "patient_timeline"]) void queryClient.invalidateQueries({ queryKey: [key] });
       onDone();
     },
     onError: (e) => {

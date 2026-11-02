@@ -23,6 +23,7 @@ test("IP stay: add several charges at once from the stay page, see the total, fi
   await page.getByLabel("Mobile number").fill(uniquePhone());
   await page.getByRole("button", { name: "Save patient" }).first().click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(name);
+  const patientUrl = page.url();
 
   await page.getByRole("tab", { name: "IP stays" }).click();
   await page.getByRole("button", { name: "Admit", exact: true }).click();
@@ -79,4 +80,37 @@ test("IP stay: add several charges at once from the stay page, see the total, fi
   await page.getByRole("link", { name: "Final bill", exact: true }).click();
   await expect(page).toHaveURL(/\/bills\//);
   await expect(page.getByLabel("Description").last()).toHaveValue("Nursing care");
+  const billUrl = page.url();
+
+  // Finalize with ₹1,000 paid in cash: ₹2,500 stays due.
+  await page.getByRole("button", { name: "Finalize bill" }).click();
+  const fin = page.getByRole("dialog");
+  await fin.getByRole("combobox", { name: "Mode" }).click();
+  await page.getByRole("option", { name: "Cash", exact: true }).click();
+  await fin.getByLabel("Amount").first().fill("1000");
+  await fin.getByRole("button", { name: /^Part paid/ }).click();
+  await expect(page.getByText(/^Bill .+ finalized$/)).toBeVisible();
+  await expect(page.getByTestId("bill-balance")).toHaveText("₹2,500.00");
+  await expect(page.getByTestId("bill-balance")).toHaveClass(/text-status-warning/);
+  const billNo = (await page.getByRole("heading", { level: 1 }).textContent())!.split("·")[1]!.trim();
+
+  // The patient header shows what is due; one bill → the button opens it.
+  await page.goto(patientUrl);
+  const dues = page.getByTestId("patient-dues");
+  await expect(dues).toHaveText(/Balance due ₹2,500\.00/);
+
+  // Bills tab: balance due matches, and the payment is listed with its mode and bill.
+  await page.getByRole("tab", { name: "Bills" }).click();
+  const history = page.getByTestId("payment-history");
+  await expect(history.getByRole("row").filter({ hasText: "Cash" })).toContainText("₹1,000.00");
+  await expect(history.getByRole("link", { name: billNo })).toBeVisible();
+
+  // Timeline: one short line per event, no raw codes.
+  await page.getByRole("tab", { name: "Timeline" }).click();
+  await expect(page.getByText(`Payment ₹1,000.00 · Cash · for ${billNo}`)).toBeVisible();
+  await expect(page.getByText(/^Admitted · IP /)).toBeVisible();
+  await expect(page.getByText(/patientFile\.|final_bill/)).toHaveCount(0);
+
+  await dues.click();
+  await expect(page).toHaveURL(billUrl);
 });

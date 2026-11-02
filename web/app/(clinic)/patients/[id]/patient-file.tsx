@@ -28,6 +28,8 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Field, Textarea } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { DuesButton } from "@/components/bills/dues-button";
+import { TimelineEventLine, type TimelineItem } from "@/components/patients/timeline-event";
 import { MoreMenu } from "@/components/ui/more-menu";
 import { Page, PageHeader } from "@/components/ui/page";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -109,6 +111,7 @@ export function PatientFile({ initial }: { initial: PatientHeader }) {
         }
         actions={
           <>
+            {canWhatsApp && <DuesButton patientId={p.id} />}
             <Button onClick={() => setDialog("book")}>
               <CalendarPlus aria-hidden />
               {t("book")}
@@ -442,13 +445,6 @@ function Appointments({ patientId }: { patientId: string }) {
   );
 }
 
-interface TimelineItem {
-  at: string;
-  id: string;
-  kind: string;
-  title: string;
-}
-
 function Timeline({ patientId }: { patientId: string }) {
   const t = useTranslations("patientFile");
   const list = useInfiniteQuery({
@@ -466,7 +462,7 @@ function Timeline({ patientId }: { patientId: string }) {
         {items.map((e) => (
           <li key={`${e.kind}-${e.id}`} className="relative">
             <span aria-hidden className="absolute top-1.5 -left-[calc(1.25rem+1px+0.375rem)] size-3 rounded-full bg-text-secondary" />
-            <p className="font-medium">{e.title}</p>
+            <TimelineEventLine e={e} />
             <p className="text-[0.9rem] text-text-secondary">
               {t(`event.${e.kind}`)} · {formatDateTime(new Date(e.at))}
             </p>

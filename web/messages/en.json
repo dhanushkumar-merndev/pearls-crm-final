@@ -967,6 +967,9 @@
   },
   "patientFile": {
     "whatsappChat": "WhatsApp chat",
+    "balanceDue": "Balance due {amount}",
+    "billsDue": "{n, plural, one {# bill} other {# bills}} with a balance: open one to add the payment",
+    "ipStay": "IP stay {ip}",
     "age": "{n} years",
     "ageAbout": "about {n} years",
     "allergies": "Allergies: {list}",
@@ -1017,7 +1020,42 @@
       "merged": "Merge",
       "appointment": "Appointment",
       "treatment": "Treatment",
-      "session": "Session"
+      "session": "Session",
+      "admission": "IP stay",
+      "discharge": "IP stay",
+      "bill": "Bill",
+      "payment": "Money"
+    },
+    "line": {
+      "pay": {
+        "payment": "Payment {amount}",
+        "advance": "Advance {amount}",
+        "refund": "Refund {amount}"
+      },
+      "for": "for",
+      "ref": "Ref {ref}",
+      "cancelled": "cancelled",
+      "ip": "IP {ip}",
+      "admitted": "Admitted",
+      "admissionCancelled": "Admission cancelled",
+      "discharged": "Discharged",
+      "nights": "{n, plural, one {# night} other {# nights}}",
+      "appointment": "Appointment"
+    },
+    "payments": {
+      "title": "Payments, advances and refunds",
+      "date": "Date",
+      "what": "What",
+      "mode": "Mode",
+      "for": "Paid towards",
+      "amount": "Amount",
+      "none": "No money received yet.",
+      "keptAsAdvance": "Kept as advance",
+      "kind": {
+        "payment": "Payment",
+        "advance": "Advance",
+        "refund": "Refund"
+      }
     },
     "mergeTitle": "Merge {name} ({uhid}) into another record",
     "mergeHint": "Use this when the same person was registered twice. Everything on this record moves to the one you pick. This can't be undone.",
@@ -1695,6 +1733,7 @@
     "received": "Received",
     "balanceDue": "Balance due",
     "advanceHeld": "Advance held",
+    "advanceCanPay": "The advance can pay this: open the bill → Use advance.",
     "newPharmacyBill": "New pharmacy bill"
   },
   "printBill": {

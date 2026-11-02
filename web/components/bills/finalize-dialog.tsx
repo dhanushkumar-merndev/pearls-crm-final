@@ -60,6 +60,7 @@ export function FinalizeDialog({ bill, onDone }: { bill: Bill; onDone: () => voi
       saved(t("finalized", { no: b.bill_no ?? "" }));
       void queryClient.invalidateQueries({ queryKey: ["bills"] });
       void queryClient.invalidateQueries({ queryKey: ["patient_balance", bill.patient_id] });
+      void queryClient.invalidateQueries({ queryKey: ["patient_dues", bill.patient_id] });
       onDone();
     },
     onError: (e) => {

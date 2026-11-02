@@ -13,6 +13,7 @@ import { newId, rpc } from "@/lib/rpc";
 import { useFeedback } from "@/lib/use-feedback";
 import { BillsTable } from "./bills-table";
 import { PaymentDialog } from "./payment-dialog";
+import { PaymentHistory } from "./payment-history";
 import type { Bill } from "./types";
 
 interface Balance {
@@ -44,6 +45,14 @@ export function PatientBillsTab({ patientId }: { patientId: string }) {
     },
   });
   const b = balance.data;
+  // Balance due = what finalized bills still owe (same as each bill's page). An unused advance is
+  // shown beside it, not taken off: it pays a bill only when "Use advance" is chosen on that bill.
+  const dues = useQuery({
+    queryKey: ["patient_dues", patientId],
+    queryFn: () => rpc<{ total_due_paise: number }>("patient_dues", { p_patient_id: patientId }),
+    staleTime: 0,
+  });
+  const due = dues.data?.total_due_paise ?? 0;
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap gap-2">
@@ -64,13 +73,19 @@ export function PatientBillsTab({ patientId }: { patientId: string }) {
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <StatTile label={t("billed")} value={formatINR(b.billed_paise)} />
           <StatTile label={t("received")} value={formatINR(b.received_paise)} />
-          <StatTile label={t("balanceDue")} value={formatINR(Math.max(b.balance_paise, 0))} />
+          <StatTile
+            label={t("balanceDue")}
+            value={formatINR(due)}
+            tone={due > 0 ? "warning" : undefined}
+            hint={due > 0 && b.advance_paise > 0 ? t("advanceCanPay") : undefined}
+          />
           <StatTile label={t("advanceHeld")} value={formatINR(b.advance_paise)} />
         </div>
       )}
       <BillsTable patientId={patientId} />
+      <PaymentHistory patientId={patientId} />
       <Dialog open={paying} onOpenChange={setPaying}>
-        {paying && <PaymentDialog patientId={patientId} onDone={() => (setPaying(false), void balance.refetch())} />}
+        {paying && <PaymentDialog patientId={patientId} onDone={() => (setPaying(false), void balance.refetch(), void dues.refetch())} />}
       </Dialog>
     </div>
   );

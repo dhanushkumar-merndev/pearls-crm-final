@@ -14,13 +14,15 @@ export interface StatTileProps {
   /** Is "up" good (revenue) or bad (no-shows)? Decides the arrow's colour. */
   goodWhen?: "up" | "down";
   trend?: number[];
+  /** "warning": the value in yellow (e.g. a balance still due). */
+  tone?: "warning";
 }
 
 /**
  * Headline number + change vs previous period + sparkline. Change = arrow + words, not colour alone.
  * The value shrinks with its tile (a lakh amount fits a phone-width tile); the sparkline sits under it.
  */
-export function StatTile({ label, value, hint, current, previous, goodWhen = "up", trend }: StatTileProps) {
+export function StatTile({ label, value, hint, current, previous, goodWhen = "up", trend, tone }: StatTileProps) {
   const t = useTranslations("kpi");
   const change = current !== undefined && previous !== undefined ? percentChange(current, previous) : undefined;
   const dir = change === undefined ? undefined : direction(change);
@@ -31,7 +33,9 @@ export function StatTile({ label, value, hint, current, previous, goodWhen = "up
   return (
     <div className={cn("@container flex min-w-0 flex-col gap-1.5 rounded-2xl border border-border bg-card p-4", spark && "min-h-28")}>
       <p className="text-[0.95rem] text-text-secondary">{label}</p>
-      <p className="text-[clamp(1.15rem,11cqi,1.6rem)] leading-tight font-semibold tracking-tight tabular-nums break-words">{value}</p>
+      <p className={cn("text-[clamp(1.15rem,11cqi,1.6rem)] leading-tight font-semibold tracking-tight tabular-nums break-words", tone === "warning" && "text-status-warning")}>
+        {value}
+      </p>
       {hint && <p className="text-[0.9rem] text-text-secondary">{hint}</p>}
       {spark && (
         <svg viewBox="0 0 88 24" preserveAspectRatio="none" aria-hidden className="h-6 w-full max-w-40 text-chart-1">

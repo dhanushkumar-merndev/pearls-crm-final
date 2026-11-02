@@ -4,7 +4,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(67);
+select plan(77);
 
 create function pg_temp.login(p_id uuid)
 returns void
@@ -139,11 +139,20 @@ select is((select coalesce(sum(a.amount_paise), 0)::bigint from public.payment_a
   90000::bigint, 'the spill-over paid ₹500 of interim bill 1 (₹400 + ₹500 of ₹1,000)');
 select is(((public.get_bill('aaaaaaaa-5555-4000-a000-0000000000f1')) ->> 'received_paise')::bigint, 690000::bigint,
   'the final bill shows ₹6,900 received of ₹7,500');
+-- Patient header "Balance due" (owner, 02/11/2026): the final bill owes ₹600; the interim bills inside it don't show.
+select is((public.patient_dues('aaaaaaaa-1111-4000-a000-000000000001')) -> 'bills' -> 0 ->> 'id', 'aaaaaaaa-5555-4000-a000-0000000000f1',
+  'dues list the final bill');
+select is(((public.patient_dues('aaaaaaaa-1111-4000-a000-000000000001')) ->> 'total_due_paise')::bigint, 60000::bigint,
+  'due = ₹7,500 − ₹6,900 received (counting the interim bills'' payments), same as the bill page');
+select is(jsonb_array_length((public.patient_dues('aaaaaaaa-1111-4000-a000-000000000001')) -> 'bills'), 1,
+  'bills included in the final bill are not listed again');
 select lives_ok($$ select public.add_payment(jsonb_build_object('patient_id', 'aaaaaaaa-1111-4000-a000-000000000001',
   'mode_id', (select cash from k), 'amount_paise', 60000,
   'allocations', jsonb_build_array(jsonb_build_object('bill_id', 'aaaaaaaa-5555-4000-a000-0000000000f1', 'amount_paise', 60000))),
   gen_random_uuid()) $$, 'the last ₹600 against the final bill');
 select is(((public.get_bill('aaaaaaaa-5555-4000-a000-0000000000f1')) ->> 'received_paise')::bigint, 750000::bigint, 'fully paid');
+select is((public.patient_dues('aaaaaaaa-1111-4000-a000-000000000001')) ->> 'total_due_paise', '0',
+  'paid in full: nothing due (the second final bill is only a draft)');
 select throws_ok($$ select public.add_payment(jsonb_build_object('patient_id', 'aaaaaaaa-1111-4000-a000-000000000001',
   'mode_id', (select cash from k), 'amount_paise', 1,
   'allocations', jsonb_build_array(jsonb_build_object('bill_id', 'aaaaaaaa-5555-4000-a000-0000000000f1', 'amount_paise', 1))),
@@ -248,6 +257,24 @@ select throws_ok($$ select public.add_stay_charge('aaaaaaaa-4444-4000-a000-00000
 select throws_ok($$ select public.add_stay_charge('aaaaaaaa-4444-4000-a000-000000000002',
   jsonb_build_object('description', 'Zero', 'rate_paise', 100, 'qty', 0), gen_random_uuid()) $$,
   'P0001', 'invalid_quantity', 'quantity must be more than 0');
+select is(jsonb_array_length((public.patient_dues('aaaaaaaa-1111-4000-a000-000000000002')) -> 'bills'), 0,
+  'charges on a draft final bill are not "due" until it is finalized');
+
+------------------------------------------------------------------------------
+-- Timeline facts (owner, 02/11/2026: precise, short history; payments and IP stays show)
+------------------------------------------------------------------------------
+select pg_temp.login('aaaaaaaa-0000-4000-a000-0000000000b1');
+select ok(exists (select 1 from jsonb_array_elements((public.patient_timeline('aaaaaaaa-1111-4000-a000-000000000001', array['payment'], null, 100)) -> 'items') e
+                  where e -> 'ref' ->> 'mode' = 'Cash' and (e -> 'ref' ->> 'amount_paise')::bigint = 650000
+                    and e -> 'ref' -> 'bills' @> jsonb_build_array(jsonb_build_object('bill_no', 'T/' || (select fy from k) || '/1'))),
+  'a payment shows its amount, mode and the bills it paid');
+select is((select e -> 'ref' ->> 'ip_number' from jsonb_array_elements((public.patient_timeline('aaaaaaaa-1111-4000-a000-000000000001', array['admission'], null, 100)) -> 'items') e limit 1),
+  (select r ->> 'ip_number' from a1), 'the IP stay is on the timeline with its IP number');
+select is((select count(*)::int from jsonb_array_elements((public.patient_timeline('aaaaaaaa-1111-4000-a000-000000000002', array['discharge'], null, 100)) -> 'items') e),
+  1, 'the discharge is on the timeline');
+select is((select count(*)::int from jsonb_array_elements((public.patient_timeline('aaaaaaaa-1111-4000-a000-000000000001', array['bill'], null, 100)) -> 'items') e
+             where e -> 'ref' ->> 'status' = 'draft' or e -> 'ref' ->> 'bill_no' is null),
+  0, 'only finalized / cancelled bills, each with its number');
 
 ------------------------------------------------------------------------------
 -- Roles
@@ -256,6 +283,8 @@ select pg_temp.login('aaaaaaaa-0000-4000-a000-0000000000c1');
 select is((select count(*)::int from public.admissions), 0, 'sales staff can''t see IP stays');
 select throws_ok($$ select public.admit_patient('{"patient_id": "aaaaaaaa-1111-4000-a000-000000000002"}', gen_random_uuid()) $$,
   'P0001', 'not_allowed', 'nor admit anyone');
+select throws_ok($$ select public.patient_dues('aaaaaaaa-1111-4000-a000-000000000001') $$,
+  'P0001', 'not_allowed', 'nor see what a patient owes');
 
 select * from finish();
 rollback;
