@@ -40,6 +40,11 @@ export const SETTINGS_SCHEMAS = {
     tax_inclusive: z.boolean().default(true),
     round_to_rupee: z.boolean().default(false),
     receptionist_max_discount_bp: int(0, 10000).default(2000),
+    /**
+     * Discount to offer only when the patient bargains: a guide shown on every bill (owner, 02/11/2026).
+     * The limit above stays the rule the database enforces; bills show the smaller of the two.
+     */
+    bargain_discount_bp: int(0, 10000).default(500),
     agreed_price_categories_exclude: z.array(z.string()).default(["pharmacy"]),
     ip_number_mode: z.enum(["separate", "uhid"]).default("separate"),
   }),

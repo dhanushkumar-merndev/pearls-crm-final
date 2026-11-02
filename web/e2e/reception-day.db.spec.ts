@@ -133,7 +133,8 @@ test("a receptionist's discount above the limit is refused; within it the bill i
   await page.getByRole("tab", { name: "Bills" }).click();
   await newBill(page, "New bill");
   await expect(page).toHaveURL(/\/bills\/[0-9a-f-]{36}$/);
-  await expect(page.getByText("Discounts above your limit need an admin.")).toBeVisible();
+  // The rule is on the bill: what to give only when the patient bargains, and the limit.
+  await expect(page.getByTestId("discount-rule")).toContainText("only if the patient bargains");
 
   const service = `E2E Discount Service ${stamp}`;
   await page.getByRole("combobox", { name: "Service or item" }).first().click();
@@ -142,15 +143,21 @@ test("a receptionist's discount above the limit is refused; within it the bill i
   // The picker fills the line when the server answers: type the rate after that.
   await expect(page.getByLabel("Description", { exact: true }).first()).toHaveValue(service);
   await page.getByLabel("Rate", { exact: true }).first().fill("1000");
-  // 95% off: more than any receptionist limit.
+  // Each line shows its limit in rupees.
+  await expect(page.getByTestId("discount-guide").first()).toContainText(/limit ₹/);
+  // 95% off: more than any receptionist limit. Refused on the screen, before anything is saved.
   await page.getByLabel("Discount", { exact: true }).first().fill("950");
-  // Finalizing saves first: the server refuses before the payment step opens.
+  await expect(page.getByTestId("discount-guide").first()).toContainText("More than the bargain discount");
   await page.getByRole("button", { name: "Finalize bill" }).click();
-  await expect(page.getByText("That discount is more than you are allowed to give. Please ask the admin.").first()).toBeVisible();
+  await expect(page.getByText("More than your discount limit. Lower it, or ask an admin.").first()).toBeVisible();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toHaveCount(0);
 
-  await page.getByLabel("Discount", { exact: true }).first().fill("0");
+  // In % instead: 1% is within any bargain guide.
+  await page.getByRole("button", { name: "Discount in percent" }).first().click();
+  await expect(page.getByRole("button", { name: "Discount in percent" }).first()).toHaveAttribute("aria-pressed", "true");
+  await page.getByLabel("Discount", { exact: true }).first().fill("1");
+  await expect(page.getByTestId("discount-guide").first()).toContainText("if the patient bargains");
   await page.getByRole("button", { name: "Finalize bill" }).click();
   // The payment step starts with the whole amount due.
   await pickMode(page, "Cash");

@@ -41,6 +41,7 @@ const SECTIONS: { section: SettingsSection; fields: Record<string, FieldKind> }[
       tax_inclusive: "bool",
       round_to_rupee: "bool",
       receptionist_max_discount_bp: "percent_bp",
+      bargain_discount_bp: "percent_bp",
       ip_number_mode: { options: ["separate", "uhid"] },
     },
   },

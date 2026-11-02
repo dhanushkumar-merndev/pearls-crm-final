@@ -1,11 +1,11 @@
 "use client";
 
-import { useIsFetching, useIsMutating, useMutation, useQueryClient } from "@tanstack/react-query";
-import { CheckCheck, CirclePlus, Save, Trash2, X } from "lucide-react";
+import { useIsFetching, useIsMutating, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { BadgePercent, CheckCheck, CirclePlus, Save, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
-import { computeBillTotals, computeLine, formatINR, LineError, type DiscountType, type LineResult } from "@pearl/shared";
+import { computeBillTotals, computeLine, formatINR, LineError, readSettings, type DiscountType, type LineResult } from "@pearl/shared";
 import { MoneyInput, GST_RATES_BP } from "@/components/forms/money-input";
 import { LibraryCombobox, type LibraryItem } from "@/components/library-combobox";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,9 @@ import { Checkbox, Field, Select } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { StickyActions } from "@/components/ui/page";
 import { asAppError, newId, rpc } from "@/lib/rpc";
+import { getSupabaseBrowser } from "@/lib/supabase/client";
 import { useMe } from "@/lib/use-me";
+import { cn } from "@/lib/utils";
 import { billSchema } from "@/lib/schemas/billing";
 import { useFeedback } from "@/lib/use-feedback";
 import { useZodForm } from "@/lib/use-zod-form";
@@ -148,7 +150,21 @@ export function BillEditor({
   const [reason, setReason] = useState("");
   // A patch can be a function of the line as it is now: pickers answer after a round trip,
   // and must not overwrite what was typed meanwhile.
-  const schema = useMemo(() => billSchema({ taxInclusive, amend }), [taxInclusive, amend]);
+  // Discount rules (Admin → Settings → Billing): reception's limit, and what to offer only when the patient
+  // bargains. An admin has no limit; the database checks the limit again on save.
+  const rules = useQuery({
+    queryKey: ["app_settings", "billing"],
+    queryFn: async () => {
+      const { data } = await getSupabaseBrowser().from("app_settings").select("value").eq("section", "billing").maybeSingle();
+      return readSettings("billing", data?.value);
+    },
+    staleTime: 5 * 60_000,
+  });
+  const isAdmin = me?.role === "admin";
+  const maxBp = isAdmin || !rules.data ? null : rules.data.receptionist_max_discount_bp;
+  const bargainBp = rules.data ? Math.min(rules.data.bargain_discount_bp, maxBp ?? rules.data.bargain_discount_bp) : null;
+  const pct = (bp: number) => `${bp / 100}%`;
+  const schema = useMemo(() => billSchema({ taxInclusive, amend, maxDiscountBp: maxBp }), [taxInclusive, amend, maxBp]);
   const checks = useZodForm(schema);
   const update = (key: string, patch: Partial<EditLine> | ((current: EditLine) => Partial<EditLine>)) => {
     setLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...(typeof patch === "function" ? patch(l) : patch) } : l)));
@@ -264,9 +280,25 @@ export function BillEditor({
         </Card>
       )}
 
+      {bargainBp !== null && (
+        <p className="flex items-start gap-2 rounded-xl border border-border px-3 py-2 text-[0.95rem]" data-testid="discount-rule">
+          <BadgePercent aria-hidden className="mt-0.5 size-4 shrink-0 text-text-secondary" />
+          <span>
+            {maxBp !== null
+              ? t("discountRule", { bargain: pct(bargainBp), max: pct(maxBp) })
+              : t("discountRuleAdmin", { bargain: pct(bargainBp), max: pct(rules.data!.receptionist_max_discount_bp) })}
+          </span>
+        </p>
+      )}
+
       <ol className="flex flex-col gap-3">
         {lines.map((l, i) => {
           const p = previews[i]!;
+          // This line's discount against the bargain guide and reception's limit, in rupees.
+          const gross = p.result?.grossPaise ?? 0;
+          const given = p.result?.discountPaise ?? 0;
+          const bargainPaise = bargainBp !== null ? Math.floor((gross * bargainBp) / 10000) : null;
+          const maxPaise = maxBp !== null ? Math.floor((gross * maxBp) / 10000) : null;
           return (
             <li key={l.key}>
               <Card className="grid gap-3 md:grid-cols-12 md:items-end">
@@ -325,15 +357,42 @@ export function BillEditor({
                   }
                 >
                   {(a) => (
-                    <div className="flex gap-2">
-                      <Select aria-label={t("discountUnit")} className="w-20" value={l.discount_type} onChange={(e) => update(l.key, { discount_type: e.target.value as DiscountType })}>
-                        <option value="amount">₹</option>
-                        <option value="percent">%</option>
-                      </Select>
-                      {l.discount_type === "amount" ? (
-                        <MoneyInput {...a} value={l.discount_amount} onChange={(v) => update(l.key, { discount_amount: v })} />
-                      ) : (
-                        <Input {...a} inputMode="decimal" value={l.discount_percent} onChange={(e) => update(l.key, { discount_percent: e.target.value })} />
+                    <div className="flex flex-col gap-1">
+                      <div className="flex gap-2">
+                        {/* ₹ amount or % of the line: two plain buttons, the chosen one filled. */}
+                        <div role="group" aria-label={t("discountUnit")} className="flex shrink-0 overflow-hidden rounded-xl border border-border">
+                          {(["amount", "percent"] as const).map((u) => (
+                            <button
+                              key={u}
+                              type="button"
+                              aria-pressed={l.discount_type === u}
+                              aria-label={t(`discountIn.${u}`)}
+                              onClick={() => update(l.key, { discount_type: u as DiscountType })}
+                              className={cn(
+                                "min-h-9 min-w-9 px-2.5 font-medium",
+                                l.discount_type === u ? "bg-primary text-primary-foreground" : "text-text-secondary hover:bg-accent",
+                              )}
+                            >
+                              {u === "amount" ? "₹" : "%"}
+                            </button>
+                          ))}
+                        </div>
+                        {l.discount_type === "amount" ? (
+                          <MoneyInput {...a} value={l.discount_amount} onChange={(v) => update(l.key, { discount_amount: v })} />
+                        ) : (
+                          <Input {...a} inputMode="decimal" value={l.discount_percent} onChange={(e) => update(l.key, { discount_percent: e.target.value })} />
+                        )}
+                      </div>
+                      {gross > 0 && bargainPaise !== null && (
+                        <p
+                          className={cn("text-[0.85rem]", given > bargainPaise ? "font-medium text-bad-text" : "text-text-secondary")}
+                          data-testid="discount-guide"
+                        >
+                          {given > bargainPaise
+                            ? t("discountAboveBargain", { bargain: pct(bargainBp!), amount: formatINR(bargainPaise) })
+                            : t("discountGuide", { bargain: formatINR(bargainPaise) })}
+                          {maxPaise !== null && ` · ${t("discountMax", { amount: formatINR(maxPaise), max: pct(maxBp!) })}`}
+                        </p>
                       )}
                     </div>
                   )}
@@ -428,7 +487,6 @@ export function BillEditor({
           </Button>
         </StickyActions>
       )}
-      {me?.role !== "admin" && !amend && <p className="text-right text-[0.9rem] text-text-secondary">{t("discountLimitHint")}</p>}
 
     </div>
   );

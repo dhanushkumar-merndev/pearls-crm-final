@@ -598,6 +598,7 @@
       "tax_inclusive": "Prices include GST",
       "round_to_rupee": "Round bill totals to the nearest rupee",
       "receptionist_max_discount_bp": "Largest discount a receptionist may give (%)",
+      "bargain_discount_bp": "Discount to offer only when the patient bargains (%)",
       "ip_number_mode": "IP number",
       "ip_number_mode_separate": "Separate IP series (IP/26-27/1)",
       "ip_number_mode_uhid": "Same as the patient's UHID"
@@ -1648,7 +1649,6 @@
     "needDescription": "Type what this line is for",
     "badQty": "Quantity must be more than 0 (up to 3 decimals)",
     "discountTooBig": "Discount can't be more than the line amount",
-    "discountLimitHint": "Discounts above your limit need an admin.",
     "addLine": "Add line",
     "remove": "Remove",
     "removeLine": "Remove line {n}",
@@ -1700,7 +1700,17 @@
     "alreadyReceived": "Already received on the included bills: {amount}. Still due: {due}.",
     "advanceTooMuch": "That is more than the advance available or the amount due.",
     "back": "Back",
-    "forLine": "For: {what}"
+    "forLine": "For: {what}",
+    "discountRule": "Discount: give up to {bargain} only if the patient bargains. Your limit is {max} of each line; more needs an admin.",
+    "discountRuleAdmin": "Discount: give up to {bargain} only if the patient bargains. (Reception's limit is {max}; you have none.)",
+    "discountIn": {
+      "amount": "Discount in rupees",
+      "percent": "Discount in percent"
+    },
+    "discountGuide": "Up to {bargain} if the patient bargains",
+    "discountAboveBargain": "More than the bargain discount ({bargain} = {amount})",
+    "discountMax": "limit {amount} ({max})",
+    "discountOverLimit": "More than your discount limit. Lower it, or ask an admin."
   },
   "payment": {
     "title": "Advance or refund",

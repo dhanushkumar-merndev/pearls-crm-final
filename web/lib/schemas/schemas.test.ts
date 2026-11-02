@@ -96,6 +96,16 @@ describe("billing", () => {
     });
     expect(errs(schema, { doctor: null, referred_by: "", lines: [], reason: "" })).toEqual({ lines: "noRows" });
   });
+  it("reception's discount limit: 20% of ₹500 is ₹100; more is refused before saving (an admin has none)", () => {
+    const reception = billSchema({ taxInclusive: true, amend: false, maxDiscountBp: 2000 });
+    const bill = (l: object) => ({ doctor: null, referred_by: "", lines: [{ ...line, ...l }], reason: "" });
+    expect(errs(reception, bill({ discount_amount: 10000 }))).toEqual({});
+    expect(errs(reception, bill({ discount_amount: 10001 }))).toEqual({ "lines.0.discount_amount": "bill.discountOverLimit" });
+    expect(errs(reception, bill({ discount_type: "percent", discount_amount: null, discount_percent: "25" }))).toEqual({
+      "lines.0.discount_percent": "bill.discountOverLimit",
+    });
+    expect(errs(billSchema({ taxInclusive: true, amend: false, maxDiscountBp: null }), bill({ discount_amount: 40000 }))).toEqual({});
+  });
   it("an amendment needs a reason", () => {
     expect(errs(billSchema({ taxInclusive: true, amend: true }), { doctor: null, referred_by: "", lines: [line], reason: "" })).toEqual({ reason: "required" });
   });

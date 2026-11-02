@@ -16,7 +16,7 @@ import {
 } from "@pearl/shared";
 
 /** One bill line as the editor holds it. Paths: lines.<i>.<field>. */
-const lineSchema = (taxInclusive: boolean) =>
+const lineSchema = (taxInclusive: boolean, maxDiscountBp: number | null) =>
   z
     .object({
       kind: z.string(),
@@ -38,7 +38,7 @@ const lineSchema = (taxInclusive: boolean) =>
       }
       const discountValue = l.discount_type === "percent" ? Math.round((l.discount_percent ?? 0) * 100) : (l.discount_amount ?? 0);
       try {
-        computeLine({
+        const line = computeLine({
           ratePaise: l.rate_paise,
           qtyMilli: Math.round(l.qty * 1000),
           discountType: l.discount_type,
@@ -46,6 +46,10 @@ const lineSchema = (taxInclusive: boolean) =>
           gstRateBp: l.gst_rate_bp,
           taxInclusive,
         });
+        // Reception's limit (billing → receptionist_max_discount_bp), the same check as the database's.
+        if (maxDiscountBp !== null && line.grossPaise > 0 && line.discountPaise * 10000 > line.grossPaise * maxDiscountBp) {
+          ctx.addIssue({ code: "custom", path: [l.discount_type === "percent" ? "discount_percent" : "discount_amount"], message: "bill.discountOverLimit" });
+        }
       } catch (e) {
         if (e instanceof LineError && e.message === "discount_exceeds_gross") {
           ctx.addIssue({ code: "custom", path: [l.discount_type === "percent" ? "discount_percent" : "discount_amount"], message: "bill.discountTooBig" });
@@ -53,12 +57,15 @@ const lineSchema = (taxInclusive: boolean) =>
       }
     });
 
-/** Draft bill / admin amend: at least one line; an amendment needs a reason. */
-export const billSchema = ({ taxInclusive, amend }: { taxInclusive: boolean; amend: boolean }) =>
+/**
+ * Draft bill / admin amend: at least one line; an amendment needs a reason. `maxDiscountBp`: reception's
+ * discount limit per line (null for an admin, who has none).
+ */
+export const billSchema = ({ taxInclusive, amend, maxDiscountBp = null }: { taxInclusive: boolean; amend: boolean; maxDiscountBp?: number | null }) =>
   z.object({
     doctor: optionalItem(),
     referred_by: optionalText(120),
-    lines: z.array(lineSchema(taxInclusive)).min(1, { error: "noRows" }).max(200, { error: "tooMany" }),
+    lines: z.array(lineSchema(taxInclusive, maxDiscountBp)).min(1, { error: "noRows" }).max(200, { error: "tooMany" }),
     reason: amend ? requiredReason(300) : z.unknown(),
   });
 

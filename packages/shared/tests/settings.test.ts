@@ -8,6 +8,7 @@ describe("settings", () => {
     expect(a.capacity_per_slot).toBe(3);
     expect(a.working_days).toEqual([1, 2, 3, 4, 5, 6]);
     expect(readSettings("billing", {}).receptionist_max_discount_bp).toBe(2000);
+    expect(readSettings("billing", {}).bargain_discount_bp).toBe(500);
   });
 
   it("keeps stored values and fills only what is missing", () => {
