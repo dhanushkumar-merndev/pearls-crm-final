@@ -105,7 +105,7 @@ test("a booking can be confirmed from the patient file", async ({ page }) => {
   await dialog.getByRole("radio").and(page.locator(":enabled")).first().click();
   await dialog.getByRole("button", { name: "Book", exact: true }).click();
   await expect(page.getByText(/Booked ✓/)).toBeVisible();
-  await page.getByRole("tab", { name: "Appointments" }).click();
+  await page.getByRole("tab", { name: "Care" }).click();
   await expect(page.getByText("Waiting for confirmation")).toBeVisible();
   await page.getByRole("button", { name: `Actions for ${name}` }).click();
   await page.getByRole("menuitem", { name: "Mark confirmed" }).click();

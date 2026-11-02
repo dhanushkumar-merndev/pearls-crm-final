@@ -2,12 +2,9 @@
 
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarCheck, CalendarPlus, GitMerge, Link2, MessageCircle, Pencil, Phone, Printer, Save, Unlink, Users } from "lucide-react";
-import { AppointmentActions, type ApptCard } from "@/components/appointments/appointment-actions";
 import { BookDialog } from "@/components/appointments/book-dialog";
-import { ApptStatusBadge } from "@/components/appointments/status";
 import { FollowupDialog } from "@/components/followups/followup-dialog";
-import { TreatmentsTab } from "@/components/treatments/treatments-tab";
-import { PatientAdmissionsTab } from "@/components/admissions/patient-admissions-tab";
+import { CareTab } from "@/components/care/care-tab";
 import { PatientBillsTab } from "@/components/bills/patient-bills-tab";
 import { DocumentsTab } from "@/components/scan/documents-tab";
 import { LoadMore } from "@/components/ui/load-more";
@@ -19,7 +16,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
-import { formatDate, formatDateTime, formatTime, PATIENT_SERVER_FIELDS, patientDraftSchema } from "@pearl/shared";
+import { formatDate, formatDateTime, PATIENT_SERVER_FIELDS, patientDraftSchema } from "@pearl/shared";
 import { draftFrom, PatientForm, type PatientDraft } from "@/components/patients/patient-form";
 import { PatientPicker, type PatientHit } from "@/components/patients/patient-picker";
 import { Button } from "@/components/ui/button";
@@ -33,7 +30,6 @@ import { TimelineEventLine, type TimelineItem } from "@/components/patients/time
 import { MoreMenu } from "@/components/ui/more-menu";
 import { Page, PageHeader } from "@/components/ui/page";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
 import { rpc } from "@/lib/rpc";
 import { useMe } from "@/lib/use-me";
 import { useUrlTab } from "@/lib/use-url-param";
@@ -62,7 +58,9 @@ export interface PatientHeader extends Record<string, unknown> {
 }
 
 /** One patient: header strip + tabs. Later phases add Appointments, Treatments, Bills, … */
-const PATIENT_TABS = ["overview", "appointments", "treatments", "ip", "bills", "documents", "whatsapp", "family", "timeline"] as const;
+// Owner, 02/11/2026: Appointments, Treatments and IP stays are one "Care" tab (what each bill is for).
+const PATIENT_TABS = ["overview", "care", "bills", "documents", "whatsapp", "family", "timeline"] as const;
+const OLD_TABS = { appointments: "care", treatments: "care", ip: "care" } as const;
 // Patient messages are reception's and the admin's: others never get the WhatsApp tab (or a ?tab=whatsapp link).
 const PATIENT_TABS_NO_WA = PATIENT_TABS.filter((x) => x !== "whatsapp");
 
@@ -81,7 +79,7 @@ export function PatientFile({ initial }: { initial: PatientHeader }) {
   // Patient messages are reception's (and the admin's) — Postgres checks the same.
   const canWhatsApp = me?.role === "receptionist" || me?.role === "admin";
   const tabs = canWhatsApp ? PATIENT_TABS : PATIENT_TABS_NO_WA;
-  const [tab, setTab] = useUrlTab(tabs, "overview");
+  const [tab, setTab] = useUrlTab(tabs, "overview", OLD_TABS);
 
   return (
     <Page>
@@ -161,14 +159,8 @@ export function PatientFile({ initial }: { initial: PatientHeader }) {
         <TabsContent value="overview">
           <Overview p={p} />
         </TabsContent>
-        <TabsContent value="appointments">
-          <Appointments patientId={p.id} />
-        </TabsContent>
-        <TabsContent value="treatments">
-          <TreatmentsTab patient={hit} />
-        </TabsContent>
-        <TabsContent value="ip">
-          <PatientAdmissionsTab patient={hit} />
+        <TabsContent value="care">
+          <CareTab patient={hit} />
         </TabsContent>
         <TabsContent value="bills">
           <PatientBillsTab patientId={p.id} />
@@ -394,57 +386,6 @@ function Family({ p }: { p: PatientHeader }) {
           {t("link")}
         </Button>
       </Card>
-    </div>
-  );
-}
-
-function Appointments({ patientId }: { patientId: string }) {
-  const t = useTranslations("patientFile");
-  const c = useTranslations("common");
-  const list = useInfiniteQuery({
-    queryKey: ["patient_appointments", patientId],
-    initialPageParam: null as string | null,
-    queryFn: ({ pageParam }) =>
-      rpc<{ items: (ApptCard & { appt_date: string })[]; next_cursor: string | null }>("patient_appointments", {
-        p_patient_id: patientId,
-        p_cursor: pageParam,
-      }),
-    getNextPageParam: (last) => last.next_cursor,
-  });
-  const items = list.data?.pages.flatMap((x) => x.items) ?? [];
-  return (
-    <div className="flex flex-col gap-3">
-      <Table>
-        <THead>
-          <tr>
-            <TH>{t("apptWhen")}</TH>
-            <TH>{t("apptDoctor")}</TH>
-            <TH>{c("status")}</TH>
-            <TH className="text-right">
-              <span className="sr-only">{c("actions")}</span>
-            </TH>
-          </tr>
-        </THead>
-        <tbody>
-          {list.isPending && <RowSkeletons asRow rows={3} cols={4} />}
-          {list.isSuccess && items.length === 0 && <EmptyRow colSpan={4}>{t("noAppointments")}</EmptyRow>}
-          {items.map((a) => (
-            <TR key={a.id}>
-              <TD className="whitespace-nowrap tabular-nums">
-                {formatDate(new Date(a.appt_date))} {a.slot_start ? formatTime(new Date(a.slot_start)) : t("walkIn")}
-              </TD>
-              <TD>{a.doctor ?? "—"}</TD>
-              <TD>
-                <ApptStatusBadge status={a.status} />
-              </TD>
-              <TD className="text-right">
-                <AppointmentActions appt={a} />
-              </TD>
-            </TR>
-          ))}
-        </tbody>
-      </Table>
-      <LoadMore hasMore={list.hasNextPage} loading={list.isFetchingNextPage} onClick={() => void list.fetchNextPage()} />
     </div>
   );
 }

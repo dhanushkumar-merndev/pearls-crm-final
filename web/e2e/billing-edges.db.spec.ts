@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { open, STATE, uniquePhone } from "./helpers";
+import { open, STATE, uniquePhone, newBill } from "./helpers";
 
 // W-ADM-30…34, W-REC-30…32: bills after finalizing, and pharmacy batches (TEST_CASES.md).
 test.skip(!process.env.E2E_DB, "needs the Supabase backend (E2E_DB=1)");
@@ -50,7 +50,7 @@ test.describe("admin", () => {
     test.setTimeout(90_000);
     await newPatient(page, `E2E Amend ${Date.now()}`);
     await page.getByRole("tab", { name: "Bills" }).click();
-    await page.getByRole("button", { name: "New bill" }).click();
+    await newBill(page, "New bill");
     await expect(page).toHaveURL(/\/bills\/[0-9a-f-]{36}$/);
     await page.getByRole("combobox", { name: "Service or item" }).first().click();
     await page.getByPlaceholder("Type to search…").fill("Consultation");
@@ -119,7 +119,7 @@ test.describe("reception pharmacy", () => {
 
     await newPatient(page, `E2E FEFO ${Date.now()}`);
     await page.getByRole("tab", { name: "Bills" }).click();
-    await page.getByRole("button", { name: "New pharmacy bill" }).click();
+    await newBill(page, "New pharmacy bill");
     await page.getByRole("combobox", { name: "Medicine" }).click();
     await page.getByPlaceholder("Type to search…").fill(medicine);
     await page.getByRole("option", { name: new RegExp(medicine) }).first().click();

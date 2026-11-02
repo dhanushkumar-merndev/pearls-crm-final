@@ -9,10 +9,17 @@ import { useCallback } from "react";
  * The address is replaced, not pushed: changing tabs adds no Back steps, and the server is not asked again
  * (Next keeps `useSearchParams` in step with `history.replaceState`).
  * A missing or unknown value reads as `fallback`; choosing `fallback` removes the key.
+ * `aliases` keep old links working when a choice is renamed or merged (e.g. `treatments` → `care`).
  */
-export function useUrlParam<T extends string>(key: string, fallback: T, isValid: (v: string) => v is T): [T, (v: T) => void] {
+export function useUrlParam<T extends string>(
+  key: string,
+  fallback: T,
+  isValid: (v: string) => v is T,
+  aliases?: Readonly<Record<string, T>>,
+): [T, (v: T) => void] {
   const params = useSearchParams();
-  const raw = params.get(key);
+  const given = params.get(key);
+  const raw = given !== null && aliases && Object.hasOwn(aliases, given) ? aliases[given]! : given;
   const value = raw !== null && isValid(raw) ? raw : fallback;
   const set = useCallback(
     (v: T) => {
@@ -28,9 +35,13 @@ export function useUrlParam<T extends string>(key: string, fallback: T, isValid:
 }
 
 /** The open tab of a tabbed page, kept in `?tab=` (see `useUrlParam`). */
-export function useUrlTab<T extends string>(tabs: readonly T[], fallback: T): [T, (v: string) => void] {
+export function useUrlTab<T extends string>(
+  tabs: readonly T[],
+  fallback: T,
+  aliases?: Readonly<Record<string, T>>,
+): [T, (v: string) => void] {
   const isTab = useCallback((v: string): v is T => (tabs as readonly string[]).includes(v), [tabs]);
-  const [tab, setTab] = useUrlParam<T>("tab", fallback, isTab);
+  const [tab, setTab] = useUrlParam<T>("tab", fallback, isTab, aliases);
   const choose = useCallback((v: string) => { if (isTab(v)) setTab(v); }, [isTab, setTab]);
   return [tab, choose];
 }

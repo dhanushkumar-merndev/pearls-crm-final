@@ -2,11 +2,12 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CircleX, IndianRupee, Pencil, Printer, Wallet } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { formatDateTime, formatINR } from "@pearl/shared";
 import { BillEditor } from "@/components/bills/bill-editor";
+import { useBillForLabel } from "@/components/bills/bill-for";
 import { FinalizeDialog } from "@/components/bills/finalize-dialog";
 import { PaymentDialog } from "@/components/bills/payment-dialog";
 import { payable, type Bill } from "@/components/bills/types";
@@ -36,6 +37,10 @@ export function BillScreen({ initial }: { initial: Bill }) {
   const t = useTranslations("bill");
   const me = useMe();
   const router = useRouter();
+  const forLabel = useBillForLabel();
+  // Opened from a visit or the patient's Care tab: Back returns there (only paths inside this app).
+  const backParam = useSearchParams().get("back");
+  const back = backParam && backParam.startsWith("/") && !backParam.startsWith("//") ? backParam : null;
   const bill = useQuery({ queryKey: ["bill", initial.id], initialData: initial, queryFn: () => rpc<Bill>("get_bill", { p_bill_id: initial.id }) });
   const b = bill.data;
   const [amending, setAmending] = useState(false);
@@ -58,7 +63,7 @@ export function BillScreen({ initial }: { initial: Bill }) {
   return (
     <Page>
       <DetailHeader
-        back={{ href: `/patients/${b.patient_id}`, label: t("backTo", { name: b.patient }) }}
+        back={{ href: back ?? `/patients/${b.patient_id}${b.for && Object.keys(b.for).length ? "?tab=care" : "?tab=bills"}`, label: back ? t("back") : t("backTo", { name: b.patient }) }}
         title={
           <>
             {t(`type.${b.bill_type}`)} {b.bill_no && <span className="tabular-nums">· {b.bill_no}</span>}
@@ -69,6 +74,11 @@ export function BillScreen({ initial }: { initial: Bill }) {
           <>
             {b.patient} · {b.uhid}
             {b.bill_at && ` · ${formatDateTime(new Date(b.bill_at))}`}
+            {forLabel(b.for) && (
+              <span className="mt-1 block font-medium text-foreground" data-testid="bill-for">
+                {t("forLine", { what: forLabel(b.for)! })}
+              </span>
+            )}
           </>
         }
       />

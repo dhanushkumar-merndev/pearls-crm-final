@@ -1,13 +1,16 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarPlus, Check, CirclePlus, FilePlus2, FileText, Pencil, Play, Save, Trash2, Undo2, UserX } from "lucide-react";
+import { CalendarPlus, Check, CirclePlus, FilePlus2, FileText, Loader2, Pencil, Play, Receipt, Save, Trash2, Undo2, UserX, Wallet } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import type { z } from "zod";
 import { toast } from "sonner";
 import { formatDate, formatINR, formatTime, istDateString } from "@pearl/shared";
 import { BookDialog } from "@/components/appointments/book-dialog";
+import { BillChip, type BillChipData } from "@/components/bills/bill-for";
+import { PaymentDialog } from "@/components/bills/payment-dialog";
 import { MoneyInput } from "@/components/forms/money-input";
 import { LibraryCombobox, type LibraryItem } from "@/components/library-combobox";
 import type { PatientHit } from "@/components/patients/patient-picker";
@@ -38,6 +41,8 @@ interface Session {
   slot_start: string | null;
   /** Prescriptions and other scans saved on this session. */
   documents?: { id: string; title: string; file_id: string }[];
+  /** Bills made for this session (or its booking's visit). */
+  bills?: BillChipData[];
 }
 export interface Treatment {
   id: string;
@@ -57,18 +62,26 @@ export interface Treatment {
   version: number;
   sessions: Session[];
   done_count: number;
+  /** Money of the treatment: finalized bills, payments on them + unused part payments, still to pay. */
+  billed_paise?: number;
+  paid_paise?: number;
+  due_paise?: number;
+  /** Bills for the treatment as a whole (package bill, final bill). */
+  bills?: BillChipData[];
 }
 
 const SESSION_KIND: Record<SessionStatus, StatusKind> = { planned: "warning", booked: "good", done: "good", missed: "critical", skipped: "serious" };
 const TREATMENT_KIND: Record<TreatmentStatus, StatusKind> = { active: "good", on_hold: "warning", completed: "good", closed: "serious", cancelled: "serious" };
 
-/** Patient file → Treatments: parallel treatments, each with its planned sessions. */
+/** Patient file → Care: parallel treatments, each with its sessions, their prescriptions and bills, and its money. */
 export function TreatmentsTab({ patient }: { patient: PatientHit }) {
   const t = useTranslations("treatments");
   const [starting, setStarting] = useState(false);
   const list = useQuery({
     queryKey: ["patient_treatments", patient.id],
     queryFn: () => rpc<Treatment[]>("patient_treatments_list", { p_patient_id: patient.id }),
+    // Bills and payments made on other pages change it: always fresh when the tab opens.
+    staleTime: 0,
   });
   return (
     <div className="flex flex-col gap-4">
@@ -91,8 +104,25 @@ export function TreatmentsTab({ patient }: { patient: PatientHit }) {
 function TreatmentCard({ treatment: tr, patient }: { treatment: Treatment; patient: PatientHit }) {
   const t = useTranslations("treatments");
   const queryClient = useQueryClient();
+  const l = useTranslations("library");
+  const router = useRouter();
   const { failed } = useFeedback();
-  const [dialog, setDialog] = useState<{ kind: "edit" } | { kind: "remove"; session: Session } | { kind: "book"; session: Session } | null>(null);
+  const [dialog, setDialog] = useState<
+    { kind: "edit" } | { kind: "remove"; session: Session } | { kind: "book"; session: Session } | { kind: "pay" } | null
+  >(null);
+  const back = `/patients/${patient.id}?tab=care`;
+  // "Bill" on a session: a procedure bill already linked to it (and its treatment, visit, doctor).
+  const [billing, setBilling] = useState<string | null>(null);
+  const makeBill = useMutation({
+    mutationFn: (session: Session) =>
+      rpc<{ id: string }>("create_bill", { p_type: "procedure_receipt", p_patient_id: patient.id, p_links: { session_id: session.id }, p_client_id: newId() }),
+    onMutate: (session) => setBilling(session.id),
+    onSuccess: (b) => router.push(`/bills/${b.id}?back=${encodeURIComponent(back)}`),
+    onError: (e) => {
+      setBilling(null);
+      failed(e);
+    },
+  });
   // The scanner has its own dialog (it must not close on a stray click while pages are in it).
   const [scanFor, setScanFor] = useState<Session | null>(null);
   const openDoc = async (fileId: string) => {
@@ -148,17 +178,39 @@ function TreatmentCard({ treatment: tr, patient }: { treatment: Treatment; patie
               tr.doctor,
               t(tr.pricing === "package" ? "packagePrice" : "perSession", { price: formatINR(tr.package_price_paise) }),
               tr.agreed_price_paise !== null ? t("agreed", { price: formatINR(tr.agreed_price_paise) }) : null,
+              l(`treatmentCategory.${tr.category}`),
             ]
               .filter(Boolean)
               .join(" · ")}
           </p>
         </div>
         <StatusBadge kind={TREATMENT_KIND[tr.status]} label={t(`status.${tr.status}`)} />
+        {open && tr.pricing === "package" && (
+          <Button variant="secondary" onClick={() => setDialog({ kind: "pay" })}>
+            <Wallet aria-hidden />
+            {t("partPayment")}
+          </Button>
+        )}
         <Button variant="secondary" onClick={() => setDialog({ kind: "edit" })}>
           <Pencil aria-hidden />
           {t("edit")}
         </Button>
       </div>
+      {tr.billed_paise !== undefined && (tr.billed_paise > 0 || (tr.paid_paise ?? 0) > 0 || tr.agreed_price_paise !== null) && (
+        <p className="flex flex-wrap gap-x-4 gap-y-1 text-[0.95rem]" data-testid="treatment-money">
+          <span>{t("money.billed", { amount: formatINR(tr.billed_paise ?? 0) })}</span>
+          <span>{t("money.paid", { amount: formatINR(tr.paid_paise ?? 0) })}</span>
+          <span className={tr.due_paise ? "font-semibold text-bad-text" : "text-good-text"}>
+            {tr.due_paise ? t("money.due", { amount: formatINR(tr.due_paise) }) : t("money.nothingDue")}
+          </span>
+        </p>
+      )}
+      {(tr.bills ?? []).length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[0.9rem] text-text-secondary">{t("treatmentBills")}</span>
+          {tr.bills!.map((b) => <BillChip key={b.id} bill={b} back={back} />)}
+        </div>
+      )}
       <ol className="flex flex-col gap-1.5">
         {tr.sessions.map((s) => (
           <li key={s.id} className="flex flex-wrap items-center gap-2 rounded-xl border border-border px-3 py-2">
@@ -176,11 +228,18 @@ function TreatmentCard({ treatment: tr, patient }: { treatment: Treatment; patie
                 {d.title}
               </Button>
             ))}
+            {(s.bills ?? []).map((b) => <BillChip key={b.id} bill={b} back={back} />)}
             <StatusBadge kind={SESSION_KIND[s.status]} label={t(`session.${s.status}`)} />
             {(s.status === "done" || s.status === "booked") && (
               <Button variant="ghost" onClick={() => setScanFor(s)} aria-label={t("addPrescriptionFor", { n: s.seq })}>
                 <FilePlus2 aria-hidden />
                 {t("prescription")}
+              </Button>
+            )}
+            {(s.status === "done" || s.status === "booked") && (
+              <Button variant="ghost" disabled={makeBill.isPending} onClick={() => makeBill.mutate(s)} aria-label={t("billFor", { n: s.seq })}>
+                {billing === s.id ? <Loader2 aria-hidden className="animate-spin" /> : <Receipt aria-hidden />}
+                {t("bill")}
               </Button>
             )}
             {open && (s.status === "planned" || s.status === "missed") && (
@@ -225,6 +284,9 @@ function TreatmentCard({ treatment: tr, patient }: { treatment: Treatment; patie
       <Dialog open={dialog !== null} onOpenChange={(o) => !o && setDialog(null)}>
         {dialog?.kind === "edit" && <EditDialog treatment={tr} onDone={() => (setDialog(null), refresh())} />}
         {dialog?.kind === "remove" && <RemoveDialog session={dialog.session} onDone={() => (setDialog(null), refresh())} />}
+        {dialog?.kind === "pay" && (
+          <PaymentDialog patientId={patient.id} forTreatment={{ id: tr.id, name: tr.name }} onDone={() => (setDialog(null), refresh())} />
+        )}
         {dialog?.kind === "book" && (
           <BookDialog
             patient={patient}

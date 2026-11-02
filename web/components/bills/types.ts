@@ -1,4 +1,5 @@
 import type { DiscountType } from "@pearl/shared";
+import type { BillFor } from "./bill-for";
 
 export type BillType = "procedure_receipt" | "pharmacy_invoice" | "final_bill";
 export type BillStatus = "draft" | "finalized" | "cancelled";
@@ -52,6 +53,8 @@ export interface Bill {
   admission_id: string | null;
   ip_number?: string | null;
   carried_bills?: { id: string; bill_no: string | null; bill_type: BillType; total_paise: number }[];
+  /** What the bill is for (treatment session, visit, IP stay). */
+  for?: BillFor;
   tax_inclusive: boolean;
   gross_paise: number;
   discount_paise: number;

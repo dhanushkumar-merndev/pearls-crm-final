@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { open, STATE, uniquePhone } from "./helpers";
+import { open, STATE, uniquePhone, newBill } from "./helpers";
 
 // Phase 5: a receipt from blank to printed. Needs a backend (E2E_DB=1).
 test.skip(!process.env.E2E_DB, "needs the Supabase backend (E2E_DB=1)");
@@ -15,7 +15,7 @@ test("receipt: new service on the fly, split payment, original then duplicate pr
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(name);
 
   await page.getByRole("tab", { name: "Bills" }).click();
-  await page.getByRole("button", { name: "New bill" }).click();
+  await newBill(page, "New bill");
   await expect(page).toHaveURL(/\/bills\/[0-9a-f-]{36}$/);
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Procedure receipt");
 

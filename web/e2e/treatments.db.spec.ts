@@ -13,7 +13,7 @@ test("6-session laser package: start, do every session, completed", async ({ pag
   await page.getByRole("button", { name: "Save patient" }).first().click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(name);
 
-  await page.getByRole("tab", { name: "Treatments" }).click();
+  await page.getByRole("tab", { name: "Care" }).click();
   await page.getByRole("button", { name: "Start treatment" }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByRole("combobox", { name: "Treatment" }).click();

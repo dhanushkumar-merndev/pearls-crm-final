@@ -25,7 +25,7 @@ test("IP stay: add several charges at once from the stay page, see the total, fi
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(name);
   const patientUrl = page.url();
 
-  await page.getByRole("tab", { name: "IP stays" }).click();
+  await page.getByRole("tab", { name: "Care" }).click();
   await page.getByRole("button", { name: "Admit", exact: true }).click();
   const admit = page.getByRole("dialog");
   await pick(page, admit.getByRole("combobox", { name: "Room type" }), "Semi", /Semi deluxe room/);

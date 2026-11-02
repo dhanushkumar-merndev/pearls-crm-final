@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { choose, open, STATE, uniquePhone } from "./helpers";
+import { choose, open, STATE, uniquePhone, newBill } from "./helpers";
 
 // W-REC-10…22: the front desk's lists and money edges (TEST_CASES.md).
 test.skip(!process.env.E2E_DB, "needs the Supabase backend (E2E_DB=1)");
@@ -131,7 +131,7 @@ test("a receptionist's discount above the limit is refused; within it the bill i
   const stamp = Date.now();
   await newPatient(page, `E2E Discount ${stamp}`);
   await page.getByRole("tab", { name: "Bills" }).click();
-  await page.getByRole("button", { name: "New bill" }).click();
+  await newBill(page, "New bill");
   await expect(page).toHaveURL(/\/bills\/[0-9a-f-]{36}$/);
   await expect(page.getByText("Discounts above your limit need an admin.")).toBeVisible();
 

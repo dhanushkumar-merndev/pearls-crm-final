@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { open, selectAs, STATE, uniquePhone } from "./helpers";
+import { open, selectAs, STATE, uniquePhone, newBill } from "./helpers";
 
 // W-PRN-01…08: the printed bill cum receipt (TEST_CASES.md). Everything on the letterhead and the
 // terms comes from Admin → Clinic profile, so the test reads clinic_settings and compares.
@@ -24,7 +24,7 @@ test("bill cum receipt: letterhead and terms from the clinic profile, empty colu
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(name);
 
   await page.getByRole("tab", { name: "Bills" }).click();
-  await page.getByRole("button", { name: "New bill" }).click();
+  await newBill(page, "New bill");
   await expect(page).toHaveURL(/\/bills\/[0-9a-f-]{36}$/);
   const service = `E2E Print Service ${stamp}`;
   await page.getByRole("combobox", { name: "Service or item" }).first().click();

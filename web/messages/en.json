@@ -988,7 +988,8 @@
       "treatments": "Treatments",
       "bills": "Bills",
       "ip": "IP stays",
-      "whatsapp": "WhatsApp"
+      "whatsapp": "WhatsApp",
+      "care": "Care"
     },
     "estimated": "{date} (estimated)",
     "given": "Given",
@@ -1564,7 +1565,17 @@
     "prescription": "Prescription",
     "addPrescription": "Add prescription",
     "addPrescriptionFor": "Add prescription for session {n}",
-    "openDoc": "Open {title} (session {n})"
+    "openDoc": "Open {title} (session {n})",
+    "partPayment": "Part payment",
+    "bill": "Bill",
+    "billFor": "Make a bill for session {n}",
+    "treatmentBills": "Bills for the whole treatment:",
+    "money": {
+      "billed": "Billed {amount}",
+      "paid": "Paid {amount}",
+      "due": "Still to pay {amount}",
+      "nothingDue": "Nothing to pay"
+    }
   },
   "sessionsDue": {
     "title": "Sessions to book",
@@ -1687,7 +1698,9 @@
     "chargesAdded": "Charges added",
     "carriedFromBill": "from bill {no}",
     "alreadyReceived": "Already received on the included bills: {amount}. Still due: {due}.",
-    "advanceTooMuch": "That is more than the advance available or the amount due."
+    "advanceTooMuch": "That is more than the advance available or the amount due.",
+    "back": "Back",
+    "forLine": "For: {what}"
   },
   "payment": {
     "title": "Advance or refund",
@@ -1714,7 +1727,12 @@
       "payment": "Payment of {amount} saved",
       "advance": "Advance of {amount} saved",
       "refund": "Refund of {amount} saved"
-    }
+    },
+    "titleTreatment": "Part payment for {name}",
+    "for": "For",
+    "forHint": "A part payment for a package counts towards that treatment and its final bill.",
+    "forGeneral": "Nothing in particular (kept for later bills)",
+    "forTreatment": "Package: {name}"
   },
   "bills": {
     "title": "Bills",
@@ -1738,7 +1756,8 @@
       "total": "Total",
       "received": "Received",
       "balance": "Balance",
-      "status": "Status"
+      "status": "Status",
+      "for": "For"
     },
     "newBill": "New bill (procedure / surgery)",
     "advanceOrRefund": "Advance / refund",
@@ -3711,5 +3730,42 @@
       "notFinished": "Stopped early (a lot to bring in). Press Import again to carry on.",
       "failed": "Couldn't finish: {reason}"
     }
+  },
+  "care": {
+    "treatments": "Treatments and surgeries",
+    "treatmentsHint": "Each treatment with its sessions. Every session shows its prescription and bill, and the treatment shows what is billed, paid and still due.",
+    "stays": "IP stays",
+    "visits": "Visits and bookings",
+    "visitsHint": "Every booking, newest first, with what it was for, its prescriptions and its bills.",
+    "for": "For",
+    "consultation": "Consultation",
+    "rxAndBills": "Prescriptions and bills",
+    "openDoc": "Open {title}",
+    "billVisit": "Make a bill for the visit on {date}"
+  },
+  "billFor": {
+    "session": "{treatment} · Session {n}",
+    "visit": "Visit {date}",
+    "stay": "IP stay {ip}",
+    "draft": "Draft",
+    "paid": "Paid",
+    "due": "Due {amount}",
+    "open": "Open bill {no} ({type})"
+  },
+  "newBill": {
+    "title": "New bill (procedure / surgery)",
+    "titlePharmacy": "New pharmacy bill",
+    "description": "Choose what this bill is for, so it shows on that visit, session or IP stay.",
+    "for": "What is this bill for?",
+    "choose": "Choose…",
+    "loading": "Loading…",
+    "consultation": "Consultation",
+    "visitOption": "Visit {date} · {what} · {doctor}",
+    "sessionOption": "{what} (done {date})",
+    "treatmentOption": "{name} (whole treatment)",
+    "stayOption": "IP stay {ip}",
+    "none": "Nothing in particular",
+    "make": "Make bill",
+    "cancel": "Cancel"
   }
 }

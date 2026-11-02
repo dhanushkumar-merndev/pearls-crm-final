@@ -33,7 +33,7 @@ test("treatment session: Add prescription saves it on that session", async ({ pa
   await page.getByRole("button", { name: "Save patient" }).first().click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(name, { timeout: 30_000 });
 
-  await page.getByRole("tab", { name: "Treatments" }).click();
+  await page.getByRole("tab", { name: "Care" }).click();
   await page.getByRole("button", { name: "Start treatment" }).click();
   const start = page.getByRole("dialog");
   await start.getByRole("combobox", { name: "Treatment" }).click();

@@ -95,6 +95,8 @@ export const paymentSchema = (outstanding: number | null) =>
       amount: requiredPaise(1),
       reference: optionalText(80),
       note: optionalText(300),
+      /** An advance for one treatment (a package part payment), or "" for none. */
+      treatment: z.union([z.literal(""), z.uuid({ error: "choose" })]).default(""),
     })
     .superRefine((d, ctx) => {
       if (d.kind === "payment" && outstanding !== null && d.amount > outstanding) {
@@ -105,3 +107,19 @@ export const paymentSchema = (outstanding: number | null) =>
 /** Use the patient's advance on a bill: more than ₹0, at most what is due and what is available. */
 export const applyAdvanceSchema = (max: number) =>
   z.object({ amount: requiredPaise(1).refine((v) => v <= max, { error: "bill.advanceTooMuch" }) });
+
+/**
+ * "What is this bill for?" before a new bill: a visit (`appointment:<id>`), a session done without a
+ * booking (`session:<id>`), a whole treatment (`treatment:<id>`), an IP stay (`admission:<id>`), or `none`.
+ */
+export const billTargetSchema = z.object({
+  target: z.string().regex(/^(none|(appointment|session|treatment|admission):[0-9a-f-]{36})$/, { error: "choose" }),
+});
+export type BillTarget = z.infer<typeof billTargetSchema>["target"];
+
+/** The create_bill links for a chosen target. */
+export function billTargetLinks(target: BillTarget): Record<string, string> {
+  if (target === "none") return {};
+  const [kind, id] = target.split(":") as [string, string];
+  return { [`${kind}_id`]: id };
+}

@@ -1,20 +1,18 @@
 "use client";
 
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { FilePlus2, Loader2, Pill, Wallet } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import { FilePlus2, Pill, Wallet } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { formatINR } from "@pearl/shared";
 import { StatTile } from "@/components/kpi/stat-tile";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
-import { newId, rpc } from "@/lib/rpc";
-import { useFeedback } from "@/lib/use-feedback";
+import { rpc } from "@/lib/rpc";
 import { BillsTable } from "./bills-table";
+import { NewBillDialog } from "./new-bill-dialog";
 import { PaymentDialog } from "./payment-dialog";
 import { PaymentHistory } from "./payment-history";
-import type { Bill } from "./types";
 
 interface Balance {
   billed_paise: number;
@@ -23,26 +21,14 @@ interface Balance {
   advance_paise: number;
 }
 
-/** Patient file → Bills: balance, new bill, advance/refund, the patient's bills. */
+/** Patient file → Bills: balance, new bill (first: what is it for?), advance/refund, the patient's bills. */
 export function PatientBillsTab({ patientId }: { patientId: string }) {
   const t = useTranslations("bills");
-  const router = useRouter();
-  const { failed } = useFeedback();
   const [paying, setPaying] = useState(false);
+  const [making, setMaking] = useState<"procedure_receipt" | "pharmacy_invoice" | null>(null);
   const balance = useQuery({
     queryKey: ["patient_balance", patientId],
     queryFn: () => rpc<Balance>("patient_balance", { p_patient_id: patientId }),
-  });
-  // Which new bill is being made: its button spins until the bill page opens (a slow day can take seconds).
-  const [making, setMaking] = useState<"procedure_receipt" | "pharmacy_invoice" | null>(null);
-  const create = useMutation({
-    mutationFn: (type: "procedure_receipt" | "pharmacy_invoice") => rpc<Bill>("create_bill", { p_type: type, p_patient_id: patientId, p_links: {}, p_client_id: newId() }),
-    onMutate: (type) => setMaking(type),
-    onSuccess: (b) => router.push(`/bills/${b.id}`),
-    onError: (e) => {
-      setMaking(null);
-      failed(e);
-    },
   });
   const b = balance.data;
   // Balance due = what finalized bills still owe (same as each bill's page). An unused advance is
@@ -56,12 +42,12 @@ export function PatientBillsTab({ patientId }: { patientId: string }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap gap-2">
-        <Button disabled={making !== null} onClick={() => create.mutate("procedure_receipt")}>
-          {making === "procedure_receipt" ? <Loader2 aria-hidden className="animate-spin" /> : <FilePlus2 aria-hidden />}
+        <Button onClick={() => setMaking("procedure_receipt")}>
+          <FilePlus2 aria-hidden />
           {t("newBill")}
         </Button>
-        <Button variant="secondary" disabled={making !== null} onClick={() => create.mutate("pharmacy_invoice")}>
-          {making === "pharmacy_invoice" ? <Loader2 aria-hidden className="animate-spin" /> : <Pill aria-hidden />}
+        <Button variant="secondary" onClick={() => setMaking("pharmacy_invoice")}>
+          <Pill aria-hidden />
           {t("newPharmacyBill")}
         </Button>
         <Button variant="secondary" onClick={() => setPaying(true)}>
@@ -84,6 +70,9 @@ export function PatientBillsTab({ patientId }: { patientId: string }) {
       )}
       <BillsTable patientId={patientId} />
       <PaymentHistory patientId={patientId} />
+      <Dialog open={making !== null} onOpenChange={(o) => !o && setMaking(null)}>
+        {making && <NewBillDialog patientId={patientId} type={making} onDone={() => setMaking(null)} />}
+      </Dialog>
       <Dialog open={paying} onOpenChange={setPaying}>
         {paying && <PaymentDialog patientId={patientId} onDone={() => (setPaying(false), void balance.refetch(), void dues.refetch())} />}
       </Dialog>

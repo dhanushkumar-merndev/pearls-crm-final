@@ -18,6 +18,7 @@ import { downloadExcel } from "@/lib/excel";
 import { rpc } from "@/lib/rpc";
 import { useFeedback } from "@/lib/use-feedback";
 import { useDateRangeCheck } from "@/lib/use-date-range";
+import { useBillForLabel, type BillFor } from "./bill-for";
 import type { BillStatus, BillType } from "./types";
 
 interface Row {
@@ -32,6 +33,8 @@ interface Row {
   patient_id: string;
   patient: string;
   uhid: string;
+  /** What the bill is for (treatment session, visit, IP stay). */
+  for?: BillFor;
 }
 interface Page {
   total: number;
@@ -49,6 +52,7 @@ function startFilters() {
 export function BillsTable({ patientId }: { patientId?: string }) {
   const t = useTranslations("bills");
   const b = useTranslations("bill");
+  const forLabel = useBillForLabel();
   const { failed } = useFeedback();
   const [filters, setFilters] = useState(startFilters);
   const start = startFilters();
@@ -86,13 +90,14 @@ export function BillsTable({ patientId }: { patientId?: string }) {
       }
       await downloadExcel(
         `bills-${filters.from}-to-${filters.to}.xlsx`,
-        [t("col.no"), t("col.date"), t("col.type"), t("col.patient"), "UHID", t("col.status"), t("col.total"), t("col.received"), t("col.balance")],
+        [t("col.no"), t("col.date"), t("col.type"), t("col.patient"), "UHID", t("col.for"), t("col.status"), t("col.total"), t("col.received"), t("col.balance")],
         rows.map((r) => [
           r.bill_no ?? "",
           formatDate(new Date(r.bill_at ?? r.created_at)),
           b(`type.${r.bill_type}`),
           r.patient,
           r.uhid,
+          forLabel(r.for) ?? "",
           b(`status.${r.status}`),
           r.total_paise / 100,
           r.received_paise / 100,
@@ -158,14 +163,15 @@ export function BillsTable({ patientId }: { patientId?: string }) {
             <TH>{t("col.no")}</TH>
             <TH>{t("col.date")}</TH>
             {!patientId && <TH>{t("col.patient")}</TH>}
+            <TH>{t("col.for")}</TH>
             <TH>{t("col.status")}</TH>
             <TH className="text-right">{t("col.total")}</TH>
             <TH className="text-right">{t("col.balance")}</TH>
           </tr>
         </THead>
         <tbody>
-          {list.isPending && <RowSkeletons asRow rows={3} cols={6} />}
-          {list.data?.rows.length === 0 && <EmptyRow colSpan={6}>{t("none")}</EmptyRow>}
+          {list.isPending && <RowSkeletons asRow rows={3} cols={7} />}
+          {list.data?.rows.length === 0 && <EmptyRow colSpan={7}>{t("none")}</EmptyRow>}
           {list.data?.rows.map((r) => (
             <TR key={r.id}>
               <TD>
@@ -183,6 +189,7 @@ export function BillsTable({ patientId }: { patientId?: string }) {
                   <span className="block text-[0.9rem] text-text-secondary">{r.uhid}</span>
                 </TD>
               )}
+              <TD className="text-[0.9rem]">{forLabel(r.for) ?? <span className="text-text-secondary">—</span>}</TD>
               <TD>
                 <StatusBadge kind={r.status === "finalized" ? "good" : r.status === "draft" ? "warning" : "critical"} label={b(`status.${r.status}`)} />
               </TD>

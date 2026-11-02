@@ -27,7 +27,7 @@ test("IP stay: final bill without double counting, discharge summary with the ri
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(name);
 
   // Admit with a room, a surgeon and the operation details.
-  await page.getByRole("tab", { name: "IP stays" }).click();
+  await page.getByRole("tab", { name: "Care" }).click();
   await page.getByRole("button", { name: "Admit", exact: true }).click();
   const admit = page.getByRole("dialog");
   await pick(page, admit.getByRole("combobox", { name: "Room type" }), "Semi", /Semi deluxe room/);

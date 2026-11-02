@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { choose, open, STATE, uniquePhone } from "./helpers";
+import { choose, open, STATE, uniquePhone, newBill } from "./helpers";
 
 // Phase 6: buy in → sell from the FEFO batch → stock and ledger follow. Needs a backend (E2E_DB=1).
 test.skip(!process.env.E2E_DB, "needs the Supabase backend (E2E_DB=1)");
@@ -41,7 +41,7 @@ test("purchase a new medicine, sell 3 on a pharmacy bill, write off 1", async ({
   await page.getByRole("button", { name: "Save patient" }).first().click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(name);
   await page.getByRole("tab", { name: "Bills" }).click();
-  await page.getByRole("button", { name: "New pharmacy bill" }).click();
+  await newBill(page, "New pharmacy bill");
   // Makes the bill on the server, then opens its page.
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Pharmacy invoice", { timeout: 30_000 });
   // A slow server: the medicine's batches take 3 s. Qty and Finalize straight after the pick must
