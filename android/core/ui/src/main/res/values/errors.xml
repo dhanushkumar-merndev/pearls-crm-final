@@ -49,6 +49,7 @@
     <string name="error_outside_window">They haven\'t written in the last 24 hours, so WhatsApp only allows an approved template. Choose a template, or open WhatsApp on your phone.</string>
     <string name="error_not_configured">This connection isn\'t set up yet. The setup guide in dev-docs explains the keys to add.</string>
     <string name="error_whatsapp_api">WhatsApp (Meta) refused the request. Check the WhatsApp keys, then try again.</string>
+    <string name="error_templates_off">Template messages are switched off (Admin → WhatsApp → Template messages).</string>
     <string name="error_outside_office">You\'re not at the office yet. Start the day when you reach the office (or ask the admin to allow starting anywhere).</string>
     <string name="error_selfie_required">Take a selfie to start the day.</string>
     <string name="error_day_not_started">Start your day first.</string>
@@ -58,5 +59,7 @@
     <string name="error_not_backed_up">Some of these files have no checked backup yet. Back them up first (Backup centre), then purge.</string>
     <string name="error_not_purgeable">Only recordings and visit photos can be removed from the cloud. Patient records are always kept.</string>
     <string name="error_followup_in_past">The next call time has already passed. Choose now or a later time.</string>
+    <string name="error_reminder_not_upcoming">A reminder can only be sent before the visit.</string>
+    <string name="error_no_reminder_template">No approved reminder message is set up. Admin → WhatsApp → Templates: give one the purpose “Booking reminder”.</string>
     <string name="error_unknown">Something went wrong. Please try again.</string>
 </resources>

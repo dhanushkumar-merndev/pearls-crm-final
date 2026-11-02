@@ -36,7 +36,7 @@ delete from public.lead_pool;
 insert into public.app_settings (section, value) values ('sales', '{"round_robin": true}')
   on conflict (section) do update set value = public.app_settings.value || '{"round_robin": true}';
 insert into public.lead_pool (staff_id, active, sort) values ('26262626-0000-4000-a000-0000000000c1', true, 1);
-insert into public.app_settings (section, value) values ('whatsapp', '{"enabled": true}')
+insert into public.app_settings (section, value) values ('whatsapp', '{"enabled": true, "templates_enabled": true}')
   on conflict (section) do update set value = public.app_settings.value || excluded.value;
 update public.wa_templates set active = false where purpose = 'lead_welcome';
 insert into public.wa_templates (id, name, language, category, status, body_text, param_count, purpose, variable_map) values

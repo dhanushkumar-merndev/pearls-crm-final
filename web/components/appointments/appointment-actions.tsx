@@ -108,6 +108,28 @@ export function AppointmentActions({ appt, onChanged }: { appt: ApptCard; onChan
         doctor: appt.doctor ?? "",
       })
     : "";
+  // Reminder through the clinic's own WhatsApp (it shows in their chat). Only when the Cloud API is
+  // off or this person is messaged by hand does it open WhatsApp with the text (and log it).
+  const [reminderId, setReminderId] = useState(newId);
+  const remind = useMutation({
+    mutationFn: () =>
+      rpc<{ manual: boolean; phone_e164: string; body: string }>("wa_send_reminder", {
+        p_appointment_id: appt.id,
+        p_text: message,
+        p_client_id: reminderId,
+      }),
+    onSuccess: (r) => {
+      setReminderId(newId());
+      if (r.manual) {
+        window.open(waLink(r.phone_e164, r.body), "_blank", "noopener,noreferrer");
+        saved(t("reminderOpened"));
+      } else saved(t("reminderSent"));
+      void queryClient.invalidateQueries({ queryKey: ["wa_thread"] });
+      void queryClient.invalidateQueries({ queryKey: ["wa_inbox"] });
+    },
+    onError: failed,
+  });
+  const canRemind = reception || (sales && !!appt.lead_only && !!appt.lead_id);
 
   return (
     <>
@@ -164,12 +186,10 @@ export function AppointmentActions({ appt, onChanged }: { appt: ApptCard; onChan
           )}
           <DropdownMenuSeparator />
           {/* A reminder only makes sense before the visit: not once arrived, done, no-show or cancelled. */}
-          {appt.phone && message && (appt.status === "pending_confirmation" || appt.status === "confirmed") && (
-            <DropdownMenuItem asChild>
-              <a href={waLink(appt.phone, message)} target="_blank" rel="noopener noreferrer">
-                <MessageCircle aria-hidden />
-                {t("whatsapp")}
-              </a>
+          {canRemind && appt.phone && message && (appt.status === "pending_confirmation" || appt.status === "confirmed") && (
+            <DropdownMenuItem disabled={remind.isPending} onSelect={() => remind.mutate()}>
+              <MessageCircle aria-hidden />
+              {t("whatsapp")}
             </DropdownMenuItem>
           )}
           {appt.patient_id && reception && visited && (

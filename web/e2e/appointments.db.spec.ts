@@ -21,7 +21,7 @@ async function newPatient(page: Page, name: string) {
   await page.getByLabel("Full name").fill(name);
   await page.getByLabel("Mobile number").fill(uniquePhone());
   await page.getByRole("button", { name: "Save patient" }).first().click();
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(name);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(name, { timeout: 30_000 }); // staging is slow under load
 }
 
 async function pickPatient(page: Page, name: string) {
@@ -58,6 +58,29 @@ test("book from the board; a second desk sees it live", async ({ page, browser }
   await page.getByRole("link", { name, exact: true }).first().click();
   await expect(page).toHaveURL(/\/patients\/[0-9a-f-]{36}/);
   await expect(page.getByRole("heading", { name })).toBeVisible();
+});
+
+test("WhatsApp reminder goes through the clinic's WhatsApp, never the staff's own", async ({ page, context }) => {
+  const name = `E2E Remind ${Date.now()}`;
+  await newPatient(page, name);
+  const day = aMonday();
+  await openBoard(page, day);
+  await page.getByRole("button", { name: /^Book .+ with Dr Priya/ }).first().click();
+  await pickPatient(page, name);
+  await page.getByRole("dialog").getByRole("button", { name: "Book", exact: true }).click();
+  await expect(page.getByText(/Booked ✓/)).toBeVisible();
+
+  let opened = 0;
+  context.on("page", () => opened++);
+  await context.route("https://wa.me/**", (route) => route.fulfill({ body: "wa.me" }));
+  await page.getByRole("button", { name: `Actions for ${name}` }).click();
+  await page.getByRole("menuitem", { name: "WhatsApp reminder" }).click();
+  // Sent (template messages on), or a clear reason why not (switched off, or no reminder template).
+  // "E2E …" records are never really messaged.
+  await expect(
+    page.getByText(/WhatsApp reminder sent ✓|Template messages are switched off|No approved reminder message/).first(),
+  ).toBeVisible();
+  expect(opened).toBe(0);
 });
 
 test("a walk-in without a free slot joins the queue", async ({ page }) => {

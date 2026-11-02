@@ -25,7 +25,7 @@ async function newPatient(page: Page) {
   await page.getByLabel("Full name").fill(name);
   await page.getByLabel("Mobile number").fill(uniquePhone());
   await page.getByRole("button", { name: "Save patient" }).first().click();
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(name);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(name, { timeout: 30_000 }); // staging is slow under load
 }
 
 test.describe("reception", () => {

@@ -209,7 +209,9 @@
     "break_open": "End your break first.",
     "not_backed_up": "Some of these files have no checked backup yet. Back them up first (Backup centre), then purge.",
     "not_purgeable": "Only recordings and visit photos can be removed from the cloud. Patient records are always kept.",
-    "templates_off": "Template messages are switched off (Admin → WhatsApp → Template messages)."
+    "templates_off": "Template messages are switched off (Admin → WhatsApp → Template messages).",
+    "reminder_not_upcoming": "A reminder can only be sent before the visit.",
+    "no_reminder_template": "No approved reminder message is set up. Admin → WhatsApp → Templates: give one the purpose “Booking reminder”."
   },
   "common": {
     "saved": "Saved ✓",
@@ -1341,6 +1343,8 @@
     "actionsFor": "Actions for {name}",
     "reschedule": "Reschedule…",
     "whatsapp": "WhatsApp reminder",
+    "reminderSent": "WhatsApp reminder sent ✓ (it shows in their chat)",
+    "reminderOpened": "WhatsApp opened with the reminder ✓",
     "openPatient": "Open patient file",
     "waText": "Hello {name}, this is a reminder of your appointment at {clinic} on {date} at {time} with {doctor}. Please reply YES to confirm.",
     "cancelTitle": "Cancel this appointment?",

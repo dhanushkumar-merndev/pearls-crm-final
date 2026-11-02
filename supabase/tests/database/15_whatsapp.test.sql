@@ -35,13 +35,13 @@ on conflict (section) do update set value = excluded.value;
 insert into public.app_settings (section, value) values ('appointments', '{"reminder_hours_before": 24}')
 on conflict (section) do update set value = public.app_settings.value || excluded.value;
 
+-- Other templates on the project may hold these purposes: switch them off first (one active per purpose).
+update public.wa_templates set active = false
+where purpose in ('appointment_booked', 'appointment_reminder', 'lead_welcome');
 insert into public.wa_templates (id, name, language, category, status, body_text, param_count, purpose, variable_map) values
   ('15151515-1111-4000-a000-000000000001', 'wa_test_booked', 'en', 'utility', 'APPROVED', 'Hi {{1}}, booked {{2}}', 2, 'appointment_booked', '["first_name", "appt_date"]'),
   ('15151515-1111-4000-a000-000000000002', 'wa_test_reminder', 'en', 'utility', 'APPROVED', 'Reminder {{1}}', 1, 'appointment_reminder', '["appt_time"]'),
   ('15151515-1111-4000-a000-000000000003', 'wa_test_drip', 'en', 'marketing', 'APPROVED', 'Offer', 0, 'other', '[]');
--- Other templates on the project may hold these purposes: switch them off for the test.
-update public.wa_templates set active = false
-where purpose in ('appointment_booked', 'appointment_reminder', 'lead_welcome') and id::text not like '15151515-1111%';
 
 insert into public.patients (id, uhid, full_name, phone_e164) values
   ('15151515-2222-4000-a000-000000000001', 'WATEST-1', 'Asha Wa Test', '+919811500001'),

@@ -50,7 +50,7 @@ insert into public.staff (id, role, full_name, username) values
   ('24242424-0000-4000-a000-00000000000a', 'admin', 'Bot Admin', 'botadmin'),
   ('24242424-0000-4000-a000-0000000000b1', 'receptionist', 'Bot Rec', 'botrec');
 
-insert into public.app_settings (section, value) values ('whatsapp', '{"enabled": true}')
+insert into public.app_settings (section, value) values ('whatsapp', '{"enabled": true, "templates_enabled": true}')
 on conflict (section) do update set value = public.app_settings.value || excluded.value;
 insert into public.app_settings (section, value) values
   ('wa_bot', '{"enabled": true, "brochure_url": "https://example.com/brochure.pdf", "website_url": "https://example.com", "daily_chat_limit": 2,
@@ -59,9 +59,9 @@ on conflict (section) do update set value = excluded.value;
 insert into public.patients (id, uhid, full_name, phone_e164) values
   ('24242424-2222-4000-a000-000000000001', 'BOTTEST-1', 'Known Patient', '+919811024009');
 -- The lead_welcome template exists, so a normal new lead would get it.
+update public.wa_templates set active = false where purpose = 'lead_welcome'; -- first: one active per purpose
 insert into public.wa_templates (id, name, language, category, status, body_text, param_count, purpose, variable_map) values
   ('24242424-1111-4000-a000-000000000001', 'bot_test_welcome', 'en', 'marketing', 'APPROVED', 'Welcome', 0, 'lead_welcome', '[]');
-update public.wa_templates set active = false where purpose = 'lead_welcome' and id <> '24242424-1111-4000-a000-000000000001';
 
 ------------------------------------------------------------------------------
 -- The whole chat

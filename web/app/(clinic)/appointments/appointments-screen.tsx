@@ -151,7 +151,7 @@ function BoardView({ day, setDay, onBook }: { day: string; setDay: (d: string) =
               {(() => {
                 const n = d.slots.filter((s) => s.blocked_reason === "past" && s.chips.length === 0).length;
                 return n > 0 ? (
-                  <li className="rounded-xl border border-dashed border-border bg-muted/40 px-2 py-1.5 text-[0.9rem] text-text-secondary">
+                  <li className="rounded-xl border border-dashed border-border bg-muted/40 px-3 py-2 text-[0.9rem] text-text-secondary">
                     {t("pastHidden", { n })}
                   </li>
                 ) : null;
@@ -160,7 +160,7 @@ function BoardView({ day, setDay, onBook }: { day: string; setDay: (d: string) =
                 const left = Math.max(s.capacity - s.chips.length, 0);
                 const bookable = !s.blocked_reason && left > 0;
                 return (
-                  <li key={s.start} className={cn("rounded-xl border border-border p-2", s.blocked_reason && "border-dashed bg-muted/40")}>
+                  <li key={s.start} className={cn("rounded-xl border border-border px-3 py-2.5", s.blocked_reason && "border-dashed bg-muted/40")}>
                     <div className="flex items-center gap-2">
                       <span className="w-20 font-medium tabular-nums">{formatTime(new Date(s.start))}</span>
                       <span className="flex-1 text-[0.9rem] text-text-secondary">
@@ -178,9 +178,9 @@ function BoardView({ day, setDay, onBook }: { day: string; setDay: (d: string) =
                       )}
                     </div>
                     {s.chips.length > 0 && (
-                      <ul className="mt-2 flex flex-col gap-1.5">
+                      <ul className="mt-2.5 flex flex-col gap-2">
                         {s.chips.map((c) => (
-                          <li key={c.id} className="flex flex-wrap items-center gap-2 rounded-lg bg-secondary px-2 py-1.5">
+                          <li key={c.id} className="flex flex-wrap items-center gap-2 rounded-lg bg-secondary px-3 py-2">
                             <ApptPatientName appt={c} className="min-w-0 flex-1 truncate font-medium" />
                             <ApptStatusBadge status={c.status} auto={c.auto_cancelled} />
                             <AppointmentActions appt={{ ...c, doctor: d.name }} />
@@ -217,7 +217,7 @@ function BoardView({ day, setDay, onBook }: { day: string; setDay: (d: string) =
           <h2 className="text-lg font-semibold">{t("queue")}</h2>
           <ul className="flex flex-col gap-1.5">
             {data.queue.map((c) => (
-              <li key={c.id} className="flex flex-wrap items-center gap-2 rounded-lg bg-secondary px-2 py-1.5">
+              <li key={c.id} className="flex flex-wrap items-center gap-2 rounded-lg bg-secondary px-3 py-2">
                 <span className="w-12 font-semibold tabular-nums">#{c.queue_no}</span>
                 <ApptPatientName appt={c} className="min-w-0 flex-1 truncate" />
                 <ApptStatusBadge status={c.status} auto={c.auto_cancelled} />

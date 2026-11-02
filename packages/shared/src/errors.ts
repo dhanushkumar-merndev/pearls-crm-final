@@ -55,6 +55,7 @@ export const ERROR_CODES = [
   "outside_window",
   "not_configured",
   "whatsapp_api",
+  "templates_off",
   // Phase 13: BDM
   "outside_office",
   "selfie_required",
@@ -67,6 +68,9 @@ export const ERROR_CODES = [
   "not_purgeable",
   // Leads: a new or changed next-call time can't be in the past
   "followup_in_past",
+  // Appointments → WhatsApp reminder through the clinic's own WhatsApp
+  "reminder_not_upcoming",
+  "no_reminder_template",
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

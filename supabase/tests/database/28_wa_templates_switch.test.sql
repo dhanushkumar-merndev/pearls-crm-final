@@ -32,11 +32,12 @@ insert into public.app_settings (section, value) values
 on conflict (section) do update set value = excluded.value;
 insert into public.app_settings (section, value) values ('appointments', '{"reminder_hours_before": 24}')
 on conflict (section) do update set value = public.app_settings.value || excluded.value;
+-- Other templates on the project may hold these purposes: switch them off first (one active per purpose).
+update public.wa_templates set active = false
+where purpose in ('appointment_booked', 'appointment_reminder', 'lead_welcome');
 insert into public.wa_templates (id, name, language, category, status, body_text, param_count, purpose, variable_map) values
   ('28282828-1111-4000-a000-000000000001', 'ts_booked', 'en', 'utility', 'APPROVED', 'Booked {{1}}', 1, 'appointment_booked', '["first_name"]'),
   ('28282828-1111-4000-a000-000000000002', 'ts_reminder', 'en', 'utility', 'APPROVED', 'Reminder {{1}}', 1, 'appointment_reminder', '["first_name"]');
-update public.wa_templates set active = false
-where purpose in ('appointment_booked', 'appointment_reminder', 'lead_welcome') and id::text not like '28282828-1111%';
 
 insert into public.patients (id, uhid, full_name, phone_e164) values
   ('28282828-2222-4000-a000-000000000001', 'TSTEST-1', 'Asha Switch', '+919811428001'),
