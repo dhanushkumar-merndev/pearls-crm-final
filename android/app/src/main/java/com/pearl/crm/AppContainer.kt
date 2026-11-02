@@ -160,7 +160,7 @@ class AppContainer(private val context: Context) {
         scheduler.startPeriodic()
         scheduler.syncSoon()
         scope.launch { refreshProfile() }
-        if (sessions.session.value?.staffRole == StaffRole.Bdm) {
+        if (sessions.session.value?.staffRole in listOf(StaffRole.Bdm, StaffRole.SalesExecutive)) {
             // Today's day as the server knows it (e.g. after a reinstall or the auto-end).
             runCatching { bdm.refreshFromServer() }
         }

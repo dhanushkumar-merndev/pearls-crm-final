@@ -103,12 +103,45 @@ class BdmDayTest {
         val (lat, lng) = office!!
         Phone.skipUnless(!c.bdm.day.value.open, "today's day is already started")
         gps = FakeGps(lat + 0.5, lng) // about 55 km north
+        // The phone may still hold an earlier test's fix at the office: wait until it reads the new place.
+        compose.waitUntil(30_000) { runBlocking { c.location.current(3_000) }?.let { kotlin.math.abs(it.lat - (lat + 0.5)) < 0.01 } == true }
         waitForTag("bdm-start")
         tap("bdm-start")
-        waitForTag("bdm-failure", 60_000)
+        waitForTag("day-start-failure", 60_000)
         assertEquals(1, camera.photos)
         assertFalse("no day started", c.bdm.day.value.open)
         assertTrue(today()["day"] !is JsonObject)
+
+        // Ask the admin to start here instead: a reason is needed (owner, 02/11/2026).
+        if ((today()["start_request"] as? JsonObject)?.get("status")?.jsonPrimitive?.contentOrNull == null) {
+            open("day-ask-admin", hasTestTag("day-ask-send"))
+            compose.onNodeWithTag("day-ask-send").performClick()
+            compose.waitForText(text(BdmR.string.day_ask_reason_required))
+            compose.onNodeWithTag("day-ask-reason").performTextReplacement("E2E meeting at a partner clinic first")
+            compose.onNodeWithTag("day-ask-send").performClick()
+            waitForTag("day-request-waiting", 60_000)
+            assertEquals("pending", (today()["start_request"] as JsonObject)["status"]?.jsonPrimitive?.contentOrNull)
+        }
+    }
+
+    /**
+     * Run after the admin approves today's request (the runner does it between the two, as the
+     * admin on the web would). The day then starts away from the office, and says so.
+     */
+    @Test
+    fun ab_onceTheAdminApprovesTheDayStartsWhereYouAre() {
+        val (lat, lng) = office!!
+        Phone.skipUnless(!c.bdm.day.value.open, "today's day is already started")
+        val status = (today()["start_request"] as? JsonObject)?.get("status")?.jsonPrimitive?.contentOrNull
+        Phone.skipUnless(status == "approved", "today's request isn't approved (approve it on the web, Admin → BDM)")
+        gps = FakeGps(lat + 0.5, lng)
+        runBlocking { c.bdm.refreshFromServer() }
+        waitForTag("day-request-approved")
+        tap("bdm-start")
+        compose.waitForText(text(BdmR.string.day_started_away_ok), timeoutMs = 60_000)
+        assertTrue(c.bdm.day.value.open)
+        val flags = (today()["day"] as JsonObject)["flags"]!!.jsonArray.map { it.jsonPrimitive.content }
+        assertTrue("flagged as allowed away: $flags", "started_away_approved" in flags)
     }
 
     @Test

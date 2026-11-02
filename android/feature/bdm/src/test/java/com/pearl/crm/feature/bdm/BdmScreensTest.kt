@@ -52,6 +52,11 @@ class BdmScreensTest {
     private lateinit var db: AppDatabase
     private lateinit var bdm: BdmRepository
     private val context get() = ApplicationProvider.getApplicationContext<Context>()
+    private var todayReply = """{"day":null}"""
+    private val sent = mutableListOf<JsonObject>()
+
+    private fun allowLocation() = org.robolectric.Shadows.shadowOf(ApplicationProvider.getApplicationContext<android.app.Application>())
+        .grantPermissions(android.Manifest.permission.ACCESS_FINE_LOCATION, android.Manifest.permission.ACCESS_COARSE_LOCATION)
 
     private fun text(@StringRes id: Int, vararg args: Any) = context.getString(id, *args)
 
@@ -64,7 +69,14 @@ class BdmScreensTest {
     fun open() {
         db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).allowMainThreadQueries().build()
         val rpc = RpcTransport { fn, args ->
-            if (fn == "bdm_start_day") {
+            if (fn == "bdm_today") {
+                PearlJson.parseToJsonElement(todayReply)
+            } else if (fn == "day_start_request") {
+                sent += args.getValue("p").jsonObject
+                PearlJson.parseToJsonElement(
+                    """{"id":"R1","status":"pending","reason":"${args.getValue("p").jsonObject.getValue("reason").jsonPrimitive.content}","distance_m":2300,"office":"Star Tech India"}""",
+                )
+            } else if (fn == "bdm_start_day") {
                 PearlJson.parseToJsonElement("""{"day":{"id":"${args.getValue("p").jsonObject.getValue("client_id").jsonPrimitive.content}","work_date":"${java.time.LocalDate.now(com.pearl.crm.core.model.IstDates.ZONE)}","state":"in_office"},"inside":true}""")
             } else {
                 JsonNull
@@ -105,6 +117,53 @@ class BdmScreensTest {
         show()
         compose.onNodeWithText(text(R.string.bdm_start_title)).assertIsDisplayed()
         compose.onNodeWithTag("bdm-allow-location").assertIsDisplayed()
+    }
+
+    @Test
+    fun theReasonForStartingAwayIsChecked() {
+        assertEquals(R.string.day_ask_reason_required, validateStartReason("  "))
+        assertEquals(R.string.day_ask_reason_too_long, validateStartReason("x".repeat(501)))
+        assertEquals(null, validateStartReason("Meeting at City Hospital"))
+        assertEquals("350 m", distanceText(350))
+        assertEquals("2.3 km", distanceText(2300))
+    }
+
+    @Test
+    fun askingTheAdminSendsThePlaceAndReasonThenWaits() {
+        runBlocking { bdm.requestStart(RawPoint(System.currentTimeMillis(), 12.98, 77.59, 12f), "  Meeting first  ", "REQ-1") }
+        assertEquals("Meeting first", sent.single().getValue("reason").jsonPrimitive.content)
+        assertEquals("REQ-1", sent.single().getValue("client_id").jsonPrimitive.content)
+        allowLocation()
+        show()
+        compose.onNodeWithTag("day-request-waiting").assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.day_from_office, "2.3 km", "Star Tech India")).assertIsDisplayed()
+        // Reaching the office while waiting: Start still works there.
+        compose.onNodeWithTag("bdm-start").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("day-ask-admin").assertDoesNotExist()
+    }
+
+    @Test
+    fun aNoFromTheAdminShowsTheirNoteAndYouCanAskAgain() {
+        todayReply = """{"day":null,"start_request":{"id":"R2","status":"declined","reason":"x","decline_note":"Please come to the office"}}"""
+        runBlocking { bdm.refreshFromServer() }
+        allowLocation()
+        show()
+        compose.onNodeWithText(text(R.string.day_declined, "Please come to the office")).assertIsDisplayed()
+        compose.onNodeWithTag("bdm-start").assertIsDisplayed()
+        compose.onNodeWithTag("day-ask-admin").performClick()
+        compose.onNodeWithTag("day-ask-send").performClick()
+        compose.onNodeWithText(text(R.string.day_ask_reason_required)).assertIsDisplayed()
+    }
+
+    @Test
+    fun anApprovedRequestLetsTheDayStartHere() {
+        todayReply = """{"day":null,"start_request":{"id":"R3","status":"approved","reason":"x"}}"""
+        runBlocking { bdm.refreshFromServer() }
+        allowLocation()
+        show()
+        compose.onNodeWithTag("day-request-approved").assertIsDisplayed()
+        compose.onNodeWithTag("bdm-start").assertIsDisplayed()
+        compose.onNodeWithTag("day-ask-admin").assertDoesNotExist()
     }
 
     @Test

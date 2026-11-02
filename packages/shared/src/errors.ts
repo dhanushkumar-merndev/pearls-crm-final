@@ -63,6 +63,8 @@ export const ERROR_CODES = [
   "day_ended",
   "visit_open",
   "break_open",
+  // Phase 18: asking the admin to start the day away from the office
+  "day_already_started",
   // Phase 14: backup and purge
   "not_backed_up",
   "not_purgeable",

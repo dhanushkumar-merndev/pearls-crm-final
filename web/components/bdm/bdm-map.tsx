@@ -9,7 +9,7 @@ import type { LatLng } from "@pearl/shared";
 import { cn } from "@/lib/utils";
 
 /** OpenFreeMap: free tiles, business use allowed (PLAN.md A2 "Maps"). Dark map in the dark theme. */
-const STYLE_URL = { dark: "https://tiles.openfreemap.org/styles/dark", light: "https://tiles.openfreemap.org/styles/liberty" };
+export const STYLE_URL = { dark: "https://tiles.openfreemap.org/styles/dark", light: "https://tiles.openfreemap.org/styles/liberty" };
 const INDIA: [number, number] = [77.5946, 12.9716];
 
 export type MarkerTone = "good" | "warning" | "critical" | "muted";
@@ -37,7 +37,7 @@ const TONE_VAR: Record<MarkerTone, string> = {
 };
 
 /** A colour token's current value (the map draws on a canvas, so it needs the real colour). */
-function token(name: string): string {
+export function token(name: string): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || "gray";
 }
 

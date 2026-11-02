@@ -202,6 +202,9 @@ class BootReceiver : BroadcastReceiver() {
         container.scheduler.startPeriodic()
         container.scheduler.syncSoon()
         RecordingWorker.schedule(context)
-        if (container.bdm.day.value.open) com.pearl.crm.bdm.BdmTrackingService.askToResume(context)
+        // Route recording is for BDMs only (a sales executive's day records no route).
+        if (container.bdm.day.value.open && container.sessions.session.value?.staffRole == StaffRole.Bdm) {
+            com.pearl.crm.bdm.BdmTrackingService.askToResume(context)
+        }
     }
 }

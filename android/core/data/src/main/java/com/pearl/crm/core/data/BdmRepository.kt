@@ -20,6 +20,7 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonObjectBuilder
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
@@ -54,6 +55,8 @@ data class BdmDay(
     val breakOpen: Boolean = false,
     /** Office geofence result at day start (null = unknown). */
     val startedInOffice: Boolean? = null,
+    /** Today's request to start away from the office, if any. */
+    val startRequest: StartRequest? = null,
 ) {
     val open: Boolean get() = dayId != null && !ended
 }
@@ -70,6 +73,41 @@ data class VisitResult(
 )
 
 data class NewLead(val name: String, val phoneE164: String, val treatment: String?)
+
+/**
+ * Asking the admin to start the day where you are (owner, 02/11/2026). [status] is
+ * pending / approved / declined / used.
+ */
+@Serializable
+data class StartRequest(
+    val id: String,
+    val status: String,
+    val reason: String = "",
+    val declineNote: String? = null,
+    val distanceM: Int? = null,
+    val office: String? = null,
+) {
+    companion object {
+        const val PENDING = "pending"
+        const val APPROVED = "approved"
+        const val DECLINED = "declined"
+        const val USED = "used"
+
+        fun from(o: JsonObject?): StartRequest? {
+            if (o == null) return null
+            val id = (o["id"] as? JsonPrimitive)?.contentOrNull ?: return null
+            val status = (o["status"] as? JsonPrimitive)?.contentOrNull ?: return null
+            return StartRequest(
+                id = id,
+                status = status,
+                reason = (o["reason"] as? JsonPrimitive)?.contentOrNull.orEmpty(),
+                declineNote = (o["decline_note"] as? JsonPrimitive)?.contentOrNull,
+                distanceM = (o["distance_m"] as? JsonPrimitive)?.intOrNull,
+                office = (o["office"] as? JsonPrimitive)?.contentOrNull,
+            )
+        }
+    }
+}
 
 /** Start-of-day answer. */
 data class StartDayResult(val inside: Boolean?, val distanceM: Int?, val officeName: String?)
@@ -183,9 +221,10 @@ class BdmRepository(
             s["heartbeat_minutes"]?.jsonPrimitive?.intOrNull?.let { heartbeatMinutes = it }
             s["upload_minutes"]?.jsonPrimitive?.intOrNull?.let { uploadMinutes = it }
         }
+        val request = StartRequest.from(r["start_request"] as? JsonObject)
         val day = r["day"] as? JsonObject
         if (day == null) {
-            save(BdmDay())
+            save(BdmDay(startRequest = request))
             return
         }
         val visit = r["visit"] as? JsonObject
@@ -203,8 +242,29 @@ class BdmRepository(
                 visitReached = visit?.str("reached_at") != null,
                 breakOpen = r["break"] is JsonObject,
                 startedInOffice = day["start_in_geofence"]?.jsonPrimitive?.booleanOrNull,
+                startRequest = request,
             ),
         )
+    }
+
+    /**
+     * Online only: asks the admin to start the day here, with a reason. Asking again the same day
+     * gives the open request back.
+     */
+    suspend fun requestStart(fix: RawPoint, reason: String, clientId: String): StartRequest {
+        val r = rpc.call(
+            "day_start_request",
+            buildJsonObject {
+                put("p", buildJsonObject {
+                    put("client_id", clientId)
+                    put("reason", reason.trim())
+                    fix(fix)
+                })
+            },
+        ).jsonObject
+        val request = StartRequest.from(r) ?: throw RpcFailure.Permanent("unknown")
+        update { it.copy(startRequest = request) }
+        return request
     }
 
     /** Online only: the selfie is uploaded, then the server decides (office geofence). */

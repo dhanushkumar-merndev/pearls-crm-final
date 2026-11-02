@@ -1,11 +1,16 @@
 "use client";
 
 import { CalendarClock } from "lucide-react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import type { LibraryPage, LookupKind } from "@/lib/library-pages";
 import { gstLabel, money, type CrudConfig, type Row } from "./crud-table";
+
+// The map (MapLibre) loads only when an office is being added or edited.
+const OfficeLocationPicker = dynamic(() => import("./office-location-picker").then((m) => m.OfficeLocationPicker), { ssr: false });
+const num = (v: unknown): number | null => (v === null || v === undefined || v === "" || !Number.isFinite(Number(v)) ? null : Number(v));
 
 export { LIBRARY_PAGES, LOOKUP_KINDS, type LibraryPage, type LookupKind } from "@/lib/library-pages";
 
@@ -191,7 +196,8 @@ export function useLibraryConfig(page: LibraryPage, lookupKind: LookupKind = "pa
         ),
       };
     case "offices":
-      // The BDM day-start geofence (PLAN.md C2). Coordinates as Google Maps shows them.
+      // The day-start geofence for BDMs and sales executives (PLAN.md C2). Picked on a map, by search,
+      // this computer's location or a Google Maps link; or typed as Google Maps shows them.
       return {
         table: "offices",
         select: "*",
@@ -205,11 +211,23 @@ export function useLibraryConfig(page: LibraryPage, lookupKind: LookupKind = "pa
         ],
         fields: [
           { key: "name", label: t("officeName"), type: "text", required: true, maxLength: 120 },
-          { key: "lat", label: t("lat"), type: "number", required: true, min: -90, max: 90, step: 0.000001, decimals: 6, hint: t("latHint") },
-          { key: "lng", label: t("lng"), type: "number", required: true, min: -180, max: 180, step: 0.000001, decimals: 6 },
+          { key: "lat", label: t("lat"), type: "number", required: true, min: -90, max: 90, step: 0.0000001, decimals: 7, hint: t("latHint") },
+          { key: "lng", label: t("lng"), type: "number", required: true, min: -180, max: 180, step: 0.0000001, decimals: 7 },
           { key: "radius_m", label: t("radius"), type: "number", required: true, min: 25, max: 5000, hint: t("radiusHint") },
         ],
-        defaults: { radius_m: 200 },
+        defaults: { radius_m: 100 },
+        wideForm: true,
+        formTop: (values, set) => (
+          <OfficeLocationPicker
+            lat={num(values.lat)}
+            lng={num(values.lng)}
+            radius={num(values.radius_m) ?? 100}
+            onPick={(p) => {
+              set("lat", p.lat);
+              set("lng", p.lng);
+            }}
+          />
+        ),
       };
     case "holidays":
       return {

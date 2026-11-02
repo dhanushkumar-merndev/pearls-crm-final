@@ -13,6 +13,8 @@ export const NOTIFICATION_TYPES = {
   appointment_auto_cancelled: { push: true, email: false },
   recording_sync: { push: true, email: false },
   bdm_alert: { push: true, email: false },
+  day_start_request: { push: true, email: false },
+  day_start_decision: { push: true, email: false },
   storage_alert: { push: true, email: true },
   backup_reminder: { push: true, email: true },
   daily_summary: { push: false, email: false },

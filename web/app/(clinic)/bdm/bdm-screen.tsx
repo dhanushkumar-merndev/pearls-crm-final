@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { decodePolyline, formatDateTime, istDateString, type StatusKind } from "@pearl/shared";
 import { BdmMap, type MapMarker, type MapPath, type MarkerTone } from "@/components/bdm/bdm-map";
+import { DayStartRequests } from "@/components/bdm/day-start-requests";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Field, PageHeader } from "@/components/ui/form";
@@ -27,6 +28,7 @@ const routeColour = (i: number) => (i % 8) + 1;
 /** The admin's BDM page: who is where right now (live), each day's sheet, and the Excel report. */
 export function BdmScreen() {
   const t = useTranslations("bdm");
+  const roles = useTranslations("roles");
   const { saved, failed } = useFeedback();
   const live = useQuery({ queryKey: ["bdm_live"], queryFn: () => rpc<LiveBdm[]>("bdm_live"), refetchInterval: 60_000 });
   useLiveBdm([["bdm_live"]]);
@@ -58,6 +60,7 @@ export function BdmScreen() {
   return (
     <Page>
       <PageHeader title={t("title")} description={t("description")} />
+      <DayStartRequests />
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]">
         <BdmMap markers={markers} paths={paths} label={t("mapLabel")} className="h-72 sm:h-96 xl:h-[28rem]" />
         <section aria-label={t("people")} className="flex flex-col gap-2">
@@ -74,6 +77,7 @@ export function BdmScreen() {
                       <span aria-hidden className="h-1 w-4 rounded-full" style={{ background: `var(--chart-${routeColour(i)})` }} title={t("routeToday")} />
                     )}
                     <span className="font-medium">{b.name}</span>
+                    {b.role === "sales_executive" && <span className="text-text-secondary">{roles("sales_executive")}</span>}
                     <StatusBadge kind={BADGE[tone]} label={b.day?.ended_at ? t("dayEnded") : !b.day ? t("notStarted") : t(`state.${b.state}`)} />
                   </div>
                   <p className="flex flex-wrap gap-x-3 text-[0.95rem] text-text-secondary">
@@ -102,7 +106,7 @@ export function BdmScreen() {
                         {t("daySheet")}
                       </Link>
                     </Button>
-                    {b.day && !b.day.ended_at && (
+                    {b.day && !b.day.ended_at && b.role !== "sales_executive" && (
                       <Button variant="secondary" disabled={locate.isPending} onClick={() => locate.mutate(b.staff_id)}>
                         <Crosshair aria-hidden />
                         {t("locateNow")}

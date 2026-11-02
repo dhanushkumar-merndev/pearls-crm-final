@@ -201,12 +201,13 @@
     "outside_window": "They haven't written in the last 24 hours, so WhatsApp only allows an approved template. Choose a template, or open WhatsApp on your phone.",
     "not_configured": "This connection isn't set up yet. The setup guide in dev-docs explains the keys to add.",
     "whatsapp_api": "WhatsApp (Meta) refused the request. Check the WhatsApp keys, then try again.",
-    "outside_office": "You're not at the office yet. Start the day when you reach the office (or ask the admin to allow starting anywhere).",
+    "outside_office": "You're not at the office. Ask the admin to let you start here, or start when you reach the office.",
     "selfie_required": "Take a selfie to start the day.",
     "day_not_started": "Start your day first.",
     "day_ended": "Your day has already ended.",
     "visit_open": "Finish the visit you started first (mark it reached and complete).",
     "break_open": "End your break first.",
+    "day_already_started": "Your day has already started.",
     "not_backed_up": "Some of these files have no checked backup yet. Back them up first (Backup centre), then purge.",
     "not_purgeable": "Only recordings and visit photos can be removed from the cloud. Patient records are always kept.",
     "templates_off": "Template messages are switched off (Admin → WhatsApp → Template messages).",
@@ -3210,7 +3211,8 @@
       "no_heartbeat": "Phone went silent",
       "gps_off": "Location was switched off",
       "permission_lost": "Location permission removed",
-      "auto_ended": "Day ended automatically"
+      "auto_ended": "Day ended automatically",
+      "started_away_approved": "Started away from the office (admin allowed)"
     },
     "daySheet": "Day sheet",
     "locateNow": "Locate now",
@@ -3563,6 +3565,14 @@
         "title": "BDM alerts (no signal, late start, long break)",
         "who": "Admins"
       },
+      "day_start_request": {
+        "title": "Asked to start the day away from the office",
+        "who": "Admins"
+      },
+      "day_start_decision": {
+        "title": "Answer to a start-day request",
+        "who": "The BDM or sales executive who asked"
+      },
       "storage_alert": {
         "title": "Storage filling up",
         "who": "Admins"
@@ -3777,5 +3787,54 @@
     "none": "Nothing in particular",
     "make": "Make bill",
     "cancel": "Cancel"
+  },
+  "officePicker": {
+    "useMyLocation": "Use my current location",
+    "useMyLocationHint": "Stand in the office with this computer or phone.",
+    "search": "Search a place",
+    "searchHint": "A business, place or address, then Enter.",
+    "searchPlaceholder": "e.g. Star Tech India, Jayanagar",
+    "searchButton": "Search",
+    "searchShort": "Type at least 3 letters.",
+    "searchFailed": "Couldn't reach the map service. Check the internet and try again.",
+    "results": "Places found",
+    "noResults": "Nothing found. Try another name, or paste the Google Maps link.",
+    "link": "Or paste a Google Maps link",
+    "linkHint": "In Google Maps: Share → Copy link. Numbers like 12.93, 77.55 work too.",
+    "useLink": "Use link",
+    "linkInvalid": "Paste a Google Maps link (https://maps.app.goo.gl/…) or two numbers.",
+    "linkNoPlace": "That link doesn't show a place. Open the place in Google Maps, then Share → Copy link.",
+    "gpsDenied": "Location is blocked for this site. Allow it in the browser's address bar, then try again.",
+    "gpsUnavailable": "This device couldn't find its location. Try again near a window, or search instead.",
+    "map": "Map: click or drag the pin to fine-tune the office",
+    "mapFailed": "The map couldn't load. You can still search, use your location, or type the numbers.",
+    "pin": "Office pin",
+    "pinAt": "Pin {lat}, {lng} · circle {radius} m. Click the map or drag the pin to fine-tune.",
+    "noPin": "No pin yet: search, use your location, paste a link or click the map.",
+    "accuracy": "your location ± {m} m"
+  },
+  "dayStart": {
+    "title": "Start-day requests",
+    "description": "BDMs and sales executives who are not at the office can ask to start the day where they are. Approve, or say no with a note.",
+    "none": "No requests in the last 7 days.",
+    "requestFrom": "Request from {name}",
+    "fromOffice": "{distance} from {office}",
+    "seeOnMap": "See on map",
+    "status": {
+      "pending": "Waiting",
+      "approved": "Approved",
+      "used": "Day started",
+      "declined": "Declined"
+    },
+    "approve": "Approve",
+    "approveFor": "Approve {name}",
+    "decline": "Decline",
+    "declineFor": "Decline {name}",
+    "declineTitle": "Decline {name}'s request",
+    "noteLabel": "Note for them",
+    "noteHint": "They see this on the phone, e.g. \"Please come to the office first\".",
+    "note": "Note: {note}",
+    "approved": "Approved ✓ They can start the day now.",
+    "declined": "Declined ✓ They see your note."
   }
 }

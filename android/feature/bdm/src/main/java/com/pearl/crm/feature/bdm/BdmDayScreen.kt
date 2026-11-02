@@ -143,7 +143,6 @@ fun BdmDayScreen(
     var dashFailed by remember { mutableStateOf(false) }
     var meetingPath by rememberSaveable { mutableStateOf<String?>(null) }
     var meetingSeconds by rememberSaveable { mutableIntStateOf(0) }
-    val dayClientId = rememberSaveable { newClientId() }
 
     val askLocation = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         permitted = location.permitted()
@@ -228,25 +227,14 @@ fun BdmDayScreen(
 
                 when {
                     day.ended -> Text(stringResource(R.string.bdm_day_ended))
-                    !day.open -> PearlCard(verticalSpacing = Spacing.m) {
-                            Text(stringResource(R.string.bdm_start_title), style = MaterialTheme.typography.titleMedium)
-                            Muted(stringResource(R.string.bdm_start_body))
-                            Muted(stringResource(R.string.bdm_needs_internet))
-                            // One step at a time: allow location first, then the start button.
-                            if (!permitted) {
-                                StatusLabel(stringResource(R.string.bdm_location_needed), StatusTone.Warning)
-                                allowLocation()
-                            } else PearlButton(stringResource(R.string.bdm_start), Icons.Outlined.CameraAlt, {
-                                takePhoto { selfie ->
-                                    act {
-                                        val fix = location.current() ?: throw NoFix()
-                                        val r = bdm.startDay(selfie, fix, dayClientId)
-                                        selfie.delete()
-                                        message = if (r.inside == true) R.string.bdm_started_in_office else R.string.bdm_started_away
-                                        onTrackingNeeded()
-                                    }
-                                }
-                            }, busy = busy, enabled = !busy, modifier = Modifier.testTag("bdm-start"))
+                    !day.open -> DayStartCard(bdm, location, photoAuthority, R.string.bdm_start_body) { r, approvedAway ->
+                        permitted = location.permitted()
+                        message = when {
+                            r.inside == true -> R.string.bdm_started_in_office
+                            approvedAway -> R.string.day_started_away_ok
+                            else -> R.string.bdm_started_away
+                        }
+                        onTrackingNeeded()
                     }
                     else -> DayActions(
                         day.state, day.visitId != null, day.visitReached, day.breakOpen, day.visitDestination, busy,

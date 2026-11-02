@@ -72,7 +72,7 @@ select is((public.bdm_start_day('{"client_id":"19191919-2222-4000-a000-000000000
   'allowed to start anywhere: started, and flagged');
 select pg_temp.login('19191919-0000-4000-a000-0000000000c1');
 select throws_ok($$ select public.bdm_start_day('{"client_id":"19191919-2222-4000-a000-000000000003","lat":12.9716,"lng":77.5946}') $$,
-  'P0001', 'not_allowed', 'only BDMs have days');
+  'P0001', 'selfie_required', 'a sales executive has a day too (with the selfie; see 32_day_start_requests)');
 
 -- Travel and the track.
 select pg_temp.login('19191919-0000-4000-a000-0000000000d1');

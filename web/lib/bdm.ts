@@ -7,6 +7,8 @@ export type BdmTone = "good" | "warning" | "critical" | "muted";
 export interface LiveBdm {
   staff_id: string;
   name: string;
+  /** BDMs and (since 02/11/2026) sales executives, who have a day but no route. */
+  role?: "bdm" | "sales_executive";
   state: "off_duty" | "in_office" | "travelling" | "at_visit" | "on_break";
   lat: number | null;
   lng: number | null;

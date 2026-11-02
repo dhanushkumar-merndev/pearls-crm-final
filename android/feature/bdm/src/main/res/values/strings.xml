@@ -111,4 +111,25 @@
     <string name="bdm_leads_title">My leads</string>
     <string name="bdm_leads_empty">No leads yet. Add one after a visit, or here.</string>
     <string name="bdm_new_lead">New lead</string>
+    <!-- Starting the day away from the office with the admin's OK; sales executives' day (02/11/2026) -->
+    <string name="day_start_body_sales">At the office: take a selfie, then the app checks you are at the office. Your route is not recorded.</string>
+    <string name="day_location_needed">Allow location so the app can check you are at the office. Without it the day can\'t start.</string>
+    <string name="day_ask_admin">Ask admin to start here</string>
+    <string name="day_ask_title">Start the day where you are?</string>
+    <string name="day_ask_body">The admin gets your location and your reason. When they allow it, take the selfie to start.</string>
+    <string name="day_ask_reason">Reason</string>
+    <string name="day_ask_reason_hint">e.g. Meeting at City Hospital first</string>
+    <string name="day_ask_reason_required">Write why you can\'t start at the office.</string>
+    <string name="day_ask_reason_too_long">Keep it under 500 letters.</string>
+    <string name="day_ask_send">Send to admin</string>
+    <string name="day_request_sent">Sent to the admin. You\'ll see the answer here.</string>
+    <string name="day_waiting">Waiting for the admin to allow starting here… At the office? Start as usual.</string>
+    <string name="day_from_office">%1$s from %2$s</string>
+    <string name="day_check_again">Check again</string>
+    <string name="day_approved">The admin allowed starting where you are. Take the selfie to start.</string>
+    <string name="day_declined">The admin said no: %1$s</string>
+    <string name="day_started">Your day has started.</string>
+    <string name="day_started_away_ok">Day started away from the office (the admin allowed it).</string>
+    <string name="day_started_away_note">Started away from the office. The admin can see this.</string>
+    <string name="day_end_body_sales">You can start again tomorrow.</string>
 </resources>

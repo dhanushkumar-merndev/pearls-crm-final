@@ -53,6 +53,7 @@ import com.pearl.crm.core.ui.theme.Spacing
 import com.pearl.crm.feature.bdm.BdmDayScreen
 import com.pearl.crm.feature.bdm.BdmLeadsScreen
 import com.pearl.crm.feature.bdm.BdmVisitsScreen
+import com.pearl.crm.feature.bdm.SalesDayCard
 import com.pearl.crm.feature.sales.AfterCallNotes
 import com.pearl.crm.feature.sales.BookScreen
 import com.pearl.crm.feature.sales.CallSetupScreen
@@ -296,6 +297,12 @@ private fun SalesMyDayRoute(container: AppContainer, session: Session, openLead:
         name = profile?.fullName?.takeIf { it.isNotBlank() } ?: session.username,
         sales = container.sales,
         onOpenLead = openLead,
+        header = {
+            // Sales executives start and end the day (owner, 02/11/2026); managers don't.
+            if (session.staffRole == StaffRole.SalesExecutive) {
+                SalesDayCard(container.bdm, container.location, "${BuildConfig.APPLICATION_ID}.files")
+            }
+        },
     )
 }
 

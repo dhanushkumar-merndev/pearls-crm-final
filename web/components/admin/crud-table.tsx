@@ -48,6 +48,10 @@ export interface CrudConfig {
   /** Extra buttons per row (e.g. "Schedule" for doctors). */
   rowActions?: (row: Row) => ReactNode;
   pageSize?: number;
+  /** Something above the fields that fills several of them at once (e.g. the office map picker). */
+  formTop?: (values: Record<string, unknown>, set: (key: string, value: unknown) => void) => ReactNode;
+  /** A wide dialog regardless of the number of fields. */
+  wideForm?: boolean;
 }
 
 const read = (row: Row, path: string): unknown =>
@@ -220,7 +224,7 @@ function CrudForm({ config, row, title, onDone }: { config: CrudConfig; row: Row
   return (
     <DialogContent
       title={title}
-      wide={config.fields.length > 6}
+      wide={config.wideForm || config.fields.length > 6}
       footer={
         <Button type="submit" form="crud-form" disabled={save.isPending}>
           <Save aria-hidden />
@@ -229,6 +233,7 @@ function CrudForm({ config, row, title, onDone }: { config: CrudConfig; row: Row
       }
     >
       <form id="crud-form" onSubmit={onSubmit} className="grid gap-4 sm:grid-cols-2" noValidate>
+        {config.formTop && <div className="sm:col-span-2">{config.formTop(values, set)}</div>}
         {config.fields.map((f) => (
           <div key={f.key} className={f.type === "textarea" || f.type === "boolean" ? "sm:col-span-2" : undefined}>
             {f.type === "boolean" ? (

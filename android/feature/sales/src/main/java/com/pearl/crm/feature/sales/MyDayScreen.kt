@@ -81,6 +81,8 @@ fun MyDayScreen(
     name: String,
     sales: SalesRepository,
     onOpenLead: (String) -> Unit,
+    /** Above the numbers: the sales executive's Start / End day card (from feature:bdm). */
+    header: @Composable () -> Unit = {},
 ) {
     var dashboard by remember { mutableStateOf<SalesDashboard?>(null) }
     var failure by remember { mutableStateOf<Throwable?>(null) }
@@ -107,6 +109,7 @@ fun MyDayScreen(
             verticalArrangement = Arrangement.spacedBy(Spacing.section),
         ) {
             Text(stringResource(R.string.myday_hello, name), style = MaterialTheme.typography.titleLarge)
+            header()
 
             val d = dashboard
             when {

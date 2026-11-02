@@ -30,7 +30,7 @@ test.describe("admin", () => {
     await page.getByLabel("Search Offices").fill(name);
     const row = page.getByRole("row", { name: new RegExp(name) });
     await expect(row).toContainText("12.971601, 77.594612");
-    await expect(row).toContainText("200 m");
+    await expect(row).toContainText("100 m");
   });
 
   test("BDM page: live list, a day sheet, and the Excel report", async ({ page }) => {
