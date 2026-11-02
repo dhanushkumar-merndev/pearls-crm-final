@@ -157,6 +157,7 @@ fun HomeScreen(container: AppContainer, session: Session) {
                             )
                             tab == HomeTab.Followups -> FollowupsScreen(session.staffId, container.sales, container.library, openLead, onRefresh = sync)
                             tab == HomeTab.Calls -> CallsScreen(container.sales, openLead, onRefresh = sync)
+                            tab == HomeTab.Alerts -> com.pearl.crm.ui.alerts.AlertsScreen(container)
                             tab == HomeTab.Settings -> SettingsRoute(
                                 container,
                                 session,

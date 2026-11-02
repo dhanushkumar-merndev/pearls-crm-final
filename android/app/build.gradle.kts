@@ -62,6 +62,8 @@ android {
         buildConfigField("String", "SUPABASE_URL", quoted(backend("NEXT_PUBLIC_SUPABASE_URL")))
         buildConfigField("String", "SUPABASE_ANON_KEY", quoted(backend("NEXT_PUBLIC_SUPABASE_ANON_KEY")))
         buildConfigField("boolean", "PUSH_ENABLED", pushEnabled.toString())
+        // The live web app (first https:// address in WEB_ORIGIN) for "Open on web" in Alerts; blank = hidden.
+        buildConfigField("String", "WEB_URL", quoted(backend("WEB_ORIGIN").split(",").map { it.trim() }.firstOrNull { it.startsWith("https://") }.orEmpty()))
         // On-device tests (src/androidTest, run on a real phone by `pnpm phone:test`).
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

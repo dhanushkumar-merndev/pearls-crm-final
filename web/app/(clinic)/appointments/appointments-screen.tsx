@@ -50,7 +50,7 @@ interface Board {
 
 const shiftDay = (day: string, by: number) => istDateString(new Date(istDayStart(day).getTime() + by * 86_400_000 + 3_600_000));
 
-export function AppointmentsScreen() {
+export function AppointmentsScreen({ autoCancelled }: { autoCancelled?: { date?: string } } = {}) {
   const t = useTranslations("appointments");
   const [day, setDay] = useState(() => istDateString(new Date()));
   const [booking, setBooking] = useState<{ doctor?: LibraryItem; slot?: string } | null>(null);
@@ -73,7 +73,7 @@ export function AppointmentsScreen() {
           </>
         }
       />
-      <Tabs defaultValue="board" className="flex flex-col gap-4">
+      <Tabs defaultValue={autoCancelled ? "table" : "board"} className="flex flex-col gap-4">
         <TabsList aria-label={t("views")}>
           {(["board", "table"] as const).map((v) => (
             <TabsTrigger key={v} value={v}>
@@ -85,7 +85,7 @@ export function AppointmentsScreen() {
           <BoardView day={day} setDay={setDay} onBook={(doctor, slot) => setBooking({ doctor, slot })} />
         </TabsContent>
         <TabsContent value="table">
-          <TableView />
+          <TableView autoCancelled={autoCancelled} />
         </TabsContent>
       </Tabs>
       <Dialog open={booking !== null} onOpenChange={(o) => !o && setBooking(null)}>
@@ -176,7 +176,7 @@ function BoardView({ day, setDay, onBook }: { day: string; setDay: (d: string) =
                         {s.chips.map((c) => (
                           <li key={c.id} className="flex flex-wrap items-center gap-2 rounded-lg bg-secondary px-2 py-1.5">
                             <span className="min-w-0 flex-1 truncate font-medium">{c.patient}</span>
-                            <ApptStatusBadge status={c.status} />
+                            <ApptStatusBadge status={c.status} auto={c.auto_cancelled} />
                             <AppointmentActions appt={{ ...c, doctor: d.name }} />
                           </li>
                         ))}
@@ -214,7 +214,7 @@ function BoardView({ day, setDay, onBook }: { day: string; setDay: (d: string) =
               <li key={c.id} className="flex flex-wrap items-center gap-2 rounded-lg bg-secondary px-2 py-1.5">
                 <span className="w-12 font-semibold tabular-nums">#{c.queue_no}</span>
                 <span className="min-w-0 flex-1 truncate">{c.patient}</span>
-                <ApptStatusBadge status={c.status} />
+                <ApptStatusBadge status={c.status} auto={c.auto_cancelled} />
                 <AppointmentActions appt={c} />
               </li>
             ))}
@@ -232,18 +232,29 @@ interface TableRow extends ApptCard {
 const STATUSES: ApptStatus[] = ["pending_confirmation", "confirmed", "arrived", "with_doctor", "done", "no_show", "cancelled", "rescheduled"];
 const LIMIT = 25;
 
-function TableView() {
+/** The status filter's extra choice: cancelled by the system (not confirmed in time). */
+const AUTO = "auto_cancelled";
+
+function TableView({ autoCancelled }: { autoCancelled?: { date?: string } }) {
   const t = useTranslations("appointments");
   const a = useTranslations("appt");
   const c = useTranslations("common");
   const { failed } = useFeedback();
   const today = istDateString(new Date());
-  const [filters, setFilters] = useState({ from: today, to: today, status: "" });
+  const [filters, setFilters] = useState(() =>
+    autoCancelled
+      ? { from: autoCancelled.date ?? today, to: autoCancelled.date ?? today, status: AUTO }
+      : { from: today, to: today, status: "" },
+  );
   const [sort, setSort] = useState("slot_start");
   const [offset, setOffset] = useState(0);
   const [exporting, setExporting] = useState(false);
   const args = (o: number, limit: number) => ({
-    p_filters: { from: filters.from, to: filters.to, ...(filters.status ? { statuses: [filters.status] } : {}) },
+    p_filters: {
+      from: filters.from,
+      to: filters.to,
+      ...(filters.status === AUTO ? { auto_cancelled: true } : filters.status ? { statuses: [filters.status] } : {}),
+    },
     p_sort: sort,
     p_desc: false,
     p_offset: o,
@@ -271,7 +282,7 @@ function TableView() {
         [t("col.when"), t("col.patient"), "UHID", t("col.phone"), t("col.doctor"), t("col.type"), t("col.status")],
         rows.map((r) => [
           r.slot_start ? `${formatDate(new Date(r.slot_start))} ${formatTime(new Date(r.slot_start))}` : t("walkInQueue", { n: r.queue_no ?? 0 }),
-          r.patient, r.uhid, r.phone, r.doctor, a(`types.${r.type}`), a(`status.${r.status}`),
+          r.patient, r.uhid, r.phone, r.doctor, a(`types.${r.type}`), a(`status.${r.status === "cancelled" && r.auto_cancelled ? AUTO : r.status}`),
         ]),
       );
     } catch (e) {
@@ -309,6 +320,7 @@ function TableView() {
                   {a(`status.${s}`)}
                 </option>
               ))}
+              <option value={AUTO}>{t("autoCancelledOnly")}</option>
             </Select>
           )}
         </Field>
@@ -359,7 +371,7 @@ function TableView() {
               </TD>
               <TD className="whitespace-nowrap">{r.doctor ?? "—"}</TD>
               <TD>
-                <ApptStatusBadge status={r.status} />
+                <ApptStatusBadge status={r.status} auto={r.auto_cancelled} />
               </TD>
               <TD className="text-right">
                 <AppointmentActions appt={r} />

@@ -18,6 +18,7 @@ class PearlMessagingService : FirebaseMessagingService() {
         val body = message.notification?.body ?: message.data["body"].orEmpty()
         Push.show(this, message.messageId?.hashCode() ?: title.hashCode(), title, body)
         val container = (application as PearlApplication).container
+        container.alertsChanged.value += 1
         // The message may mean "something changed for you": pull it now.
         container.scheduler.syncSoon()
         if (message.data["type"] == "locate_now") {

@@ -55,6 +55,7 @@ fun apptStatusLabel(status: String): String = stringResource(
         "done" -> R.string.appt_done
         "no_show" -> R.string.appt_no_show
         "cancelled" -> R.string.appt_cancelled
+        "auto_cancelled" -> R.string.appt_auto_cancelled
         "rescheduled" -> R.string.appt_rescheduled
         else -> R.string.appt_pending_confirmation
     },

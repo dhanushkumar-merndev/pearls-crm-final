@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarClock, ChevronDown, CircleCheck, CircleX, DoorOpen, MessageCircle, Stethoscope, UserPlus, UserRound, UserX } from "lucide-react";
+import { CalendarClock, ChevronDown, CircleCheck, CircleX, DoorOpen, MessageCircle, RotateCcw, Stethoscope, UserPlus, UserRound, UserX } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState, type ReactNode } from "react";
@@ -39,6 +39,8 @@ export interface ApptCard {
   lead_only?: boolean;
   lead_id?: string | null;
   lead_sl_no?: number | null;
+  /** Cancelled by the system: nobody confirmed in time (staff call, then restore or leave it). */
+  auto_cancelled?: boolean;
 }
 
 const ICONS: Partial<Record<ApptStatus, ReactNode>> = {
@@ -56,7 +58,7 @@ export function AppointmentActions({ appt, onChanged }: { appt: ApptCard; onChan
   const me = useMe();
   const queryClient = useQueryClient();
   const { saved, failed } = useFeedback();
-  const [dialog, setDialog] = useState<"cancel" | "reschedule" | null>(null);
+  const [dialog, setDialog] = useState<"cancel" | "keep" | "reschedule" | null>(null);
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: ["slot_board"] });
     void queryClient.invalidateQueries({ queryKey: ["today_board"] });
@@ -65,10 +67,10 @@ export function AppointmentActions({ appt, onChanged }: { appt: ApptCard; onChan
     onChanged?.();
   };
   const setStatus = useMutation({
-    mutationFn: ({ status, reason }: { status: ApptStatus; reason?: string }) =>
+    mutationFn: ({ status, reason }: { status: ApptStatus; reason?: string; done?: "restore" | "keepCancelled" }) =>
       rpc("set_appointment_status", { p_id: appt.id, p_status: status, p_reason: reason ?? null, p_version: appt.version }),
     onSuccess: (_d, v) => {
-      saved(t(`done.${v.status}`));
+      saved(t(`done.${v.done ?? v.status}`));
       setDialog(null);
       refresh();
     },
@@ -78,6 +80,9 @@ export function AppointmentActions({ appt, onChanged }: { appt: ApptCard; onChan
   const sales = me?.role === "sales_manager" || me?.role === "sales_executive";
   const reception = me?.role === "receptionist" || me?.role === "admin";
   const next = NEXT[appt.status].filter((s) => !sales || s === "confirmed" || s === "cancelled");
+  // Auto-cancelled: the server restores it on "confirm" if the slot is still free (and still ahead).
+  const autoCancelled = appt.status === "cancelled" && !!appt.auto_cancelled && !!appt.slot_start;
+  const canDecide = autoCancelled && (reception || (sales && !!appt.lead_id));
   const message = appt.slot_start
     ? t("waText", {
         name: appt.patient ?? "",
@@ -105,6 +110,21 @@ export function AppointmentActions({ appt, onChanged }: { appt: ApptCard; onChan
                 {t("registerLead")}
               </Link>
             </DropdownMenuItem>
+          )}
+          {canDecide && (
+            <>
+              <DropdownMenuItem
+                disabled={setStatus.isPending}
+                onSelect={() => setStatus.mutate({ status: "confirmed", done: "restore" })}
+              >
+                <RotateCcw aria-hidden />
+                {t("to.restore")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setDialog("keep")}>
+                <CircleX aria-hidden />
+                {t("to.keepCancelled")}
+              </DropdownMenuItem>
+            </>
           )}
           {next
             .filter((s) => s !== "cancelled")
@@ -149,19 +169,27 @@ export function AppointmentActions({ appt, onChanged }: { appt: ApptCard; onChan
         {dialog === "cancel" && (
           <CancelDialog busy={setStatus.isPending} onCancel={(reason) => setStatus.mutate({ status: "cancelled", reason })} />
         )}
+        {dialog === "keep" && (
+          <CancelDialog
+            keep
+            busy={setStatus.isPending}
+            onCancel={(reason) => setStatus.mutate({ status: "cancelled", reason, done: "keepCancelled" })}
+          />
+        )}
         {dialog === "reschedule" && <RescheduleDialog appt={appt} onDone={() => (setDialog(null), refresh())} />}
       </Dialog>
     </>
   );
 }
 
-function CancelDialog({ busy, onCancel }: { busy: boolean; onCancel: (reason: string) => void }) {
+/** Cancel with a reason; `keep`: the same for leaving an auto-cancelled booking cancelled. */
+function CancelDialog({ busy, keep, onCancel }: { busy: boolean; keep?: boolean; onCancel: (reason: string) => void }) {
   const t = useTranslations("appt");
   const [reason, setReason] = useState("");
   const checks = useZodForm(cancelSchema);
   return (
     <DialogContent
-      title={t("cancelTitle")}
+      title={keep ? t("keepCancelledTitle") : t("cancelTitle")}
       footer={
         <Button
           variant="danger"
@@ -172,11 +200,11 @@ function CancelDialog({ busy, onCancel }: { busy: boolean; onCancel: (reason: st
           }}
         >
           <CircleX aria-hidden />
-          {t("to.cancelled")}
+          {keep ? t("to.keepCancelled") : t("to.cancelled")}
         </Button>
       }
     >
-      <Field label={t("reason")} hint={t("reasonHint")} error={checks.error("reason")}>
+      <Field label={t("reason")} hint={keep ? t("keepCancelledHint") : t("reasonHint")} error={checks.error("reason")}>
         {(a) => <Textarea {...a} rows={2} maxLength={300} value={reason} onChange={(e) => (setReason(e.target.value), checks.clear("reason"))} />}
       </Field>
     </DialogContent>

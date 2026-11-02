@@ -26,9 +26,16 @@ export const SETTINGS_SCHEMAS = {
       working_days: z.array(int(1, 7)).min(1, { error: "choose" }).max(7).default([1, 2, 3, 4, 5, 6]),
       confirm_hours_before: int(0, 72).default(4),
       reminder_hours_before: int(0, 168).default(24),
+      /** Not confirmed this many hours before (and the reminder reached them) → auto-cancelled; 0 = off. */
+      auto_cancel_hours_before: int(0, 72).default(12),
       walk_in_queue: z.boolean().default(true),
     })
-    .refine((v) => v.day_end > v.day_start, { path: ["day_end"], message: "timeOrder" }),
+    .refine((v) => v.day_end > v.day_start, { path: ["day_end"], message: "timeOrder" })
+    // The reminder must go out before the auto-cancel window opens.
+    .refine((v) => v.auto_cancel_hours_before === 0 || v.reminder_hours_before === 0 || v.auto_cancel_hours_before < v.reminder_hours_before, {
+      path: ["auto_cancel_hours_before"],
+      message: "autoCancelBeforeReminder",
+    }),
   billing: z.object({
     tax_inclusive: z.boolean().default(true),
     round_to_rupee: z.boolean().default(false),

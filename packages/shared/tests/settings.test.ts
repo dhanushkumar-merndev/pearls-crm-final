@@ -22,6 +22,17 @@ describe("settings", () => {
     expect(validateSettings("billing", { ip_number_mode: "whatever" })).toEqual({ ok: false, field: "ip_number_mode" });
   });
 
+  it("appointments: auto-cancel 12 h before by default, always after the reminder", () => {
+    expect(readSettings("appointments", {}).auto_cancel_hours_before).toBe(12);
+    expect(validateSettings("appointments", { auto_cancel_hours_before: 0 }).ok).toBe(true);
+    expect(validateSettings("appointments", { reminder_hours_before: 24, auto_cancel_hours_before: 24 })).toEqual({
+      ok: false,
+      field: "auto_cancel_hours_before",
+    });
+    expect(validateSettings("appointments", { reminder_hours_before: 0, auto_cancel_hours_before: 12 }).ok).toBe(true);
+    expect(validateSettings("appointments", { auto_cancel_hours_before: 73 })).toEqual({ ok: false, field: "auto_cancel_hours_before" });
+  });
+
   it("sales: recordings upload only when asked, first 10 minutes", () => {
     const s = readSettings("sales", {});
     expect(s.recording_upload_mode).toBe("sync_only");

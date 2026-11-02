@@ -8,9 +8,17 @@ enum class StaffRole(val wire: String) {
     Bdm("bdm"),
     Admin("admin");
 
-    /** Sales and field staff work in this app; reception and admin use the web app. */
+    /** Every role may log in: sales and field staff work here; reception and admin get alerts only. */
     val usesAndroidApp: Boolean
-        get() = this == SalesExecutive || this == SalesManager || this == Bdm
+        get() = true
+
+    /** Reception and admin work on the web; on the phone they only get alerts (push + a list). */
+    val alertsOnly: Boolean
+        get() = this == Receptionist || this == Admin
+
+    /** Roles whose phone keeps a copy of their leads, follow-ups and bookings (sync pull). */
+    val pullsData: Boolean
+        get() = !alertsOnly
 
     companion object {
         fun fromWire(value: String?): StaffRole? = entries.firstOrNull { it.wire == value }

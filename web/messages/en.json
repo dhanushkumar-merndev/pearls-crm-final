@@ -269,6 +269,7 @@
     "wordList": "Too many items, or one is too long (80 characters each).",
     "dateOrder": "The end must be after the start.",
     "timeOrder": "The end time must be after the start time.",
+    "autoCancelBeforeReminder": "Must be fewer hours than the reminder, so the patient gets the reminder first.",
     "notFuture": "This can't be in the future.",
     "notPast": "This can't be in the past.",
     "passwordShort": "At least {min} characters.",
@@ -585,6 +586,7 @@
       "working_days": "Working days",
       "confirm_hours_before": "Ask to confirm (hours before)",
       "reminder_hours_before": "Send reminder (hours before)",
+      "auto_cancel_hours_before": "Auto-cancel if not confirmed (hours before, 0 = off)",
       "walk_in_queue": "Walk-ins into a full slot join a queue"
     },
     "billing": {
@@ -1254,7 +1256,8 @@
       "done": "Done",
       "no_show": "No-show",
       "cancelled": "Cancelled",
-      "rescheduled": "Rescheduled"
+      "rescheduled": "Rescheduled",
+      "auto_cancelled": "Auto-cancelled (not confirmed)"
     },
     "to": {
       "confirmed": "Mark confirmed",
@@ -1262,7 +1265,9 @@
       "with_doctor": "Send in to the doctor",
       "done": "Mark done",
       "no_show": "Mark no-show",
-      "cancelled": "Cancel appointment"
+      "cancelled": "Cancel appointment",
+      "restore": "Restore & confirm",
+      "keepCancelled": "Leave cancelled"
     },
     "done": {
       "confirmed": "Confirmed ✓",
@@ -1270,8 +1275,12 @@
       "with_doctor": "With the doctor ✓",
       "done": "Done ✓",
       "no_show": "Marked no-show",
-      "cancelled": "Cancelled"
+      "cancelled": "Cancelled",
+      "restore": "Restored and confirmed ✓",
+      "keepCancelled": "Left cancelled"
     },
+    "keepCancelledTitle": "Leave this booking cancelled?",
+    "keepCancelledHint": "Say why, e.g. \"Patient will come next month\".",
     "types": {
       "consultation": "Consultation",
       "session": "Session",
@@ -1349,6 +1358,7 @@
     "to": "To",
     "status": "Status",
     "allStatuses": "All",
+    "autoCancelledOnly": "Auto-cancelled (not confirmed)",
     "sortBy": "Sort by",
     "sort": {
       "slot_start": "Time",
@@ -1398,7 +1408,9 @@
     "collected": "Collected today: {amount}",
     "billsToday": "{n, plural, =0 {No bills yet today} one {# bill today} other {# bills today}}",
     "leadOnly": "Lead — not registered",
-    "toDo": "To do ({n})"
+    "toDo": "To do ({n})",
+    "autoCancelled": "Auto-cancelled: call back",
+    "autoCancelledHint": "Not confirmed in time, so the slot was freed. Call the patient: Restore & confirm (if the slot is still free) or leave it cancelled."
   },
   "followups": {
     "title": "Follow-ups",
@@ -3423,6 +3435,10 @@
       "recording_sync": {
         "title": "Please sync a call recording",
         "who": "The salesperson asked"
+      },
+      "appointment_auto_cancelled": {
+        "title": "Booking auto-cancelled (not confirmed)",
+        "who": "Admins, reception and the lead's salesperson"
       },
       "bdm_alert": {
         "title": "BDM alerts (no signal, late start, long break)",

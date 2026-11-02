@@ -23,12 +23,14 @@ class UsernameTest {
     }
 
     @Test
-    fun rolesRoundTripAndOnlySalesAndFieldStaffUseTheApp() {
+    fun rolesRoundTripAndReceptionAndAdminGetAlertsOnly() {
         for (role in StaffRole.entries) assertEquals(role, StaffRole.fromWire(role.wire))
         assertEquals(null, StaffRole.fromWire("owner"))
+        assertEquals(StaffRole.entries.toSet(), StaffRole.entries.filter { it.usesAndroidApp }.toSet())
+        assertEquals(setOf(StaffRole.Receptionist, StaffRole.Admin), StaffRole.entries.filter { it.alertsOnly }.toSet())
         assertEquals(
             setOf(StaffRole.SalesExecutive, StaffRole.SalesManager, StaffRole.Bdm),
-            StaffRole.entries.filter { it.usesAndroidApp }.toSet(),
+            StaffRole.entries.filter { it.pullsData }.toSet(),
         )
     }
 }

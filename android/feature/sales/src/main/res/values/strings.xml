@@ -26,6 +26,7 @@
     <string name="appt_done">Done</string>
     <string name="appt_no_show">No-show</string>
     <string name="appt_cancelled">Cancelled</string>
+    <string name="appt_auto_cancelled">Auto-cancelled: call to confirm</string>
     <string name="appt_rescheduled">Rescheduled</string>
     <string name="task_open">Open</string>
     <string name="task_done">Done</string>
@@ -244,6 +245,7 @@
     <string name="myday_confirm_title">Waiting for the patient to confirm</string>
     <string name="myday_confirm_none">All bookings are confirmed.</string>
     <string name="myday_confirm">Confirmed</string>
+    <string name="myday_restore">Restore</string>
     <string name="myday_refresh">Refresh</string>
     <string name="myday_targets">This month\'s targets</string>
     <string name="myday_target_converted">Converted</string>

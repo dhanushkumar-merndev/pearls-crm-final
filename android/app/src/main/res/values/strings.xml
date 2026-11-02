@@ -84,6 +84,18 @@
     <string name="tab_calls">Calls</string>
     <string name="tab_visits">Visits</string>
     <string name="tab_settings">Settings</string>
+    <string name="tab_alerts">Alerts</string>
+
+    <!-- Alerts (reception / admin on the phone) -->
+    <string name="alerts_title">Alerts</string>
+    <string name="alerts_intro">Your work happens in the web app on the clinic computer. This phone rings when something needs you, and lists it here.</string>
+    <string name="alerts_empty">No alerts yet</string>
+    <string name="alerts_empty_body">New alerts ring this phone and appear here.</string>
+    <string name="alerts_refresh">Refresh</string>
+    <string name="alerts_mark_all">Mark all read</string>
+    <string name="alerts_new">New</string>
+    <string name="alerts_open_web">Open on web</string>
+    <string name="alerts_web_hint">Opens the page in your phone\'s browser. Log in there once with the same username.</string>
     <string name="coming_soon">This screen arrives in the next update. Your login, PIN and offline sync are ready.</string>
     <string name="home_unsent_failed">Some changes couldn\'t be saved on the server.</string>
     <string name="home_offline">Offline. Your work is saved on this phone and sent when the internet is back.</string>

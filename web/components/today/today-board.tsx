@@ -1,11 +1,11 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { CalendarPlus, ChevronDown, Footprints, Inbox, ListTodo, Repeat } from "lucide-react";
+import { CalendarPlus, ChevronDown, Footprints, Inbox, ListTodo, PhoneCall, Repeat } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
-import { chartTokens, formatINR, formatTime, istDateString, type ThemeMode } from "@pearl/shared";
+import { chartTokens, formatDate, formatINR, formatTime, istDateString, type ThemeMode } from "@pearl/shared";
 import { AppointmentActions, type ApptCard } from "@/components/appointments/appointment-actions";
 import { BookDialog, WalkInDialog } from "@/components/appointments/book-dialog";
 import { ApptStatusBadge } from "@/components/appointments/status";
@@ -24,6 +24,8 @@ interface TodayData {
   counts: Record<string, number>;
   waiting: ApptCard[];
   upcoming: ApptCard[];
+  /** Upcoming bookings the system cancelled (not confirmed in time): call back. */
+  auto_cancelled?: ApptCard[];
   followups_due: number;
   pending_registrations: number;
   sessions_due_week: number;
@@ -143,6 +145,39 @@ export function TodayBoard() {
           ))}
           <span className="text-text-secondary">{t("billsToday", { n: dash.data.collections.bills })}</span>
         </div>
+      )}
+
+      {/* Only when there is something to call about. */}
+      {(board.data?.auto_cancelled?.length ?? 0) > 0 && (
+        <Card className="flex flex-col gap-3" aria-labelledby="auto-cancelled-title">
+          <CardTitle id="auto-cancelled-title" className="flex items-center gap-2">
+            <PhoneCall aria-hidden className="size-4" />
+            {t("autoCancelled")}
+          </CardTitle>
+          <p className="max-w-prose text-[0.9rem] text-text-secondary">{t("autoCancelledHint")}</p>
+          <ul className="grid gap-2 xl:grid-cols-2">
+            {board.data?.auto_cancelled?.map((a) => (
+              <li key={a.id} className="flex flex-col gap-2 rounded-xl border border-border p-2.5">
+                <span className="flex min-w-0 items-start gap-3">
+                  <span className="w-28 shrink-0 font-medium whitespace-nowrap tabular-nums">
+                    {a.slot_start ? `${formatDate(new Date(a.slot_start))} ${formatTime(new Date(a.slot_start))}` : ""}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-medium break-words">
+                      {a.patient}
+                      {a.lead_only && <LeadTag />}
+                    </span>
+                    <span className="block text-[0.9rem] text-text-secondary">{[a.doctor, a.phone].filter(Boolean).join(" · ")}</span>
+                  </span>
+                </span>
+                <span className="flex items-center justify-between gap-2">
+                  <ApptStatusBadge status={a.status} auto={a.auto_cancelled} />
+                  <AppointmentActions appt={a} />
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Card>
       )}
 
       {/* items-start: each card is as tall as its own list (no empty stretched card). */}

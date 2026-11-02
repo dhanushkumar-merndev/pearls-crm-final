@@ -72,6 +72,24 @@ class SalesRepositoryTest {
         )
 
     @Test
+    fun anAutoCancelledBookingWaitsForAConfirmAndConfirmRestoresIt() = runTest {
+        db.leads().upsert(listOf(lead("L1")))
+        val fromServer = PearlJson.parseToJsonElement(
+            """{"id":"A1","lead_id":"L1","patient_id":null,"doctor_id":"D1","doctor":"Dr X","appt_date":"2027-01-16",
+               "slot_start":"2027-01-16T05:00:00+00:00","status":"cancelled","auto_cancelled_at":"2027-01-15T17:00:00+00:00",
+               "mode":"offline","version":3,"updated_at":"2027-01-15T17:00:00+00:00"}""",
+        ).jsonObject
+        db.appointments().upsert(listOf(com.pearl.crm.core.data.db.AppointmentEntity.fromRow(fromServer)))
+
+        assertEquals("auto_cancelled", repo.observeNeedsConfirmation().first().single().appointment.status)
+
+        repo.confirmAppointment("A1")
+        assertTrue(repo.observeNeedsConfirmation().first().isEmpty())
+        assertEquals(1, db.outbox().unsentCount())
+        assertTrue(calls.isEmpty())
+    }
+
+    @Test
     fun aCallLoggedOfflineIsOneLocalRowAndOneQueuedWriteWithTheSameId() = runTest {
         db.leads().upsert(listOf(lead("L1")))
 

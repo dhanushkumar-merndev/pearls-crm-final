@@ -31,6 +31,7 @@ const SECTIONS: { section: SettingsSection; fields: Record<string, FieldKind> }[
       working_days: "weekdays",
       confirm_hours_before: "int",
       reminder_hours_before: "int",
+      auto_cancel_hours_before: "int",
       walk_in_queue: "bool",
     },
   },

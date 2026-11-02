@@ -92,6 +92,9 @@ class AppContainer(private val context: Context) {
         rpc, db, outbox, SignedUploader(edge, http), recordings, context.getSharedPreferences("pearl.bdm", Context.MODE_PRIVATE),
     )
 
+    /** Bumped when a push arrives, so an open Alerts list reloads. */
+    val alertsChanged = MutableStateFlow(0)
+
     /** A finished CRM call waiting for its notes (set by the caller flow, shown by the home screen). */
     val pendingAfterCall = MutableStateFlow<AfterCallRequest?>(null)
     val pins = PinController(PinStore(securePrefs))
@@ -121,6 +124,7 @@ class AppContainer(private val context: Context) {
             sales.tidyAfterPull()
             RecordingWorker.schedule(context)
         },
+        shouldPull = { sessions.session.value?.staffRole?.pullsData == true },
     )
 
     private val _profile = MutableStateFlow<StaffProfile?>(null)

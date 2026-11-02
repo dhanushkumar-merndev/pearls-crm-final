@@ -36,6 +36,8 @@ class SyncRunner(
     private val clock: () -> Long = System::currentTimeMillis,
     /** After a complete pull: tidy rows made on the phone that the server took but didn't send back. */
     private val afterPull: suspend () -> Unit = {},
+    /** False for alerts-only logins (reception, admin): send the outbox (e.g. the push token), pull nothing. */
+    private val shouldPull: () -> Boolean = { true },
 ) {
     private val _status = MutableStateFlow(SyncStatus())
     val status: StateFlow<SyncStatus> = _status.asStateFlow()
@@ -57,6 +59,10 @@ class SyncRunner(
             val sent = outbox.run()
             nextRetryAt = sent.nextAttemptAt
             if (sent.signedOut) return SyncResult.SignedOut
+            if (!shouldPull()) {
+                _status.value = _status.value.copy(offline = false, errorCode = null, lastSuccessAt = clock())
+                return if (sent.waiting > 0) SyncResult.RetryLater else SyncResult.Done
+            }
             try {
                 pull.pull()
             } catch (_: RpcFailure.Transient) {

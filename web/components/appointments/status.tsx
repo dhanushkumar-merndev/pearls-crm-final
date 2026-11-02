@@ -18,9 +18,10 @@ const KIND: Record<ApptStatus, StatusKind> = {
   rescheduled: "serious",
 };
 
-/** Status = icon + words (never colour alone). */
-export function ApptStatusBadge({ status, className }: { status: ApptStatus; className?: string }) {
+/** Status = icon + words (never colour alone). `auto`: cancelled by the system (not confirmed in time). */
+export function ApptStatusBadge({ status, auto, className }: { status: ApptStatus; auto?: boolean; className?: string }) {
   const t = useTranslations("appt.status");
+  if (status === "cancelled" && auto) return <StatusBadge kind="warning" label={t("auto_cancelled")} className={className} />;
   return <StatusBadge kind={KIND[status]} label={t(status)} className={className} />;
 }
 

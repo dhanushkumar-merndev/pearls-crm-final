@@ -62,6 +62,20 @@ class SyncRunnerTest {
     }
 
     @Test
+    fun alertsOnlyLoginsSendTheOutboxButPullNothing() = runTest {
+        val outbox = OutboxProcessor(db.outbox(), server, clock = { now }, random = Random(1))
+        val pull = PullEngine(server, listOf(LookupValuesSync(db.lookupValues())), db.syncMarkers(), db.transactionRunner(), clock = { now })
+        val alertsOnly = SyncRunner(outbox, pull, isSignedIn = { signedIn }, clock = { now }, shouldPull = { false })
+        server.handler = { _, _ -> JsonNull }
+        queueWrite("w1")
+
+        assertEquals(SyncResult.Done, alertsOnly.runOnce())
+
+        assertEquals(listOf("lead_note_add"), server.names)
+        assertEquals(now, alertsOnly.status.value.lastSuccessAt)
+    }
+
+    @Test
     fun offlineIsShownAndASyncIsTriedLater() = runTest {
         server.handler = { _, _ -> throw RpcFailure.Transient("offline") }
         queueWrite("w1")

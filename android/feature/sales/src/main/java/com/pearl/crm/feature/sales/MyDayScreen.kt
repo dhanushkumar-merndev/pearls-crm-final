@@ -139,9 +139,10 @@ fun MyDayScreen(
                                 Text(row.leadName ?: "—", style = MaterialTheme.typography.titleSmall)
                                 Muted(listOfNotNull(row.leadPhone, a.slotStart?.let(IstDates::formatDateTime), a.doctor).joinToString(" · "))
                                 if (a.pending) StatusLabel(stringResource(R.string.not_sent_yet), StatusTone.Info)
+                                if (a.status == "auto_cancelled") StatusLabel(stringResource(R.string.appt_auto_cancelled), StatusTone.Warning)
                             }
                             PearlButton(
-                                stringResource(R.string.myday_confirm),
+                                stringResource(if (a.status == "auto_cancelled") R.string.myday_restore else R.string.myday_confirm),
                                 Icons.Outlined.Check,
                                 { scope.launch { sales.confirmAppointment(a.id) } },
                                 kind = ButtonKind.Tonal,

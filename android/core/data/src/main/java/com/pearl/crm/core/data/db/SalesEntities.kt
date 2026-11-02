@@ -145,6 +145,9 @@ data class AppointmentEntity(
     val pending: Boolean = false,
 ) {
     companion object {
+        /** `status` on the phone for a booking the server auto-cancelled (Confirm restores it if the slot is free). */
+        const val AUTO_CANCELLED = "auto_cancelled"
+
         fun fromRow(row: JsonObject) = AppointmentEntity(
             id = row.need("id", "appointments"),
             leadId = row.str("lead_id"),
@@ -153,7 +156,9 @@ data class AppointmentEntity(
             doctor = row.str("doctor"),
             apptDate = row.str("appt_date").orEmpty(),
             slotStart = isoMs(row.str("slot_start")),
-            status = row.str("status") ?: "pending_confirmation",
+            // Phone-only status: cancelled by the server because nobody confirmed in time.
+            status = row.str("status")?.let { if (it == "cancelled" && row.str("auto_cancelled_at") != null) AUTO_CANCELLED else it }
+                ?: "pending_confirmation",
             mode = row.str("mode"),
             version = row.int("version") ?: 1,
             updatedAt = row.str("updated_at").orEmpty(),

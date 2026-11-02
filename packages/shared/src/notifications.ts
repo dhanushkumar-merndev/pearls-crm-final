@@ -10,6 +10,7 @@ export const NOTIFICATION_TYPES = {
   lead_unassigned: { push: true, email: false },
   lead_enquired_again: { push: true, email: false },
   whatsapp_reply: { push: true, email: false },
+  appointment_auto_cancelled: { push: true, email: false },
   recording_sync: { push: true, email: false },
   bdm_alert: { push: true, email: false },
   storage_alert: { push: true, email: true },

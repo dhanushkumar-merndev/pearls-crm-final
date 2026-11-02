@@ -137,11 +137,11 @@ interface AppointmentDao {
     @Query("SELECT * FROM appointments WHERE lead_id = :leadId ORDER BY COALESCE(slot_start, 0) DESC")
     fun observeForLead(leadId: String): Flow<List<AppointmentEntity>>
 
-    /** Upcoming bookings still waiting for the patient to confirm (needs-confirmation list). */
+    /** Upcoming bookings still waiting for the patient to confirm, or auto-cancelled (needs-confirmation list). */
     @Query(
         """
         SELECT * FROM appointments
-        WHERE status = 'pending_confirmation' AND slot_start > :now AND lead_id IS NOT NULL
+        WHERE status IN ('pending_confirmation', 'auto_cancelled') AND slot_start > :now AND lead_id IS NOT NULL
         ORDER BY slot_start
         """,
     )
@@ -151,7 +151,7 @@ interface AppointmentDao {
         """
         SELECT a.*, l.name AS lead_name, l.phone_e164 AS lead_phone FROM appointments AS a
         JOIN leads AS l ON l.id = a.lead_id
-        WHERE a.status = 'pending_confirmation' AND a.slot_start > :now
+        WHERE a.status IN ('pending_confirmation', 'auto_cancelled') AND a.slot_start > :now
         ORDER BY a.slot_start
         """,
     )

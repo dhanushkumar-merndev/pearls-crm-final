@@ -3,6 +3,7 @@ package com.pearl.crm.push
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.NotificationChannel
+import android.app.PendingIntent
 import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.PackageManager
@@ -47,12 +48,17 @@ object Push {
     @SuppressLint("MissingPermission") // checked by canNotify() just below
     fun show(context: Context, id: Int, title: String, body: String) {
         if (!canNotify(context)) return
+        // A tap opens the app (Alerts is the first tab for reception and admin).
+        val open = context.packageManager.getLaunchIntentForPackage(context.packageName)?.let {
+            PendingIntent.getActivity(context, 0, it, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        }
         val notification = NotificationCompat.Builder(context, CHANNEL_GENERAL)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
             .setContentText(body)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
             .setAutoCancel(true)
+            .apply { if (open != null) setContentIntent(open) }
             .build()
         NotificationManagerCompat.from(context).notify(id, notification)
     }

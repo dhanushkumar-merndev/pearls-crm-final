@@ -4,6 +4,7 @@ import androidx.annotation.StringRes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Call
 import androidx.compose.material.icons.outlined.EventRepeat
+import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.People
 import androidx.compose.material.icons.outlined.Place
 import androidx.compose.material.icons.outlined.Settings
@@ -19,13 +20,15 @@ enum class HomeTab(val route: String, @param:StringRes val label: Int, val icon:
     Followups("followups", R.string.tab_followups, Icons.Outlined.EventRepeat),
     Calls("calls", R.string.tab_calls, Icons.Outlined.Call),
     Visits("visits", R.string.tab_visits, Icons.Outlined.Place),
+    Alerts("alerts", R.string.tab_alerts, Icons.Outlined.Notifications),
     Settings("settings", R.string.tab_settings, Icons.Outlined.Settings);
 
     companion object {
         fun forRole(role: StaffRole): List<HomeTab> = when (role) {
             StaffRole.SalesExecutive, StaffRole.SalesManager -> listOf(MyDay, Leads, Followups, Calls, Settings)
             StaffRole.Bdm -> listOf(MyDay, Visits, Leads, Settings)
-            StaffRole.Receptionist, StaffRole.Admin -> listOf(Settings)
+            // Their work is on the web; the phone rings for alerts and lists them.
+            StaffRole.Receptionist, StaffRole.Admin -> listOf(Alerts, Settings)
         }
     }
 }

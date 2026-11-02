@@ -12,6 +12,10 @@ describe("notification types", () => {
     expect(NOTIFICATION_TYPES.lead_assigned).toEqual({ push: true, email: false });
   });
 
+  it("auto-cancelled bookings ring the phone (staff must call back)", () => {
+    expect(NOTIFICATION_TYPES.appointment_auto_cancelled).toEqual({ push: true, email: false });
+  });
+
   it("locate_now is a command to the phone, not something to switch off", () => {
     expect(NOTIFICATION_TYPE_LIST).not.toContain("locate_now");
   });
