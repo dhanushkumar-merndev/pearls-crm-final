@@ -51,6 +51,9 @@ describe("settings", () => {
     expect(validateSettings("whatsapp", { quiet_start: "25:00" })).toEqual({ ok: false, field: "quiet_start" });
     expect(validateSettings("whatsapp", { cost_marketing_paise: -1 })).toEqual({ ok: false, field: "cost_marketing_paise" });
     expect(validateSettings("whatsapp", { stop_reply: "x".repeat(1001) })).toEqual({ ok: false, field: "stop_reply" });
+    expect(readSettings("whatsapp", {}).templates_enabled).toBe(true);
+    expect(readSettings("whatsapp", { templates_enabled: false }).templates_enabled).toBe(false);
+    expect(validateSettings("whatsapp", { templates_enabled: "no" })).toEqual({ ok: false, field: "templates_enabled" });
     // Overnight and equal times are both fine (equal = no quiet hours).
     expect(validateSettings("whatsapp", { quiet_start: "09:00", quiet_end: "09:00" }).ok).toBe(true);
   });

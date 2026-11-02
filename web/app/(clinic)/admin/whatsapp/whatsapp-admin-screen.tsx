@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Copy, Pencil, PlugZap, RefreshCw, Save } from "lucide-react";
+import { Copy, Pencil, PlugZap, Power, PowerOff, RefreshCw, Save } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect, useState, type FormEvent } from "react";
@@ -158,6 +158,7 @@ export function WhatsAppAdminScreen({ webhookUrl }: { webhookUrl: string }) {
         </section>
       )}
 
+      <TemplatesSwitch />
       <SettingsForm />
       <ChatBot />
       <Templates />
@@ -196,11 +197,8 @@ export function WhatsAppAdminScreen({ webhookUrl }: { webhookUrl: string }) {
 
 type WaSettings = Settings<"whatsapp">;
 
-function SettingsForm() {
-  const t = useTranslations("waAdmin");
-  const { saved, failed } = useFeedback();
-  const queryClient = useQueryClient();
-  const stored = useQuery({
+const useWaSettings = () =>
+  useQuery({
     queryKey: ["app_settings", "whatsapp"],
     queryFn: async () =>
       unwrap(await getSupabaseBrowser().from("app_settings").select("value, version").eq("section", "whatsapp").maybeSingle()) as {
@@ -208,6 +206,48 @@ function SettingsForm() {
         version: number;
       } | null,
   });
+
+/** One button to stop every paid template message (bookings, reminders, welcomes, drips) and start them again. */
+function TemplatesSwitch() {
+  const t = useTranslations("waAdmin.templatesSwitch");
+  const { saved, failed } = useFeedback();
+  const queryClient = useQueryClient();
+  const stored = useWaSettings();
+  const on = readSettings("whatsapp", stored.data?.value).templates_enabled;
+  const flip = useMutation({
+    mutationFn: (next: boolean) => rpc<boolean>("wa_templates_switch", { p_on: next }),
+    onSuccess: (next) => {
+      saved(next ? t("turnedOn") : t("turnedOff"));
+      void queryClient.invalidateQueries({ queryKey: ["app_settings"] });
+      void queryClient.invalidateQueries({ queryKey: ["wa_overview"] });
+    },
+    onError: failed,
+  });
+  return (
+    <Card className="flex flex-col gap-3" data-testid="wa-templates-switch">
+      <div className="flex flex-wrap items-center gap-2">
+        <CardTitle className="mr-auto">{t("title")}</CardTitle>
+        {stored.isSuccess && <StatusBadge kind={on ? "good" : "serious"} label={on ? t("on") : t("off")} />}
+      </div>
+      <CardDescription>{on ? t("onHint") : t("offHint")}</CardDescription>
+      <Button
+        variant={on ? "secondary" : "primary"}
+        className="self-start"
+        disabled={!stored.isSuccess || flip.isPending}
+        onClick={() => flip.mutate(!on)}
+      >
+        {on ? <PowerOff aria-hidden /> : <Power aria-hidden />}
+        {flip.isPending ? t("saving") : on ? t("turnOff") : t("turnOn")}
+      </Button>
+    </Card>
+  );
+}
+
+function SettingsForm() {
+  const t = useTranslations("waAdmin");
+  const { saved, failed } = useFeedback();
+  const queryClient = useQueryClient();
+  const stored = useWaSettings();
   const [form, setForm] = useState<WaSettings>(() => readSettings("whatsapp", null));
   const [stopReply, setStopReply] = useState("");
   const [loaded, setLoaded] = useState(false);
@@ -238,7 +278,9 @@ function SettingsForm() {
   function submit(e: FormEvent) {
     e.preventDefault();
     // An emptied price box stays NaN so it is reported (undefined would quietly take the default).
-    const clean = checks.validate({ ...form, stop_reply: stopReply.trim() === "" ? null : stopReply });
+    // The template switch has its own button: keep whatever is stored, never this form's old copy.
+    const latest = readSettings("whatsapp", stored.data?.value).templates_enabled;
+    const clean = checks.validate({ ...form, templates_enabled: latest, stop_reply: stopReply.trim() === "" ? null : stopReply });
     if (clean) save.mutate(clean);
   }
   const bool = (k: "enabled" | "send_booking_confirmation" | "send_reminders", hint?: string) => (

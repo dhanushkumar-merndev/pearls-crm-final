@@ -81,6 +81,8 @@ export const SETTINGS_SCHEMAS = {
     enabled: z.boolean().default(false),
     send_booking_confirmation: z.boolean().default(true),
     send_reminders: z.boolean().default(true),
+    /** Admin → WhatsApp "Template messages" switch (Meta charges per template). Off = only free replies within 24 h. */
+    templates_enabled: z.boolean().default(true),
     /** IST. Automatic messages wait until quiet_end; the same time twice = no quiet hours. */
     quiet_start: hhmm.default("21:00"),
     quiet_end: hhmm.default("09:00"),

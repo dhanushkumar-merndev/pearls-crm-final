@@ -147,7 +147,8 @@ export function AppointmentActions({ appt, onChanged }: { appt: ApptCard; onChan
             </DropdownMenuItem>
           )}
           <DropdownMenuSeparator />
-          {appt.phone && message && (
+          {/* A reminder only makes sense before the visit: not once arrived, done, no-show or cancelled. */}
+          {appt.phone && message && (appt.status === "pending_confirmation" || appt.status === "confirmed") && (
             <DropdownMenuItem asChild>
               <a href={waLink(appt.phone, message)} target="_blank" rel="noopener noreferrer">
                 <MessageCircle aria-hidden />

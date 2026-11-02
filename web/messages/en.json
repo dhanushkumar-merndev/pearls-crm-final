@@ -208,7 +208,8 @@
     "visit_open": "Finish the visit you started first (mark it reached and complete).",
     "break_open": "End your break first.",
     "not_backed_up": "Some of these files have no checked backup yet. Back them up first (Backup centre), then purge.",
-    "not_purgeable": "Only recordings and visit photos can be removed from the cloud. Patient records are always kept."
+    "not_purgeable": "Only recordings and visit photos can be removed from the cloud. Patient records are always kept.",
+    "templates_off": "Template messages are switched off (Admin → WhatsApp → Template messages)."
   },
   "common": {
     "saved": "Saved ✓",
@@ -2964,6 +2965,18 @@
         "confirm": "Waiting for Confirm"
       },
       "openLead": "Open lead"
+    },
+    "templatesSwitch": {
+      "title": "Template messages (Meta charges for these)",
+      "on": "On",
+      "off": "Off",
+      "onHint": "Booking confirmations, 24-hour reminders, welcome and follow-up messages are sent automatically. Meta bills each one.",
+      "offHint": "No template messages are sent, so nothing is charged. Replies to a patient who wrote in the last 24 hours still work (free). Bookings are not auto-cancelled for a missing reminder.",
+      "turnOff": "Turn off",
+      "turnOn": "Turn on",
+      "saving": "Saving…",
+      "turnedOff": "Template messages are off. Nothing will be charged.",
+      "turnedOn": "Template messages are on again."
     }
   },
   "drips": {
