@@ -1727,7 +1727,7 @@
       "balance": "Balance",
       "status": "Status"
     },
-    "newBill": "New bill",
+    "newBill": "New bill (procedure / surgery)",
     "advanceOrRefund": "Advance / refund",
     "billed": "Billed",
     "received": "Received",

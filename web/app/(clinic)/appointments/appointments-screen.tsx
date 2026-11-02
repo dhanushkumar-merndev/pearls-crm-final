@@ -24,6 +24,7 @@ import { useLiveAppointments } from "@/lib/realtime";
 import { downloadExcel } from "@/lib/excel";
 import { rpc } from "@/lib/rpc";
 import { useFeedback } from "@/lib/use-feedback";
+import { useUrlParam, useUrlTab } from "@/lib/use-url-param";
 import { cn } from "@/lib/utils";
 import { useDateRangeCheck } from "@/lib/use-date-range";
 
@@ -50,9 +51,14 @@ interface Board {
 
 const shiftDay = (day: string, by: number) => istDateString(new Date(istDayStart(day).getTime() + by * 86_400_000 + 3_600_000));
 
+const VIEWS = ["board", "table"] as const;
+const isIsoDay = (v: string): v is string => /^\d{4}-\d{2}-\d{2}$/.test(v);
+
 export function AppointmentsScreen({ autoCancelled }: { autoCancelled?: { date?: string } } = {}) {
   const t = useTranslations("appointments");
-  const [day, setDay] = useState(() => istDateString(new Date()));
+  const [today] = useState(() => istDateString(new Date()));
+  const [day, setDay] = useUrlParam("day", today, isIsoDay);
+  const [view, setView] = useUrlTab(VIEWS, autoCancelled ? "table" : "board");
   const [booking, setBooking] = useState<{ doctor?: LibraryItem; slot?: string } | null>(null);
   const [walkIn, setWalkIn] = useState(false);
   return (
@@ -73,9 +79,9 @@ export function AppointmentsScreen({ autoCancelled }: { autoCancelled?: { date?:
           </>
         }
       />
-      <Tabs defaultValue={autoCancelled ? "table" : "board"} className="flex flex-col gap-4">
+      <Tabs value={view} onValueChange={setView} className="flex flex-col gap-4">
         <TabsList aria-label={t("views")}>
-          {(["board", "table"] as const).map((v) => (
+          {VIEWS.map((v) => (
             <TabsTrigger key={v} value={v}>
               {t(`view.${v}`)}
             </TabsTrigger>

@@ -36,6 +36,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
 import { rpc } from "@/lib/rpc";
 import { useMe } from "@/lib/use-me";
+import { useUrlTab } from "@/lib/use-url-param";
 import { useFeedback } from "@/lib/use-feedback";
 import { linkRelativeSchema, mergePatientSchema } from "@/lib/schemas/clinical";
 import { useZodForm } from "@/lib/use-zod-form";
@@ -61,6 +62,10 @@ export interface PatientHeader extends Record<string, unknown> {
 }
 
 /** One patient: header strip + tabs. Later phases add Appointments, Treatments, Bills, … */
+const PATIENT_TABS = ["overview", "appointments", "treatments", "ip", "bills", "documents", "whatsapp", "family", "timeline"] as const;
+// Patient messages are reception's and the admin's: others never get the WhatsApp tab (or a ?tab=whatsapp link).
+const PATIENT_TABS_NO_WA = PATIENT_TABS.filter((x) => x !== "whatsapp");
+
 export function PatientFile({ initial }: { initial: PatientHeader }) {
   const t = useTranslations("patientFile");
   const f = useTranslations("patientForm");
@@ -75,7 +80,8 @@ export function PatientFile({ initial }: { initial: PatientHeader }) {
   const hit = { id: p.id, title: p.full_name, uhid: p.uhid, subtitle: p.uhid };
   // Patient messages are reception's (and the admin's) — Postgres checks the same.
   const canWhatsApp = me?.role === "receptionist" || me?.role === "admin";
-  const [tab, setTab] = useState("overview");
+  const tabs = canWhatsApp ? PATIENT_TABS : PATIENT_TABS_NO_WA;
+  const [tab, setTab] = useUrlTab(tabs, "overview");
 
   return (
     <Page>
@@ -144,9 +150,7 @@ export function PatientFile({ initial }: { initial: PatientHeader }) {
 
       <Tabs value={tab} onValueChange={setTab} className="flex flex-col gap-4">
         <TabsList aria-label={t("sections")}>
-          {(["overview", "appointments", "treatments", "ip", "bills", "documents", "whatsapp", "family", "timeline"] as const)
-            .filter((tab) => tab !== "whatsapp" || canWhatsApp)
-            .map((tab) => (
+          {tabs.map((tab) => (
             <TabsTrigger key={tab} value={tab}>
               {t(`tab.${tab}`)}
               {tab === "documents" && p.documents_count > 0 && <span className="ml-1.5 tabular-nums">({p.documents_count})</span>}

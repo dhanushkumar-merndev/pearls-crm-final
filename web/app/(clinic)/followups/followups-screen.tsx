@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { rpc } from "@/lib/rpc";
 import { followupOutcomeSchema } from "@/lib/schemas/clinical";
 import { useFeedback } from "@/lib/use-feedback";
+import { useUrlTab } from "@/lib/use-url-param";
 import { useZodForm } from "@/lib/use-zod-form";
 
 interface Followup {
@@ -34,6 +35,7 @@ const SCOPES = ["today", "overdue", "upcoming"] as const;
 
 /** Follow-ups and tasks: today / overdue / upcoming. Done = with an outcome. */
 export function FollowupsScreen() {
+  const [scope, setScope] = useUrlTab(SCOPES, "today");
   const t = useTranslations("followups");
   const [adding, setAdding] = useState(false);
   return (
@@ -48,7 +50,7 @@ export function FollowupsScreen() {
           </Button>
         }
       />
-      <Tabs defaultValue="today" className="flex flex-col gap-4">
+      <Tabs value={scope} onValueChange={setScope} className="flex flex-col gap-4">
         <TabsList aria-label={t("when")}>
           {SCOPES.map((s) => (
             <TabsTrigger key={s} value={s}>
