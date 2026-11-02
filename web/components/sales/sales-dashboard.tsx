@@ -11,7 +11,7 @@ import { useSalesStaff } from "@/components/leads/use-sales-staff";
 import { Button } from "@/components/ui/button";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { Field, Select } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import { DateRangePicker } from "@/components/ui/date-picker";
 import { CardSkeleton, TileSkeletons } from "@/components/ui/skeletons";
 import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
 import { pct, PRESETS, rangeFor, type Preset } from "@/lib/periods";
@@ -51,6 +51,7 @@ const HOURS = Array.from({ length: 14 }, (_, i) => i + 8); // 8:00–21:00
 /** Sales manager dashboard (PLAN.md B6): one call, tiles vs the previous period, funnel, sources, people, calls. */
 export function SalesDashboard() {
   const t = useTranslations("salesDash");
+  const dp = useTranslations("datePicker");
   const st = useTranslations("leads.stage");
   const [preset, setPreset] = useState<Preset>("mtd");
   const [custom, setCustom] = useState(() => rangeFor("mtd"));
@@ -182,11 +183,8 @@ export function SalesDashboard() {
         </Field>
         {preset === "custom" && (
           <>
-            <Field label={t("from")} error={check.fromError}>
-              {(a) => <Input {...a} type="date" value={custom.from} onChange={(e) => setCustom((c) => ({ ...c, from: e.target.value }))} />}
-            </Field>
-            <Field label={t("to")} error={check.toError}>
-              {(a) => <Input {...a} type="date" value={custom.to} onChange={(e) => setCustom((c) => ({ ...c, to: e.target.value }))} />}
+            <Field label={dp("dates")} error={check.fromError ?? check.toError}>
+              {(a) => <DateRangePicker {...a} quick={false} value={custom} onChange={setCustom} />}
             </Field>
           </>
         )}

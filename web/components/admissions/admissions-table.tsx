@@ -7,7 +7,7 @@ import { useState } from "react";
 import { formatDateTime, istDateString } from "@pearl/shared";
 import { ClearFilters } from "@/components/ui/filter-bar";
 import { Field, Select } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import { DateRangePicker } from "@/components/ui/date-picker";
 import { Pager } from "@/components/ui/pager";
 import { RowSkeletons } from "@/components/ui/skeletons";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -36,6 +36,7 @@ export const admissionBadge = (s: AdmissionStatus) => (s === "admitted" ? "warni
 /** IP stays: "admitted now" (no date range) or by admission date (≤ 1 year). With patientId: that patient's stays. */
 export function AdmissionsTable({ patientId }: { patientId?: string }) {
   const t = useTranslations("ip");
+  const dp = useTranslations("datePicker");
   const [status, setStatus] = useState<"" | AdmissionStatus>(() => (patientId ? "" : "admitted"));
   const startRange = () => ({ from: istDateString(new Date(Date.now() - 90 * 86_400_000)), to: istDateString(new Date()) });
   const startStatus = patientId ? "" : "admitted";
@@ -68,11 +69,8 @@ export function AdmissionsTable({ patientId }: { patientId?: string }) {
         </Field>
         {!patientId && status !== "admitted" && (
           <>
-            <Field label={t("from")} error={rangeCheck.fromError}>
-              {(a) => <Input {...a} type="date" value={range.from} onChange={(e) => (setRange((r) => ({ ...r, from: e.target.value })), setOffset(0))} />}
-            </Field>
-            <Field label={t("to")} error={rangeCheck.toError}>
-              {(a) => <Input {...a} type="date" value={range.to} onChange={(e) => (setRange((r) => ({ ...r, to: e.target.value })), setOffset(0))} />}
+            <Field label={dp("dates")} error={rangeCheck.fromError ?? rangeCheck.toError}>
+              {(a) => <DateRangePicker {...a} value={range} onChange={(r) => (setRange(r), setOffset(0))} clearTo={startRange()} />}
             </Field>
           </>
         )}

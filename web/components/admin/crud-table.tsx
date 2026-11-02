@@ -10,6 +10,7 @@ import { LibraryCombobox, useDebounced, type LibraryItem } from "@/components/li
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Checkbox, Field, Select, Textarea } from "@/components/ui/form";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { Pager } from "@/components/ui/pager";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -323,7 +324,7 @@ function FieldControl({
     case "int_list":
       return <Input {...a11y} inputMode="numeric" value={String(value ?? "")} onChange={(e) => onChange(e.target.value)} />;
     case "date":
-      return <Input {...a11y} type="date" value={String(value ?? "")} onChange={(e) => onChange(e.target.value || null)} />;
+      return <DatePicker {...a11y} value={String(value ?? "")} onChange={(v) => onChange(v || null)} />;
     case "boolean":
       return null;
     default:

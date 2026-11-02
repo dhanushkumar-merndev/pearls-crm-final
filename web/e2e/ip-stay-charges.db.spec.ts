@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { choose, open, STATE, uniquePhone } from "./helpers";
+import { choose, open, pickDate, STATE, uniquePhone } from "./helpers";
 
 // "Add charge" on an IP stay (owner, 02/11/2026): charges go on the stay's draft final bill and
 // are listed on the stay page with a running total. E2E_DB=1.
@@ -68,10 +68,16 @@ test("IP stay: add several charges at once from the stay page, see the total, fi
   await expect(list.getByRole("listitem")).toHaveCount(2);
   await expect(dialog.getByTestId("new-charges-total")).toHaveText("₹3,500.00");
 
+  // Any date can be picked (owner, 02/11/2026), even one before today's admission.
+  const earlier = new Date(Date.now() + 5.5 * 3600_000 - 3 * 86400_000).toISOString().slice(0, 10); // IST, 3 days ago
+  await pickDate(page, dialog.getByLabel("Date", { exact: true }), earlier);
+
   await dialog.getByRole("button", { name: "Add 2 charges" }).click();
   await expect(page.getByText("2 charges added ✓")).toBeVisible();
   await expect(dialog).toBeHidden();
   await expect(charges.getByRole("cell", { name: "Nursing care" })).toBeVisible();
+  const shown = earlier.split("-").reverse().join("/");
+  await expect(charges.getByRole("row").filter({ hasText: "Nursing care" })).toContainText(shown);
   await expect(charges.getByRole("row")).toHaveCount(4); // header, 2 charges, total
   await expect(page.getByTestId("charges-total")).toHaveText("₹3,500.00");
 

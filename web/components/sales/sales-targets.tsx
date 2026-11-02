@@ -8,6 +8,7 @@ import { useState } from "react";
 import { formatINR, istDateString } from "@pearl/shared";
 import { Button } from "@/components/ui/button";
 import { Field, PageHeader } from "@/components/ui/form";
+import { MonthPicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { Page } from "@/components/ui/page";
 import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
@@ -57,7 +58,7 @@ export function SalesTargets({ canEdit }: { canEdit: boolean }) {
         </p>
       )}
       <Field label={t("month")} className="max-w-xs">
-        {(a) => <Input {...a} type="month" value={month} onChange={(e) => setMonth(e.target.value)} />}
+        {(a) => <MonthPicker {...a} value={month} onChange={(v) => v && setMonth(v)} />}
       </Field>
       <Table>
         <THead>

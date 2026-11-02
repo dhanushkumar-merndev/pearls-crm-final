@@ -9,7 +9,7 @@ import { formatDate, formatINR, istDateString } from "@pearl/shared";
 import { ClearFilters } from "@/components/ui/filter-bar";
 import { Button } from "@/components/ui/button";
 import { Field, Select } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import { DateRangePicker } from "@/components/ui/date-picker";
 import { Pager } from "@/components/ui/pager";
 import { RowSkeletons } from "@/components/ui/skeletons";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -52,6 +52,7 @@ function startFilters() {
 export function BillsTable({ patientId }: { patientId?: string }) {
   const t = useTranslations("bills");
   const b = useTranslations("bill");
+  const dp = useTranslations("datePicker");
   const forLabel = useBillForLabel();
   const { failed } = useFeedback();
   const [filters, setFilters] = useState(startFilters);
@@ -116,8 +117,16 @@ export function BillsTable({ patientId }: { patientId?: string }) {
       <div className="flex flex-wrap items-end gap-3">
         {!patientId && (
           <>
-            <Field label={t("from")} error={rangeCheck.fromError}>{(a) => <Input {...a} type="date" value={filters.from} onChange={(e) => set("from", e.target.value)} />}</Field>
-            <Field label={t("to")} error={rangeCheck.toError}>{(a) => <Input {...a} type="date" value={filters.to} onChange={(e) => set("to", e.target.value)} />}</Field>
+            <Field label={dp("dates")} error={rangeCheck.fromError ?? rangeCheck.toError}>
+              {(a) => (
+                <DateRangePicker
+                  {...a}
+                  value={{ from: filters.from, to: filters.to }}
+                  onChange={(r) => (setFilters((f) => ({ ...f, ...r })), setOffset(0))}
+                  clearTo={{ from: start.from, to: start.to }}
+                />
+              )}
+            </Field>
           </>
         )}
         <Field label={t("type")}>

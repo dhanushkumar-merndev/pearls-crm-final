@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { Field, Select } from "@/components/ui/form";
+import { DateRangePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/page";
 import { Pager } from "@/components/ui/pager";
@@ -122,6 +123,7 @@ function sortValue(c: AdCampaignRow, key: SortKey): number {
  */
 export function AdsDashboard() {
   const t = useTranslations("ads");
+  const dp = useTranslations("datePicker");
   const queryClient = useQueryClient();
   const { errorMessage } = useFeedback();
   const [preset, setPreset] = useState<AdsPreset>("mtd");
@@ -350,11 +352,8 @@ export function AdsDashboard() {
         </Field>
         {preset === "custom" && (
           <>
-            <Field label={t("from")} error={check.fromError}>
-              {(a) => <Input {...a} type="date" value={custom.from} onChange={(e) => setCustom((c) => ({ ...c, from: e.target.value }))} />}
-            </Field>
-            <Field label={t("to")} error={check.toError}>
-              {(a) => <Input {...a} type="date" value={custom.to} onChange={(e) => setCustom((c) => ({ ...c, to: e.target.value }))} />}
+            <Field label={dp("dates")} error={check.fromError ?? check.toError}>
+              {(a) => <DateRangePicker {...a} quick={false} value={custom} onChange={setCustom} />}
             </Field>
           </>
         )}
@@ -459,15 +458,8 @@ export function AdsDashboard() {
             </Field>
             {tablePreset === "custom" && (
               <>
-                <Field label={t("tableFrom")} error={tableCheck.fromError}>
-                  {(a) => (
-                    <Input {...a} type="date" value={tableCustom.from} onChange={(e) => (setTableCustom((c) => ({ ...c, from: e.target.value })), setOffset(0))} />
-                  )}
-                </Field>
-                <Field label={t("tableTo")} error={tableCheck.toError}>
-                  {(a) => (
-                    <Input {...a} type="date" value={tableCustom.to} onChange={(e) => (setTableCustom((c) => ({ ...c, to: e.target.value })), setOffset(0))} />
-                  )}
+                <Field label={t("tableDates")} error={tableCheck.fromError ?? tableCheck.toError}>
+                  {(a) => <DateRangePicker {...a} quick={false} value={tableCustom} onChange={(r) => (setTableCustom(r), setOffset(0))} />}
                 </Field>
               </>
             )}

@@ -14,7 +14,7 @@ import { Card } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { Field, PageHeader, Select } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import { DatePicker, DateRangePicker } from "@/components/ui/date-picker";
 import { Page } from "@/components/ui/page";
 import { Pager } from "@/components/ui/pager";
 import { CardSkeleton, RowSkeletons } from "@/components/ui/skeletons";
@@ -121,7 +121,7 @@ function BoardView({ day, setDay, onBook }: { day: string; setDay: (d: string) =
         <Button variant="secondary" size="icon" aria-label={t("prevDay")} onClick={() => setDay(shiftDay(day, -1))}>
           <ChevronLeft aria-hidden />
         </Button>
-        <Field label={t("day")}>{(f) => <Input {...f} type="date" value={day} onChange={(e) => e.target.value && setDay(e.target.value)} className="w-44" />}</Field>
+        <Field label={t("day")}>{(f) => <DatePicker {...f} value={day} onChange={(v) => v && setDay(v)} clearTo={istDateString(new Date())} className="w-44" />}</Field>
         <Button variant="secondary" size="icon" aria-label={t("nextDay")} onClick={() => setDay(shiftDay(day, 1))}>
           <ChevronRight aria-hidden />
         </Button>
@@ -245,6 +245,7 @@ function TableView({ autoCancelled }: { autoCancelled?: { date?: string } }) {
   const t = useTranslations("appointments");
   const a = useTranslations("appt");
   const c = useTranslations("common");
+  const dp = useTranslations("datePicker");
   const { failed } = useFeedback();
   const today = istDateString(new Date());
   const [filters, setFilters] = useState(() =>
@@ -311,11 +312,15 @@ function TableView({ autoCancelled }: { autoCancelled?: { date?: string } }) {
           </Button>
         }
       >
-        <Field label={t("from")} error={rangeCheck.fromError}>
-          {(f) => <Input {...f} type="date" value={filters.from} onChange={(e) => (setFilters({ ...filters, from: e.target.value }), setOffset(0))} />}
-        </Field>
-        <Field label={t("to")} error={rangeCheck.toError}>
-          {(f) => <Input {...f} type="date" value={filters.to} onChange={(e) => (setFilters({ ...filters, to: e.target.value }), setOffset(0))} />}
+        <Field label={dp("dates")} error={rangeCheck.fromError ?? rangeCheck.toError}>
+          {(f) => (
+            <DateRangePicker
+              {...f}
+              value={{ from: filters.from, to: filters.to }}
+              onChange={(r) => (setFilters({ ...filters, ...r }), setOffset(0))}
+              clearTo={{ from: today, to: today }}
+            />
+          )}
         </Field>
         <Field label={t("status")}>
           {(f) => (

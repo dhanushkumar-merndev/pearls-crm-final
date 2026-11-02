@@ -19,6 +19,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Field, Select, Textarea } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { DatePicker, DateTimePicker } from "@/components/ui/date-picker";
 import { MoreMenu } from "@/components/ui/more-menu";
 import { DetailHeader, Page } from "@/components/ui/page";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -284,13 +285,10 @@ function rowFromService(s: LibraryItem): ChargeRow {
 function AddChargeDialog({ admission, onDone }: { admission: Admission; onDone: () => void }) {
   const t = useTranslations("ip");
   const { saved, failed } = useFeedback();
-  const [today] = useState(() => istDateString(new Date()));
-  const admittedOn = istDateString(new Date(admission.admitted_at));
-  const [date, setDate] = useState(today);
+  const [date, setDate] = useState(() => istDateString(new Date()));
   const [rows, setRows] = useState<ChargeRow[]>([]);
   const [added, setAdded] = useState(0);
-  const [schema] = useState(() => stayChargesSchema(admittedOn, today));
-  const checks = useZodForm(schema);
+  const checks = useZodForm(stayChargesSchema);
   const update = (key: string, patch: Partial<ChargeRow>) => {
     const i = rows.findIndex((r) => r.key === key);
     for (const f of Object.keys(patch)) checks.clear(`lines.${i}.${f}`);
@@ -369,7 +367,7 @@ function AddChargeDialog({ admission, onDone }: { admission: Admission; onDone: 
             {(a) => <LibraryCombobox {...a} kind="service" value={null} onChange={(s) => s && addRow(rowFromService(s))} />}
           </Field>
           <Field label={t("chargeDate")} error={checks.error("date")}>
-            {(a) => <Input {...a} type="date" min={admittedOn} max={today} value={date} onChange={(e) => (setDate(e.target.value), checks.clear("date"))} />}
+            {(a) => <DatePicker {...a} value={date} onChange={(v) => (setDate(v), checks.clear("date"))} />}
           </Field>
         </div>
 
@@ -449,7 +447,7 @@ function DischargeDialog({ admission, onDone }: { admission: Admission; onDone: 
       }
     >
       <Field label={t("dischargedAt")} error={checks.error("at")}>
-        {(a) => <Input {...a} type="datetime-local" value={at} onChange={(e) => (setAt(e.target.value), checks.clear("at"))} />}
+        {(a) => <DateTimePicker {...a} value={at} onChange={(v) => (setAt(v), checks.clear("at"))} />}
       </Field>
     </DialogContent>
   );

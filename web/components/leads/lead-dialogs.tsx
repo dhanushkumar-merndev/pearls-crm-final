@@ -22,6 +22,7 @@ import { LibraryCombobox, type LibraryItem } from "@/components/library-combobox
 import { Button } from "@/components/ui/button";
 import { DialogContent } from "@/components/ui/dialog";
 import { Field, Select, Textarea } from "@/components/ui/form";
+import { DatePicker, DateTimePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { asAppError, newId, rpc } from "@/lib/rpc";
 import { useFeedback } from "@/lib/use-feedback";
@@ -135,7 +136,7 @@ export function EditLeadDialog({ lead, onDone }: { lead: Lead; onDone: (updated:
           )}
         </Field>
         <Field label={t("f.surgeryDate")} hint={t("surgeryDateHint")} error={checks.error("surgery_date")}>
-          {(a) => <Input {...a} type="date" value={f.surgery_date} onChange={(e) => set("surgery_date", e.target.value)} />}
+          {(a) => <DatePicker {...a} value={f.surgery_date} onChange={(v) => set("surgery_date", v)} />}
         </Field>
         <Field label={t("f.amountQuoted")} error={checks.error("amount_quoted_paise")}>
           {(a) => <MoneyInput {...a} value={quoted} onChange={(v) => (setQuoted(v), checks.clear("amount_quoted_paise"))} />}
@@ -284,7 +285,7 @@ export function LogCallDialog({ lead, onDone }: { lead: Lead; onDone: () => void
           {(a) => <Input {...a} type="number" inputMode="numeric" min={0} max={600} value={f.duration_min} onChange={(e) => set("duration_min", e.target.value)} />}
         </Field>
         <Field label={t("f.nextFollowup")} hint={t("nextFollowupHint")} error={checks.error("next_followup")}>
-          {(a) => <Input {...a} type="datetime-local" min={minAt} value={f.next_followup} onChange={(e) => set("next_followup", e.target.value)} />}
+          {(a) => <DateTimePicker {...a} min={minAt} value={f.next_followup} onChange={(v) => set("next_followup", v)} />}
         </Field>
         <Field label={t("f.callNotes")} error={checks.error("notes")} className="sm:col-span-2">
           {(a) => <Textarea {...a} rows={3} maxLength={2000} value={f.notes} onChange={(e) => set("notes", e.target.value)} />}

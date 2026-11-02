@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Checkbox, Field, PageHeader, Select } from "@/components/ui/form";
+import { TimePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { Page, useAdminBack } from "@/components/ui/page";
 import { CardSkeleton, RowSkeletons } from "@/components/ui/skeletons";
@@ -207,7 +208,7 @@ function SectionForm({
                       ))}
                     </Select>
                   ) : kind === "time" ? (
-                    <Input {...a} type="time" value={String(form[key] ?? "")} onChange={(e) => set(key, e.target.value)} />
+                    <TimePicker {...a} value={String(form[key] ?? "")} onChange={(v) => set(key, v)} />
                   ) : kind === "int_list" ? (
                     <Input {...a} inputMode="numeric" value={String(form[key] ?? "")} onChange={(e) => set(key, e.target.value)} />
                   ) : kind === "email_list" ? (

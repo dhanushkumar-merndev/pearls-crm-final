@@ -8,6 +8,7 @@ import { formatDateTime, istDayStart } from "@pearl/shared";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Field, PageHeader, Select } from "@/components/ui/form";
+import { DatePicker, TimePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { Page } from "@/components/ui/page";
 import { EmptyRow, Table, TD, TH, THead, TR, wrapText } from "@/components/ui/table";
@@ -229,10 +230,10 @@ export function DoctorHours({ doctorId, doctorName }: { doctorId: string; doctor
             )}
           </Field>
           <Field label={t("from")} error={hoursChecks.error("start")}>
-            {(a) => <Input {...a} type="time" value={hours.start} onChange={(e) => setHour("start", e.target.value)} />}
+            {(a) => <TimePicker {...a} value={hours.start} onChange={(v) => setHour("start", v)} />}
           </Field>
           <Field label={t("to")} error={hoursChecks.error("end")}>
-            {(a) => <Input {...a} type="time" value={hours.end} onChange={(e) => setHour("end", e.target.value)} />}
+            {(a) => <TimePicker {...a} value={hours.end} onChange={(v) => setHour("end", v)} />}
           </Field>
           <Field label={t("slot")} error={hoursChecks.error("slot")}>
             {(a) => (
@@ -289,10 +290,10 @@ export function DoctorHours({ doctorId, doctorName }: { doctorId: string; doctor
         </Table>
         <form onSubmit={submitLeave} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-start" noValidate>
           <Field label={t("firstDay")} error={leaveChecks.error("from")}>
-            {(a) => <Input {...a} type="date" value={leave.from} onChange={(e) => setLeaveField("from", e.target.value)} />}
+            {(a) => <DatePicker {...a} value={leave.from} onChange={(v) => setLeaveField("from", v)} />}
           </Field>
           <Field label={t("lastDay")} error={leaveChecks.error("to")}>
-            {(a) => <Input {...a} type="date" value={leave.to} onChange={(e) => setLeaveField("to", e.target.value)} />}
+            {(a) => <DatePicker {...a} value={leave.to} min={leave.from || undefined} onChange={(v) => setLeaveField("to", v)} />}
           </Field>
           <Field label={t("reason")} error={leaveChecks.error("reason")}>
             {(a) => <Input {...a} maxLength={300} value={leave.reason} onChange={(e) => setLeaveField("reason", e.target.value)} />}

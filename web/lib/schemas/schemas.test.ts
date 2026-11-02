@@ -199,7 +199,7 @@ describe("backup centre and targets", () => {
 });
 
 describe("stayChargesSchema (Add charges on an IP stay)", () => {
-  const schema = stayChargesSchema("2026-10-30", "2026-11-02");
+  const schema = stayChargesSchema;
   const line = { service: null, description: "Nursing care", category: null, qty: "2", rate_paise: 150000 };
   it("accepts several lines on a day of the stay", () => {
     expect(schema.parse({ date: "2026-11-01", lines: [line, { ...line, description: "Dressing", qty: "1", rate_paise: 50000 }] })).toEqual({
@@ -219,9 +219,12 @@ describe("stayChargesSchema (Add charges on an IP stay)", () => {
       "lines.1.rate_paise": "required",
     });
   });
-  it("refuses a day before the admission or after today, and a zero quantity", () => {
-    expect(errs(schema, { date: "2026-10-29", lines: [line] })).toEqual({ date: "ip.chargeDateOutside" });
-    expect(errs(schema, { date: "2026-11-03", lines: [line] })).toEqual({ date: "ip.chargeDateOutside" });
+  it("takes any day, before the admission or after today, but needs one", () => {
+    expect(schema.safeParse({ date: "2026-10-29", lines: [line] }).success).toBe(true);
+    expect(schema.safeParse({ date: "2026-11-30", lines: [line] }).success).toBe(true);
+    expect(errs(schema, { date: "", lines: [line] })).toEqual({ date: "required" });
+  });
+  it("refuses a zero quantity", () => {
     expect(errs(schema, { date: "2026-11-01", lines: [{ ...line, qty: "0" }] })).toEqual({ "lines.0.qty": "min" });
   });
 });

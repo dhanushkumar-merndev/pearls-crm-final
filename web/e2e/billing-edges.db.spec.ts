@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { open, STATE, uniquePhone, newBill } from "./helpers";
+import { open, STATE, uniquePhone, newBill, pickMonth } from "./helpers";
 
 // W-ADM-30…34, W-REC-30…32: bills after finalizing, and pharmacy batches (TEST_CASES.md).
 test.skip(!process.env.E2E_DB, "needs the Supabase backend (E2E_DB=1)");
@@ -34,7 +34,7 @@ async function purchase(page: Page, medicine: string, batch: string, expiry: str
   else await page.getByRole("option", { name: new RegExp(medicine) }).first().click();
   await expect(page.getByRole("combobox", { name: "Medicine" })).toHaveText(medicine);
   await page.getByLabel("Batch", { exact: true }).fill(batch);
-  await page.getByLabel("Expiry", { exact: true }).fill(expiry);
+  await pickMonth(page, page.getByLabel("Expiry", { exact: true }), expiry);
   await page.getByLabel("Qty", { exact: true }).fill("10");
   await page.getByLabel("Purchase price", { exact: true }).fill("5");
   await page.getByLabel("MRP", { exact: true }).fill("10");

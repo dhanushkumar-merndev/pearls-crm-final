@@ -11,7 +11,7 @@ import { BdmMap, type MapMarker } from "@/components/bdm/bdm-map";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Field, PageHeader } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Page } from "@/components/ui/page";
 import { RowSkeletons } from "@/components/ui/skeletons";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -123,7 +123,7 @@ export function DayScreen({ staffId }: { staffId: string }) {
           <ChevronLeft aria-hidden />
         </Button>
         <Field label={t("date")} className="w-48">
-          {(a) => <Input {...a} type="date" value={date} max={today} onChange={(e) => isIsoDate(e.target.value) && go(e.target.value)} />}
+          {(a) => <DatePicker {...a} value={date} max={today} onChange={(v) => isIsoDate(v) && go(v)} clearTo={today} />}
         </Field>
         <Button variant="secondary" aria-label={t("nextDay")} disabled={date >= today} onClick={() => shift(1)}>
           <ChevronRight aria-hidden />

@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Field, Select, Textarea } from "@/components/ui/form";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { RowSkeletons } from "@/components/ui/skeletons";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -402,7 +403,7 @@ function StartDialog({ patient, onDone }: { patient: PatientHit; onDone: () => v
           {(a) => <LibraryCombobox {...a} kind="doctor" value={doctor} onChange={setDoctor} />}
         </Field>
         <Field label={t("startDate")} error={checks.error("start")}>
-          {(a) => <Input {...a} type="date" value={form.start} onChange={(e) => setField("start", e.target.value)} />}
+          {(a) => <DatePicker {...a} value={form.start} onChange={(v) => setField("start", v)} />}
         </Field>
         <Field label={t("sessions")} error={checks.error("sessions")}>
           {(a) => <Input {...a} type="number" min={1} max={100} value={form.sessions} onChange={(e) => setField("sessions", e.target.value)} />}

@@ -41,9 +41,9 @@ test.describe("reception", () => {
     await page.getByRole("button", { name: "Next day" }).click();
     await expect(page).toHaveURL(/[?&]day=\d{4}-\d{2}-\d{2}/);
     const day = new URL(page.url()).searchParams.get("day")!;
-    await expect(page.getByLabel("Day", { exact: true })).toHaveValue(day);
+    await expect(page.getByLabel("Day", { exact: true })).toHaveAttribute("data-value", day);
     await awayAndBack(page, "Follow-ups");
-    await expect(page.getByLabel("Day", { exact: true })).toHaveValue(day);
+    await expect(page.getByLabel("Day", { exact: true })).toHaveAttribute("data-value", day);
 
     await page.getByRole("tab", { name: "Table", exact: true }).click();
     await awayAndBack(page, "Follow-ups");

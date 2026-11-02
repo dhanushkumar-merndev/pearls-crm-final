@@ -11,6 +11,7 @@ import { PatientPicker, type PatientHit } from "@/components/patients/patient-pi
 import { Button } from "@/components/ui/button";
 import { DialogContent } from "@/components/ui/dialog";
 import { Checkbox, Field, Select, Textarea } from "@/components/ui/form";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { newId, rpc } from "@/lib/rpc";
 import { APPT_TYPES, bookSchema, walkInSchema } from "@/lib/schemas/appointments";
@@ -121,7 +122,7 @@ export function BookDialog({
             {(a) => <LibraryCombobox {...a} kind="doctor" value={doctor} onChange={(d) => (setDoctor(d), setSlot(null), checks.clear("doctor"))} />}
           </Field>
           <Field label={t("date")} error={checks.error("date")}>
-            {(a) => <Input {...a} type="date" value={date} onChange={(e) => (setDate(e.target.value), setSlot(null), checks.clear("date"))} />}
+            {(a) => <DatePicker {...a} value={date} onChange={(v) => (setDate(v), setSlot(null), checks.clear("date"))} />}
           </Field>
           <Field label={t("type")} error={checks.error("type")}>
             {(a) => (

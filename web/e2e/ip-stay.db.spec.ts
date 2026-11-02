@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { choose, open, STATE, uniquePhone } from "./helpers";
+import { choose, open, pickDateTime, STATE, uniquePhone } from "./helpers";
 
 // Phase 7: admit → interim bill → discharge → final bill (carries the interim bill once, adds
 // room nights) → discharge summary from the template ("She underwent…") → print. E2E_DB=1.
@@ -35,8 +35,12 @@ test("IP stay: final bill without double counting, discharge summary with the ri
   await admit.getByLabel("Procedures").fill("Septoplasty");
   await admit.getByLabel("Diagnosis").fill("Deviated nasal septum");
   await admit.getByLabel("Anaesthesia").fill("general anaesthesia");
-  const admittedAt = await admit.getByLabel("Admitted at").inputValue();
-  await admit.getByLabel("Surgery at").fill(admittedAt);
+  // Admitted and operated a quarter-hour before the last quarter-hour (IST; the time list steps by
+  // 15 minutes), so the discharge "now" comes after both.
+  const quarter = 15 * 60_000;
+  const at = new Date(Math.floor((Date.now() + 330 * 60_000) / quarter) * quarter - quarter).toISOString().slice(0, 16);
+  await pickDateTime(page, admit.getByLabel("Admitted at"), at);
+  await pickDateTime(page, admit.getByLabel("Surgery at"), at);
   await pick(page, admit.getByRole("combobox", { name: "Doctor" }), "Dr", /Dr/);
   await admit.getByRole("button", { name: "Admit", exact: true }).click();
   await expect(page).toHaveURL(/\/admissions\/[0-9a-f-]{36}$/);

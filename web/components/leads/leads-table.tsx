@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { Field, Select } from "@/components/ui/form";
+import { DateRangePicker, DateTimePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { Pager } from "@/components/ui/pager";
 import { RowSkeletons } from "@/components/ui/skeletons";
@@ -64,6 +65,7 @@ function startFilters() {
 export function LeadsTable({ canAssign }: { canAssign: boolean }) {
   const t = useTranslations("leads");
   const tv = useTranslations("validation");
+  const dp = useTranslations("datePicker");
   const queryClient = useQueryClient();
   const { saved, failed } = useFeedback();
   const staff = useSalesStaff();
@@ -104,6 +106,12 @@ export function LeadsTable({ canAssign }: { canAssign: boolean }) {
     setOffset(0);
     setSelected([]);
     if (k === "from" || k === "to") rangeChecks.validate({ from: next.from, to: next.to });
+  };
+  const setRange = (r: { from: string; to: string }) => {
+    setFilters((f) => ({ ...f, ...r }));
+    setOffset(0);
+    setSelected([]);
+    rangeChecks.validate(r);
   };
   const start = startFilters();
   const changed =
@@ -192,11 +200,8 @@ export function LeadsTable({ canAssign }: { canAssign: boolean }) {
           </Button>
         }
       >
-        <Field label={t("from")} error={rangeChecks.error("from")}>
-          {(a) => <Input {...a} type="date" value={filters.from} onChange={(e) => set("from", e.target.value)} />}
-        </Field>
-        <Field label={t("to")} error={rangeChecks.error("to")}>
-          {(a) => <Input {...a} type="date" value={filters.to} onChange={(e) => set("to", e.target.value)} />}
+        <Field label={dp("dates")} error={rangeChecks.error("from") ?? rangeChecks.error("to")}>
+          {(a) => <DateRangePicker {...a} value={{ from: filters.from, to: filters.to }} onChange={setRange} clearTo={{ from: start.from, to: start.to }} />}
         </Field>
         <Field label={t("f.stage")}>
           {(a) => (
@@ -406,21 +411,19 @@ export function LeadsTable({ canAssign }: { canAssign: boolean }) {
                   const current = r.next_followup_at ? istDateTimeLocal(new Date(r.next_followup_at)) : "";
                   return (
                     <>
-                      <Input
-                        type="datetime-local"
+                      <DateTimePicker
                         className={cn("w-[13.25rem] px-2 text-[0.9rem]", overdue && "font-medium text-bad-text")}
                         aria-label={t("dueOf", { name: r.name })}
-                        defaultValue={current}
-                        key={`${r.id}-${r.version}`}
-                        onBlur={(e) => {
-                          if (e.target.value === current) return;
+                        placeholder="—"
+                        value={current}
+                        min={istDateTimeLocal(new Date())}
+                        onChange={(v) => {
                           // A new next-call time can't be in the past (the server refuses it too).
-                          if (!optionalFutureDateTime().safeParse(e.target.value).success) {
+                          if (!optionalFutureDateTime().safeParse(v).success) {
                             toast.error(tv("notPast"));
-                            e.target.value = current;
                             return;
                           }
-                          const at = e.target.value ? fromIstDateTimeLocal(e.target.value) : null;
+                          const at = v ? fromIstDateTimeLocal(v) : null;
                           if ((at ?? null) !== (r.next_followup_at ? new Date(r.next_followup_at).toISOString() : null)) setDue.mutate({ lead: r, at });
                         }}
                       />

@@ -12,6 +12,7 @@ import { PatientPicker, type PatientHit } from "@/components/patients/patient-pi
 import { Button } from "@/components/ui/button";
 import { DialogContent } from "@/components/ui/dialog";
 import { Field, Select, Textarea } from "@/components/ui/form";
+import { DateTimePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { asAppError, newId, rpc } from "@/lib/rpc";
 import { admissionSchema } from "@/lib/schemas/clinical";
@@ -150,7 +151,7 @@ export function AdmissionForm({
           </Field>
         )}
         <Field label={t("admittedAt")} error={checks.error("admitted_at")}>
-          {(a) => <Input {...a} type="datetime-local" value={admittedAt} onChange={(e) => (setAdmittedAt(e.target.value), clear("admitted_at"))} />}
+          {(a) => <DateTimePicker {...a} value={admittedAt} onChange={(v) => (setAdmittedAt(v), clear("admitted_at"))} />}
         </Field>
         <Field label={t("treatment")} hint={t("treatmentHint")} error={checks.error("treatment")}>
           {(a) => (
@@ -178,7 +179,7 @@ export function AdmissionForm({
           {(a) => <Input {...a} maxLength={120} value={anaesthesia} onChange={(e) => (setAnaesthesia(e.target.value), clear("anaesthesia"))} />}
         </Field>
         <Field label={t("surgeryAt")} error={checks.error("surgery_at")}>
-          {(a) => <Input {...a} type="datetime-local" value={surgeryAt} onChange={(e) => (setSurgeryAt(e.target.value), clear("surgery_at"))} />}
+          {(a) => <DateTimePicker {...a} value={surgeryAt} onChange={(v) => (setSurgeryAt(v), clear("surgery_at"))} />}
         </Field>
 
         <fieldset className="flex flex-col gap-3 sm:col-span-2">

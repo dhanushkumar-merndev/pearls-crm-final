@@ -7,7 +7,7 @@ import { useState } from "react";
 import { formatDate, formatINR, istDateString } from "@pearl/shared";
 import { ClearFilters } from "@/components/ui/filter-bar";
 import { Field, Select } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import { DateRangePicker } from "@/components/ui/date-picker";
 import { Pager } from "@/components/ui/pager";
 import { RowSkeletons } from "@/components/ui/skeletons";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -33,6 +33,7 @@ const LIMIT = 25;
 /** Supplier invoices by date (range ≤ 1 year), offset paging with an exact count. */
 export function PurchasesTable() {
   const t = useTranslations("pharmacy");
+  const dp = useTranslations("datePicker");
   const startFilters = () => ({ from: istDateString(new Date(Date.now() - 90 * 86_400_000)), to: istDateString(new Date()), status: "" });
   const [filters, setFilters] = useState(startFilters);
   const start = startFilters();
@@ -53,8 +54,16 @@ export function PurchasesTable() {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-end gap-3">
-        <Field label={t("from")} error={rangeCheck.fromError}>{(a) => <Input {...a} type="date" value={filters.from} onChange={(e) => set("from", e.target.value)} />}</Field>
-        <Field label={t("to")} error={rangeCheck.toError}>{(a) => <Input {...a} type="date" value={filters.to} onChange={(e) => set("to", e.target.value)} />}</Field>
+        <Field label={dp("dates")} error={rangeCheck.fromError ?? rangeCheck.toError}>
+          {(a) => (
+            <DateRangePicker
+              {...a}
+              value={{ from: filters.from, to: filters.to }}
+              onChange={(r) => (setFilters((f) => ({ ...f, ...r })), setOffset(0))}
+              clearTo={{ from: start.from, to: start.to }}
+            />
+          )}
+        </Field>
         <Field label={t("col.status")}>
           {(a) => (
             <Select {...a} value={filters.status} onChange={(e) => set("status", e.target.value)}>

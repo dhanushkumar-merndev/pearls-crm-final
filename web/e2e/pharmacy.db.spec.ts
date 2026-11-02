@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { choose, open, STATE, uniquePhone, newBill } from "./helpers";
+import { choose, open, STATE, uniquePhone, newBill, pickMonth } from "./helpers";
 
 // Phase 6: buy in → sell from the FEFO batch → stock and ledger follow. Needs a backend (E2E_DB=1).
 test.skip(!process.env.E2E_DB, "needs the Supabase backend (E2E_DB=1)");
@@ -23,7 +23,7 @@ test("purchase a new medicine, sell 3 on a pharmacy bill, write off 1", async ({
   await page.getByRole("option", { name: `Add “${medicine}”` }).click();
   await expect(page.getByRole("combobox", { name: "Medicine" })).toHaveText(medicine);
   await page.getByLabel("Batch", { exact: true }).fill("E2EB1");
-  await page.getByLabel("Expiry", { exact: true }).fill("2030-12");
+  await pickMonth(page, page.getByLabel("Expiry", { exact: true }), "2030-12");
   await page.getByLabel("Qty", { exact: true }).fill("10");
   await page.getByLabel("Purchase price", { exact: true }).fill("5");
   await page.getByLabel("MRP", { exact: true }).fill("10");

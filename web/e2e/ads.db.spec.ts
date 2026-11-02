@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { choose, open, STATE } from "./helpers";
+import { choose, open, pickRange, STATE } from "./helpers";
 
 // Phase 16: Leads → Ads (campaign numbers beside CRM results, a side panel per campaign) and the
 // Meta import dialog. Works on an empty database too: the campaign panel is checked when there is one.
@@ -43,9 +43,10 @@ test("campaigns table: its own period, up to 24 months, a total of every campaig
 
   // The table's own period, with its own dates and check.
   await choose(page, page.getByLabel("Period for this table"), "Choose dates");
-  await page.getByLabel("Table from").fill("2023-01-01");
+  const tableDates = page.getByLabel("Table dates", { exact: true });
+  await pickRange(page, tableDates, "2023-01-01", "2026-01-31");
   await expect(page.getByText("Choose at most 24 months.")).toBeVisible();
-  await page.getByLabel("Table from").fill("2025-01-01");
+  await pickRange(page, tableDates, "2025-01-01", "2026-01-31");
   await expect(page.getByText("Choose at most 24 months.")).toHaveCount(0);
 
   // The total row counts every campaign that passes the filters, not only the page shown.

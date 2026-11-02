@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { formatDateTime, istDayStart } from "@pearl/shared";
 import { Field, PageHeader, Select } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import { DateRangePicker } from "@/components/ui/date-picker";
 import { LoadMore } from "@/components/ui/load-more";
 import { ClearFilters } from "@/components/ui/filter-bar";
 import { Page, useAdminBack } from "@/components/ui/page";
@@ -38,6 +38,7 @@ export function AuditScreen() {
   const t = useTranslations("audit");
   const c = useTranslations("common");
   const v = useTranslations("validation");
+  const dp = useTranslations("datePicker");
   const [table, setTable] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -76,8 +77,9 @@ export function AuditScreen() {
             </Select>
           )}
         </Field>
-        <Field label={t("from")}>{(a) => <Input {...a} type="date" value={from} onChange={(e) => setFrom(e.target.value)} />}</Field>
-        <Field label={t("to")} error={orderBad ? v("dateOrder") : undefined}>{(a) => <Input {...a} type="date" value={to} onChange={(e) => setTo(e.target.value)} />}</Field>
+        <Field label={dp("dates")} error={orderBad ? v("dateOrder") : undefined}>
+          {(a) => <DateRangePicker {...a} value={{ from, to }} onChange={(r) => (setFrom(r.from), setTo(r.to))} />}
+        </Field>
         <ClearFilters show={!!(table || from || to)} onClear={() => (setTable(""), setFrom(""), setTo(""))} />
       </div>
       <Table>

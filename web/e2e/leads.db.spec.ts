@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import writeXlsxFile from "write-excel-file/node";
-import { choose, open, STATE, uniquePhone } from "./helpers";
+import { choose, open, pickRange, STATE, uniquePhone } from "./helpers";
 
 // Phase 9: leads for the sales manager, the reception hand-over, import. Needs a backend (E2E_DB=1).
 test.skip(!process.env.E2E_DB, "needs the Supabase backend (E2E_DB=1)");
@@ -89,9 +89,10 @@ test.describe("sales manager", () => {
     await open(page, "/leads");
     await page.getByLabel("Search", { exact: true }).fill(phone.slice(-6));
     await expect(page.getByRole("link", { name })).toBeVisible();
-    await page.getByLabel("From").fill("2026-12-31");
-    await page.getByLabel("To").fill("2026-01-01");
-    await expect(page.getByText("The end must be after the start.")).toBeVisible();
+    // Picked backwards, the range is put in order (the helper checks); over a year is refused.
+    await pickRange(page, page.getByLabel("Dates", { exact: true }), "2026-12-31", "2026-01-01");
+    await pickRange(page, page.getByLabel("Dates", { exact: true }), "2024-06-01", "2026-01-01");
+    await expect(page.getByText(/at most one year/).first()).toBeVisible();
   });
 
   test("import: template downloads; bad rows are listed in the browser and can be left out", async ({ page }) => {

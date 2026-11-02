@@ -10,7 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Checkbox, Field, PageHeader } from "@/components/ui/form";
-import { FieldError, Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
+import { FieldError } from "@/components/ui/input";
 import { Page, useAdminBack } from "@/components/ui/page";
 import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
 import { copyFiles, exportDatabase, recheckFolder, type BackupServer, type Folder, type Progress } from "@/lib/backup";
@@ -302,7 +303,7 @@ export function BackupCentre() {
               {backupChecks.error("purposes") && <FieldError id="backup-purposes-error">{backupChecks.error("purposes")}</FieldError>}
             </fieldset>
             <Field label={t("before")} hint={t("beforeHint")} error={backupChecks.error("before")} className="max-w-xs">
-              {(a) => <Input {...a} type="date" value={before} onChange={(e) => (setBefore(e.target.value), backupChecks.clear("before"))} />}
+              {(a) => <DatePicker {...a} value={before} onChange={(v) => (setBefore(v), backupChecks.clear("before"))} />}
             </Field>
           </>
         )}
@@ -378,9 +379,7 @@ export function BackupCentre() {
           {purgeChecks.error("purposes") && <FieldError id="purge-purposes-error">{purgeChecks.error("purposes")}</FieldError>}
         </fieldset>
         <Field label={t("purgeBefore")} error={purgeChecks.error("before")} className="max-w-xs">
-          {(a) => (
-            <Input {...a} type="date" value={purgeBefore} onChange={(e) => (setPurgeBefore(e.target.value), purgeChecks.clear("before"), setPreview(null))} />
-          )}
+          {(a) => <DatePicker {...a} value={purgeBefore} onChange={(v) => (setPurgeBefore(v), purgeChecks.clear("before"), setPreview(null))} />}
         </Field>
         <Button variant="secondary" className="self-start" disabled={previewMut.isPending} onClick={() => previewMut.mutate()}>
           <ScanSearch aria-hidden />

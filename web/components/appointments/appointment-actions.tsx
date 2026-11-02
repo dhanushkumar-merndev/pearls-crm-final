@@ -14,6 +14,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Field, Textarea } from "@/components/ui/form";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { newId, rpc } from "@/lib/rpc";
 import { useMe } from "@/lib/use-me";
@@ -393,7 +394,7 @@ function RescheduleDialog({ appt, onDone }: { appt: ApptCard; onDone: () => void
             {(a) => <LibraryCombobox {...a} kind="doctor" value={doctor} onChange={(d) => (setDoctor(d), setSlot(null), checks.clear("doctor"))} />}
           </Field>
           <Field label={t("date")} error={checks.error("date")}>
-            {(a) => <Input {...a} type="date" value={date} onChange={(e) => (setDate(e.target.value), setSlot(null), checks.clear("date"))} />}
+            {(a) => <DatePicker {...a} value={date} onChange={(v) => (setDate(v), setSlot(null), checks.clear("date"))} />}
           </Field>
         </div>
         <SlotPicker doctorId={doctor?.id ?? null} date={date} value={slot} onChange={(v) => (setSlot(v), checks.clear("slot"))} error={checks.error("slot")} />

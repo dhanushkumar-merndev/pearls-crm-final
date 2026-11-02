@@ -11,7 +11,7 @@ import { ClearFilters } from "@/components/ui/filter-bar";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Field, PageHeader } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import { DateRangePicker } from "@/components/ui/date-picker";
 import { LoadMore } from "@/components/ui/load-more";
 import { Page } from "@/components/ui/page";
 import { RowSkeletons } from "@/components/ui/skeletons";
@@ -38,6 +38,7 @@ interface Due {
 export function SessionsScreen() {
   const t = useTranslations("sessionsDue");
   const c = useTranslations("common");
+  const dp = useTranslations("datePicker");
   // Today and the next six days; the ✕ goes back to these.
   const [start] = useState(() => ({ from: istDateString(new Date()), to: istDateString(new Date(Date.now() + 6 * 86_400_000)) }));
   const [from, setFrom] = useState(start.from);
@@ -56,8 +57,9 @@ export function SessionsScreen() {
     <Page>
       <PageHeader title={t("title")} description={t("description")} />
       <div className="flex flex-wrap items-end gap-3">
-        <Field label={t("from")} error={rangeCheck.fromError}>{(a) => <Input {...a} type="date" value={from} onChange={(e) => setFrom(e.target.value)} />}</Field>
-        <Field label={t("to")} error={rangeCheck.toError}>{(a) => <Input {...a} type="date" value={to} onChange={(e) => setTo(e.target.value)} />}</Field>
+        <Field label={dp("dates")} error={rangeCheck.fromError ?? rangeCheck.toError}>
+          {(a) => <DateRangePicker {...a} value={{ from, to }} onChange={(r) => (setFrom(r.from), setTo(r.to))} clearTo={start} />}
+        </Field>
         <ClearFilters
           show={from !== start.from || to !== start.to}
           onClear={() => (setFrom(start.from), setTo(start.to))}

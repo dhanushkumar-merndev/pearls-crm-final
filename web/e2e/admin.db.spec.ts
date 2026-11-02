@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { choose, open, STATE } from "./helpers";
+import { choose, open, pickTime, STATE } from "./helpers";
 
 // Phase 1: admin setup. Needs a backend with seed data (E2E_DB=1).
 test.skip(!process.env.E2E_DB, "needs the Supabase backend (E2E_DB=1)");
@@ -24,13 +24,13 @@ test.describe("as admin", () => {
     await row.getByRole("link", { name: "Hours & leave" }).click();
 
     await choose(page, page.getByLabel("Day", { exact: true }), "Monday");
-    await page.getByLabel("From").first().fill("10:00");
-    await page.getByLabel("To").first().fill("13:00");
+    await pickTime(page, page.getByLabel("From").first(), "10:00");
+    await pickTime(page, page.getByLabel("To").first(), "13:00");
     await page.getByRole("button", { name: "Add hours" }).click();
     await expect(page.getByRole("cell", { name: "Monday" })).toBeVisible();
 
-    await page.getByLabel("From").first().fill("12:00");
-    await page.getByLabel("To").first().fill("14:00");
+    await pickTime(page, page.getByLabel("From").first(), "12:00");
+    await pickTime(page, page.getByLabel("To").first(), "14:00");
     await page.getByRole("button", { name: "Add hours" }).click();
     await expect(page.getByText("This overlaps with an existing entry")).toBeVisible();
   });

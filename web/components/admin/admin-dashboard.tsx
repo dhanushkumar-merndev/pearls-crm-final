@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { Field, Select } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import { DateRangePicker } from "@/components/ui/date-picker";
 import { Page, PageHeader } from "@/components/ui/page";
 import { CardSkeleton, TileSkeletons } from "@/components/ui/skeletons";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -93,6 +93,7 @@ function moneyBars(rows: { label: string; paise: number }[]) {
 export function AdminDashboard() {
   const t = useTranslations("adminDash");
   const s = useTranslations("salesDash");
+  const dp = useTranslations("datePicker");
   const st = useTranslations("leads.stage");
   const bt = useTranslations("bill.type");
   const [preset, setPreset] = useState<Preset>("mtd");
@@ -225,11 +226,8 @@ export function AdminDashboard() {
         </Field>
         {preset === "custom" && (
           <>
-            <Field label={s("from")} error={check.fromError}>
-              {(a) => <Input {...a} type="date" value={custom.from} onChange={(e) => setCustom((c) => ({ ...c, from: e.target.value }))} />}
-            </Field>
-            <Field label={s("to")} error={check.toError}>
-              {(a) => <Input {...a} type="date" value={custom.to} onChange={(e) => setCustom((c) => ({ ...c, to: e.target.value }))} />}
+            <Field label={dp("dates")} error={check.fromError ?? check.toError}>
+              {(a) => <DateRangePicker {...a} quick={false} value={custom} onChange={setCustom} />}
             </Field>
           </>
         )}

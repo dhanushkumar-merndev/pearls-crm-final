@@ -12,6 +12,7 @@ import { LibraryCombobox, type LibraryItem } from "@/components/library-combobox
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Field } from "@/components/ui/form";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { callFunction, rpc } from "@/lib/rpc";
@@ -343,7 +344,7 @@ export function ScannerDialog({ patientId, onDone, docFor }: { patientId: string
             )}
           </Field>
           <Field label={t("docDate")} error={checks.error("date")}>
-            {(a) => <Input {...a} type="date" value={date} onChange={(e) => (setDate(e.target.value), checks.clear("date"))} />}
+            {(a) => <DatePicker {...a} value={date} onChange={(v) => (setDate(v), checks.clear("date"))} />}
           </Field>
         </div>
 

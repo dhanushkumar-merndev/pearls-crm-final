@@ -12,6 +12,7 @@ import { LibraryCombobox, type LibraryItem } from "@/components/library-combobox
 import { Button } from "@/components/ui/button";
 import { DialogContent } from "@/components/ui/dialog";
 import { Field, Select, Textarea } from "@/components/ui/form";
+import { DateTimePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { newId, rpc } from "@/lib/rpc";
 import { useFeedback } from "@/lib/use-feedback";
@@ -189,7 +190,7 @@ export function NewLeadDialog({ canAssign, phone = null, onDone }: { canAssign: 
           </Field>
         )}
         <Field label={t("f.due")} hint={t("dueHint")} error={checks.error("due")}>
-          {(a) => <Input {...a} type="datetime-local" min={minAt} value={f.due} onChange={(e) => set("due", e.target.value)} />}
+          {(a) => <DateTimePicker {...a} min={minAt} value={f.due} onChange={(v) => set("due", v)} />}
         </Field>
         <Field label={t("f.comments1")} error={checks.error("comments1")} className="sm:col-span-2">
           {(a) => <Textarea {...a} rows={2} maxLength={2000} value={f.comments1} onChange={(e) => set("comments1", e.target.value)} />}

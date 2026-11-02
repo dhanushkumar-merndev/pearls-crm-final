@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { open, rpcAs, STATE } from "./helpers";
+import { open, pickRange, rpcAs, STATE } from "./helpers";
 
 // Phase 13: the admin's BDM pages. The phone side (start, visits, chunks, watchdog, estimates)
 // is covered by supabase/tests/database/19_bdm.test.sql. Needs a backend (E2E_DB=1).
@@ -62,9 +62,8 @@ test.describe("admin", () => {
     expect(file.suggestedFilename()).toMatch(/^bdm-report-\d{4}-\d{2}-01-to-\d{4}-\d{2}-\d{2}\.xlsx$/);
     await expect(page.getByText(/downloaded\./)).toBeVisible();
 
-    // An impossible range is refused before anything is asked.
-    await page.getByLabel("From", { exact: true }).fill("2026-05-10");
-    await page.getByLabel("To", { exact: true }).fill("2026-05-01");
+    // A range over a year is refused before anything is asked.
+    await pickRange(page, page.getByLabel("Dates", { exact: true }), "2024-05-10", "2026-05-01");
     await expect(page.getByRole("button", { name: "Download Excel" })).toBeDisabled();
   });
 });

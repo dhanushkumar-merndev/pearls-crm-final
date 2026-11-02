@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Checkbox, Field, PageHeader, Select, Textarea } from "@/components/ui/form";
+import { TimePicker } from "@/components/ui/date-picker";
 import { Input } from "@/components/ui/input";
 import { Page, useAdminBack } from "@/components/ui/page";
 import { RowSkeletons } from "@/components/ui/skeletons";
@@ -298,10 +299,10 @@ function SettingsForm() {
           {bool("send_booking_confirmation")}
           {bool("send_reminders", t("s.remindersHint"))}
           <Field label={t("s.quiet_start")} error={checks.error("quiet_start")} hint={t("s.quietHint")}>
-            {(a) => <Input {...a} type="time" value={form.quiet_start} onChange={(e) => set("quiet_start", e.target.value)} />}
+            {(a) => <TimePicker {...a} value={form.quiet_start} onChange={(v) => set("quiet_start", v)} />}
           </Field>
           <Field label={t("s.quiet_end")} error={checks.error("quiet_end")}>
-            {(a) => <Input {...a} type="time" value={form.quiet_end} onChange={(e) => set("quiet_end", e.target.value)} />}
+            {(a) => <TimePicker {...a} value={form.quiet_end} onChange={(v) => set("quiet_end", v)} />}
           </Field>
           <Field label={t("s.cost_utility_paise")} error={checks.error("cost_utility_paise")}>
             {(a) => <MoneyInput {...a} value={Number.isFinite(form.cost_utility_paise) ? form.cost_utility_paise : null} onChange={(p) => set("cost_utility_paise", p ?? Number.NaN)} />}

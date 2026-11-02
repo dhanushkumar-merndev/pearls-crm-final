@@ -16,6 +16,7 @@ import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Field, Select, Textarea } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { DatePicker, MonthPicker } from "@/components/ui/date-picker";
 import { DetailHeader, Page } from "@/components/ui/page";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Table, TD, TH, THead, TR } from "@/components/ui/table";
@@ -192,7 +193,7 @@ export function PurchaseScreen({ initial }: { initial: Purchase | null }) {
           {(a) => <Input {...a} maxLength={60} value={invoiceNo} onChange={(e) => (setInvoiceNo(e.target.value), checks.clear("invoice_no"))} />}
         </Field>
         <Field label={t("invoiceDate")} error={checks.error("invoice_date")}>
-          {(a) => <Input {...a} type="date" value={invoiceDate} onChange={(e) => (setInvoiceDate(e.target.value), checks.clear("invoice_date"))} />}
+          {(a) => <DatePicker {...a} value={invoiceDate} onChange={(v) => (setInvoiceDate(v), checks.clear("invoice_date"))} />}
         </Field>
       </Card>
 
@@ -223,7 +224,7 @@ export function PurchaseScreen({ initial }: { initial: Purchase | null }) {
                 {(a) => <Input {...a} maxLength={40} value={l.batch_no} onChange={(e) => update(l.key, { batch_no: e.target.value.toUpperCase() })} />}
               </Field>
               <Field label={t("col.expiry")} className="md:col-span-2" error={lineError(i, "expiry")}>
-                {(a) => <Input {...a} type="month" value={l.expiry} onChange={(e) => update(l.key, { expiry: e.target.value })} />}
+                {(a) => <MonthPicker {...a} value={l.expiry} onChange={(v) => update(l.key, { expiry: v })} />}
               </Field>
               <Field label={t("col.qty")} className="md:col-span-2" hint={l.item ? t("inUnits") : undefined} error={lineError(i, "qty")}>
                 {(a) => <Input {...a} inputMode="decimal" value={l.qty} onChange={(e) => update(l.key, { qty: e.target.value })} />}

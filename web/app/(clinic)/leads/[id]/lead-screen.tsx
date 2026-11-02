@@ -22,7 +22,7 @@ import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Field, Textarea } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import { DateTimePicker } from "@/components/ui/date-picker";
 import { LoadMore } from "@/components/ui/load-more";
 import { MoreMenu } from "@/components/ui/more-menu";
 import { DetailHeader, Page } from "@/components/ui/page";
@@ -310,7 +310,7 @@ function FollowupCard({ lead, onSaved }: { lead: LeadDetail; onSaved: () => void
         )}
       </CardDescription>
       <Field label={t("f.due")} error={checks.error("at")}>
-        {(a) => <Input {...a} type="datetime-local" min={istDateTimeLocal(new Date(now))} value={at} onChange={(e) => (setAt(e.target.value), checks.clear("at"))} />}
+        {(a) => <DateTimePicker {...a} min={istDateTimeLocal(new Date(now))} value={at} onChange={(v) => (setAt(v), checks.clear("at"))} />}
       </Field>
       <div className="flex flex-wrap gap-2">
         <Button

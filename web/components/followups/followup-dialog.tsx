@@ -9,7 +9,7 @@ import { PatientPicker, type PatientHit } from "@/components/patients/patient-pi
 import { Button } from "@/components/ui/button";
 import { DialogContent } from "@/components/ui/dialog";
 import { Field, Textarea } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/components/ui/date-picker";
 import { newId, rpc } from "@/lib/rpc";
 import { followupSchema } from "@/lib/schemas/clinical";
 import { useFeedback } from "@/lib/use-feedback";
@@ -59,7 +59,7 @@ export function FollowupDialog({ patient: initial = null, onDone }: { patient?: 
           </Field>
         )}
         <Field label={t("due")} error={checks.error("due")}>
-          {(a) => <Input {...a} type="date" value={due} onChange={(e) => (setDue(e.target.value), checks.clear("due"))} />}
+          {(a) => <DatePicker {...a} value={due} onChange={(v) => (setDue(v), checks.clear("due"))} />}
         </Field>
         <Field label={t("reason")} hint={t("reasonHint")} error={checks.error("reason")}>
           {(a) => <Textarea {...a} rows={2} maxLength={500} value={reason} onChange={(e) => (setReason(e.target.value), checks.clear("reason"))} />}

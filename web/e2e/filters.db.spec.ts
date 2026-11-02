@@ -1,11 +1,11 @@
 import { expect, test, type Page } from "@playwright/test";
-import { choose, open, STATE } from "./helpers";
+import { choose, open, pickRange, STATE } from "./helpers";
 
 // W-LST-01…10: the round ✕ "Clear filters" on every list (TEST_CASES.md). It is hidden while the
 // filters are as the page opened, shows once one is changed, and one click puts them all back.
 test.skip(!process.env.E2E_DB, "needs the Supabase backend (E2E_DB=1)");
 
-/** A date a few days back, in IST (YYYY-MM-DD), so a From/To range stays valid and under a year. */
+/** A date a few days back, in IST (YYYY-MM-DD), so a date range stays valid and under a year. */
 function daysAgo(n: number): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date(Date.now() - n * 86_400_000));
 }
@@ -35,11 +35,10 @@ async function checkClear(page: Page, c: Case) {
 
 const fromChanged: Pick<Case, "change" | "reset"> = {
   change: async (page) => {
-    const from = page.getByLabel("From", { exact: true });
-    await from.fill(daysAgo(20));
+    await pickRange(page, page.getByLabel("Dates", { exact: true }), daysAgo(20), daysAgo(15));
   },
   reset: async (page) => {
-    await expect(page.getByLabel("From", { exact: true })).not.toHaveValue(daysAgo(20));
+    await expect(page.getByLabel("Dates", { exact: true })).not.toHaveAttribute("data-value", `${daysAgo(20)}..${daysAgo(15)}`);
   },
 };
 
@@ -51,12 +50,11 @@ test.describe("reception", () => {
       path: "/appointments",
       before: (page) => page.getByRole("tab", { name: "Table" }).click(),
       change: async (page) => {
-        await page.getByLabel("From", { exact: true }).fill(daysAgo(5));
+        await pickRange(page, page.getByLabel("Dates", { exact: true }), daysAgo(5), daysAgo(0));
         await choose(page, page.getByLabel("Sort by"), "Doctor");
       },
       reset: async (page) => {
-        await expect(page.getByLabel("From", { exact: true })).toHaveValue(daysAgo(0));
-        await expect(page.getByLabel("To", { exact: true })).toHaveValue(daysAgo(0));
+        await expect(page.getByLabel("Dates", { exact: true })).toHaveAttribute("data-value", `${daysAgo(0)}..${daysAgo(0)}`);
       },
     },
     { id: "W-LST-02 sessions to book", path: "/sessions", ...fromChanged },

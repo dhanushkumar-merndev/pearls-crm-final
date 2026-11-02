@@ -1,6 +1,6 @@
 import { randomInt } from "node:crypto";
 import { expect, test, type Page } from "@playwright/test";
-import { open, STATE, uniquePhone } from "./helpers";
+import { open, pickDate, STATE, uniquePhone } from "./helpers";
 
 // Phase 3: booking from the board, walk-in queue, live updates. Needs a backend (E2E_DB=1).
 test.skip(!process.env.E2E_DB, "needs the Supabase backend (E2E_DB=1)");
@@ -32,7 +32,7 @@ async function pickPatient(page: Page, name: string) {
 
 async function openBoard(page: Page, day: string) {
   await open(page, "/appointments");
-  await page.getByLabel("Day", { exact: true }).fill(day);
+  await pickDate(page, page.getByLabel("Day", { exact: true }), day);
 }
 
 test("book from the board; a second desk sees it live", async ({ page, browser }) => {
@@ -109,7 +109,7 @@ test("a booking can be confirmed from the patient file", async ({ page }) => {
   const dialog = page.getByRole("dialog");
   await dialog.getByRole("combobox", { name: "Doctor" }).click();
   await page.getByRole("option", { name: /Dr Arjun/ }).click();
-  await dialog.getByLabel("Day", { exact: true }).fill(aMonday());
+  await pickDate(page, dialog.getByLabel("Day", { exact: true }), aMonday());
   await dialog.getByRole("radio").and(page.locator(":enabled")).first().click();
   await dialog.getByRole("button", { name: "Book", exact: true }).click();
   await expect(page.getByText(/Booked ✓/)).toBeVisible();

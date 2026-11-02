@@ -205,26 +205,21 @@ export const documentSchema = z.object({
 
 /**
  * "Add charges" on an IP stay: one or more lines (a service picked from the library or a typed
- * charge, qty, rate) on one day of the stay (admission day up to today, IST). `admittedOn` is
- * the admission date "YYYY-MM-DD" in IST. Paths: date, lines, lines.<i>.<field>.
+ * charge, qty, rate) on one day. Any day is allowed (owner, 02/11/2026: a stay entered on the day
+ * of admission still needs earlier or later dates). Paths: date, lines, lines.<i>.<field>.
  */
-export const stayChargesSchema = (admittedOn: string, today: string = istDateString(new Date())) =>
-  z
-    .object({
-      date: requiredDate(),
-      lines: z
-        .array(
-          z.object({
-            service: optionalItem(),
-            description: requiredText(300),
-            category: optionalItem(),
-            qty: requiredDecimal(0.001, 10_000),
-            rate_paise: requiredPaise(0),
-          }),
-        )
-        .min(1, { error: "noRows" })
-        .max(50, { error: "tooMany" }),
-    })
-    .superRefine((d, ctx) => {
-      if (d.date < admittedOn || d.date > today) ctx.addIssue({ code: "custom", path: ["date"], message: "ip.chargeDateOutside" });
-    });
+export const stayChargesSchema = z.object({
+  date: requiredDate(),
+  lines: z
+    .array(
+      z.object({
+        service: optionalItem(),
+        description: requiredText(300),
+        category: optionalItem(),
+        qty: requiredDecimal(0.001, 10_000),
+        rate_paise: requiredPaise(0),
+      }),
+    )
+    .min(1, { error: "noRows" })
+    .max(50, { error: "tooMany" }),
+});

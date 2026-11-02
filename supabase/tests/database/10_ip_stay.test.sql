@@ -4,7 +4,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(77);
+select plan(80);
 
 create function pg_temp.login(p_id uuid)
 returns void
@@ -248,9 +248,18 @@ select is(jsonb_array_length(public.add_stay_charge('aaaaaaaa-4444-4000-a000-000
   2, 'a second charge goes on the same draft final bill');
 select is((select count(*)::int from public.bills where admission_id = 'aaaaaaaa-4444-4000-a000-000000000002'
              and bill_type = 'final_bill' and status <> 'cancelled'), 1, 'still one final bill for the stay');
+select lives_ok($$ select public.add_stay_charge('aaaaaaaa-4444-4000-a000-000000000002',
+  jsonb_build_object('description', 'Old', 'rate_paise', 100, 'service_date', (current_date - 30)::text), 'aaaaaaaa-7777-4000-a000-000000000002') $$,
+  'a charge dated before the admission is allowed');
+select lives_ok($$ select public.add_stay_charge('aaaaaaaa-4444-4000-a000-000000000002',
+  jsonb_build_object('description', 'Later', 'rate_paise', 100, 'service_date', (current_date + 30)::text), 'aaaaaaaa-7777-4000-a000-000000000003') $$,
+  'a charge dated after today is allowed');
+select is((select array_agg(service_date - current_date order by client_id) from public.bill_items
+            where client_id in ('aaaaaaaa-7777-4000-a000-000000000002', 'aaaaaaaa-7777-4000-a000-000000000003')),
+  array[-30, 30], 'each keeps the date picked');
 select throws_ok($$ select public.add_stay_charge('aaaaaaaa-4444-4000-a000-000000000002',
-  jsonb_build_object('description', 'Old', 'rate_paise', 100, 'service_date', (current_date - 30)::text), gen_random_uuid()) $$,
-  'P0001', 'invalid_input', 'a charge dated before the admission is refused');
+  jsonb_build_object('description', 'Bad', 'rate_paise', 100, 'service_date', '2026-02-30'), gen_random_uuid()) $$,
+  'P0001', 'invalid_input', 'a date that does not exist is refused');
 select throws_ok($$ select public.add_stay_charge('aaaaaaaa-4444-4000-a000-000000000002',
   jsonb_build_object('description', ' ', 'rate_paise', 100), gen_random_uuid()) $$,
   'P0001', 'invalid_input', 'a charge needs a description');

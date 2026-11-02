@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { choose, open, STATE, uniquePhone, newBill } from "./helpers";
+import { choose, open, pickRange, STATE, uniquePhone, newBill } from "./helpers";
 
 // W-REC-10…22: the front desk's lists and money edges (TEST_CASES.md).
 test.skip(!process.env.E2E_DB, "needs the Supabase backend (E2E_DB=1)");
@@ -21,15 +21,14 @@ async function pickMode(page: Page, mode: string) {
 test("appointments table: impossible and too-long ranges are refused; Excel downloads", async ({ page }) => {
   await open(page, "/appointments");
   await page.getByRole("tab", { name: "Table" }).click();
-  await page.getByLabel("From").fill("2026-06-10");
-  await page.getByLabel("To").fill("2026-06-01");
-  await expect(page.getByText("The end must be after the start.").first()).toBeVisible();
-  await page.getByLabel("From").fill("2024-01-01");
-  await page.getByLabel("To").fill("2026-06-01");
+  const dates = page.getByLabel("Dates", { exact: true });
+  // Picked backwards, the range is put in order (the helper checks), so there's no "end before start".
+  await pickRange(page, dates, "2026-06-10", "2026-06-01");
+  await pickRange(page, dates, "2024-01-01", "2026-06-01");
   await expect(page.getByText(/at most one year/).first()).toBeVisible();
 
-  await page.getByLabel("From").fill("2026-01-01");
-  await page.getByLabel("To").fill("2026-12-31");
+  await pickRange(page, dates, "2026-01-01", "2026-12-31");
+  await expect(page.getByText(/at most one year/)).toHaveCount(0);
   await choose(page, page.getByLabel("Sort by"), "Doctor");
   const excel = page.getByRole("button", { name: "Download Excel" });
   // The button turns on once the list has loaded; looking straight away skipped with 133 appointments (31/10/2026).
@@ -42,11 +41,10 @@ test("appointments table: impossible and too-long ranges are refused; Excel down
 
 test("bills table: date checks, a status filter, and Excel", async ({ page }) => {
   await open(page, "/bills");
-  await page.getByLabel("From").fill("2026-06-10");
-  await page.getByLabel("To").fill("2026-06-01");
-  await expect(page.getByText("The end must be after the start.").first()).toBeVisible();
-  await page.getByLabel("From").fill("2026-01-01");
-  await page.getByLabel("To").fill("2026-12-31");
+  const dates = page.getByLabel("Dates", { exact: true });
+  await pickRange(page, dates, "2024-01-01", "2026-06-01");
+  await expect(page.getByText(/at most one year/).first()).toBeVisible();
+  await pickRange(page, dates, "2026-01-01", "2026-12-31");
   await choose(page, page.getByLabel("Status"), "Draft");
   // Every row listed is a draft.
   await expect(page.getByText(/Loading…/)).toHaveCount(0, { timeout: 20_000 });

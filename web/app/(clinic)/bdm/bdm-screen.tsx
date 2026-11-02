@@ -11,7 +11,7 @@ import { DayStartRequests } from "@/components/bdm/day-start-requests";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
 import { Field, PageHeader } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import { DateRangePicker } from "@/components/ui/date-picker";
 import { Page } from "@/components/ui/page";
 import { RowSkeletons } from "@/components/ui/skeletons";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -147,6 +147,7 @@ interface ReportRow {
 /** Excel report: one row per BDM per day (PLAN.md D1 bdm_report). */
 function ReportCard() {
   const t = useTranslations("bdm");
+  const dp = useTranslations("datePicker");
   const { failed } = useFeedback();
   const today = istDateString(new Date());
   const [from, setFrom] = useState(`${today.slice(0, 8)}01`);
@@ -194,11 +195,8 @@ function ReportCard() {
         <CardDescription>{t("report.description")}</CardDescription>
       </div>
       <div className="flex flex-wrap items-end gap-4">
-        <Field label={t("report.from")} error={range.fromError} className="w-48">
-          {(a) => <Input {...a} type="date" value={from} onChange={(e) => setFrom(e.target.value)} />}
-        </Field>
-        <Field label={t("report.to")} error={range.toError} className="w-48">
-          {(a) => <Input {...a} type="date" value={to} onChange={(e) => setTo(e.target.value)} />}
+        <Field label={dp("dates")} error={range.fromError ?? range.toError}>
+          {(a) => <DateRangePicker {...a} value={{ from, to }} onChange={(r) => (setFrom(r.from), setTo(r.to))} clearTo={{ from: `${today.slice(0, 8)}01`, to: today }} />}
         </Field>
         <Button disabled={!range.valid || download.isPending} onClick={() => download.mutate()}>
           <Download aria-hidden />

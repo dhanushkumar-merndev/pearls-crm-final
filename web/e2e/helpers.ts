@@ -119,3 +119,81 @@ async function accessToken(page: Page): Promise<string> {
   if (raw.startsWith("base64-")) raw = Buffer.from(raw.slice("base64-".length), "base64").toString("utf8");
   return (JSON.parse(raw) as { access_token: string }).access_token;
 }
+
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+/**
+ * A themed DatePicker (components/ui/date-picker.tsx): opens it, jumps to the month with the
+ * caption's Year / Month lists (when the day isn't on screen), clicks the day and presses OK.
+ * `iso` is "YYYY-MM-DD".
+ */
+export async function pickDate(page: Page, field: Locator, iso: string, title = "Pick a date") {
+  await field.click();
+  const picker = page.getByRole("dialog", { name: title });
+  await (await showDay(page, picker, iso)).click();
+  await picker.getByRole("button", { name: "OK", exact: true }).click();
+  await expect(picker).toBeHidden();
+  await expect(field).toHaveAttribute("data-value", iso);
+}
+
+/** A themed MonthPicker: steps to the year, clicks the month and presses OK. `ym` is "YYYY-MM". */
+export async function pickMonth(page: Page, field: Locator, ym: string, title = "Pick a month") {
+  await field.click();
+  const picker = page.getByRole("dialog", { name: title });
+  const target = picker.locator(`[data-month="${ym}"]`);
+  for (let i = 0; i < 100 && (await target.count()) === 0; i++) {
+    const shown = (await picker.locator("[data-month]").first().getAttribute("data-month"))!;
+    await picker.getByRole("button", { name: ym < shown ? "Previous year" : "Next year" }).click();
+  }
+  await target.click();
+  await picker.getByRole("button", { name: "OK", exact: true }).click();
+  await expect(picker).toBeHidden();
+  await expect(field).toHaveAttribute("data-value", ym);
+}
+
+/** Jumps the calendar's first month caption to `iso`'s month (only when that day isn't on screen). */
+async function showDay(page: Page, picker: Locator, iso: string) {
+  const cell = picker.locator(`td[data-day="${iso}"]:not([data-outside]) button`);
+  if ((await cell.count()) > 0) return cell.first();
+  await choose(page, picker.getByRole("combobox", { name: "Year" }).first(), iso.slice(0, 4));
+  await choose(page, picker.getByRole("combobox", { name: "Month" }).first(), MONTHS[Number(iso.slice(5, 7)) - 1]!);
+  return cell.first();
+}
+
+/**
+ * A themed DateRangePicker ("Dates" on list screens): click the first day, then the last, then OK.
+ * `from` / `to` are "YYYY-MM-DD".
+ */
+export async function pickRange(page: Page, field: Locator, from: string, to: string, title = "Pick dates") {
+  await field.click();
+  const picker = page.getByRole("dialog", { name: title });
+  await (await showDay(page, picker, from)).click();
+  await (await showDay(page, picker, to)).click();
+  await picker.getByRole("button", { name: "OK", exact: true }).click();
+  await expect(picker).toBeHidden();
+  // A range picked backwards is put in order.
+  await expect(field).toHaveAttribute("data-value", from <= to ? `${from}..${to}` : `${to}..${from}`);
+}
+
+/** "14:05" → "2:05 PM" (the time list's labels). */
+export function timeLabel(hhmm: string): string {
+  const [h, m] = hhmm.split(":").map(Number) as [number, number];
+  return `${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
+}
+
+/** A themed TimePicker (a dropdown). `hhmm` is "HH:mm" on the list's step (15 min by default). */
+export async function pickTime(page: Page, field: Locator, hhmm: string) {
+  await choose(page, field, timeLabel(hhmm));
+}
+
+/** A themed DateTimePicker: day, then the time list, then OK. `value` is "YYYY-MM-DDTHH:mm". */
+export async function pickDateTime(page: Page, field: Locator, value: string, title = "Pick a date and time") {
+  const [iso, hhmm] = value.split("T") as [string, string];
+  await field.click();
+  const picker = page.getByRole("dialog", { name: title });
+  await (await showDay(page, picker, iso)).click();
+  await choose(page, picker.getByRole("combobox", { name: "Time" }), timeLabel(hhmm));
+  await picker.getByRole("button", { name: "OK", exact: true }).click();
+  await expect(picker).toBeHidden();
+  await expect(field).toHaveAttribute("data-value", value);
+}
