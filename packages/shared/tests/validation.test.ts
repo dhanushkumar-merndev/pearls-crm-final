@@ -6,6 +6,7 @@ import {
   issuesByPath,
   optionalDate,
   optionalEmail,
+  optionalFutureDateTime,
   optionalInt,
   optionalPhone,
   optionalPincode,
@@ -120,5 +121,25 @@ describe("issuesByPath", () => {
     const r = schema.safeParse({ name: "", items: [{ qty: 1 }, { qty: 0 }] });
     const map = issuesByPath(r.error!);
     expect([...map.keys()]).toEqual(["name", "items.1.qty"]);
+  });
+});
+
+describe("optionalFutureDateTime (follow-up times)", () => {
+  // 02/11/2026 10:30:40 IST
+  const now = () => Date.parse("2026-11-02T05:00:40.000Z");
+  const schema = optionalFutureDateTime(now);
+  it("allows empty, this minute and later", () => {
+    expect(schema.parse("")).toBeNull();
+    expect(schema.parse("2026-11-02T10:30")).toBe("2026-11-02T10:30");
+    expect(schema.parse("2026-11-02T10:31")).toBe("2026-11-02T10:31");
+    expect(schema.parse("2027-01-01T09:00")).toBe("2027-01-01T09:00");
+  });
+  it("refuses a time that has passed", () => {
+    for (const v of ["2026-11-02T10:29", "2026-11-01T18:00", "2026-10-31T09:35"]) {
+      expect(schema.safeParse(v).error?.issues[0]?.message).toBe("notPast");
+    }
+  });
+  it("still refuses rubbish as dateTime", () => {
+    expect(schema.safeParse("tomorrow").error?.issues[0]?.message).toBe("dateTime");
   });
 });

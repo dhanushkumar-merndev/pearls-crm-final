@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 import type { z } from "zod";
-import { formatDate, fromIstDateTimeLocal, newLeadSchema } from "@pearl/shared";
+import { formatDate, fromIstDateTimeLocal, istDateTimeLocal, newLeadSchema } from "@pearl/shared";
 import { LibraryCombobox, type LibraryItem } from "@/components/library-combobox";
 import { Button } from "@/components/ui/button";
 import { DialogContent } from "@/components/ui/dialog";
@@ -44,6 +44,7 @@ export function NewLeadDialog({ canAssign, phone = null, onDone }: { canAssign: 
   const staff = useSalesStaff();
   const [clientId] = useState(newId);
   const [f, setF] = useState({ name: "", phone: phone ?? "", alt_phone: "", email: "", treatment_text: "", referred_by_text: "", comments1: "", due: "", assigned_to: "" });
+  const [minAt] = useState(() => istDateTimeLocal(new Date()));
   const [treatment, setTreatment] = useState<LibraryItem | null>(null);
   const [source, setSource] = useState<LibraryItem | null>(null);
   const [duplicates, setDuplicates] = useState<Duplicate[] | null>(null);
@@ -188,7 +189,7 @@ export function NewLeadDialog({ canAssign, phone = null, onDone }: { canAssign: 
           </Field>
         )}
         <Field label={t("f.due")} hint={t("dueHint")} error={checks.error("due")}>
-          {(a) => <Input {...a} type="datetime-local" value={f.due} onChange={(e) => set("due", e.target.value)} />}
+          {(a) => <Input {...a} type="datetime-local" min={minAt} value={f.due} onChange={(e) => set("due", e.target.value)} />}
         </Field>
         <Field label={t("f.comments1")} error={checks.error("comments1")} className="sm:col-span-2">
           {(a) => <Textarea {...a} rows={2} maxLength={2000} value={f.comments1} onChange={(e) => set("comments1", e.target.value)} />}

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import {
-  optionalDateTime,
+  optionalFutureDateTime,
   optionalEmail,
   optionalId,
   optionalItem,
@@ -35,7 +35,7 @@ export const newLeadSchema = z
     source: optionalItem(),
     referred_by_text: optionalText(200),
     comments1: optionalText(2000),
-    due: optionalDateTime(),
+    due: optionalFutureDateTime(),
     assigned_to: optionalId(),
   })
   .superRefine((d, ctx) => {
@@ -80,7 +80,7 @@ export const logCallSchema = z.object({
     z.number({ error: "number" }).int({ error: "wholeNumber" }).min(0, { error: "min" }).max(600, { error: "max" }),
   ),
   notes: optionalText(2000),
-  next_followup: optionalDateTime(),
+  next_followup: optionalFutureDateTime(),
 });
 
 /** Longest Ads range: 24 months (owner 31/10/2026; the server refuses more). */

@@ -11,6 +11,7 @@ import {
   editLeadSchema,
   formatINR,
   fromIstDateTimeLocal,
+  istDateTimeLocal,
   logCallSchema,
   optionalPaise,
   optionalText,
@@ -212,6 +213,7 @@ export function LogCallDialog({ lead, onDone }: { lead: Lead; onDone: () => void
   const t = useTranslations("leads");
   const { saved, failed } = useFeedback();
   const [f, setF] = useState({ direction: "outgoing", outcome: "connected", duration_min: "", notes: "", next_followup: "" });
+  const [minAt] = useState(() => istDateTimeLocal(new Date()));
   const [clientId] = useState(newId);
   const checks = useZodForm(logCallSchema);
   const set = (k: keyof typeof f, v: string) => {
@@ -282,7 +284,7 @@ export function LogCallDialog({ lead, onDone }: { lead: Lead; onDone: () => void
           {(a) => <Input {...a} type="number" inputMode="numeric" min={0} max={600} value={f.duration_min} onChange={(e) => set("duration_min", e.target.value)} />}
         </Field>
         <Field label={t("f.nextFollowup")} hint={t("nextFollowupHint")} error={checks.error("next_followup")}>
-          {(a) => <Input {...a} type="datetime-local" value={f.next_followup} onChange={(e) => set("next_followup", e.target.value)} />}
+          {(a) => <Input {...a} type="datetime-local" min={minAt} value={f.next_followup} onChange={(e) => set("next_followup", e.target.value)} />}
         </Field>
         <Field label={t("f.callNotes")} error={checks.error("notes")} className="sm:col-span-2">
           {(a) => <Textarea {...a} rows={3} maxLength={2000} value={f.notes} onChange={(e) => set("notes", e.target.value)} />}

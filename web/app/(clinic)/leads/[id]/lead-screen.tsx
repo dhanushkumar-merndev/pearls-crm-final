@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { z } from "zod";
-import { formatDate, formatDateTime, formatINR, fromIstDateTimeLocal, istDateTimeLocal, optionalDateTime, requiredItem, requiredText } from "@pearl/shared";
+import { formatDate, formatDateTime, formatINR, fromIstDateTimeLocal, istDateTimeLocal, optionalFutureDateTime, requiredItem, requiredText } from "@pearl/shared";
 import { ApptStatusBadge } from "@/components/appointments/status";
 import { BookDialog } from "@/components/appointments/book-dialog";
 import type { ApptStatus } from "@/components/appointments/status";
@@ -252,7 +252,7 @@ function Info({ label, value, wide = false }: { label: string; value: string | n
   );
 }
 
-const followupSchema = z.object({ at: optionalDateTime() });
+const followupSchema = z.object({ at: optionalFutureDateTime() });
 
 /** "Due date": the next call. Setting it gives the owner a task; clearing it removes the task. */
 function FollowupCard({ lead, onSaved }: { lead: LeadDetail; onSaved: () => void }) {
@@ -275,12 +275,17 @@ function FollowupCard({ lead, onSaved }: { lead: LeadDetail; onSaved: () => void
     <Card className="flex flex-col gap-3">
       <CardTitle>{t("nextCall")}</CardTitle>
       <CardDescription>
-        {lead.next_followup_at
-          ? `${formatDateTime(new Date(lead.next_followup_at))}${overdue ? ` · ${t("overdue")}` : ""}`
-          : t("noNextCall")}
+        {lead.next_followup_at ? (
+          <>
+            {formatDateTime(new Date(lead.next_followup_at))}
+            {overdue && <span className="font-medium text-bad-text"> · {t("overdue")}</span>}
+          </>
+        ) : (
+          t("noNextCall")
+        )}
       </CardDescription>
       <Field label={t("f.due")} error={checks.error("at")}>
-        {(a) => <Input {...a} type="datetime-local" value={at} onChange={(e) => (setAt(e.target.value), checks.clear("at"))} />}
+        {(a) => <Input {...a} type="datetime-local" min={istDateTimeLocal(new Date(now))} value={at} onChange={(e) => (setAt(e.target.value), checks.clear("at"))} />}
       </Field>
       <div className="flex flex-wrap gap-2">
         <Button

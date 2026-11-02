@@ -57,5 +57,6 @@
     <string name="error_break_open">End your break first.</string>
     <string name="error_not_backed_up">Some of these files have no checked backup yet. Back them up first (Backup centre), then purge.</string>
     <string name="error_not_purgeable">Only recordings and visit photos can be removed from the cloud. Patient records are always kept.</string>
+    <string name="error_followup_in_past">The next call time has already passed. Choose now or a later time.</string>
     <string name="error_unknown">Something went wrong. Please try again.</string>
 </resources>

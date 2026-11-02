@@ -5,8 +5,19 @@ import { ArrowDownWideNarrow, ArrowUpNarrowWide, Download, UserCheck, X } from "
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
+import { toast } from "sonner";
 import { z } from "zod";
-import { dateRangeSchema, requiredId, formatDate, formatDateTime, formatINR, fromIstDateTimeLocal, istDateString, istDateTimeLocal } from "@pearl/shared";
+import {
+  dateRangeSchema,
+  requiredId,
+  formatDate,
+  formatDateTime,
+  formatINR,
+  fromIstDateTimeLocal,
+  istDateString,
+  istDateTimeLocal,
+  optionalFutureDateTime,
+} from "@pearl/shared";
 import { LibraryCombobox, useDebounced, type LibraryItem } from "@/components/library-combobox";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
@@ -19,6 +30,7 @@ import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
 import { downloadExcel } from "@/lib/excel";
 import { rpc } from "@/lib/rpc";
 import { useFeedback } from "@/lib/use-feedback";
+import { cn } from "@/lib/utils";
 import { useZodForm } from "@/lib/use-zod-form";
 import { StageBadge } from "./stage-badge";
 import { StageDialog } from "./stage-dialog";
@@ -51,6 +63,7 @@ function startFilters() {
 /** Managers' leads table: filters, server paging (exact count), inline stage / owner / due date, bulk assign, CSV export. */
 export function LeadsTable({ canAssign }: { canAssign: boolean }) {
   const t = useTranslations("leads");
+  const tv = useTranslations("validation");
   const queryClient = useQueryClient();
   const { saved, failed } = useFeedback();
   const staff = useSalesStaff();
@@ -387,17 +400,34 @@ export function LeadsTable({ canAssign }: { canAssign: boolean }) {
                 )}
               </TD>
               <TD>
-                <Input
-                  type="datetime-local"
-                  className="w-[13.25rem] px-2 text-[0.9rem]"
-                  aria-label={t("dueOf", { name: r.name })}
-                  defaultValue={r.next_followup_at ? istDateTimeLocal(new Date(r.next_followup_at)) : ""}
-                  key={`${r.id}-${r.version}`}
-                  onBlur={(e) => {
-                    const at = e.target.value ? fromIstDateTimeLocal(e.target.value) : null;
-                    if ((at ?? null) !== (r.next_followup_at ? new Date(r.next_followup_at).toISOString() : null)) setDue.mutate({ lead: r, at });
-                  }}
-                />
+                {(() => {
+                  // Overdue as of when this page of rows arrived (the server sorts by the same rule).
+                  const overdue = r.next_followup_at !== null && new Date(r.next_followup_at).getTime() < list.dataUpdatedAt;
+                  const current = r.next_followup_at ? istDateTimeLocal(new Date(r.next_followup_at)) : "";
+                  return (
+                    <>
+                      <Input
+                        type="datetime-local"
+                        className={cn("w-[13.25rem] px-2 text-[0.9rem]", overdue && "font-medium text-bad-text")}
+                        aria-label={t("dueOf", { name: r.name })}
+                        defaultValue={current}
+                        key={`${r.id}-${r.version}`}
+                        onBlur={(e) => {
+                          if (e.target.value === current) return;
+                          // A new next-call time can't be in the past (the server refuses it too).
+                          if (!optionalFutureDateTime().safeParse(e.target.value).success) {
+                            toast.error(tv("notPast"));
+                            e.target.value = current;
+                            return;
+                          }
+                          const at = e.target.value ? fromIstDateTimeLocal(e.target.value) : null;
+                          if ((at ?? null) !== (r.next_followup_at ? new Date(r.next_followup_at).toISOString() : null)) setDue.mutate({ lead: r, at });
+                        }}
+                      />
+                      {overdue && <span className="block text-[0.9rem] font-medium text-bad-text">{t("due.overdue")}</span>}
+                    </>
+                  );
+                })()}
               </TD>
             </TR>
           ))}

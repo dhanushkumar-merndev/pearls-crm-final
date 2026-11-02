@@ -174,6 +174,7 @@
     "holiday": "The clinic is closed that day (holiday).",
     "outside_schedule": "The doctor doesn't see patients at that time.",
     "slot_in_past": "That time has already passed.",
+    "followup_in_past": "The next call time has already passed. Choose now or a later time.",
     "invalid_status_change": "That step isn't possible from the current status.",
     "reason_required": "Please give a reason (it is kept in the change history).",
     "discount_limit": "That discount is more than you are allowed to give. Please ask the admin.",

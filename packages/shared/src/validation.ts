@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { rupeesToPaise } from "./money";
+import { fromIstDateTimeLocal } from "./dates";
 import { normalizePhone } from "./phone";
 
 /**
@@ -128,6 +129,13 @@ export const optionalDateTime = () =>
     .preprocess(asText, z.string({ error: "invalid" }).trim())
     .refine((v) => !v || (DATE_TIME_LOCAL.test(v) && isIsoDate(v.slice(0, 10))), { error: "dateTime" })
     .transform((v) => (v ? v.slice(0, 16) : null));
+
+/**
+ * A follow-up time (IST datetime-local): empty, or this minute or later. `now` is read when the
+ * form is checked, so a time typed a few minutes ago still counts while it is the current minute.
+ */
+export const optionalFutureDateTime = (now: () => number = Date.now) =>
+  optionalDateTime().refine((v) => !v || Date.parse(fromIstDateTimeLocal(v) ?? "") + 60_000 > now(), { error: "notPast" });
 
 /** Empty → "required"; text that isn't a number (NaN) → "number". */
 const numberError = (iss: { input?: unknown }) => (iss.input === undefined || iss.input === null ? "required" : "number");

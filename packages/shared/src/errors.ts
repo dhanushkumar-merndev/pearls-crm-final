@@ -65,6 +65,8 @@ export const ERROR_CODES = [
   // Phase 14: backup and purge
   "not_backed_up",
   "not_purgeable",
+  // Leads: a new or changed next-call time can't be in the past
+  "followup_in_past",
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];

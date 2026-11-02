@@ -4,7 +4,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(82);
+select plan(88);
 
 create function pg_temp.login(p_id uuid)
 returns void
@@ -325,6 +325,45 @@ select is(pg_temp.first_two(true), (select array_agg(id::text order by sl_no des
 select is(pg_temp.first_two(false), (select array_agg(id::text order by sl_no) from public.leads
             where id in ('bbbbbbbb-3333-4000-a000-000000000001', 'bbbbbbbb-3333-4000-a000-000000000003')),
   'oldest first: overdue leads still lead the table, oldest of them first');
+
+-- A new or changed next call can't be in the past (owner, 02/11/2026); re-sending the current one is fine.
+select pg_temp.login('bbbbbbbb-0000-4000-a000-0000000000d1');
+select throws_ok($$ select public.create_lead(jsonb_build_object('name', 'Past FU', 'phone', '+915000000901', 'force', true,
+                     'next_followup_at', now() - interval '1 hour'), gen_random_uuid()) $$,
+  'P0001', 'followup_in_past', 'a new lead''s next call can''t be in the past');
+select is((public.create_lead(jsonb_build_object('name', 'Future FU', 'phone', '+915000000902', 'force', true,
+             'next_followup_at', now() + interval '1 hour'), 'bbbbbbbb-3333-4000-a000-0000000009f1') ->> 'created')::boolean,
+  true, 'a next call later today is fine');
+select throws_ok($$ select public.update_lead('bbbbbbbb-3333-4000-a000-0000000009f1',
+                     jsonb_build_object('next_followup_at', now() - interval '2 hours'),
+                     (select version from public.leads where id = 'bbbbbbbb-3333-4000-a000-0000000009f1')) $$,
+  'P0001', 'followup_in_past', 'moving the next call into the past is refused');
+select pg_temp.login(null);
+update public.leads set next_followup_at = '2026-01-01T10:00:00+05:30' where id = 'bbbbbbbb-3333-4000-a000-0000000009f1';
+select pg_temp.login('bbbbbbbb-0000-4000-a000-0000000000d1');
+select lives_ok($$ select public.update_lead('bbbbbbbb-3333-4000-a000-0000000009f1',
+                    jsonb_build_object('next_followup_at', '2026-01-01T10:00:00+05:30'),
+                    (select version from public.leads where id = 'bbbbbbbb-3333-4000-a000-0000000009f1')) $$,
+  'sending back the time a lead already has is allowed');
+
+-- Order: overdue → stage New → the rest, in either direction (owner, 02/11/2026).
+select pg_temp.login(null);
+update public.leads set next_followup_at = null, stage = 'contacted' where id = 'bbbbbbbb-3333-4000-a000-0000000009f1';
+update public.leads set next_followup_at = null, stage = 'new' where id = 'bbbbbbbb-3333-4000-a000-000000000002';
+create function pg_temp.groups(p_desc boolean)
+returns integer[]
+language sql
+as $$
+  select array_agg(g order by o) from (
+    select o, case when (e.r ->> 'next_followup_at')::timestamptz < now() then 0 when e.r ->> 'stage' = 'new' then 1 else 2 end as g
+    from jsonb_array_elements(public.leads_table('{}', 'lead_date', p_desc, 0, 100) -> 'rows') with ordinality e(r, o)) x;
+$$;
+grant execute on function pg_temp.groups(boolean) to authenticated;
+select pg_temp.login('bbbbbbbb-0000-4000-a000-0000000000d1');
+select is(pg_temp.groups(true), (select array_agg(g order by g) from unnest(pg_temp.groups(true)) g),
+  'newest first: overdue, then New, then the rest');
+select is(pg_temp.groups(false), (select array_agg(g order by g) from unnest(pg_temp.groups(false)) g),
+  'oldest first: still overdue, then New, then the rest');
 
 select * from finish();
 rollback;

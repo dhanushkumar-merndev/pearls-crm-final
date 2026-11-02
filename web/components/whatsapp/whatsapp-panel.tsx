@@ -578,7 +578,7 @@ export function ApiComposer({ target, windowOpen, onSent }: { target: ChatTarget
             {t("useText")}
           </button>
         </div>
-        {!windowOpen && <p className="min-w-0 flex-1 text-[0.9rem] text-text-secondary">{t("windowClosedHint")}</p>}
+        {!windowOpen && <p className="min-w-0 grow basis-48 text-[0.9rem] text-text-secondary">{t("windowClosedHint")}</p>}
       </div>
       {effective === "template" ? (
         <>

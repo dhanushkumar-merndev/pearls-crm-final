@@ -61,5 +61,6 @@ internal val ERROR_STRINGS: Map<String, Int> = mapOf(
     "break_open" to R.string.error_break_open,
     "not_backed_up" to R.string.error_not_backed_up,
     "not_purgeable" to R.string.error_not_purgeable,
+    "followup_in_past" to R.string.error_followup_in_past,
     "unknown" to R.string.error_unknown,
 )
