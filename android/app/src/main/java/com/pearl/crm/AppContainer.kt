@@ -189,8 +189,9 @@ class AppContainer(private val context: Context) {
         com.pearl.crm.bdm.BdmTrackingService.stop(context)
         _profile.value = null
         settings.profileName = null
-        // A new login always sets a new PIN.
+        // A new login always sets up its own lock again (PIN or fingerprint).
         pins.clear()
+        settings.setBiometricLock(false)
     }
 
     fun granted(permission: String): Boolean = ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED

@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * Asks for the PIN when the app opens after 5 minutes or more in the background (or after a
+ * Asks for the PIN (or fingerprint / face) when the app opens after 5 minutes or more in the background (or after a
  * fresh start with no record of when it left). The time is kept on disk, so a phone that
  * killed the app in the background still asks.
  */
@@ -32,7 +32,7 @@ class AppLock(
     }
 
     private fun shouldLock(): Boolean {
-        if (!pins.hasPin.value) return false
+        if (!pins.hasPin.value && !settings.biometricLock.value) return false
         val leftAt = settings.lastBackgroundAt ?: return true
         return clock() - leftAt >= LOCK_AFTER_MS
     }

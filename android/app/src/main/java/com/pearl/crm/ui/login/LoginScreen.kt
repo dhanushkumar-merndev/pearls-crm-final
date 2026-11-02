@@ -184,4 +184,5 @@ private fun reasonText(reason: SignOutReason?): String? = when (reason) {
     SignOutReason.Inactive -> stringResource(R.string.login_reason_inactive)
     SignOutReason.PinLockout -> stringResource(R.string.login_reason_pin)
     SignOutReason.ForgotPin -> stringResource(R.string.login_reason_forgot_pin)
+    SignOutReason.BiometricFailed -> stringResource(R.string.login_reason_biometric)
 }

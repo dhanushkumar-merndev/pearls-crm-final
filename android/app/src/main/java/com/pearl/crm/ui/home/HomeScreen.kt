@@ -315,9 +315,7 @@ private fun SettingsRoute(
     val failed by remember { outbox.observeFailed() }.collectAsStateWithLifecycle(emptyList())
     val lastPull by remember { container.db.syncMarkers().observeLastPull() }.collectAsStateWithLifecycle(null)
     val scope = container.scope
-    val context = LocalContext.current
-    val canBiometric = remember { com.pearl.crm.ui.pin.BiometricUnlock.available(context) }
-    var biometric by remember { mutableStateOf(container.settings.biometricUnlock) }
+    val hasPin by container.pins.hasPin.collectAsStateWithLifecycle()
     SettingsScreen(
         state = SettingsUiState(
             fullName = profile?.fullName,
@@ -332,7 +330,7 @@ private fun SettingsRoute(
             appVersion = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
         ),
         onThemeChange = container.settings::setTheme,
-        onChangePin = onChangePin,
+        onChangePin = onChangePin.takeIf { hasPin },
         onSyncNow = { scope.launch { container.syncRunner.runOnce() } },
         onRetry = { id ->
             scope.launch {
@@ -344,11 +342,6 @@ private fun SettingsRoute(
         onSignOut = { scope.launch { container.signOutByChoice() } },
         onCallSetup = onCallSetup,
         onRecordings = onRecordings,
-        biometric = biometric.takeIf { canBiometric },
-        onBiometricChange = {
-            biometric = it
-            container.settings.biometricUnlock = it
-        },
     )
 }
 

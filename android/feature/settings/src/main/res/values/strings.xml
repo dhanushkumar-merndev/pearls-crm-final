@@ -37,8 +37,6 @@
     <string name="settings_recordings">Recordings on this phone</string>
     <string name="settings_security">PIN and sign out</string>
     <string name="settings_change_pin">Change PIN</string>
-    <string name="settings_biometric">Unlock with fingerprint or face</string>
-    <string name="settings_biometric_why">Faster than typing the PIN. The PIN still works if it doesn\'t read.</string>
     <string name="settings_sign_out">Sign out</string>
     <string name="settings_sign_out_title">Sign out of this phone?</string>
     <string name="settings_sign_out_body">The app\'s data is removed from this phone. Log in again to get it back.</string>

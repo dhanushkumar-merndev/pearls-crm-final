@@ -24,6 +24,9 @@ enum class SignOutReason {
 
     /** "Forgot PIN": log in again with the password to set a new one. */
     ForgotPin,
+
+    /** Fingerprint / face didn't work: "Log in with password instead". */
+    BiometricFailed,
 }
 
 /**

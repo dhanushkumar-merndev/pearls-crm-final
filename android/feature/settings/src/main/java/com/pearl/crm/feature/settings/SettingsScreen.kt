@@ -1,7 +1,6 @@
 package com.pearl.crm.feature.settings
 
 import androidx.compose.ui.platform.testTag
-import androidx.compose.material3.Switch
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -77,7 +76,8 @@ data class SettingsUiState(
 fun SettingsScreen(
     state: SettingsUiState,
     onThemeChange: (ThemeMode) -> Unit,
-    onChangePin: () -> Unit,
+    /** Null when this login opens with fingerprint / face (no PIN). */
+    onChangePin: (() -> Unit)?,
     onSyncNow: () -> Unit,
     onRetry: (String) -> Unit,
     onDiscard: (String) -> Unit,
@@ -86,9 +86,6 @@ fun SettingsScreen(
     /** Sales roles only: calls and recordings setup, and the phone's recordings. */
     onCallSetup: (() -> Unit)? = null,
     onRecordings: (() -> Unit)? = null,
-    /** Fingerprint / face unlock on or off; null when the phone has none set up (row hidden). */
-    biometric: Boolean? = null,
-    onBiometricChange: (Boolean) -> Unit = {},
 ) {
     var confirmSignOut by rememberSaveable { mutableStateOf(false) }
     var discarding by rememberSaveable { mutableStateOf<String?>(null) }
@@ -175,16 +172,9 @@ fun SettingsScreen(
 
         Section(stringResource(R.string.settings_security)) {
             PearlCard(contentPadding = PaddingValues(0.dp), verticalSpacing = 0.dp) {
-                ListRow(stringResource(R.string.settings_change_pin), icon = Icons.Outlined.Pin, onClick = onChangePin, chevron = true)
-                HorizontalDivider()
-                biometric?.let { on ->
-                    Row(Modifier.padding(horizontal = Spacing.l, vertical = Spacing.m), verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text(stringResource(R.string.settings_biometric), style = MaterialTheme.typography.titleSmall)
-                            Text(stringResource(R.string.settings_biometric_why), style = MaterialTheme.typography.bodySmall, color = Pearl.palette.textSecondary)
-                        }
-                        Switch(checked = on, onCheckedChange = onBiometricChange, modifier = Modifier.testTag("settings-biometric"))
-                    }
+                // Fingerprint phones have no app PIN, so nothing to change.
+                onChangePin?.let {
+                    ListRow(stringResource(R.string.settings_change_pin), icon = Icons.Outlined.Pin, onClick = it, chevron = true)
                     HorizontalDivider()
                 }
                 // Same row style as Change PIN; the red text says it is the one to be careful with (it asks first).

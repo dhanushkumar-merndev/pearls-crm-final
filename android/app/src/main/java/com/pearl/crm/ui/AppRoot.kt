@@ -1,5 +1,7 @@
 package com.pearl.crm.ui
 
+import com.pearl.crm.ui.pin.BiometricLockScreen
+import com.pearl.crm.ui.pin.BiometricSetupScreen
 import com.pearl.crm.ui.pin.BiometricUnlock
 import androidx.fragment.app.FragmentActivity
 import androidx.compose.ui.platform.LocalContext
@@ -22,7 +24,7 @@ import kotlinx.coroutines.launch
 
 /**
  * What the app shows, in order: not set up → login → "use the web app" (reception/admin) →
- * choose a PIN → PIN lock → the role's home.
+ * set up the lock (fingerprint / face, or a PIN on phones without one) → the lock → the role's home.
  */
 @Composable
 fun AppRoot(container: AppContainer) {
@@ -33,6 +35,14 @@ fun AppRoot(container: AppContainer) {
     val session by container.sessions.session.collectAsStateWithLifecycle()
     val hasPin by container.pins.hasPin.collectAsStateWithLifecycle()
     val locked by container.lock.locked.collectAsStateWithLifecycle()
+    val bioLock by container.settings.biometricLock.collectAsStateWithLifecycle()
+    val activity = LocalActivity.current as? FragmentActivity
+    val context = LocalContext.current
+    // Checked again each time the lock or setup screen shows (a fingerprint may have been added or removed).
+    val canBiometric = remember(locked, hasPin, bioLock, session) { BiometricUnlock.available(context) }
+    val promptTitle = stringResource(R.string.biometric_title)
+    val promptSubtitle = stringResource(R.string.biometric_subtitle)
+    val promptCancel = stringResource(R.string.biometric_cancel)
     val current = session
     when {
         current == null -> {
@@ -43,30 +53,42 @@ fun AppRoot(container: AppContainer) {
         }
         current.staffRole?.usesAndroidApp != true ->
             UseWebAppScreen(current.staffRole) { container.scope.launch { container.signOutByChoice() } }
-        !hasPin -> {
+        !hasPin && !bioLock -> {
             val vm = viewModel(key = "pin") { PinViewModel(container.pins, container.lock, container.sessions) }
             val state by vm.state.collectAsStateWithLifecycle()
-            PinSetupScreen(busy = state.busy, onCreate = { vm.create(it) })
+            // A phone with a fingerprint or face set up uses that instead of a PIN; others keep the PIN.
+            if (activity != null && canBiometric) {
+                BiometricSetupScreen(onTurnOn = {
+                    BiometricUnlock.prompt(activity, promptTitle, promptSubtitle, promptCancel) {
+                        container.settings.setBiometricLock(true)
+                        vm.biometricOk()
+                    }
+                })
+            } else {
+                PinSetupScreen(busy = state.busy, onCreate = { vm.create(it) })
+            }
         }
         locked -> {
             val vm = viewModel(key = "pin") { PinViewModel(container.pins, container.lock, container.sessions) }
             val state by vm.state.collectAsStateWithLifecycle()
-            val activity = LocalActivity.current as? FragmentActivity
-            val context = LocalContext.current
-            val title = stringResource(R.string.biometric_title)
-            val subtitle = stringResource(R.string.biometric_subtitle)
-            val usePin = stringResource(R.string.biometric_use_pin)
-            val biometric = remember(activity) {
-                activity?.takeIf { container.settings.biometricUnlock && BiometricUnlock.available(context) }
+            if (bioLock) {
+                BiometricLockScreen(
+                    onPrompt = if (activity != null && canBiometric) {
+                        { BiometricUnlock.prompt(activity, promptTitle, promptSubtitle, promptCancel, vm::biometricOk) }
+                    } else {
+                        null
+                    },
+                    onLoginInstead = vm::loginInstead,
+                )
+            } else {
+                PinUnlockScreen(
+                    title = stringResource(R.string.pin_unlock_title),
+                    triesLeft = state.triesLeft,
+                    busy = state.busy,
+                    onUnlock = { vm.check(it) },
+                    onForgot = vm::forgot,
+                )
             }
-            PinUnlockScreen(
-                title = stringResource(R.string.pin_unlock_title),
-                triesLeft = state.triesLeft,
-                busy = state.busy,
-                onUnlock = { vm.check(it) },
-                onForgot = vm::forgot,
-                onBiometric = biometric?.let { a -> { BiometricUnlock.prompt(a, title, subtitle, usePin, vm::biometricOk) } },
-            )
         }
         else -> HomeScreen(container, current)
     }

@@ -74,12 +74,15 @@ class SettingsStore(private val prefs: SharedPreferences) {
             prefs.edit().putBoolean(KEY_POPUP, value).apply()
         }
 
-    /** Unlock with fingerprint or face instead of typing the PIN (where the phone has one set up). */
-    var biometricUnlock: Boolean
-        get() = prefs.getBoolean(KEY_BIOMETRIC, true)
-        set(value) {
-            prefs.edit().putBoolean(KEY_BIOMETRIC, value).apply()
-        }
+    private val _biometricLock = MutableStateFlow(prefs.getBoolean(KEY_BIOMETRIC, false))
+
+    /** This login opens with fingerprint or face (no app PIN). Cleared on sign-out. */
+    val biometricLock: StateFlow<Boolean> = _biometricLock.asStateFlow()
+
+    fun setBiometricLock(on: Boolean) {
+        prefs.edit().putBoolean(KEY_BIOMETRIC, on).apply()
+        _biometricLock.value = on
+    }
 
     /** The "swipe right to call" tip on Leads was shown once; it isn't shown again. */
     var swipeHintSeen: Boolean
@@ -102,6 +105,6 @@ class SettingsStore(private val prefs: SharedPreferences) {
         const val KEY_REC_MAX = "recording_max_seconds"
         const val KEY_POPUP = "caller_popup"
         const val KEY_SWIPE_HINT = "swipe_hint_seen"
-        const val KEY_BIOMETRIC = "biometric_unlock"
+        const val KEY_BIOMETRIC = "biometric_lock"
     }
 }

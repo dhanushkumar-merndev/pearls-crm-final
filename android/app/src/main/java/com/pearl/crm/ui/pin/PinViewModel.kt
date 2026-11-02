@@ -61,6 +61,11 @@ class PinViewModel(
         lock.unlock()
     }
 
+    /** Fingerprint / face isn't working: log in with the password (it sets the lock up again). */
+    fun loginInstead() {
+        viewModelScope.launch { sessions.signOut(SignOutReason.BiometricFailed) }
+    }
+
     fun forgot() {
         viewModelScope.launch {
             pins.clear()

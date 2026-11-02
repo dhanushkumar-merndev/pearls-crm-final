@@ -29,6 +29,7 @@
     <string name="login_reason_inactive">Your account is not active. Please contact the admin.</string>
     <string name="login_reason_pin">Too many wrong PIN tries. Please log in again.</string>
     <string name="login_reason_forgot_pin">Log in with your password, then choose a new PIN.</string>
+    <string name="login_reason_biometric">Log in with your password to open the app again.</string>
 
     <!-- PIN -->
     <string name="pin_create_title">Choose a PIN</string>
@@ -44,10 +45,15 @@
     <string name="pin_save">Save PIN</string>
     <string name="pin_unlock_title">Enter your PIN</string>
     <string name="pin_unlock">Unlock</string>
-    <string name="pin_use_biometric">Use fingerprint or face</string>
     <string name="biometric_title">Unlock Pearl CRM</string>
     <string name="biometric_subtitle">Touch the fingerprint sensor or look at the phone</string>
-    <string name="biometric_use_pin">Use PIN</string>
+    <string name="biometric_cancel">Cancel</string>
+    <string name="biometric_setup_title">Open the app with your fingerprint</string>
+    <string name="biometric_setup_body">Use the fingerprint or face already set up on this phone. No PIN to remember.</string>
+    <string name="biometric_setup_button">Turn on fingerprint</string>
+    <string name="biometric_unlock">Unlock with fingerprint</string>
+    <string name="biometric_login_instead">Log in with password instead</string>
+    <string name="biometric_gone">This phone has no fingerprint or face set up any more. Log in with your password.</string>
     <plurals name="pin_wrong">
         <item quantity="one">Wrong PIN. %1$d try left before you must log in again.</item>
         <item quantity="other">Wrong PIN. %1$d tries left before you must log in again.</item>
