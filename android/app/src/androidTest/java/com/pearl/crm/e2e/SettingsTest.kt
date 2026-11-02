@@ -115,6 +115,26 @@ class SettingsTest {
     }
 
     @Test
+    fun aRemovedDaysChangesWaitingBehindTheFailedOneGoWithIt() {
+        // Owner's phone, 02/11/2026: 1 failed + 4 waiting behind it ("5 changes not sent yet").
+        val day = "gone-${UUID.randomUUID()}"
+        val failed = UUID.randomUUID().toString()
+        val waiting = List(3) { UUID.randomUUID().toString() }
+        runBlocking {
+            val at = System.currentTimeMillis()
+            c.db.outbox().enqueue(OutboxItem(failed, 0, "bdm_event", "{}", "bdm-day:$day", "user", at, 0, Long.MAX_VALUE, null, "pending"))
+            c.db.outbox().markFailed(failed, "not_found")
+            waiting.take(2).forEach { c.db.outbox().enqueue(OutboxItem(it, 0, "bdm_event", "{}", "bdm-day:$day", "user", at, 0, Long.MAX_VALUE, null, "pending")) }
+            c.db.outbox().enqueue(OutboxItem(waiting[2], 0, "bdm_upload_chunks", "{}", "bdm-track:$day", "user", at, 0, Long.MAX_VALUE, null, "pending"))
+        }
+        compose.waitForText(text(SettingsR.string.settings_discard_day, 4))
+        compose.onNodeWithTag("discard-$failed").performScrollTo().performClick()
+        compose.waitForText(text(SettingsR.string.settings_discard_day_title, 4))
+        compose.onNode(hasText(text(SettingsR.string.settings_discard)) and hasClickAction() and hasAnyAncestor(isDialog())).performClick()
+        compose.waitUntil(10_000) { runBlocking { (waiting + failed).all { c.db.outbox().get(it) == null } } }
+    }
+
+    @Test
     fun theThemeChoiceIsKept() {
         try {
             row(SettingsR.string.settings_theme_light)

@@ -320,6 +320,7 @@ private fun SettingsRoute(
     val outbox = container.db.outbox()
     val unsent by remember { outbox.observeUnsentCount() }.collectAsStateWithLifecycle(0)
     val failed by remember { outbox.observeFailed() }.collectAsStateWithLifecycle(emptyList())
+    val perEntity by remember { outbox.observeUserCountsByEntity() }.collectAsStateWithLifecycle(emptyList())
     val lastPull by remember { container.db.syncMarkers().observeLastPull() }.collectAsStateWithLifecycle(null)
     val scope = container.scope
     val hasPin by container.pins.hasPin.collectAsStateWithLifecycle()
@@ -330,7 +331,11 @@ private fun SettingsRoute(
             role = session.staffRole,
             theme = theme,
             unsentCount = unsent,
-            failed = failed.map { FailedChange(it.id, it.lastError ?: "unknown", it.createdAt, it.rpc) },
+            failed = perEntity.associate { it.entityKey to it.n }.let { counts ->
+                failed.map {
+                    FailedChange(it.id, it.lastError ?: "unknown", it.createdAt, it.rpc, it.entityKey, FailedChange.sameDayCount(it.entityKey, counts))
+                }
+            },
             lastSyncAt = listOfNotNull(status.lastSuccessAt, lastPull).maxOrNull(),
             offline = status.offline,
             syncing = status.running,
@@ -346,6 +351,7 @@ private fun SettingsRoute(
             }
         },
         onDiscard = { id -> scope.launch { outbox.delete(id) } },
+        onDiscardKeys = { keys -> scope.launch { outbox.deleteForEntities(keys) } },
         onSignOut = { scope.launch { container.signOutByChoice() } },
         onCallSetup = onCallSetup,
         onRecordings = onRecordings,

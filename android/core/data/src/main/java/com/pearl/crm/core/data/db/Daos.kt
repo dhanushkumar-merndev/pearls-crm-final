@@ -1,5 +1,6 @@
 package com.pearl.crm.core.data.db
 
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
@@ -109,7 +110,17 @@ abstract class OutboxDao {
 
     @Query("SELECT * FROM outbox WHERE state = 'failed' AND kind = 'user' ORDER BY seq")
     abstract fun observeFailed(): Flow<List<OutboxItem>>
+
+    /** How many of the person's changes wait under each entity (failed ones and those queued behind them). */
+    @Query("SELECT entity_key, COUNT(*) AS n FROM outbox WHERE kind = 'user' GROUP BY entity_key")
+    abstract fun observeUserCountsByEntity(): Flow<List<EntityCount>>
+
+    /** Discards everything queued for these entities (e.g. a field day the server no longer has). */
+    @Query("DELETE FROM outbox WHERE entity_key IN (:keys)")
+    abstract suspend fun deleteForEntities(keys: List<String>)
 }
+
+data class EntityCount(@ColumnInfo(name = "entity_key") val entityKey: String, val n: Int)
 
 @Dao
 interface SyncMarkerDao {

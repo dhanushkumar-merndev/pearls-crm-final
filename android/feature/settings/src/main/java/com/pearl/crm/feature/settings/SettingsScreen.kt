@@ -56,9 +56,37 @@ import com.pearl.crm.core.ui.theme.Pearl
 import com.pearl.crm.core.ui.theme.Spacing
 
 /** A queued change the server refused; the person decides to try again or discard it. */
-data class FailedChange(val id: String, val code: String, val createdAt: Long, val rpc: String = "") {
+data class FailedChange(
+    val id: String,
+    val code: String,
+    val createdAt: Long,
+    val rpc: String = "",
+    val entityKey: String = "",
+    /** Changes of the same field day on this phone (this one and those waiting behind it). */
+    val sameDay: Int = 1,
+) {
     /** A field-day change whose day the server no longer has (removed there): it can never be saved. */
     val dayGone: Boolean get() = rpc.startsWith("bdm_") && code == "not_found"
+
+    /** Queue keys of everything belonging to that day (its updates and its route), when [dayGone]. */
+    val dayKeys: List<String> get() = if (dayGone) dayId(entityKey)?.let(::keysOf).orEmpty() else emptyList()
+
+    companion object {
+        private const val DAY = "bdm-day:"
+        private const val TRACK = "bdm-track:"
+
+        private fun dayId(entityKey: String): String? = when {
+            entityKey.startsWith(DAY) -> entityKey.removePrefix(DAY)
+            entityKey.startsWith(TRACK) -> entityKey.removePrefix(TRACK)
+            else -> null
+        }
+
+        private fun keysOf(dayId: String) = listOf(DAY + dayId, TRACK + dayId)
+
+        /** [sameDay] for a failed change, from the per-entity counts of the outbox. */
+        fun sameDayCount(entityKey: String, counts: Map<String, Int>): Int =
+            dayId(entityKey)?.let { id -> keysOf(id).sumOf { counts[it] ?: 0 } } ?: (counts[entityKey] ?: 1)
+    }
 }
 
 private const val DISCARD_ALL = "*all*"
@@ -91,6 +119,8 @@ fun SettingsScreen(
     /** Sales roles only: calls and recordings setup, and the phone's recordings. */
     onCallSetup: (() -> Unit)? = null,
     onRecordings: (() -> Unit)? = null,
+    /** Discards everything queued under these keys (a removed field day). */
+    onDiscardKeys: (List<String>) -> Unit = {},
 ) {
     var confirmSignOut by rememberSaveable { mutableStateOf(false) }
     var discarding by rememberSaveable { mutableStateOf<String?>(null) }
@@ -152,7 +182,12 @@ fun SettingsScreen(
                     )
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
                         PearlButton(stringResource(R.string.settings_retry), Icons.Outlined.Refresh, { onRetry(change.id) }, kind = ButtonKind.Tonal, small = true)
-                        PearlButton(stringResource(R.string.settings_discard), Icons.Outlined.Delete, { discarding = change.id }, kind = ButtonKind.Quiet, small = true)
+                        val label = if (change.dayKeys.isNotEmpty() && change.sameDay > 1) {
+                            stringResource(R.string.settings_discard_day, change.sameDay)
+                        } else {
+                            stringResource(R.string.settings_discard)
+                        }
+                        PearlButton(label, Icons.Outlined.Delete, { discarding = change.id }, kind = ButtonKind.Quiet, small = true, modifier = Modifier.testTag("discard-${change.id}"))
                     }
                 }
                 if (state.failed.size > 1) {
@@ -246,12 +281,17 @@ fun SettingsScreen(
 
     discarding?.let { id ->
         val all = id == DISCARD_ALL
+        val day = state.failed.firstOrNull { it.id == id }?.takeIf { it.dayKeys.isNotEmpty() && it.sameDay > 1 }
+        fun discard(change: FailedChange) = if (change.dayKeys.isNotEmpty()) onDiscardKeys(change.dayKeys) else onDiscard(change.id)
         AlertDialog(
             onDismissRequest = { discarding = null },
             title = {
                 Text(
-                    if (all) stringResource(R.string.settings_discard_all_title, state.failed.size)
-                    else stringResource(R.string.settings_discard_title),
+                    when {
+                        all -> stringResource(R.string.settings_discard_all_title, state.failed.size)
+                        day != null -> stringResource(R.string.settings_discard_day_title, day.sameDay)
+                        else -> stringResource(R.string.settings_discard_title)
+                    },
                 )
             },
             text = { Text(stringResource(R.string.settings_discard_body)) },
@@ -261,7 +301,7 @@ fun SettingsScreen(
                     Icons.Outlined.Delete,
                     {
                         discarding = null
-                        if (all) state.failed.forEach { onDiscard(it.id) } else onDiscard(id)
+                        if (all) state.failed.forEach(::discard) else state.failed.firstOrNull { it.id == id }?.let(::discard) ?: onDiscard(id)
                     },
                     kind = ButtonKind.Danger,
                 )
