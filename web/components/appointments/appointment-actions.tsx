@@ -22,6 +22,18 @@ import { useZodForm } from "@/lib/use-zod-form";
 import { waLink } from "@/lib/whatsapp";
 import { NEXT, type ApptStatus } from "./status";
 
+/** The patient's name on a booking; reception and admin can click it to open the patient file. */
+export function ApptPatientName({ appt, className }: { appt: Pick<ApptCard, "patient" | "patient_id">; className?: string }) {
+  const me = useMe();
+  const reception = me?.role === "receptionist" || me?.role === "admin";
+  if (!appt.patient_id || !reception) return <span className={className}>{appt.patient}</span>;
+  return (
+    <Link href={`/patients/${appt.patient_id}`} className={`${className ?? ""} underline-offset-4 hover:text-link hover:underline`}>
+      {appt.patient}
+    </Link>
+  );
+}
+
 export interface ApptCard {
   id: string;
   status: ApptStatus;

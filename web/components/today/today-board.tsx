@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
 import { chartTokens, formatDate, formatINR, formatTime, istDateString, type ThemeMode } from "@pearl/shared";
-import { AppointmentActions, type ApptCard } from "@/components/appointments/appointment-actions";
+import { AppointmentActions, ApptPatientName, type ApptCard } from "@/components/appointments/appointment-actions";
 import { BookDialog, WalkInDialog } from "@/components/appointments/book-dialog";
 import { ApptStatusBadge } from "@/components/appointments/status";
 import { EChart } from "@/components/charts/echart";
@@ -164,7 +164,7 @@ export function TodayBoard() {
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block font-medium break-words">
-                      {a.patient}
+                      <ApptPatientName appt={a} />
                       {a.lead_only && <LeadTag />}
                     </span>
                     <span className="block text-[0.9rem] text-text-secondary">{[a.doctor, a.phone].filter(Boolean).join(" · ")}</span>
@@ -192,7 +192,7 @@ export function TodayBoard() {
                 <span className="min-w-0">
                   <span className="block font-medium break-words">
                     {a.queue_no ? `#${a.queue_no} ` : ""}
-                    {a.patient}
+                    <ApptPatientName appt={a} />
                     {a.lead_only && <LeadTag />}
                   </span>
                   <span className="block text-[0.9rem] text-text-secondary">{[a.doctor, a.uhid].filter(Boolean).join(" · ")}</span>
@@ -215,7 +215,7 @@ export function TodayBoard() {
                   <span className="w-20 shrink-0 font-medium whitespace-nowrap tabular-nums">{a.slot_start ? formatTime(new Date(a.slot_start)) : ""}</span>
                   <span className="min-w-0 flex-1">
                     <span className="block font-medium break-words">
-                      {a.patient}
+                      <ApptPatientName appt={a} />
                       {a.lead_only && <LeadTag />}
                     </span>
                     <span className="block text-[0.9rem] text-text-secondary">{a.doctor}</span>

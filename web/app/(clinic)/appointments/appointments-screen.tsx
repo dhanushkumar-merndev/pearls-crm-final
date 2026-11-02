@@ -5,7 +5,7 @@ import { CalendarCheck, CalendarPlus, ChevronLeft, ChevronRight, Download, Footp
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { formatDate, formatTime, istDateString, istDayStart } from "@pearl/shared";
-import { AppointmentActions, type ApptCard } from "@/components/appointments/appointment-actions";
+import { AppointmentActions, ApptPatientName, type ApptCard } from "@/components/appointments/appointment-actions";
 import { BookDialog, WalkInDialog } from "@/components/appointments/book-dialog";
 import { ApptStatusBadge, type ApptStatus } from "@/components/appointments/status";
 import type { LibraryItem } from "@/components/library-combobox";
@@ -175,7 +175,7 @@ function BoardView({ day, setDay, onBook }: { day: string; setDay: (d: string) =
                       <ul className="mt-2 flex flex-col gap-1.5">
                         {s.chips.map((c) => (
                           <li key={c.id} className="flex flex-wrap items-center gap-2 rounded-lg bg-secondary px-2 py-1.5">
-                            <span className="min-w-0 flex-1 truncate font-medium">{c.patient}</span>
+                            <ApptPatientName appt={c} className="min-w-0 flex-1 truncate font-medium" />
                             <ApptStatusBadge status={c.status} auto={c.auto_cancelled} />
                             <AppointmentActions appt={{ ...c, doctor: d.name }} />
                           </li>
@@ -213,7 +213,7 @@ function BoardView({ day, setDay, onBook }: { day: string; setDay: (d: string) =
             {data.queue.map((c) => (
               <li key={c.id} className="flex flex-wrap items-center gap-2 rounded-lg bg-secondary px-2 py-1.5">
                 <span className="w-12 font-semibold tabular-nums">#{c.queue_no}</span>
-                <span className="min-w-0 flex-1 truncate">{c.patient}</span>
+                <ApptPatientName appt={c} className="min-w-0 flex-1 truncate" />
                 <ApptStatusBadge status={c.status} auto={c.auto_cancelled} />
                 <AppointmentActions appt={c} />
               </li>
@@ -366,7 +366,7 @@ function TableView({ autoCancelled }: { autoCancelled?: { date?: string } }) {
                 )}
               </TD>
               <TD className="min-w-48">
-                <span className="font-medium">{r.patient}</span>
+                <ApptPatientName appt={r} className="font-medium" />
                 <span className="block text-[0.9rem] whitespace-nowrap text-text-secondary">{[r.uhid, r.phone].filter(Boolean).join(" · ")}</span>
               </TD>
               <TD className="whitespace-nowrap">{r.doctor ?? "—"}</TD>

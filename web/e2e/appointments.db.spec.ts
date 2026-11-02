@@ -53,6 +53,11 @@ test("book from the board; a second desk sees it live", async ({ page, browser }
 
   await expect(watcher.getByText(name)).toBeVisible({ timeout: 15_000 }); // no reload
   await other.close();
+
+  // The name on the board opens the patient file.
+  await page.getByRole("link", { name, exact: true }).first().click();
+  await expect(page).toHaveURL(/\/patients\/[0-9a-f-]{36}/);
+  await expect(page.getByRole("heading", { name })).toBeVisible();
 });
 
 test("a walk-in without a free slot joins the queue", async ({ page }) => {
