@@ -20,7 +20,8 @@ import { SCAN } from "@/lib/scan/config";
 import { loadPdfLib } from "@/lib/scan/pdf";
 import { buildDocument, pageTotal, preparePage, releasePage, updatePage, type ImagePage, type PageOrigin, type ScanPage } from "@/lib/scan/pages";
 import type { PageSettings } from "@/lib/scan/process";
-import { enqueue } from "@/lib/upload-queue";
+import { enqueue, type DocLinks } from "@/lib/upload-queue";
+import { getSupabaseBrowser } from "@/lib/supabase/client";
 import { documentSchema } from "@/lib/schemas/clinical";
 import { useFeedback } from "@/lib/use-feedback";
 import { useZodForm } from "@/lib/use-zod-form";
@@ -45,7 +46,14 @@ const SOURCES: { key: Source; icon: typeof Camera }[] = [
  * pages become one PDF. Saving puts the document in the upload queue, so it is kept
  * even without internet and uploads by itself later.
  */
-export function ScannerDialog({ patientId, onDone }: { patientId: string; onDone: () => void }) {
+/** Where a document is saved from: "Session 2 — Laser", a visit or an IP stay. Opens as a prescription for that day. */
+export interface DocFor {
+  links: DocLinks;
+  label: string;
+  date?: string | null;
+}
+
+export function ScannerDialog({ patientId, onDone, docFor }: { patientId: string; onDone: () => void; docFor?: DocFor }) {
   const t = useTranslations("scan");
   const { saved, failed, errorMessage } = useFeedback();
   const [pages, setPages] = useState<ScanPage[]>([]);
@@ -56,7 +64,25 @@ export function ScannerDialog({ patientId, onDone }: { patientId: string; onDone
   const [editing, setEditing] = useState<ImagePage | null>(null);
   const [kind, setKind] = useState<LibraryItem | null>(null);
   const [title, setTitle] = useState("");
-  const [date, setDate] = useState(() => istDateString(new Date()));
+  const [date, setDate] = useState(() => docFor?.date ?? istDateString(new Date()));
+  // From a visit or session: the type starts as "Prescription" (the library's built-in entry).
+  const asPrescription = docFor !== undefined;
+  useEffect(() => {
+    if (!asPrescription) return;
+    let gone = false;
+    void getSupabaseBrowser()
+      .from("lookup_values")
+      .select("id, label")
+      .eq("kind", "document_kind")
+      .eq("code", "prescription")
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!gone && data) setKind((k) => k ?? { id: data.id, label: data.label, subtitle: null, on_the_fly: false, defaults: {} });
+      });
+    return () => {
+      gone = true;
+    };
+  }, [asPrescription]);
   const [duplicate, setDuplicate] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [session, setSession] = useState<PhoneSession | null>(null);
@@ -193,6 +219,7 @@ export function ScannerDialog({ patientId, onDone }: { patientId: string; onDone
         sourceSha256: built.sourceSha256,
         discardFileIds: built.discardFileIds,
         scanSessionId: session?.sessionId ?? null,
+        links: docFor?.links ?? null,
         checkDuplicate: checkLater,
       });
       savedRef.current = true;
@@ -229,6 +256,7 @@ export function ScannerDialog({ patientId, onDone }: { patientId: string; onDone
       }
     >
       <div className="flex flex-col gap-5" onDragOver={(e) => e.preventDefault()} onDrop={onDrop}>
+        {docFor && <p className="font-medium" data-testid="scan-for">{t("savedFor", { label: docFor.label })}</p>}
         <div role="group" aria-label={t("sources")} className="flex flex-wrap gap-2">
           {SOURCES.map(({ key, icon: Icon }) => (
             <Button

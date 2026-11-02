@@ -1,12 +1,13 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarClock, ChevronDown, CircleCheck, CircleX, DoorOpen, MessageCircle, RotateCcw, Stethoscope, UserPlus, UserRound, UserX } from "lucide-react";
+import { CalendarClock, ChevronDown, CircleCheck, CircleX, DoorOpen, FilePlus2, MessageCircle, RotateCcw, Stethoscope, UserPlus, UserRound, UserX } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState, type ReactNode } from "react";
 import { formatDate, formatTime, istDateString } from "@pearl/shared";
 import { LibraryCombobox, type LibraryItem } from "@/components/library-combobox";
+import { ScannerDialog } from "@/components/scan/scanner-dialog";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import {
@@ -71,6 +72,9 @@ export function AppointmentActions({ appt, onChanged }: { appt: ApptCard; onChan
   const queryClient = useQueryClient();
   const { saved, failed } = useFeedback();
   const [dialog, setDialog] = useState<"cancel" | "keep" | "reschedule" | null>(null);
+  const [scanning, setScanning] = useState(false);
+  // Once the patient is here: the doctor's prescription is saved on this visit (and its treatment session).
+  const visited = appt.status === "arrived" || appt.status === "with_doctor" || appt.status === "done";
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: ["slot_board"] });
     void queryClient.invalidateQueries({ queryKey: ["today_board"] });
@@ -168,6 +172,12 @@ export function AppointmentActions({ appt, onChanged }: { appt: ApptCard; onChan
               </a>
             </DropdownMenuItem>
           )}
+          {appt.patient_id && reception && visited && (
+            <DropdownMenuItem onSelect={() => setScanning(true)}>
+              <FilePlus2 aria-hidden />
+              {t("addPrescription")}
+            </DropdownMenuItem>
+          )}
           {appt.patient_id && reception && (
             <DropdownMenuItem asChild>
               <Link href={`/patients/${appt.patient_id}`}>
@@ -178,6 +188,19 @@ export function AppointmentActions({ appt, onChanged }: { appt: ApptCard; onChan
           )}
         </DropdownMenuContent>
       </DropdownMenu>
+      <Dialog open={scanning} onOpenChange={setScanning}>
+        {scanning && appt.patient_id && (
+          <ScannerDialog
+            patientId={appt.patient_id}
+            docFor={{
+              links: { appointment_id: appt.id },
+              label: [appt.patient, appt.doctor, appt.slot_start ? formatDate(new Date(appt.slot_start)) : null].filter(Boolean).join(" · "),
+              date: appt.slot_start ? istDateString(new Date(appt.slot_start)) : null,
+            }}
+            onDone={() => setScanning(false)}
+          />
+        )}
+      </Dialog>
       <Dialog open={dialog !== null} onOpenChange={(o) => !o && setDialog(null)}>
         {dialog === "cancel" && (
           <CancelDialog busy={setStatus.isPending} onCancel={(reason) => setStatus.mutate({ status: "cancelled", reason })} />

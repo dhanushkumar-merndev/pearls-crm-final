@@ -9,6 +9,13 @@ import { ERROR_CODES } from "@pearl/shared";
 
 export type JobState = "waiting" | "uploading" | "duplicate" | "failed";
 
+/** Sent to create_document, which checks each is this patient's and fills in the visit, doctor and date. */
+export interface DocLinks {
+  appointment_id?: string;
+  session_id?: string;
+  admission_id?: string;
+}
+
 export interface UploadJob {
   /** Also the document's id (create_document is idempotent on it). */
   id: string;
@@ -30,6 +37,8 @@ export interface UploadJob {
   thumbId: string | null;
   discardFileIds: string[];
   scanSessionId: string | null;
+  /** What the document belongs to (a visit, treatment session or IP stay); missing on jobs saved before. */
+  links?: DocLinks | null;
   checkDuplicate: boolean;
   state: JobState;
   attempts: number;
@@ -167,7 +176,7 @@ export async function allJobs(): Promise<UploadJob[]> {
 
 export type NewJob = Pick<
   UploadJob,
-  "patientId" | "title" | "kindId" | "docDate" | "pageCount" | "reuseFileId" | "sourceSha256" | "discardFileIds" | "scanSessionId" | "checkDuplicate"
+  "patientId" | "title" | "kindId" | "docDate" | "pageCount" | "reuseFileId" | "sourceSha256" | "discardFileIds" | "scanSessionId" | "links" | "checkDuplicate"
 > & { file: Blob | null; thumb: Blob | null; id?: string };
 
 export async function enqueue(job: NewJob, now: number = Date.now()): Promise<UploadJob> {
@@ -250,6 +259,7 @@ export async function processJob(job: UploadJob, deps: QueueDeps): Promise<Outco
         doc_date: current.docDate,
         page_count: current.pageCount,
         source_sha256: current.sourceSha256,
+        ...(current.links ?? {}),
       },
       current.id,
     );

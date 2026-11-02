@@ -1067,7 +1067,11 @@
     "apptWhen": "When",
     "apptDoctor": "Doctor",
     "noAppointments": "No appointments yet.",
-    "walkIn": "(walk-in)"
+    "walkIn": "(walk-in)",
+    "docFor": "For",
+    "forSession": "{treatment} — session {n}",
+    "forVisit": "Visit {date}",
+    "forStay": "IP stay {ip}"
   },
   "selfReg": {
     "loading": "Opening the form…",
@@ -1370,7 +1374,8 @@
     "walkInSlot": "Added to the current slot ✓",
     "bookSessionTitle": "Book {what}",
     "forLead": "For the lead {name}. Reception registers them as a patient when they arrive.",
-    "registerLead": "Register as patient"
+    "registerLead": "Register as patient",
+    "addPrescription": "Add prescription"
   },
   "appointments": {
     "title": "Appointments",
@@ -1551,7 +1556,11 @@
     "reasonNeeded": "A reason is needed for a price change or closing.",
     "reasonOptional": "Optional.",
     "removeTitle": "Remove session {n}?",
-    "agreedFromSales": "Agreed with sales: {amount} (lead #{n}, by {by}). Change it only if the patient agreed a different price."
+    "agreedFromSales": "Agreed with sales: {amount} (lead #{n}, by {by}). Change it only if the patient agreed a different price.",
+    "prescription": "Prescription",
+    "addPrescription": "Add prescription",
+    "addPrescriptionFor": "Add prescription for session {n}",
+    "openDoc": "Open {title} (session {n})"
   },
   "sessionsDue": {
     "title": "Sessions to book",
@@ -2297,7 +2306,8 @@
     "tryAgain": "Try again",
     "removeQueued": "Remove",
     "preview": "Preview",
-    "pagesColumn": "Pages"
+    "pagesColumn": "Pages",
+    "savedFor": "Saved on: {label}"
   },
   "scanPhone": {
     "loading": "Opening…",

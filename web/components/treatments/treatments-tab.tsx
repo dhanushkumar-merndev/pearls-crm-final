@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarPlus, Check, CirclePlus, Pencil, Play, Save, Trash2, Undo2, UserX } from "lucide-react";
+import { CalendarPlus, Check, CirclePlus, FilePlus2, FileText, Pencil, Play, Save, Trash2, Undo2, UserX } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import type { z } from "zod";
@@ -18,6 +18,8 @@ import { Field, Select, Textarea } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { RowSkeletons } from "@/components/ui/skeletons";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { ScannerDialog } from "@/components/scan/scanner-dialog";
+import { viewUrls } from "@/lib/upload";
 import { newId, rpc } from "@/lib/rpc";
 import { editTreatmentSchema, removeSessionSchema, startTreatmentSchema } from "@/lib/schemas/clinical";
 import { useFeedback } from "@/lib/use-feedback";
@@ -34,6 +36,8 @@ interface Session {
   status: SessionStatus;
   appointment_id: string | null;
   slot_start: string | null;
+  /** Prescriptions and other scans saved on this session. */
+  documents?: { id: string; title: string; file_id: string }[];
 }
 export interface Treatment {
   id: string;
@@ -89,6 +93,16 @@ function TreatmentCard({ treatment: tr, patient }: { treatment: Treatment; patie
   const queryClient = useQueryClient();
   const { failed } = useFeedback();
   const [dialog, setDialog] = useState<{ kind: "edit" } | { kind: "remove"; session: Session } | { kind: "book"; session: Session } | null>(null);
+  // The scanner has its own dialog (it must not close on a stray click while pages are in it).
+  const [scanFor, setScanFor] = useState<Session | null>(null);
+  const openDoc = async (fileId: string) => {
+    try {
+      const urls = await viewUrls([fileId]);
+      if (urls[fileId]) window.open(urls[fileId], "_blank", "noopener");
+    } catch (e) {
+      failed(e);
+    }
+  };
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: ["patient_treatments", patient.id] });
     void queryClient.invalidateQueries({ queryKey: ["sessions_due"] });
@@ -103,7 +117,12 @@ function TreatmentCard({ treatment: tr, patient }: { treatment: Treatment; patie
     onSuccess: (res, v) => {
       refresh();
       const next = res.book_next ? tr.sessions.find((s) => s.id === res.book_next!.session_id) : null;
-      if (v.status === "done" && next) {
+      if (v.status === "done" && !next) {
+        toast.success(t("sessionMarked.done"), {
+          action: { label: t("addPrescription"), onClick: () => setScanFor(v.session) },
+          duration: 12_000,
+        });
+      } else if (v.status === "done" && next) {
         toast.success(t("doneBookNext", { n: next.seq }), {
           action: { label: t("bookNext"), onClick: () => setDialog({ kind: "book", session: next }) },
           duration: 12_000,
@@ -151,7 +170,19 @@ function TreatmentCard({ treatment: tr, patient }: { treatment: Treatment; patie
                   ? t("bookedFor", { date: formatDate(new Date(s.slot_start)), time: formatTime(new Date(s.slot_start)) })
                   : t("plannedFor", { date: formatDate(new Date(s.planned_date)) })}
             </span>
+            {(s.documents ?? []).map((d) => (
+              <Button key={d.id} variant="ghost" onClick={() => void openDoc(d.file_id)} aria-label={t("openDoc", { title: d.title, n: s.seq })}>
+                <FileText aria-hidden />
+                {d.title}
+              </Button>
+            ))}
             <StatusBadge kind={SESSION_KIND[s.status]} label={t(`session.${s.status}`)} />
+            {(s.status === "done" || s.status === "booked") && (
+              <Button variant="ghost" onClick={() => setScanFor(s)} aria-label={t("addPrescriptionFor", { n: s.seq })}>
+                <FilePlus2 aria-hidden />
+                {t("prescription")}
+              </Button>
+            )}
             {open && (s.status === "planned" || s.status === "missed") && (
               <Button variant="ghost" onClick={() => setDialog({ kind: "book", session: s })}>
                 <CalendarPlus aria-hidden />
@@ -201,6 +232,19 @@ function TreatmentCard({ treatment: tr, patient }: { treatment: Treatment; patie
             date={dialog.session.planned_date < istDateString(new Date()) ? istDateString(new Date()) : dialog.session.planned_date}
             session={{ treatmentId: tr.id, sessionId: dialog.session.id, label: `${tr.name} — ${t("sessionN", { n: dialog.session.seq })}` }}
             onDone={() => (setDialog(null), refresh())}
+          />
+        )}
+      </Dialog>
+      <Dialog open={scanFor !== null} onOpenChange={(o) => !o && setScanFor(null)}>
+        {scanFor && (
+          <ScannerDialog
+            patientId={patient.id}
+            docFor={{
+              links: { session_id: scanFor.id },
+              label: `${tr.name} — ${t("sessionN", { n: scanFor.seq })}`,
+              date: scanFor.actual_date ?? (scanFor.slot_start ? istDateString(new Date(scanFor.slot_start)) : null),
+            }}
+            onDone={() => setScanFor(null)}
           />
         )}
       </Dialog>

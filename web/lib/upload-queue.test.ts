@@ -68,6 +68,16 @@ describe("upload queue (IndexedDB)", () => {
     expect(again!.file!.mime).toBe("application/pdf");
   });
 
+  it("a prescription saved on a visit or session carries its link to create_document", async () => {
+    await enqueue(job({ links: { session_id: "sess-1" } }), 1);
+    await enqueue(job({ links: { appointment_id: "appt-1" } }), 2);
+    await enqueue(job(), 3);
+    const server = fakeDeps();
+    await runQueue(server.deps);
+    const sent = server.documents.map((d) => [d.doc.session_id, d.doc.appointment_id]);
+    expect(sent).toEqual([["sess-1", undefined], [undefined, "appt-1"], [undefined, undefined]]);
+  });
+
   it("does nothing while offline, uploads once back online", async () => {
     const queued = await enqueue(job({ discardFileIds: ["p1", "p2"], scanSessionId: "s1" }));
     const offline = fakeDeps({ online: () => false });

@@ -41,6 +41,7 @@ export function UploadQueueRunner() {
       void queryClient.invalidateQueries({ queryKey: ["documents", patientId] });
       void queryClient.invalidateQueries({ queryKey: ["patient_header", patientId] });
       void queryClient.invalidateQueries({ queryKey: ["patient_timeline", patientId] });
+      void queryClient.invalidateQueries({ queryKey: ["patient_treatments", patientId] }); // a session's prescription
     });
 
     const run = async (force = false) => {

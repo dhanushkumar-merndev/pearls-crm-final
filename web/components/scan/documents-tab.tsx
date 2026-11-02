@@ -27,6 +27,11 @@ interface DocItem {
   page_count: number | null;
   kind: string | null;
   mime: string;
+  doctor: string | null;
+  session_seq: number | null;
+  treatment: string | null;
+  visit_date: string | null;
+  ip_number: string | null;
 }
 
 function subscribeOnline(cb: () => void) {
@@ -100,6 +105,7 @@ export function DocumentsTab({ patientId }: { patientId: string }) {
             </TH>
             <TH>{p("docTitle")}</TH>
             <TH>{p("docKind")}</TH>
+            <TH>{p("docFor")}</TH>
             <TH>{p("docDate")}</TH>
             <TH>{t("pagesColumn")}</TH>
             <TH className="text-right">
@@ -108,10 +114,18 @@ export function DocumentsTab({ patientId }: { patientId: string }) {
           </tr>
         </THead>
         <tbody>
-          {docs.isPending && <RowSkeletons asRow rows={3} cols={6} />}
-          {docs.isError && <EmptyRow colSpan={6}>{c("loadFailed")}</EmptyRow>}
-          {docs.isSuccess && rows.length === 0 && <EmptyRow colSpan={6}>{p("noDocuments")}</EmptyRow>}
+          {docs.isPending && <RowSkeletons asRow rows={3} cols={7} />}
+          {docs.isError && <EmptyRow colSpan={7}>{c("loadFailed")}</EmptyRow>}
+          {docs.isSuccess && rows.length === 0 && <EmptyRow colSpan={7}>{p("noDocuments")}</EmptyRow>}
           {rows.map((d) => {
+            const docFor = (x: DocItem) =>
+              x.treatment && x.session_seq
+                ? [p("forSession", { treatment: x.treatment, n: x.session_seq }), x.doctor].filter(Boolean).join(" · ")
+                : x.visit_date
+                  ? [p("forVisit", { date: formatDate(new Date(x.visit_date)) }), x.doctor].filter(Boolean).join(" · ")
+                  : x.ip_number
+                    ? p("forStay", { ip: x.ip_number })
+                    : x.doctor;
             const thumb = d.thumbnail_file_id ? thumbs.data?.[d.thumbnail_file_id] : undefined;
             return (
               <TR key={d.id}>
@@ -125,6 +139,7 @@ export function DocumentsTab({ patientId }: { patientId: string }) {
                 </TD>
                 <TD className="font-medium">{d.title}</TD>
                 <TD>{d.kind ?? "—"}</TD>
+                <TD className="text-text-secondary">{docFor(d) ?? "—"}</TD>
                 <TD className="whitespace-nowrap">{formatDate(new Date(d.doc_date))}</TD>
                 <TD className="tabular-nums">{d.page_count ?? 1}</TD>
                 <TD className="text-right">
