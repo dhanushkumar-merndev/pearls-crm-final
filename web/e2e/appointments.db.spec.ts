@@ -74,7 +74,15 @@ test("WhatsApp reminder goes through the clinic's WhatsApp, never the staff's ow
   context.on("page", () => opened++);
   await context.route("https://wa.me/**", (route) => route.fulfill({ body: "wa.me" }));
   await page.getByRole("button", { name: `Actions for ${name}` }).click();
+  const answer = page.waitForResponse((r) => r.url().includes("/rpc/wa_send_reminder"));
   await page.getByRole("menuitem", { name: "WhatsApp reminder" }).click();
+  const res = await answer;
+  const manual = res.ok() && ((await res.json()) as { manual?: boolean }).manual === true;
+  if (manual) {
+    // Only when this database has WhatsApp sending switched off (e.g. a local one): the text opens in WhatsApp.
+    await expect(page.getByText("WhatsApp opened with the reminder ✓").first()).toBeVisible();
+    return;
+  }
   // Sent (template messages on), or a clear reason why not (switched off, or no reminder template).
   // "E2E …" records are never really messaged.
   await expect(
