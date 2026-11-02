@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CircleX, DoorOpen, FilePlus2, FileText, Pencil, Pill, Plus, ReceiptIndianRupee } from "lucide-react";
+import { CircleX, DoorOpen, FilePlus2, FileText, Pencil, Pill, Plus, ReceiptIndianRupee, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -24,7 +24,7 @@ import { DetailHeader, Page } from "@/components/ui/page";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
 import { asAppError, newId, rpc } from "@/lib/rpc";
-import { dischargeSchema, reasonSchema, stayChargeSchema } from "@/lib/schemas/clinical";
+import { dischargeSchema, reasonSchema, stayChargesSchema } from "@/lib/schemas/clinical";
 import { useFeedback } from "@/lib/use-feedback";
 import { useZodForm } from "@/lib/use-zod-form";
 
@@ -249,100 +249,160 @@ export function AdmissionScreen({ initial }: { initial: Admission }) {
   );
 }
 
-/** One charge on the stay's draft final bill: pick a service (fills the rate) or type what it is. */
+interface ChargeRow {
+  key: string;
+  /** Each line keeps its own client id, so trying again after a failure never adds a line twice. */
+  clientId: string;
+  service: LibraryItem | null;
+  description: string;
+  category: LibraryItem | null;
+  qty: string;
+  rate_paise: number | null;
+  gst: { gst_rate_bp: number; hsn_sac: string | null } | null;
+}
+
+const emptyRow = (): ChargeRow => ({ key: newId(), clientId: newId(), service: null, description: "", category: null, qty: "1", rate_paise: null, gst: null });
+
+/** A row filled from a library service: its name, price, category and GST. */
+function rowFromService(s: LibraryItem): ChargeRow {
+  const d = s.defaults as { price_paise?: number; gst_rate_bp?: number; sac?: string | null; category_id?: string | null };
+  return {
+    ...emptyRow(),
+    service: s,
+    description: s.label,
+    rate_paise: d.price_paise ?? null,
+    category: d.category_id ? { id: d.category_id, label: s.subtitle?.split(" · ")[0] ?? "", subtitle: null, on_the_fly: false, defaults: {} } : null,
+    gst: { gst_rate_bp: d.gst_rate_bp ?? 0, hsn_sac: d.sac ?? null },
+  };
+}
+
+/**
+ * Several charges at once on the stay's draft final bill: each service picked adds a row (or add a
+ * typed one), then one click saves them all. Lines are sent one by one; a line that fails stays in
+ * the list with its message and the saved ones leave it, so trying again never doubles anything.
+ */
 function AddChargeDialog({ admission, onDone }: { admission: Admission; onDone: () => void }) {
   const t = useTranslations("ip");
   const { saved, failed } = useFeedback();
-  const [clientId] = useState(newId);
   const [today] = useState(() => istDateString(new Date()));
   const admittedOn = istDateString(new Date(admission.admitted_at));
-  const [f, setF] = useState<{ service: LibraryItem | null; description: string; category: LibraryItem | null; date: string; qty: string; rate_paise: number | null }>({
-    service: null,
-    description: "",
-    category: null,
-    date: today,
-    qty: "1",
-    rate_paise: null,
-  });
-  const [gst, setGst] = useState<{ gst_rate_bp: number; hsn_sac: string | null } | null>(null);
-  const [schema] = useState(() => stayChargeSchema(admittedOn, today));
+  const [date, setDate] = useState(today);
+  const [rows, setRows] = useState<ChargeRow[]>([]);
+  const [added, setAdded] = useState(0);
+  const [schema] = useState(() => stayChargesSchema(admittedOn, today));
   const checks = useZodForm(schema);
-  const set = <K extends keyof typeof f>(k: K, v: (typeof f)[K]) => (setF((x) => ({ ...x, [k]: v })), checks.clear(k));
-  const add = useMutation({
-    mutationFn: (d: { service: string | null; description: string; category: string | null; date: string; qty: number; rate_paise: number }) =>
-      rpc("add_stay_charge", {
-        p_admission_id: admission.id,
-        p_line: {
-          description: d.description,
-          service_id: d.service,
-          category_id: d.category,
-          service_date: d.date,
-          qty: d.qty,
-          rate_paise: d.rate_paise,
-          ...(d.service && gst ? gst : {}),
-        },
-        p_client_id: clientId,
-      }),
-    onSuccess: () => (saved(t("chargeAdded")), onDone()),
-    onError: failed,
+  const update = (key: string, patch: Partial<ChargeRow>) => {
+    const i = rows.findIndex((r) => r.key === key);
+    for (const f of Object.keys(patch)) checks.clear(`lines.${i}.${f}`);
+    setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
+  };
+  const addRow = (r: ChargeRow) => (setRows((rs) => [...rs, r]), checks.clear("lines"));
+  const remove = (key: string) => {
+    // Messages are per position: drop them all, they come back on the next check.
+    for (let i = 0; i < rows.length; i++) for (const f of ["description", "qty", "rate_paise"]) checks.clear(`lines.${i}.${f}`);
+    setRows((rs) => rs.filter((r) => r.key !== key));
+  };
+  const total = rows.reduce((sum, r) => sum + Math.round((Number(r.qty) || 0) * (r.rate_paise ?? 0)), 0);
+
+  const save = useMutation({
+    mutationFn: async (d: { date: string; lines: { service: string | null; description: string; category: string | null; qty: number; rate_paise: number }[] }) => {
+      let done = 0;
+      for (const [i, line] of d.lines.entries()) {
+        const row = rows[i]!;
+        try {
+          await rpc("add_stay_charge", {
+            p_admission_id: admission.id,
+            p_line: {
+              description: line.description,
+              service_id: line.service,
+              category_id: line.category,
+              service_date: d.date,
+              qty: line.qty,
+              rate_paise: line.rate_paise,
+              ...(line.service && row.gst ? row.gst : {}),
+            },
+            p_client_id: row.clientId,
+          });
+          done++;
+        } catch (e) {
+          throw Object.assign(new Error("partly"), { cause: e, done });
+        }
+      }
+      return done;
+    },
+    onSuccess: (n) => (saved(t("chargesAdded", { n: added + n })), onDone()),
+    onError: (e) => {
+      const { cause, done } = e as Error & { cause: unknown; done: number };
+      // The saved lines leave the list; the one that failed is now first.
+      setRows((rs) => rs.slice(done));
+      setAdded((n) => n + done);
+      failed(cause ?? e);
+    },
   });
+
   return (
     <DialogContent
+      wide
       title={t("addChargeTitle", { ip: admission.ip_number })}
       description={t("addChargeHint")}
       footer={
-        <Button
-          disabled={add.isPending}
-          onClick={() => {
-            const d = checks.validate(f);
-            if (d) add.mutate(d);
-          }}
-        >
-          <Plus aria-hidden />
-          {t("addCharge")}
-        </Button>
+        <div className="flex w-full flex-wrap items-center justify-between gap-3">
+          <p className="tabular-nums">
+            {t("chargesTotal")}: <span className="font-semibold" data-testid="new-charges-total">{formatINR(total)}</span>
+          </p>
+          <Button
+            disabled={save.isPending}
+            onClick={() => {
+              const d = checks.validate({ date, lines: rows });
+              if (d) save.mutate(d);
+            }}
+          >
+            <Plus aria-hidden />
+            {t("saveCharges", { n: rows.length })}
+          </Button>
+        </div>
       }
     >
       <div className="flex flex-col gap-3">
-        <Field label={t("chargeService")}>
-          {(a) => (
-            <LibraryCombobox
-              {...a}
-              kind="service"
-              value={f.service}
-              onChange={(s) => {
-                const d = (s?.defaults ?? {}) as { price_paise?: number; gst_rate_bp?: number; sac?: string | null; category_id?: string | null };
-                setF((x) => ({
-                  ...x,
-                  service: s,
-                  description: s ? s.label : x.description,
-                  rate_paise: s && d.price_paise ? d.price_paise : x.rate_paise,
-                  category: s && d.category_id ? { id: d.category_id, label: s.subtitle?.split(" · ")[0] ?? "", subtitle: null, on_the_fly: false, defaults: {} } : x.category,
-                }));
-                setGst(s ? { gst_rate_bp: d.gst_rate_bp ?? 0, hsn_sac: d.sac ?? null } : null);
-                checks.clear("description");
-                checks.clear("rate_paise");
-              }}
-            />
-          )}
-        </Field>
-        <Field label={t("chargeDescription")} error={checks.error("description")}>
-          {(a) => <Input {...a} maxLength={300} value={f.description} onChange={(e) => set("description", e.target.value)} />}
-        </Field>
-        <Field label={t("chargeCategory")}>
-          {(a) => <LibraryCombobox id={a.id} kind="bill_category" value={f.category} onChange={(c) => set("category", c)} />}
-        </Field>
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-[1fr_12rem]">
+          <Field label={t("pickService")} hint={t("pickServiceHint")} error={checks.error("lines")}>
+            {(a) => <LibraryCombobox {...a} kind="service" value={null} onChange={(s) => s && addRow(rowFromService(s))} />}
+          </Field>
           <Field label={t("chargeDate")} error={checks.error("date")}>
-            {(a) => <Input {...a} type="date" min={admittedOn} max={today} value={f.date} onChange={(e) => set("date", e.target.value)} />}
-          </Field>
-          <Field label={t("chargeQty")} error={checks.error("qty")}>
-            {(a) => <Input {...a} inputMode="decimal" value={f.qty} onChange={(e) => set("qty", e.target.value)} />}
-          </Field>
-          <Field label={t("chargeRate")} error={checks.error("rate_paise")}>
-            {(a) => <MoneyInput {...a} value={f.rate_paise} onChange={(v) => set("rate_paise", v)} />}
+            {(a) => <Input {...a} type="date" min={admittedOn} max={today} value={date} onChange={(e) => (setDate(e.target.value), checks.clear("date"))} />}
           </Field>
         </div>
+
+        {rows.length > 0 && (
+          <ol className="flex flex-col gap-2" aria-label={t("chargeList")}>
+            {rows.map((r, i) => (
+              <li key={r.key} className="grid items-start gap-2 rounded-xl border border-border p-2.5 sm:grid-cols-[1fr_5rem_9rem_auto]">
+                <Field label={t("chargeDescription")} labelClassName={i > 0 ? "sm:sr-only" : undefined} error={checks.error(`lines.${i}.description`)}>
+                  {(a) => <Input {...a} maxLength={300} value={r.description} onChange={(e) => update(r.key, { description: e.target.value })} />}
+                </Field>
+                <Field label={t("chargeQty")} labelClassName={i > 0 ? "sm:sr-only" : undefined} error={checks.error(`lines.${i}.qty`)}>
+                  {(a) => <Input {...a} inputMode="decimal" value={r.qty} onChange={(e) => update(r.key, { qty: e.target.value })} />}
+                </Field>
+                <Field label={t("chargeRate")} labelClassName={i > 0 ? "sm:sr-only" : undefined} error={checks.error(`lines.${i}.rate_paise`)}>
+                  {(a) => <MoneyInput {...a} value={r.rate_paise} onChange={(v) => update(r.key, { rate_paise: v })} />}
+                </Field>
+                <Button
+                  variant="ghost"
+                  className={i === 0 ? "sm:mt-6" : undefined}
+                  aria-label={t("removeCharge", { name: r.description || String(i + 1) })}
+                  onClick={() => remove(r.key)}
+                >
+                  <X aria-hidden />
+                </Button>
+              </li>
+            ))}
+          </ol>
+        )}
+
+        <Button variant="secondary" className="self-start" onClick={() => addRow(emptyRow())}>
+          <Plus aria-hidden />
+          {t("addTypedCharge")}
+        </Button>
       </div>
     </DialogContent>
   );
