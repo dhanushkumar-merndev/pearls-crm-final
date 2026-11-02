@@ -46,8 +46,8 @@ test.describe("sales manager", () => {
     await expect(waiting.getByRole("button", { name: "Request sync" })).toHaveCount(0);
 
     await open(page, `/leads/${leadId}`);
-    const card = page.getByText("Call recordings and voice notes").locator("..");
-    await expect(card.getByText("Waiting for the phone")).toBeVisible();
+    await page.getByRole("tab", { name: "Call recordings and voice notes" }).click();
+    await expect(page.getByRole("tabpanel").getByText("Waiting for the phone")).toBeVisible();
   });
 });
 

@@ -1,6 +1,7 @@
 "use client";
 
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   ArrowLeft,
   BellOff,
@@ -22,7 +23,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { Fragment, useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { toast } from "sonner";
 import { formatDate, formatDateTime, formatTime } from "@pearl/shared";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,7 @@ import { getSupabaseBrowser } from "@/lib/supabase/client";
 import { useFeedback } from "@/lib/use-feedback";
 import { useZodForm } from "@/lib/use-zod-form";
 import { useLiveWhatsApp } from "@/lib/realtime";
+import { useChatThread } from "@/lib/wa-thread";
 import { waLink } from "@/lib/whatsapp";
 import { cn } from "@/lib/utils";
 import { ChatAvatar } from "./chat-avatar";
@@ -168,21 +170,16 @@ export function WhatsAppPanel({ patientId, leadId, canDrip, contact }: { patient
   const [dndOpen, setDndOpen] = useState(false);
   const target: ChatTarget = { patientId, leadId };
   const key = ["wa_thread", patientId ?? null, leadId ?? null];
-  const thread = useInfiniteQuery({
-    queryKey: key,
-    initialPageParam: null as string | null,
-    queryFn: ({ pageParam }) =>
-      rpc<WaThread>("wa_thread", { p_patient_id: patientId ?? null, p_lead_id: leadId ?? null, p_cursor: pageParam, p_limit: 30 }),
-    getNextPageParam: (last) => last.next_cursor,
-    // Live updates come through useLiveWhatsApp; this is only a safety net.
-    refetchInterval: 120_000,
-  });
+  // Newest page first; older pages as the user scrolls up; live events reload only the newest page.
+  const { thread, refreshNewest } = useChatThread(key, (cursor) =>
+    rpc<WaThread>("wa_thread", { p_patient_id: patientId ?? null, p_lead_id: leadId ?? null, p_cursor: cursor, p_limit: 30 }),
+  );
   const head = thread.data?.pages[0];
   const windowOpen = useWindowOpen(head?.window_open_until);
   const dnd = useDnd(target, !!head?.phone_e164);
-  const items = (thread.data?.pages.flatMap((p) => p.items) ?? []).slice().reverse();
-  const refresh = () => void queryClient.invalidateQueries({ queryKey: key });
-  useLiveWhatsApp(head?.phone_e164 ?? undefined, [key, ["drip_enrollments"]], !!head?.phone_e164);
+  const items = useMemo(() => (thread.data?.pages.flatMap((p) => p.items) ?? []).slice().reverse(), [thread.data]);
+  const refresh = () => void refreshNewest();
+  useLiveWhatsApp(head?.phone_e164 ?? undefined, [["drip_enrollments"]], !!head?.phone_e164, { key, refreshNewest });
   // Open = read for the team: clears the unread count in the inbox and the menu badge.
   const newestInbound = items.findLast((m) => m.direction === "inbound")?.id;
   useEffect(() => {
@@ -371,9 +368,18 @@ export function WhatsAppPanel({ patientId, leadId, canDrip, contact }: { patient
   );
 }
 
+type ChatRow = { key: string; day: Date } | { key: string; m: WaMessage };
+
+/** Within this many px of the end counts as "at the bottom": a new message then scrolls into view. */
+const STICK_PX = 120;
+/** Within this many px of the top, the next older page loads by itself. */
+const OLDER_PX = 240;
+
 /**
  * The conversation, oldest first: a day line between days, our messages (staff, bot, automatic)
- * on the right, theirs on the left; keeps the newest in view when one arrives.
+ * on the right, theirs on the left. Virtualised (only the rows in view are drawn), so a long chat
+ * stays light; scrolling near the top loads the next older page from the server and keeps the
+ * reader's place. A new message scrolls into view only when the reader is at the bottom (or it is ours).
  */
 export function ChatMessages({ items, hasMore, loadingMore, onMore, className }: {
   items: WaMessage[];
@@ -384,44 +390,103 @@ export function ChatMessages({ items, hasMore, loadingMore, onMore, className }:
 }) {
   const t = useTranslations("whatsapp");
   const dayLabel = useDayLabel();
-  const listRef = useRef<HTMLOListElement>(null);
-  const newestId = items.at(-1)?.id;
-  useEffect(() => {
-    const el = listRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [newestId]);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const rows = useMemo(() => {
+    const out: ChatRow[] = [];
+    let lastDay = "";
+    for (const m of items) {
+      const d = new Date(m.created_at);
+      const day = formatDate(d);
+      if (day !== lastDay) out.push({ key: `day:${day}`, day: d });
+      lastDay = day;
+      out.push({ key: m.id, m });
+    }
+    return out;
+  }, [items]);
+
+  // The compiler leaves this component un-memoised (the virtualiser hands out fresh functions); expected.
+  // eslint-disable-next-line react-hooks/incompatible-library
+  const virtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: (i) => ("day" in rows[i]! ? 34 : 64),
+    getItemKey: (i) => rows[i]!.key,
+    overscan: 8,
+  });
+
+  const newest = items.at(-1);
+  const oldestId = items[0]?.id;
+  const atBottom = useRef(true);
+  const seen = useRef<{ newest?: string; oldest?: string; total: number }>({ total: 0 });
+
+  // Older messages added at the top: move down by what was added, so the reader stays on the same message.
+  // A new newest message: follow it when at the bottom or when we sent it.
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const total = virtualizer.getTotalSize();
+    const last = seen.current;
+    if (last.newest && newest?.id === last.newest && oldestId !== last.oldest) {
+      el.scrollTop += total - last.total;
+    } else if (newest && newest.id !== last.newest && (!last.newest || atBottom.current || newest.direction === "outbound")) {
+      virtualizer.scrollToIndex(rows.length - 1, { align: "end" });
+      atBottom.current = true;
+    }
+    seen.current = { newest: newest?.id, oldest: oldestId, total };
+  });
+
+  const onScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    atBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < STICK_PX;
+    if (el.scrollTop < OLDER_PX && hasMore && !loadingMore) onMore();
+  };
+
   return (
-    <ol
-      ref={listRef}
-      aria-live="polite"
-      aria-label={t("conversation")}
-      // relative: the screen-reader-only labels (absolute) stay inside this scroll box instead of
-      // stretching the page below the inbox.
-      className={cn("chat-wall relative flex flex-col gap-1 overflow-y-auto px-3 py-2 sm:px-6", className)}
-    >
+    // relative: the screen-reader-only labels (absolute) stay inside this scroll box instead of
+    // stretching the page below the inbox.
+    <div ref={scrollRef} onScroll={onScroll} className={cn("chat-wall relative overflow-y-auto px-3 py-2 sm:px-6", className)}>
+      {/* Rows come and go while scrolling (virtualised), so the list itself is not a live region:
+          only the newest message is read out when it arrives. */}
+      <span className="sr-only" aria-live="polite">
+        {newest ? (newest.kind === "template" ? fillTemplate(newest.body, newest.vars) : (newest.body ?? "")) : ""}
+      </span>
       {hasMore && (
-        <li className="self-center pb-2">
+        <div className="flex justify-center pb-2">
           <LoadMore hasMore loading={loadingMore} onClick={onMore}>
             {t("older")}
           </LoadMore>
-        </li>
+        </div>
       )}
-      {items.length === 0 && <li className="m-auto rounded-full bg-card px-4 py-1.5 text-text-secondary">{t("empty")}</li>}
-      {items.map((m, i) => {
-        const d = new Date(m.created_at);
-        const newDay = i === 0 || formatDate(new Date(items[i - 1]!.created_at)) !== formatDate(d);
-        return (
-          <Fragment key={m.id}>
-            {newDay && (
-              <li className="my-1 self-center rounded-md border border-border bg-card px-2.5 py-0.5 text-[0.85rem] text-text-secondary shadow-sm">
-                {dayLabel(d)}
+      {items.length === 0 ? (
+        <ol aria-label={t("conversation")} className="flex h-full">
+          <li className="m-auto rounded-full bg-card px-4 py-1.5 text-text-secondary">{t("empty")}</li>
+        </ol>
+      ) : (
+        <ol aria-label={t("conversation")} className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
+          {virtualizer.getVirtualItems().map((v) => {
+            const row = rows[v.index]!;
+            return (
+              <li
+                key={v.key}
+                data-index={v.index}
+                ref={virtualizer.measureElement}
+                className="absolute top-0 left-0 flex w-full flex-col pb-1"
+                style={{ transform: `translateY(${v.start}px)` }}
+              >
+                {"day" in row ? (
+                  <span className="my-1 self-center rounded-md border border-border bg-card px-2.5 py-0.5 text-[0.85rem] text-text-secondary shadow-sm">
+                    {dayLabel(row.day)}
+                  </span>
+                ) : (
+                  <Bubble m={row.m} />
+                )}
               </li>
-            )}
-            <Bubble m={m} />
-          </Fragment>
-        );
-      })}
-    </ol>
+            );
+          })}
+        </ol>
+      )}
+    </div>
   );
 }
 
@@ -468,7 +533,7 @@ function Bubble({ m }: { m: WaMessage }) {
   );
   // Like WhatsApp: the time and ticks float at the end of the last line when there is room, else below it.
   return (
-    <li
+    <div
       className={cn(
         "flex max-w-[85%] flex-col rounded-lg px-2.5 py-1 shadow-sm sm:max-w-[70%]",
         out ? "chat-out self-end rounded-tr-none" : "chat-in self-start rounded-tl-none border border-border",
@@ -480,7 +545,7 @@ function Bubble({ m }: { m: WaMessage }) {
         <span className="float-right mt-1 ml-3 flex items-center gap-x-2 text-[0.85rem] leading-5 text-text-secondary">{meta}</span>
       </p>
       {m.status === "failed" && m.error_text && <span className="text-[0.9rem] text-bad-text">{m.error_text}</span>}
-    </li>
+    </div>
   );
 }
 

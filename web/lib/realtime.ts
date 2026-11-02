@@ -1,7 +1,7 @@
 "use client";
 
 import { useQueryClient, type QueryClient } from "@tanstack/react-query";
-import { useEffect, useId } from "react";
+import { useEffect, useId, useRef } from "react";
 import { getSupabaseBrowser } from "./supabase/client";
 
 /**
@@ -56,9 +56,20 @@ export function useLiveAppointments(day: string, queryKeys: unknown[][]) {
  * delivery tick changes that number's wa_threads row, and every screen allowed to see it
  * reloads the given queries. [phone] limits it to one conversation; null = any (the inbox).
  */
-export function useLiveWhatsApp(phone: string | null | undefined, queryKeys: unknown[][], enabled = true) {
+export function useLiveWhatsApp(
+  phone: string | null | undefined,
+  queryKeys: unknown[][],
+  enabled = true,
+  /** An open chat: reloads only its newest page instead of every page scrolled back to. */
+  chat?: { key: readonly unknown[]; refreshNewest: () => void },
+) {
   const queryClient = useQueryClient();
   const keys = JSON.stringify(queryKeys);
+  const chatKey = chat ? JSON.stringify(chat.key) : null;
+  const chatRef = useRef(chat);
+  useEffect(() => {
+    chatRef.current = chat;
+  });
   // Each subscriber needs its own channel: supabase-js returns the existing channel for a
   // topic, and an already-joined channel refuses new listeners (the sidebar and the inbox
   // both listen to all conversations).
@@ -68,7 +79,10 @@ export function useLiveWhatsApp(phone: string | null | undefined, queryKeys: unk
     const supabase = getSupabaseBrowser();
     const refresh = () => {
       for (const key of JSON.parse(keys) as unknown[][]) void queryClient.invalidateQueries({ queryKey: key });
+      chatRef.current?.refreshNewest();
     };
+    const onJoin = reloadOnJoin(queryClient, keys);
+    let joined = false;
     const channel = supabase
       .channel(`wa_threads:${phone ?? "all"}:${id}`)
       .on(
@@ -76,11 +90,20 @@ export function useLiveWhatsApp(phone: string | null | undefined, queryKeys: unk
         { event: "*", schema: "public", table: "wa_threads", ...(phone ? { filter: `phone_e164=eq.${phone}` } : {}) },
         refresh,
       )
-      .subscribe(reloadOnJoin(queryClient, keys));
+      .subscribe((status) => {
+        onJoin(status);
+        if (status !== "SUBSCRIBED" || !chatKey) return;
+        // Same rule as reloadOnJoin: the first join right after loading needs no reload.
+        const first = !joined;
+        joined = true;
+        const state = queryClient.getQueryCache().find({ queryKey: JSON.parse(chatKey) as unknown[] })?.state;
+        const fresh = state && (state.fetchStatus === "fetching" || Date.now() - state.dataUpdatedAt < 2_000);
+        if (!(first && fresh)) chatRef.current?.refreshNewest();
+      });
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [phone, keys, queryClient, enabled, id]);
+  }, [phone, keys, chatKey, queryClient, enabled, id]);
 }
 
 /** The admin's live BDM map: every heartbeat or state change reloads the given queries. */

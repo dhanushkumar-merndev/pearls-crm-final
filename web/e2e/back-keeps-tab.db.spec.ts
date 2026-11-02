@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { open, STATE, uniquePhone } from "./helpers";
+import { open, selectAs, STATE, uniquePhone } from "./helpers";
 
 // Owner, 02/11/2026: "open a tab, open something, press Back → I'm on the first tab again".
 // Every tabbed page keeps its open tab (and the board its day) in the address, so Back returns to it.
@@ -55,5 +55,19 @@ test.describe("reception", () => {
     await page.getByRole("tab", { name: "Overdue", exact: true }).click();
     await awayAndBack(page, "Appointments");
     await selected(page, "Overdue");
+  });
+});
+
+test.describe("admin", () => {
+  test.use({ storageState: STATE.admin });
+
+  test("lead: Back returns to the open tab", async ({ page }) => {
+    await open(page, "/home");
+    const [lead] = await selectAs<{ id: string }>(page, "leads?select=id&limit=1");
+    if (!lead) test.skip(true, "no lead on this database");
+    await open(page, `/leads/${lead!.id}`);
+    await page.getByRole("tab", { name: "History", exact: true }).click();
+    await awayAndBack(page, "Appointments");
+    await selected(page, "History");
   });
 });

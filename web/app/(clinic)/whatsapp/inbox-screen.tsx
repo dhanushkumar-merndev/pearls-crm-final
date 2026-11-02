@@ -5,7 +5,7 @@ import { ArrowLeft, CheckCheck, EllipsisVertical, FileUser, MessageCircle, MoonS
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { formatDate, formatTime } from "@pearl/shared";
 import { ChatAvatar } from "@/components/whatsapp/chat-avatar";
 import { DndBadge, DndDialog, useDnd } from "@/components/whatsapp/dnd";
@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { LoadMore } from "@/components/ui/load-more";
 import { RowSkeletons } from "@/components/ui/skeletons";
 import { useLiveWhatsApp } from "@/lib/realtime";
+import { useChatThread } from "@/lib/wa-thread";
 import { rpc } from "@/lib/rpc";
 import { useMe } from "@/lib/use-me";
 import { cn } from "@/lib/utils";
@@ -212,19 +213,15 @@ function UnknownNumber({ c, onBack }: { c: Conversation; onBack: () => void }) {
   const queryClient = useQueryClient();
   const [dndOpen, setDndOpen] = useState(false);
   const key = ["wa_number_thread", c.phone_e164];
-  const thread = useInfiniteQuery({
-    queryKey: key,
-    initialPageParam: null as string | null,
-    queryFn: ({ pageParam }) => rpc<NumberThread>("wa_number_thread", { p_phone: c.phone_e164, p_cursor: pageParam, p_limit: 30 }),
-    getNextPageParam: (last) => last.next_cursor,
-    refetchInterval: 120_000,
-  });
-  useLiveWhatsApp(c.phone_e164, [key]);
+  const { thread, refreshNewest } = useChatThread(key, (cursor) =>
+    rpc<NumberThread>("wa_number_thread", { p_phone: c.phone_e164, p_cursor: cursor, p_limit: 30 }),
+  );
+  useLiveWhatsApp(c.phone_e164, [], true, { key, refreshNewest });
   const head = thread.data?.pages[0];
   const windowOpen = useWindowOpen(head?.window_open_until);
   const target = { phone: c.phone_e164 };
   const dnd = useDnd(target);
-  const items = (thread.data?.pages.flatMap((p) => p.items) ?? []).slice().reverse();
+  const items = useMemo(() => (thread.data?.pages.flatMap((p) => p.items) ?? []).slice().reverse(), [thread.data]);
   // Open = read for the team, as with patients and leads.
   const newestInbound = items.findLast((m) => m.direction === "inbound")?.id;
   useEffect(() => {
@@ -239,7 +236,7 @@ function UnknownNumber({ c, onBack }: { c: Conversation; onBack: () => void }) {
       .catch(() => undefined);
   }, [newestInbound, c.phone_e164, queryClient]);
   const phone = encodeURIComponent(c.phone_e164);
-  const refresh = () => void queryClient.invalidateQueries({ queryKey: key });
+  const refresh = () => void refreshNewest();
   const chip = head && (
     <span className="inline-flex flex-wrap items-center gap-1.5">
       <ChatStateChip optedOut={head.opted_out} api={head.enabled} enabled={head.enabled} windowOpen={windowOpen} until={head.window_open_until} />

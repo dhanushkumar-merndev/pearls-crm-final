@@ -26,9 +26,11 @@ import { Input } from "@/components/ui/input";
 import { LoadMore } from "@/components/ui/load-more";
 import { MoreMenu } from "@/components/ui/more-menu";
 import { DetailHeader, Page } from "@/components/ui/page";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WhatsAppPanel } from "@/components/whatsapp/whatsapp-panel";
 import { newId, rpc } from "@/lib/rpc";
 import { useMe } from "@/lib/use-me";
+import { useUrlTab } from "@/lib/use-url-param";
 import { useFeedback } from "@/lib/use-feedback";
 import { useZodForm } from "@/lib/use-zod-form";
 
@@ -58,6 +60,7 @@ interface Activity {
 }
 
 type DialogKind = "stage" | "edit" | "amount" | "call" | "book" | "delete" | null;
+const TABS = ["details", "bookings", "calls", "recordings", "history"] as const;
 const day = (iso: string) => new Date(`${iso}T00:00:00+05:30`);
 const minutes = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
@@ -74,6 +77,7 @@ export function LeadScreen({ initial }: { initial: LeadDetail }) {
   });
   const l = lead.data;
   const [dialog, setDialog] = useState<DialogKind>(null);
+  const [tab, setTab] = useUrlTab(TABS, "details");
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: ["lead_detail", l.id] });
     void queryClient.invalidateQueries({ queryKey: ["lead_activities", l.id] });
@@ -112,124 +116,145 @@ export function LeadScreen({ initial }: { initial: LeadDetail }) {
             <span>{l.assigned_name ? t("ownerIs", { name: l.assigned_name }) : t("unassigned")}</span>
           </span>
         }
+        actionsBesideTitle
+        actions={
+          <>
+            <Button onClick={() => setDialog("call")}>
+              <PhoneCall aria-hidden />
+              {t("logCall")}
+            </Button>
+            <Button variant="secondary" onClick={() => setDialog("stage")}>
+              <Flag aria-hidden />
+              {t("changeStage")}
+            </Button>
+            <Button variant="secondary" onClick={() => setDialog("book")}>
+              <CalendarPlus aria-hidden />
+              {t("bookConsultation")}
+            </Button>
+            <MoreMenu>
+              <DropdownMenuItem onSelect={() => setDialog("amount")}>
+                <IndianRupee aria-hidden />
+                {t("setAmount")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setDialog("edit")}>
+                <Pencil aria-hidden />
+                {t("edit")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setDialog("delete")}>
+                <Trash2 aria-hidden />
+                {t("delete")}
+              </DropdownMenuItem>
+            </MoreMenu>
+          </>
+        }
       />
 
-      <div className="flex flex-wrap gap-2">
-        <Button onClick={() => setDialog("call")}>
-          <PhoneCall aria-hidden />
-          {t("logCall")}
-        </Button>
-        <Button variant="secondary" onClick={() => setDialog("stage")}>
-          <Flag aria-hidden />
-          {t("changeStage")}
-        </Button>
-        <Button variant="secondary" onClick={() => setDialog("book")}>
-          <CalendarPlus aria-hidden />
-          {t("bookConsultation")}
-        </Button>
-        <MoreMenu>
-          <DropdownMenuItem onSelect={() => setDialog("amount")}>
-            <IndianRupee aria-hidden />
-            {t("setAmount")}
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => setDialog("edit")}>
-            <Pencil aria-hidden />
-            {t("edit")}
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => setDialog("delete")}>
-            <Trash2 aria-hidden />
-            {t("delete")}
-          </DropdownMenuItem>
-        </MoreMenu>
-      </div>
+      <Tabs value={tab} onValueChange={setTab} className="flex min-w-0 flex-col gap-4">
+        {/* Full width: the tab line runs to the right edge; the side cards start below it. */}
+        <TabsList aria-label={t("sections")}>
+          {TABS.map((k) => (
+            <TabsTrigger key={k} value={k}>
+              {t(k)}
+              {k === "bookings" && l.appointments.length > 0 && <span className="ml-1.5 tabular-nums">({l.appointments.length})</span>}
+              {k === "calls" && l.calls.length > 0 && <span className="ml-1.5 tabular-nums">({l.calls.length})</span>}
+            </TabsTrigger>
+          ))}
+        </TabsList>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]">
-        <div className="flex flex-col gap-5">
-          <Card className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
-            <CardTitle className="sm:col-span-2">{t("details")}</CardTitle>
-            <Info label={t("f.treatment")} value={l.treatment} />
-            <Info label={t("f.source")} value={l.source_label} />
-            <Info label={t("f.doctor")} value={l.doctor_name} />
-            <Info label={t("f.referredBy")} value={l.referred_by_text} />
-            <Info label={t("f.email")} value={l.email} />
-            <Info label={t("f.mode")} value={l.appointment_mode ? t(`mode.${l.appointment_mode}`) : null} />
-            <Info label={t("f.surgeryDate")} value={l.surgery_date ? formatDate(day(l.surgery_date)) : null} />
-            <Info label={t("f.amountQuoted")} value={l.amount_quoted_paise !== null ? formatINR(l.amount_quoted_paise) : null} />
-            <Info
-              label={t("f.amountFinalised")}
-              value={l.amount_finalised_paise !== null ? `${formatINR(l.amount_finalised_paise)}${l.amount_locked ? ` · ${t("locked")}` : ""}` : null}
-            />
-            {l.stage === "lost" && <Info label={t("f.lostReason")} value={l.lost_reason} />}
-            <Info label={t("f.comments1")} value={l.comments1} wide />
-            <Info label={t("f.comments2")} value={l.comments2} wide />
-          </Card>
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]">
+          <div className="min-w-0">
+            <TabsContent value="details">
+              <Card className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+                <Info label={t("f.treatment")} value={l.treatment} />
+                <Info label={t("f.source")} value={l.source_label} />
+                <Info label={t("f.doctor")} value={l.doctor_name} />
+                <Info label={t("f.referredBy")} value={l.referred_by_text} />
+                <Info label={t("f.email")} value={l.email} />
+                <Info label={t("f.mode")} value={l.appointment_mode ? t(`mode.${l.appointment_mode}`) : null} />
+                <Info label={t("f.surgeryDate")} value={l.surgery_date ? formatDate(day(l.surgery_date)) : null} />
+                <Info label={t("f.amountQuoted")} value={l.amount_quoted_paise !== null ? formatINR(l.amount_quoted_paise) : null} />
+                <Info
+                  label={t("f.amountFinalised")}
+                  value={l.amount_finalised_paise !== null ? `${formatINR(l.amount_finalised_paise)}${l.amount_locked ? ` · ${t("locked")}` : ""}` : null}
+                />
+                {l.stage === "lost" && <Info label={t("f.lostReason")} value={l.lost_reason} />}
+                <Info label={t("f.comments1")} value={l.comments1} wide />
+                <Info label={t("f.comments2")} value={l.comments2} wide />
+              </Card>
+            </TabsContent>
 
-          <Card className="flex flex-col gap-3">
-            <CardTitle>{t("bookings")}</CardTitle>
-            {l.appointments.length === 0 && <p className="text-text-secondary">{t("noBookings")}</p>}
-            <ul className="flex flex-col gap-2">
-              {l.appointments.map((a) => (
-                <li key={a.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-border p-3">
-                  <span className="font-medium tabular-nums">{a.slot_start ? formatDateTime(new Date(a.slot_start)) : "—"}</span>
-                  <span className="flex-1 text-text-secondary">{a.doctor ?? ""}</span>
-                  <ApptStatusBadge status={a.status} />
-                </li>
-              ))}
-            </ul>
-            {l.appointments.some((a) => a.status === "pending_confirmation") && <CardDescription>{t("confirmHint")}</CardDescription>}
-          </Card>
+            <TabsContent value="bookings">
+              <Card className="flex flex-col gap-3">
+                {l.appointments.length === 0 && <p className="text-text-secondary">{t("noBookings")}</p>}
+                <ul className="flex flex-col gap-2">
+                  {l.appointments.map((a) => (
+                    <li key={a.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-border p-3">
+                      <span className="font-medium tabular-nums">{a.slot_start ? formatDateTime(new Date(a.slot_start)) : "—"}</span>
+                      <span className="flex-1 text-text-secondary">{a.doctor ?? ""}</span>
+                      <ApptStatusBadge status={a.status} />
+                    </li>
+                  ))}
+                </ul>
+                {l.appointments.some((a) => a.status === "pending_confirmation") && <CardDescription>{t("confirmHint")}</CardDescription>}
+              </Card>
+            </TabsContent>
 
-          <Card className="flex flex-col gap-3">
-            <CardTitle>{t("calls")}</CardTitle>
-            {l.calls.length === 0 && <p className="text-text-secondary">{t("noCalls")}</p>}
-            <ul className="flex flex-col gap-2">
-              {l.calls.map((c) => (
-                <li key={c.id} className="rounded-xl border border-border p-3">
-                  <p className="flex flex-wrap gap-x-3">
-                    <span className="font-medium">{formatDateTime(new Date(c.started_at))}</span>
-                    <span>{t(`direction.${c.direction}`)}</span>
-                    {c.outcome && <span>{t(`outcome.${c.outcome}`)}</span>}
-                    <span className="tabular-nums text-text-secondary">{minutes(c.duration_s)}</span>
-                    {c.staff_name && <span className="text-text-secondary">{c.staff_name}</span>}
-                  </p>
-                  {c.notes && <p className="mt-1 whitespace-pre-wrap text-text-secondary">{c.notes}</p>}
-                </li>
-              ))}
-            </ul>
-          </Card>
+            <TabsContent value="calls">
+              <Card className="flex flex-col gap-3">
+                {l.calls.length === 0 && <p className="text-text-secondary">{t("noCalls")}</p>}
+                <ul className="flex flex-col gap-2">
+                  {l.calls.map((c) => (
+                    <li key={c.id} className="rounded-xl border border-border p-3">
+                      <p className="flex flex-wrap gap-x-3">
+                        <span className="font-medium">{formatDateTime(new Date(c.started_at))}</span>
+                        <span>{t(`direction.${c.direction}`)}</span>
+                        {c.outcome && <span>{t(`outcome.${c.outcome}`)}</span>}
+                        <span className="tabular-nums text-text-secondary">{minutes(c.duration_s)}</span>
+                        {c.staff_name && <span className="text-text-secondary">{c.staff_name}</span>}
+                      </p>
+                      {c.notes && <p className="mt-1 whitespace-pre-wrap text-text-secondary">{c.notes}</p>}
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            </TabsContent>
 
-          <Card className="flex flex-col gap-3">
-            <CardTitle>{t("recordings")}</CardTitle>
-            <RecordingsList filters={{ lead_id: l.id }} showLead={false} />
-          </Card>
+            <TabsContent value="recordings">
+              <Card className="flex flex-col gap-3">
+                <RecordingsList filters={{ lead_id: l.id }} showLead={false} />
+              </Card>
+            </TabsContent>
 
-          <Activities leadId={l.id} />
-        </div>
-
-        <aside className="flex flex-col gap-5">
-          <FollowupCard lead={l} onSaved={refresh} />
-          <PatientCard lead={l} isAdmin={isAdmin} onLinked={refresh} />
-          <div id="whatsapp" className="scroll-mt-16">
-            <WhatsAppPanel leadId={l.id} canDrip={me?.role === "sales_manager" || isAdmin} />
+            <TabsContent value="history">
+              <Activities leadId={l.id} />
+            </TabsContent>
           </div>
-          {l.duplicates.length > 0 && (
-            <Card className="flex flex-col gap-2">
-              <CardTitle>{t("sameNumber")}</CardTitle>
-              <ul className="flex flex-col gap-2">
-                {l.duplicates.map((d) => (
-                  <li key={d.id} className="flex flex-wrap items-center gap-2">
-                    <Link href={`/leads/${d.id}`} className="font-medium text-link underline-offset-4 hover:underline">
-                      #{d.sl_no} {d.name}
-                    </Link>
-                    <StageBadge stage={d.stage} />
-                    <span className="text-[0.9rem] text-text-secondary">{formatDate(day(d.lead_date))}</span>
-                  </li>
-                ))}
-              </ul>
-            </Card>
-          )}
-        </aside>
-      </div>
+
+          <aside className="flex flex-col gap-5">
+            <FollowupCard lead={l} onSaved={refresh} />
+            <PatientCard lead={l} isAdmin={isAdmin} onLinked={refresh} />
+            <div id="whatsapp" className="scroll-mt-16">
+              <WhatsAppPanel leadId={l.id} canDrip={me?.role === "sales_manager" || isAdmin} />
+            </div>
+            {l.duplicates.length > 0 && (
+              <Card className="flex flex-col gap-2">
+                <CardTitle>{t("sameNumber")}</CardTitle>
+                <ul className="flex flex-col gap-2">
+                  {l.duplicates.map((d) => (
+                    <li key={d.id} className="flex flex-wrap items-center gap-2">
+                      <Link href={`/leads/${d.id}`} className="font-medium text-link underline-offset-4 hover:underline">
+                        #{d.sl_no} {d.name}
+                      </Link>
+                      <StageBadge stage={d.stage} />
+                      <span className="text-[0.9rem] text-text-secondary">{formatDate(day(d.lead_date))}</span>
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            )}
+          </aside>
+        </div>
+      </Tabs>
 
       <Dialog open={dialog !== null} onOpenChange={(o) => !o && setDialog(null)}>
         {dialog === "stage" && <StageDialog lead={l} onDone={done} />}
@@ -419,7 +444,6 @@ function Activities({ leadId }: { leadId: string }) {
   const items = list.data?.pages.flatMap((p) => p.items) ?? [];
   return (
     <Card className="flex flex-col gap-3">
-      <CardTitle>{t("history")}</CardTitle>
       <Field label={t("addNote")} error={checks.error("body")}>
         {(a) => <Textarea {...a} rows={2} maxLength={4000} value={body} onChange={(e) => (setBody(e.target.value), checks.clear("body"))} />}
       </Field>

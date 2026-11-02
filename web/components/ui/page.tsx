@@ -38,17 +38,19 @@ export interface PageHeaderProps {
   badges?: ReactNode;
   /** One line of facts under the title (number · date · person). */
   meta?: ReactNode;
+  /** Line the actions up with the title row (top right) instead of the bottom of the block. */
+  actionsBesideTitle?: boolean;
 }
 
 /**
  * The one page title block: back link, title (one size everywhere), badges, meta line,
  * description and actions. No outer margin: the page's gap spaces it.
  */
-export function PageHeader({ title, description, actions, back, badges, meta }: PageHeaderProps) {
+export function PageHeader({ title, description, actions, back, badges, meta, actionsBesideTitle = false }: PageHeaderProps) {
   return (
     <header className="flex flex-col gap-1">
       {back && <BackLink href={back.href}>{back.label}</BackLink>}
-      <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
+      <div className={cn("flex flex-wrap justify-between gap-x-4 gap-y-3", actionsBesideTitle ? "items-start" : "items-end")}>
         <div className="flex min-w-0 flex-col gap-1">
           <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
             <h1 className="min-w-0 text-[1.75rem] leading-tight font-semibold tracking-tight break-words">{title}</h1>

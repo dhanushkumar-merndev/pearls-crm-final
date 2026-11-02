@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, FileInput, RefreshCw } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { adsDateRangeSchema, ADS_MAX_RANGE_DAYS, formatDateTime, formatINR, formatINRShort, istDateString } from "@pearl/shared";
 import { EChart } from "@/components/charts/echart";
 import { StatTile } from "@/components/kpi/stat-tile";
@@ -12,6 +12,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { FilterBar } from "@/components/ui/filter-bar";
 import { Field, Select } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/ui/page";
 import { Pager } from "@/components/ui/pager";
 import { Sheet } from "@/components/ui/sheet";
 import { CardSkeleton, TileSkeletons } from "@/components/ui/skeletons";
@@ -90,6 +91,9 @@ type AdsPreset = (typeof ADS_PRESETS)[number];
 /** The Campaigns table can follow the page's period or have its own. */
 type TablePreset = "page" | AdsPreset;
 const PAGE_SIZE = 10;
+
+/** The dates in the "Last synced …" line stand out (theme warning colour, never a raw hex). */
+const syncDate = (chunks: ReactNode) => <span className="font-medium text-status-warning">{chunks}</span>;
 
 function adsRange(preset: AdsPreset, custom: { from: string; to: string }) {
   if (preset === "custom") return custom;
@@ -270,26 +274,33 @@ export function AdsDashboard() {
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2" data-testid="ads-sync">
-        <p className="text-[0.95rem] text-text-secondary" role="status">
-          {acct?.last_synced_at
-            ? t("lastSynced", { when: formatDateTime(new Date(acct.last_synced_at)), account: acct.name ?? acct.id })
-            : overview.isSuccess
-              ? t("neverSynced")
-              : ""}
-          {acct?.backfilled_from && <> · {t("historyFrom", { day: dayLabel(acct.backfilled_from) })}</>}
-        </p>
-        <div className="ml-auto flex flex-wrap gap-2">
-          <Button variant="secondary" disabled={sync.isPending} onClick={() => sync.mutate()}>
-            <RefreshCw aria-hidden className={sync.isPending ? "animate-spin" : undefined} />
-            {sync.isPending ? t("syncing") : t("syncNow")}
-          </Button>
-          <Button variant="secondary" onClick={() => setImporting(true)}>
-            <FileInput aria-hidden />
-            {t("importPast")}
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title={t("title")}
+        description={t("description")}
+        actionsBesideTitle
+        actions={
+          <div className="flex flex-col gap-1.5 sm:items-end">
+            <div className="flex flex-wrap gap-2">
+              <Button variant="secondary" disabled={sync.isPending} onClick={() => sync.mutate()}>
+                <RefreshCw aria-hidden className={sync.isPending ? "animate-spin" : undefined} />
+                {sync.isPending ? t("syncing") : t("syncNow")}
+              </Button>
+              <Button variant="secondary" onClick={() => setImporting(true)}>
+                <FileInput aria-hidden />
+                {t("importPast")}
+              </Button>
+            </div>
+            <p className="text-sm text-text-secondary sm:text-right" role="status" data-testid="ads-sync">
+              {acct?.last_synced_at
+                ? t.rich("lastSynced", { when: formatDateTime(new Date(acct.last_synced_at)), account: acct.name ?? acct.id, d: syncDate })
+                : overview.isSuccess
+                  ? t("neverSynced")
+                  : ""}
+              {acct?.backfilled_from && <> · {t.rich("historyFrom", { day: dayLabel(acct.backfilled_from), d: syncDate })}</>}
+            </p>
+          </div>
+        }
+      />
       {(syncResult && !syncResult.ok) || (!syncResult && acct?.last_error) ? (
         <p className="text-bad-text" role="alert">
           {syncResult?.error === "too_soon"

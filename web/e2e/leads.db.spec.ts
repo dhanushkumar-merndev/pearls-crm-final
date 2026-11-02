@@ -70,6 +70,10 @@ test.describe("sales manager", () => {
     await call.getByRole("button", { name: "Save call" }).click();
     await expect(page.getByText("Call saved ✓")).toBeVisible();
 
+    await page.getByRole("tab", { name: /Calls/ }).click();
+    await expect(page.getByRole("tabpanel").getByText("Wants the price list")).toBeVisible();
+
+    await page.getByRole("tab", { name: "History" }).click();
     await page.getByLabel("Add a note").fill("Call again after Diwali");
     await page.getByRole("button", { name: "Save note" }).click();
     await expect(page.getByText("Call again after Diwali")).toBeVisible();

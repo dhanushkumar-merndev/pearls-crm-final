@@ -2599,7 +2599,8 @@
     "onlySources": "Only the sources ticked:",
     "sourcesFor": "Sources for {name}",
     "orderFor": "Order for {name}",
-    "recordings": "Call recordings and voice notes"
+    "recordings": "Call recordings and voice notes",
+    "sections": "Lead sections"
   },
   "salesDash": {
     "title": "Sales dashboard",
@@ -3598,9 +3599,9 @@
   "ads": {
     "title": "Ads",
     "description": "What each Facebook and Instagram campaign cost and what it brought in: leads, bookings, patients and money collected.",
-    "lastSynced": "Last synced {when} · {account}",
+    "lastSynced": "Last synced <d>{when}</d> · {account}",
     "neverSynced": "Not synced with Meta yet. Press “Sync now”.",
-    "historyFrom": "history from {day}",
+    "historyFrom": "history from <d>{day}</d>",
     "syncNow": "Sync now",
     "syncing": "Syncing…",
     "synced": "Synced ✓",
