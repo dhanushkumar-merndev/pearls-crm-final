@@ -46,13 +46,15 @@ import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberSwipeToDismissBoxState
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -284,16 +286,27 @@ private fun SwipeHint() {
 @Composable
 private fun SwipeLeadRow(lead: LeadEntity, onOpen: () -> Unit, onCall: () -> Unit, onWhatsApp: () -> Unit) {
     val state = rememberSwipeToDismissBoxState()
-    LaunchedEffect(state.currentValue) {
-        when (state.currentValue) {
-            SwipeToDismissBoxValue.StartToEnd -> onCall()
-            SwipeToDismissBoxValue.EndToStart -> onWhatsApp()
-            SwipeToDismissBoxValue.Settled -> return@LaunchedEffect
+    val call by rememberUpdatedState(onCall)
+    val whatsApp by rememberUpdatedState(onWhatsApp)
+    // Belt and braces: if the app was stopped mid-swipe, come back with the row in place.
+    val scope = rememberCoroutineScope()
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        if (state.currentValue != SwipeToDismissBoxValue.Settled || state.targetValue != SwipeToDismissBoxValue.Settled) {
+            scope.launch { state.snapTo(SwipeToDismissBoxValue.Settled) }
         }
-        state.reset()
     }
     SwipeToDismissBox(
         state = state,
+        // Runs once the swipe has finished settling. Put the row back BEFORE leaving for the
+        // dialer / WhatsApp: an animated reset after leaving waits for frames that never come
+        // while the app is in the background, so the row stayed swiped off-screen on return
+        // (owner, 03/11/2026). Snapping during the settle animation is interrupted, hence here.
+        onDismiss = { swiped ->
+            scope.launch {
+                state.snapTo(SwipeToDismissBoxValue.Settled)
+                if (swiped == SwipeToDismissBoxValue.StartToEnd) call() else whatsApp()
+            }
+        },
         backgroundContent = {
             val toCall = state.dismissDirection == SwipeToDismissBoxValue.StartToEnd
             Row(

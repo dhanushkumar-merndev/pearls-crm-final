@@ -91,7 +91,7 @@ data class CallNotesInput(
     val lostReason: LibraryItem? = null,
     /** Optional, only for a lost lead: the person says why. */
     val voiceNote: VoiceClip? = null,
-    /** Lost lead: upload the dialer's recording of this call (found on the phone, or as soon as it is). */
+    /** Upload the dialer's recording of this call (found on the phone, or as soon as it is). */
     val uploadRecording: Boolean = false,
 )
 
@@ -252,9 +252,12 @@ fun CallNotesForm(
                 modifier = Modifier.bringIntoViewRequester(lostView).testTag("lost-reason"),
             )
             FieldError(errors[NotesField.LostReason], "lost-reason-error")
-            if (offerCallRecording) CallRecordingUpload(uploadRecording) { uploadRecording = it }
             VoiceNoteRecorder(voiceNote) { voiceNote = it }
         }
+
+        // After any call made from the app (owner, 03/11/2026): one tap sends the phone's
+        // recording of this call to the cloud, so a recording that didn't upload isn't lost.
+        if (offerCallRecording) CallRecordingUpload(uploadRecording) { uploadRecording = it }
 
         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.m)) {
             PearlButton(
@@ -264,7 +267,7 @@ fun CallNotesForm(
                     val input = CallNotesInput(
                         outcome, notes, next, stage, lostReason,
                         voiceNote = voiceNote.takeIf { stage == LeadStage.LOST },
-                        uploadRecording = uploadRecording && stage == LeadStage.LOST,
+                        uploadRecording = uploadRecording,
                     )
                     val found = validateCallNotes(input)
                     errors = found
@@ -278,7 +281,7 @@ fun CallNotesForm(
     }
 }
 
-/** Lost lead: one tap uploads the phone's recording of this call (the dialer's file; nothing to pick). */
+/** After a call: one tap uploads the phone's recording of this call (the dialer's file; nothing to pick). */
 @Composable
 private fun CallRecordingUpload(on: Boolean, onChange: (Boolean) -> Unit) {
     if (on) {

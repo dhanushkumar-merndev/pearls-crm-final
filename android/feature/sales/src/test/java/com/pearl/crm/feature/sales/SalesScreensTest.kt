@@ -266,12 +266,24 @@ class SalesScreensTest {
     }
 
     @Test
+    fun anyCallUploadsItsRecordingWithOneTap() {
+        val saved = mutableListOf<CallNotesInput>()
+        compose.setContent {
+            PearlTheme { CallNotesForm(leadName = "Asha", library = library, onSave = { saved += it }, onLater = {}, offerCallRecording = true) }
+        }
+        // Offered after every call, whatever the stage.
+        compose.onNodeWithTag("outcome-${CallOutcome.CONNECTED}").performClick()
+        compose.onNodeWithTag("upload-call-recording").performScrollTo().performClick()
+        compose.onNodeWithTag("save-notes").performScrollTo().performClick()
+        assertTrue(saved.single().uploadRecording)
+    }
+
+    @Test
     fun lostAfterACallUploadsItsRecordingWithOneTap() {
         val saved = mutableListOf<CallNotesInput>()
         compose.setContent {
             PearlTheme { CallNotesForm(leadName = "Asha", library = library, onSave = { saved += it }, onLater = {}, offerCallRecording = true) }
         }
-        compose.onNodeWithTag("upload-call-recording").assertDoesNotExist() // only for a lost lead
         compose.onNodeWithTag("outcome-${CallOutcome.CONNECTED}").performClick()
         compose.onNodeWithTag("stage-${LeadStage.LOST}").performScrollTo().performClick()
         compose.onNodeWithTag("upload-call-recording").performScrollTo().performClick()
