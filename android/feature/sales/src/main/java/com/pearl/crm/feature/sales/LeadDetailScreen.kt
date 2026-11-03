@@ -40,6 +40,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -58,6 +59,12 @@ import com.pearl.crm.core.model.LibraryItem
 import com.pearl.crm.core.model.LibraryKind
 import com.pearl.crm.core.model.LibrarySource
 import com.pearl.crm.core.ui.components.ButtonKind
+import com.pearl.crm.core.ui.components.Avatar
+import com.pearl.crm.core.ui.components.InfoLine
+import com.pearl.crm.core.ui.components.Tag
+import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.MedicalServices
+import androidx.compose.material.icons.automirrored.outlined.Notes
 import com.pearl.crm.core.ui.components.EmptyState
 import com.pearl.crm.core.ui.components.FieldError
 import com.pearl.crm.core.ui.components.ListRow
@@ -132,6 +139,10 @@ fun LeadDetailScreen(
             )
         },
     ) { padding ->
+        if (load != null && lead == null) {
+            EmptyState(Icons.Outlined.Close, stringResource(R.string.lead_not_found), Modifier.fillMaxSize().padding(padding))
+            return@Scaffold
+        }
         Column(
             Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())
                 .padding(start = Spacing.screen, end = Spacing.screen, top = Spacing.xs, bottom = Spacing.screen),
@@ -144,17 +155,26 @@ fun LeadDetailScreen(
                     return@Column
                 }
                 current == null -> {
-                    EmptyState(Icons.Outlined.Close, stringResource(R.string.lead_not_found))
                     return@Column
                 }
             }
-            PearlCard(verticalSpacing = Spacing.xs) {
-                Text(current.phoneE164, style = MaterialTheme.typography.titleMedium)
-                Text(stringResource(R.string.lead_stage) + ": " + stageLabel(current.stage), style = MaterialTheme.typography.bodyMedium)
-                current.nextFollowupAt?.let { Text(dueText(it), style = MaterialTheme.typography.bodyMedium) }
-                current.treatmentText?.let { Muted(stringResource(R.string.lead_treatment, it)) }
-                current.comments1?.let { Muted(stringResource(R.string.lead_comments, it)) }
-                if (current.pending) StatusLabel(stringResource(R.string.not_sent_yet), StatusTone.Info)
+            PearlCard(verticalSpacing = Spacing.m) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.l)) {
+                    Avatar(current.name, size = 52.dp)
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                        Text(current.phoneE164, style = MaterialTheme.typography.titleMedium)
+                        val stageText = stringResource(R.string.lead_stage) + ": " + stageLabel(current.stage)
+                        Tag(stageLabel(current.stage), Modifier.semantics { contentDescription = stageText })
+                    }
+                }
+                val details = current.nextFollowupAt != null || current.treatmentText != null || current.comments1 != null || current.pending
+                if (details) {
+                    HorizontalDivider()
+                    current.nextFollowupAt?.let { InfoLine(Icons.Outlined.Schedule, dueText(it)) }
+                    current.treatmentText?.let { InfoLine(Icons.Outlined.MedicalServices, stringResource(R.string.lead_treatment, it)) }
+                    current.comments1?.let { InfoLine(Icons.AutoMirrored.Outlined.Notes, stringResource(R.string.lead_comments, it)) }
+                    if (current.pending) StatusLabel(stringResource(R.string.not_sent_yet), StatusTone.Info)
+                }
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
@@ -195,7 +215,7 @@ fun LeadDetailScreen(
                 }
             }
 
-            History(stringResource(R.string.lead_tasks), tasks.isEmpty()) {
+            History(stringResource(R.string.lead_tasks), tasks.isEmpty(), Icons.Outlined.EventRepeat) {
                 tasks.forEachIndexed { i, task ->
                     if (i > 0) HorizontalDivider()
                     ListRow(
@@ -205,7 +225,7 @@ fun LeadDetailScreen(
                     )
                 }
             }
-            History(stringResource(R.string.lead_bookings), bookings.isEmpty()) {
+            History(stringResource(R.string.lead_bookings), bookings.isEmpty(), Icons.Outlined.Event) {
                 bookings.forEachIndexed { i, a ->
                     if (i > 0) HorizontalDivider()
                     ListRow(
@@ -215,7 +235,7 @@ fun LeadDetailScreen(
                     )
                 }
             }
-            History(stringResource(R.string.lead_calls), calls.isEmpty()) {
+            History(stringResource(R.string.lead_calls), calls.isEmpty(), Icons.Outlined.Call) {
                 calls.forEachIndexed { i, c ->
                     if (i > 0) HorizontalDivider()
                     ListRow(
@@ -242,7 +262,7 @@ fun LeadDetailScreen(
             AfterCallNotes(sales, library, StartedCall(current.id, current.phoneE164, System.currentTimeMillis()), current.name, onDone = {
                 manualNotes = false
                 showSaved(it)
-            })
+            }, offerCallRecording = false)
         }
         if (noting) {
             NoteDialog(onDismiss = { noting = false }, onSave = { text ->
@@ -267,10 +287,13 @@ fun LeadDetailScreen(
 
 /** A history block: its rows in one card, or "Nothing yet." */
 @Composable
-private fun History(title: String, empty: Boolean, rows: @Composable () -> Unit) {
+private fun History(title: String, empty: Boolean, icon: ImageVector, rows: @Composable () -> Unit) {
     Section(title) {
         if (empty) {
-            Muted(stringResource(R.string.lead_none))
+            // A quiet dashed-feel placeholder: same width as a filled block, so the page doesn't jump.
+            PearlCard(color = MaterialTheme.colorScheme.background) {
+                InfoLine(icon, stringResource(R.string.lead_none))
+            }
         } else {
             PearlCard(contentPadding = PaddingValues(0.dp), verticalSpacing = 0.dp) { rows() }
         }

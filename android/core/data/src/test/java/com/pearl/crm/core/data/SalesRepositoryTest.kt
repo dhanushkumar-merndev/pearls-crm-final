@@ -6,6 +6,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.pearl.crm.core.data.db.AppDatabase
 import com.pearl.crm.core.data.db.FollowupEntity
 import com.pearl.crm.core.data.db.LeadEntity
+import com.pearl.crm.core.data.db.CallLogEntity
 import com.pearl.crm.core.data.net.PearlJson
 import com.pearl.crm.core.model.CallOutcome
 import com.pearl.crm.core.model.FreeSlot
@@ -14,6 +15,10 @@ import com.pearl.crm.core.model.RpcFailure
 import com.pearl.crm.core.model.RpcTransport
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.async
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
@@ -64,6 +69,124 @@ class SalesRepositoryTest {
         id = id, kind = "followup", leadId = leadId, patientId = null, dueDate = "2027-01-15", dueAt = dueAt,
         reason = "Call back", status = "open", outcome = null, assignedTo = "me", updatedAt = "x",
     )
+
+    @Test
+    fun aLeadListRequestCannotReadMoreThanOneHundredRows() = runTest {
+        db.leads().upsert((1..150).map { lead(it.toString().padStart(3, '0')) })
+        assertEquals(100, repo.observeLeads(LeadFilter.All, "", limit = 500).first().size)
+    }
+
+    @Test
+    fun leadPagesUseStableOrderAndSearchAppliesBeforePaging() = runTest {
+        db.leads().upsert((1..120).map { lead(it.toString().padStart(3, '0')) })
+        val first = repo.observeLeads(LeadFilter.All, "", limit = 51).first()
+        assertEquals("001", first.first().id)
+        assertEquals("051", first.last().id)
+        val second = repo.observeLeads(LeadFilter.All, "", limit = 51, offset = 50).first()
+        assertEquals("051", second.first().id)
+        assertEquals("101", second.last().id)
+        val last = repo.observeLeads(LeadFilter.All, "", limit = 51, offset = 100).first()
+        assertEquals(20, last.size)
+        assertEquals(120, (first.take(50) + second.take(50) + last).map { it.id }.distinct().size)
+        assertEquals(listOf("120"), repo.observeLeads(LeadFilter.All, "Lead 120", limit = 51).first().map { it.id })
+    }
+
+    @Test
+    fun callsWithTheSameTimeHaveStablePages() = runTest {
+        db.callLogs().upsert((1..120).map { i ->
+            val n = i.toString().padStart(3, '0')
+            CallLogEntity.fromRow(PearlJson.parseToJsonElement(
+                """{"id":"C$n","phone_e164":"+919845000000","direction":"outgoing","started_at":"2026-11-03T00:00:00Z","duration_s":60,"updated_at":"2026-11-03T00:00:00Z"}""",
+            ).jsonObject)
+        })
+        val first = repo.observeRecentCalls(51).first()
+        val second = repo.observeRecentCalls(51, 50).first()
+        val last = repo.observeRecentCalls(51, 100).first()
+        assertEquals("C120", first.first().call.id)
+        assertEquals("C070", second.first().call.id)
+        assertEquals(20, last.size)
+        assertEquals(120, (first.take(50) + second.take(50) + last).map { it.call.id }.distinct().size)
+        assertEquals(100, repo.observeRecentCalls(500).first().size)
+    }
+
+    @Test
+    fun followupPagesAreBoundedAndKeepTheAssigneeFilter() = runTest {
+        db.followups().upsert((1..120).map { task("T${it.toString().padStart(3, '0')}", "L1", now) } + task("other", "L1", now).copy(assignedTo = "someone-else"))
+        val page = repo.observeOpenFollowups("me", "2027-02-01", 51, 50).first()
+        assertEquals(51, page.size)
+        assertEquals("T051", page.first().task.id)
+        assertEquals("T101", page.last().task.id)
+        assertEquals(100, repo.observeOpenFollowups("me", "2027-02-01", 500).first().size)
+    }
+
+    @Test
+    fun dashboardIsReusedBrieflyThenExpires() = runTest {
+        var time = now
+        repo = SalesRepository(transport, db, OutboxWriter(db.outbox())) { time }
+        answer = { _, _ -> PearlJson.parseToJsonElement("""{"today":{"calls":7}}""") }
+        assertEquals(7, repo.dashboard().today.calls)
+        assertEquals(7, repo.dashboard().today.calls)
+        assertEquals(1, calls.count { it.first == "dashboard_sales_exec" })
+        time += 30_000
+        repo.dashboard()
+        assertEquals(2, calls.count { it.first == "dashboard_sales_exec" })
+    }
+
+    @Test
+    fun explicitRefreshAndInvalidationFetchNewDashboardNumbers() = runTest {
+        answer = { _, _ -> PearlJson.parseToJsonElement("""{"today":{"calls":${calls.size}}}""") }
+        assertEquals(1, repo.dashboard().today.calls)
+        assertEquals(2, repo.dashboard(forceRefresh = true).today.calls)
+        assertEquals(2, repo.cachedDashboard()?.today?.calls)
+        repo.clearCachedReads()
+        assertNull(repo.cachedDashboard())
+        assertEquals(3, repo.dashboard().today.calls)
+    }
+
+    @Test
+    @OptIn(ExperimentalCoroutinesApi::class)
+    fun overlappingAutomaticDashboardReadsShareOneRequest() = runTest {
+        val reply = CompletableDeferred<JsonElement>()
+        var requested = 0
+        val shared = SalesRepository(RpcTransport { _, _ -> requested++; reply.await() }, db, OutboxWriter(db.outbox())) { now }
+        val one = async { shared.dashboard() }
+        val two = async { shared.dashboard() }
+        runCurrent()
+        assertEquals(1, requested)
+        reply.complete(PearlJson.parseToJsonElement("""{"today":{"calls":7}}"""))
+        assertEquals(7, one.await().today.calls)
+        assertEquals(7, two.await().today.calls)
+        assertEquals(1, requested)
+    }
+
+    @Test
+    fun cachedPagesAndDashboardBelongToTheirAccount() = runTest {
+        var owner = "staff-a:sales"
+        repo = SalesRepository(transport, db, OutboxWriter(db.outbox()), cacheOwner = { owner }) { now }
+        answer = { _, _ -> PearlJson.parseToJsonElement("""{"today":{"calls":7}}""") }
+        db.leads().upsert(listOf(lead("L1")))
+        repo.observeLeads(LeadFilter.All, "", 51).first()
+        repo.dashboard()
+        assertEquals("L1", repo.cachedLeads(LeadFilter.All, "", 51)?.single()?.id)
+        owner = "staff-b:sales"
+        assertNull(repo.cachedLeads(LeadFilter.All, "", 51))
+        assertNull(repo.cachedDashboard())
+        repo.clearCachedReads()
+        owner = "staff-a:sales"
+        assertNull(repo.cachedLeads(LeadFilter.All, "", 51))
+    }
+
+    @Test
+    fun dashboardCacheDoesNotCrossMidnightInIndia() = runTest {
+        var time = java.time.Instant.parse("2026-11-03T18:29:59Z").toEpochMilli()
+        repo = SalesRepository(transport, db, OutboxWriter(db.outbox())) { time }
+        answer = { _, _ -> PearlJson.parseToJsonElement("{}") }
+        repo.dashboard()
+        time += 2_000
+        assertNull(repo.cachedDashboard())
+        repo.dashboard()
+        assertEquals(2, calls.size)
+    }
 
     private fun draft(leadId: String?, next: NextStep, outcome: String = CallOutcome.CONNECTED, stage: String? = null, reason: String? = null) =
         CallDraft(

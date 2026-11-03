@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Pearl.FullScreenDialogAnimation" parent="">
+        <item name="android:windowEnterAnimation">@anim/page_open</item>
+        <item name="android:windowExitAnimation">@anim/page_close</item>
+    </style>
+</resources>

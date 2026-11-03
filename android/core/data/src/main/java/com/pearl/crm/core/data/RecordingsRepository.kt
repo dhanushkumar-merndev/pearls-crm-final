@@ -12,6 +12,8 @@ import com.pearl.crm.core.model.RpcFailure
 import com.pearl.crm.core.model.RpcTransport
 import com.pearl.crm.core.model.UploadPlan
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
@@ -71,12 +73,15 @@ class RecordingsRepository(
 ) {
     private val recordings = db.recordings()
 
+    /** One folder check at a time (the worker and a screen can start one together). */
+    private val scanLock = Mutex()
+
     fun observe(limit: Int = 200) = recordings.observeAll(limit)
 
     fun observeWaiting() = recordings.observeWaitingCount()
 
     /** Looks for new recordings of CRM calls. Files of other calls are ignored and never stored. Returns how many were found. */
-    suspend fun scan(folder: RecordingFolder): Int {
+    suspend fun scan(folder: RecordingFolder): Int = scanLock.withLock {
         val known = recordings.knownUris().toHashSet()
         val files = folder.list(clock() - SCAN_DAYS * DAY_MS).filter { RecordingNames.isAudio(it.name) && it.uri !in known }
         var found = 0
@@ -97,9 +102,13 @@ class RecordingsRepository(
                 status = if (settings.recordingMode == "all_calls") RecordingStatus.QUEUED else RecordingStatus.ON_PHONE,
                 fileId = null, uploadedS = null, trimmed = false, error = null, attempts = 0, lostNote = false, createdAt = clock(),
             )
-            if (register(row)) found++
+            if (register(row)) {
+                found++
+                // Someone tapped "Upload call recording" for this call before the file was there.
+                if (row.status == RecordingStatus.ON_PHONE && takeCallRequest(row.leadId, row.recordedAt)) recordings.queue(listOf(row.id))
+            }
         }
-        return found
+        found
     }
 
     /** A voice note recorded in the app (e.g. why a lead was lost). Always uploaded. Returns its id. */
@@ -154,6 +163,37 @@ class RecordingsRepository(
             )
         }
         return added
+    }
+
+    /**
+     * "Upload call recording" in the notes after a call (e.g. a lost lead). The dialer's file of
+     * that call is uploaded now if the phone has found it, else as soon as a scan finds it (within
+     * [SCAN_DAYS]). Returns true when it was already on the phone.
+     */
+    suspend fun requestCallUpload(leadId: String, callStartedAt: Long): Boolean {
+        val ids = recordings.callIdsOfLead(leadId, callStartedAt - WINDOW_MS, callStartedAt + WINDOW_MS)
+        if (ids.isNotEmpty()) {
+            recordings.queue(ids)
+            return true
+        }
+        settings.callUploadRequests = liveCallRequests() + "$leadId|$callStartedAt|${clock()}"
+        return false
+    }
+
+    /** Requests not older than [SCAN_DAYS] (a file older than that is never found). */
+    private fun liveCallRequests(): Set<String> =
+        settings.callUploadRequests.filterTo(HashSet()) { (it.split('|').getOrNull(2)?.toLongOrNull() ?: 0L) > clock() - SCAN_DAYS * DAY_MS }
+
+    /** True (and the request is used up) when someone asked to upload this lead's call at [recordedAt]. */
+    private fun takeCallRequest(leadId: String?, recordedAt: Long): Boolean {
+        if (leadId == null) return false
+        val live = liveCallRequests()
+        val hit = live.firstOrNull {
+            val parts = it.split('|')
+            parts[0] == leadId && kotlin.math.abs((parts.getOrNull(1)?.toLongOrNull() ?: return@firstOrNull false) - recordedAt) <= WINDOW_MS
+        }
+        if (hit != null || live.size != settings.callUploadRequests.size) settings.callUploadRequests = live - setOfNotNull(hit)
+        return hit != null
     }
 
     /** The person taps Sync on recordings in the "On phone" list. */

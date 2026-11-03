@@ -79,7 +79,9 @@ class AppContainer(private val context: Context) {
     val outbox = OutboxWriter(db.outbox())
     val library: LibrarySource = LibraryRepository(rpc, db.lookupValues())
     val account = AccountRepository(rpc, sessions, outbox)
-    val sales = SalesRepository(rpc, db, outbox)
+    val sales = SalesRepository(rpc, db, outbox, cacheOwner = {
+        sessions.session.value?.let { "${it.staffId}:${it.staffRole}" }
+    })
     private val edge = EdgeClient(config, http, sessions)
     val callLogSource = ContentCallLogSource(context)
     private val callLogImporter = CallLogImporter(callLogSource, db, outbox, settings, { sessions.session.value?.staffId })
@@ -133,7 +135,10 @@ class AppContainer(private val context: Context) {
     val profile: StateFlow<StaffProfile?> = _profile.asStateFlow()
 
     init {
-        outbox.onEnqueued = { if (sessions.session.value != null) scheduler.syncSoon() }
+        outbox.onEnqueued = {
+            sales.clearCachedReads()
+            if (sessions.session.value != null) scheduler.syncSoon()
+        }
         scope.launch {
             sessions.session.map { it?.staffId }.distinctUntilChanged().collect { staffId ->
                 if (staffId != null) onSignedIn(staffId) else onSignedOut()
@@ -142,6 +147,7 @@ class AppContainer(private val context: Context) {
     }
 
     private suspend fun onSignedIn(staffId: String) {
+        sales.clearCachedReads()
         // The phone keeps one person's data: someone else logging in starts from empty.
         withContext(Dispatchers.IO) {
             val owner = settings.databaseOwner
@@ -184,6 +190,7 @@ class AppContainer(private val context: Context) {
     }
 
     private fun onSignedOut() {
+        sales.clearCachedReads()
         scheduler.stopAll()
         RecordingWorker.cancel(context)
         com.pearl.crm.bdm.BdmTrackingService.stop(context)
@@ -238,6 +245,7 @@ class AppContainer(private val context: Context) {
 
     /** "Sign out" in Settings: ends the session and removes this person's data from the phone. */
     suspend fun signOutByChoice() {
+        sales.clearCachedReads()
         scheduler.stopAll()
         // Data first, so the login screen never appears with it still on the phone.
         withContext(Dispatchers.IO) { db.clearAllTables() }

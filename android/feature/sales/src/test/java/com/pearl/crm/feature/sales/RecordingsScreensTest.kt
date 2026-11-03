@@ -108,4 +108,19 @@ class RecordingsScreensTest {
         assertEquals(R.string.setup_battery_samsung, batteryGuide("SAMSUNG"))
         assertTrue(recordingFolderHint("Google") == R.string.setup_folder_other)
     }
+
+    @Test
+    fun folderPickerOpensWhereTheDialerSaves() {
+        // Realme saves in Recordings/Call: the picker opens there when it exists.
+        assertEquals("Recordings/Call", recordingFolderStart("realme") { it == "Recordings/Call" })
+        // A OnePlus with the other layout gets that one.
+        assertEquals("Music/Recordings/Call Recordings", recordingFolderStart("OnePlus") { it == "Music/Recordings/Call Recordings" })
+        assertEquals("MIUI/sound_recorder/call_rec", recordingFolderStart("Xiaomi") { false })
+        // Nothing found: the brand's usual folder (the picker falls back to its own start if it's missing).
+        assertEquals("Recordings/Record/Call", recordingFolderStart("vivo") { false })
+        assertEquals("Recordings/Call", recordingFolderStart("Google") { false })
+        // A folder check that throws is treated as "not there".
+        assertEquals("Recordings/Call", recordingFolderStart("samsung") { error("no access") })
+        assertTrue(recordingFolderCandidates("Xiaomi").let { it.size == it.distinct().size })
+    }
 }

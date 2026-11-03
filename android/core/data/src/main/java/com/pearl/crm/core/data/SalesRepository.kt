@@ -5,6 +5,8 @@ import com.pearl.crm.core.data.db.AppDatabase
 import com.pearl.crm.core.data.db.AppointmentEntity
 import com.pearl.crm.core.data.db.CallLogEntity
 import com.pearl.crm.core.data.db.LeadEntity
+import com.pearl.crm.core.data.db.CallWithLead
+import com.pearl.crm.core.data.db.FollowupWithLead
 import com.pearl.crm.core.data.net.PearlJson
 import com.pearl.crm.core.model.CallDirection
 import com.pearl.crm.core.model.CallOutcome
@@ -14,7 +16,10 @@ import com.pearl.crm.core.model.Phones
 import com.pearl.crm.core.model.RpcFailure
 import com.pearl.crm.core.model.RpcTransport
 import com.pearl.crm.core.model.SalesDashboard
+import com.pearl.crm.core.model.IstDates
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
@@ -74,14 +79,43 @@ class SalesRepository(
     private val rpc: RpcTransport,
     private val db: AppDatabase,
     private val outbox: OutboxWriter,
+    private val cacheOwner: () -> String? = { null },
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
     private val leads = db.leads()
     private val followups = db.followups()
     private val appointments = db.appointments()
     private val calls = db.callLogs()
+    private data class LeadPage(val owner: String?, val filter: LeadFilter, val query: String, val limit: Int, val offset: Int)
+    private data class CallPage(val owner: String?, val limit: Int, val offset: Int)
+    private data class TaskPage(val owner: String?, val staff: String, val day: String, val limit: Int, val offset: Int)
+    private data class DashboardKey(val owner: String?, val day: LocalDate)
+    private val leadPages = TimedMemoryCache<LeadPage, List<LeadEntity>>(6, clock = clock)
+    private val callPages = TimedMemoryCache<CallPage, List<CallWithLead>>(6, clock = clock)
+    private val taskPages = TimedMemoryCache<TaskPage, List<FollowupWithLead>>(6, clock = clock)
+    private val dashboardCache = TimedMemoryCache<DashboardKey, SalesDashboard>(1, clock = clock)
+    private val dashboardMutex = Mutex()
 
-    fun observeLeads(filter: LeadFilter, query: String, limit: Int = 200): Flow<List<LeadEntity>> {
+    private fun leadPage(filter: LeadFilter, query: String, limit: Int, offset: Int) =
+        LeadPage(cacheOwner(), filter, query.trim(), limit.coerceIn(1, 100), offset.coerceAtLeast(0))
+
+    fun cachedLeads(filter: LeadFilter, query: String, limit: Int = 100, offset: Int = 0) =
+        leadPages.get(leadPage(filter, query, limit, offset))
+
+    fun cachedRecentCalls(limit: Int = 100, offset: Int = 0) =
+        callPages.get(CallPage(cacheOwner(), limit.coerceIn(1, 100), offset.coerceAtLeast(0)))
+
+    fun cachedOpenFollowups(staffId: String, lastDay: String, limit: Int = 100, offset: Int = 0) =
+        taskPages.get(TaskPage(cacheOwner(), staffId, lastDay, limit.coerceIn(1, 100), offset.coerceAtLeast(0)))
+
+    fun clearCachedReads() {
+        leadPages.clear()
+        callPages.clear()
+        taskPages.clear()
+        dashboardCache.clear()
+    }
+
+    fun observeLeads(filter: LeadFilter, query: String, limit: Int = 100, offset: Int = 0): Flow<List<LeadEntity>> {
         val now = clock()
         val stages = when (filter) {
             LeadFilter.New -> listOf(LeadStage.NEW, LeadStage.NOT_REACHABLE)
@@ -92,7 +126,8 @@ class SalesRepository(
         val dueBy = if (filter == LeadFilter.Due) now else null
         // "98450 12345" finds +919845012345: a typed number is searched by its digits.
         val text = query.trim().let { q -> if (q.isNotEmpty() && q.all { it.isDigit() || it in " +-()" }) q.filter(Char::isDigit) else q }
-        return leads.observeList(stages.isEmpty(), stages, dueBy, escapeLike(text), now, limit)
+        return leadPages.track(leadPage(filter, query, limit, offset),
+            leads.observeList(stages.isEmpty(), stages, dueBy, escapeLike(text), now, limit.coerceIn(1, 100), offset.coerceAtLeast(0)))
     }
 
     fun observeLead(id: String) = leads.observe(id)
@@ -103,10 +138,14 @@ class SalesRepository(
 
     fun observeLeadCalls(leadId: String) = calls.observeForLead(leadId)
 
-    fun observeRecentCalls(limit: Int = 100) = calls.observeRecentWithLead(limit)
+    fun observeRecentCalls(limit: Int = 100, offset: Int = 0) =
+        callPages.track(CallPage(cacheOwner(), limit.coerceIn(1, 100), offset.coerceAtLeast(0)),
+            calls.observeRecentWithLead(limit.coerceIn(1, 100), offset.coerceAtLeast(0)))
 
     /** Open tasks up to [lastDay] (yyyy-MM-dd, IST), oldest first. */
-    fun observeOpenFollowups(staffId: String, lastDay: String) = followups.observeOpenWithLead(staffId, lastDay)
+    fun observeOpenFollowups(staffId: String, lastDay: String, limit: Int = 100, offset: Int = 0) =
+        taskPages.track(TaskPage(cacheOwner(), staffId, lastDay, limit.coerceIn(1, 100), offset.coerceAtLeast(0)),
+            followups.observeOpenWithLead(staffId, lastDay, limit.coerceIn(1, 100), offset.coerceAtLeast(0)))
 
     fun observeNeedsConfirmation() = appointments.observeNeedsConfirmationWithLead(clock())
 
@@ -357,14 +396,25 @@ class SalesRepository(
         return row
     }
 
-    /** Online only. */
-    suspend fun dashboard(): SalesDashboard =
-        PearlJson.decodeFromJsonElement(SalesDashboard.serializer(), rpc.call("dashboard_sales_exec", JsonObject(emptyMap())))
+    private fun dashboardKey() = DashboardKey(cacheOwner(), Instant.ofEpochMilli(clock()).atZone(IstDates.ZONE).toLocalDate())
+
+    fun cachedDashboard(): SalesDashboard? = dashboardCache.get(dashboardKey())
+
+    /** Short-lived display data; explicit refresh always asks the server. */
+    suspend fun dashboard(forceRefresh: Boolean = false): SalesDashboard = dashboardMutex.withLock {
+        val key = dashboardKey()
+        if (!forceRefresh) dashboardCache.get(key)?.let { return@withLock it }
+        val version = dashboardCache.version()
+        val value = PearlJson.decodeFromJsonElement(SalesDashboard.serializer(), rpc.call("dashboard_sales_exec", JsonObject(emptyMap())))
+        dashboardCache.put(key, value, version)
+        value
+    }
 
     /** After a pull: drop phone-made rows the server took but didn't send back to us. */
     suspend fun tidyAfterPull() {
         leads.dropSentLocalOnly()
         calls.dropSentPending()
+        clearCachedReads()
     }
 
     companion object {

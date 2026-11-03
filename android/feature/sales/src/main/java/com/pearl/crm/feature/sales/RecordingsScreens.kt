@@ -90,7 +90,7 @@ fun RecordingsOnPhoneScreen(recordings: RecordingsRepository, onSyncRequested: (
     val scope = rememberCoroutineScope()
     Column(Modifier.fillMaxSize()) {
         PearlTopBar(stringResource(R.string.rec_title), onBack = onBack)
-        Column(Modifier.weight(1f).padding(horizontal = Spacing.screen), verticalArrangement = Arrangement.spacedBy(Spacing.section)) {
+        Column(Modifier.weight(1f).padding(horizontal = Spacing.screen).padding(top = Spacing.m, bottom = Spacing.xl), verticalArrangement = Arrangement.spacedBy(Spacing.section)) {
             Muted(stringResource(R.string.rec_hint))
             val list = rows
             val waiting = list.orEmpty().filter { it.recording.status == RecordingStatus.ON_PHONE || it.recording.status == RecordingStatus.FAILED }
@@ -104,7 +104,7 @@ fun RecordingsOnPhoneScreen(recordings: RecordingsRepository, onSyncRequested: (
             }
             when {
                 list == null -> LoadingBlock(rows = 3, rowHeight = 64.dp)
-                list.isEmpty() -> EmptyState(Icons.Outlined.GraphicEq, stringResource(R.string.rec_empty))
+                list.isEmpty() -> EmptyState(Icons.Outlined.GraphicEq, stringResource(R.string.rec_empty), Modifier.weight(1f))
                 else -> LazyColumn(
                     verticalArrangement = Arrangement.spacedBy(Spacing.item),
                     contentPadding = PaddingValues(bottom = Spacing.screen),
@@ -164,6 +164,36 @@ fun recordingFolderHint(manufacturer: String = Build.MANUFACTURER): Int = when (
     "vivo", "iqoo" -> R.string.setup_folder_vivo
     else -> R.string.setup_folder_other
 }
+
+/**
+ * Where each brand's dialer saves call recordings, most likely first (paths under Internal
+ * storage). The folder button opens the picker right there, so staff only tap "Use this folder".
+ */
+fun recordingFolderCandidates(manufacturer: String = Build.MANUFACTURER): List<String> {
+    val common = listOf("Recordings/Call", "Music/Recordings/Call Recordings", "Record/Call", "Call")
+    val brand = when (manufacturer.lowercase()) {
+        "samsung" -> listOf("Recordings/Call", "Call")
+        "xiaomi", "redmi", "poco" -> listOf("MIUI/sound_recorder/call_rec", "Recordings/Call", "Music/Recordings/Call Recordings")
+        "oneplus", "oppo", "realme" -> listOf("Recordings/Call", "Music/Recordings/Call Recordings", "Record/Call")
+        "vivo", "iqoo" -> listOf("Recordings/Record/Call", "Record/Call", "Recordings/Call")
+        else -> emptyList()
+    }
+    return (brand + common).distinct()
+}
+
+/**
+ * The picker's starting place: the first [recordingFolderCandidates] folder that is on this
+ * phone, else the brand's usual one. When it isn't there the picker opens as normal and the
+ * person looks for the folder themselves.
+ */
+fun recordingFolderStart(
+    manufacturer: String = Build.MANUFACTURER,
+    exists: (String) -> Boolean = { java.io.File(android.os.Environment.getExternalStorageDirectory(), it).isDirectory },
+): String = recordingFolderCandidates(manufacturer).let { all -> all.firstOrNull { runCatching { exists(it) }.getOrDefault(false) } ?: all.first() }
+
+/** A picker "open here" address for a folder under Internal storage. */
+private fun internalStorageFolderUri(path: String): Uri =
+    DocumentsContract.buildDocumentUri("com.android.externalstorage.documents", "primary:$path")
 
 /** How to stop each brand from killing the app in the background. */
 fun batteryGuide(manufacturer: String = Build.MANUFACTURER): Int = when (manufacturer.lowercase()) {
@@ -242,7 +272,11 @@ fun CallSetupScreen(settings: SettingsStore, onScanNow: suspend () -> Int, onBac
                 Icons.Outlined.Folder,
                 "setup-folder",
                 actionLabel = if (folder != null) stringResource(R.string.setup_change) else null,
-            ) { pickFolder.launch(null) }
+            ) {
+            // Open where the dialer keeps recordings (the folder chosen before, when changing it).
+            val chosen = folder?.let { runCatching { Uri.parse(it).let { t -> DocumentsContract.buildDocumentUriUsingTree(t, DocumentsContract.getTreeDocumentId(t)) } }.getOrNull() }
+            pickFolder.launch(chosen ?: internalStorageFolderUri(recordingFolderStart()))
+        }
 
             HorizontalDivider()
             Row(verticalAlignment = Alignment.CenterVertically) {

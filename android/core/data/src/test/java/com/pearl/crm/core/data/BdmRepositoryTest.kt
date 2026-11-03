@@ -96,13 +96,31 @@ class BdmRepositoryTest {
         assertEquals(true, r.inside)
         assertEquals("Main office", r.officeName)
         assertEquals("selfie", uploads.single().first)
-        assertEquals(BdmRepository.selfieClientId("DAY-1"), uploads.single().second)
+        val selfieId = BdmRepository.selfieClientId("DAY-1", RecordingsRepository.sha256(selfie))
+        assertEquals(selfieId, uploads.single().second)
         val p = calls.single().second.getValue("p").jsonObject
         assertEquals("DAY-1", p.getValue("client_id").jsonPrimitive.content)
-        assertEquals("file-${BdmRepository.selfieClientId("DAY-1")}", p.getValue("selfie_file_id").jsonPrimitive.content)
+        assertEquals("file-$selfieId", p.getValue("selfie_file_id").jsonPrimitive.content)
         assertEquals("12.9716", p.getValue("lat").jsonPrimitive.content)
         assertTrue(repo.day.value.open)
         assertEquals(BdmState.IN_OFFICE, repo.day.value.state)
+    }
+
+    @Test
+    fun aNewSelfieAfterAFailedStartIsANewFileButTheSamePhotoRetriedIsNot() = runTest {
+        var fail = true
+        val server = answer
+        answer = { fn, args -> if (fail) throw RpcFailure.Transient("offline") else server(fn, args) }
+        val first = File(dir, "selfie.webp").apply { writeBytes(ByteArray(100) { 1 }) }
+        runCatching { repo.startDay(first, fix(), "DAY-1") }
+        runCatching { repo.startDay(first, fix(), "DAY-1") } // the same photo again: the same file
+        val second = File(dir, "selfie2.webp").apply { writeBytes(ByteArray(120) { 2 }) }
+        fail = false
+        repo.startDay(second, fix(), "DAY-1") // a retake: its own file
+        val ids = uploads.map { it.second }
+        assertEquals(3, ids.size)
+        assertEquals(ids[0], ids[1])
+        assertTrue("a retake must not reuse the first photo's file", ids[2] != ids[0])
     }
 
     @Test
@@ -161,6 +179,18 @@ class BdmRepositoryTest {
         }
         repo.endBreak()
         assertEquals(BdmState.AT_VISIT, repo.day.value.state) // back where they were
+    }
+
+    @Test
+    fun aBreakOnTheWayBackFromAVisitEndsTravellingNotAtTheOffice() = runTest {
+        started()
+        repo.startTravel("City Hospital", null, null)
+        repo.reached(null, null)
+        repo.completeVisit(VisitResult("Met the director", null, null, null, "warm", null))
+        assertEquals(BdmState.TRAVELLING, repo.day.value.state)
+        repo.startBreak(null, 15)
+        repo.endBreak()
+        assertEquals(BdmState.TRAVELLING, repo.day.value.state)
     }
 
     @Test

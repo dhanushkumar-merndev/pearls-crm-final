@@ -1,5 +1,7 @@
 package com.pearl.crm.feature.bdm
 
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.selection.toggleable
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -17,6 +19,14 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Business
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.PersonAddAlt
+import androidx.compose.material.icons.outlined.Place
+import androidx.compose.material.icons.outlined.Replay
+import androidx.compose.material.icons.outlined.Route
+import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.Straighten
+import androidx.compose.material.icons.outlined.WbSunny
 import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
@@ -48,6 +58,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -74,7 +85,15 @@ import com.pearl.crm.core.ui.components.LoadingBlock
 import com.pearl.crm.core.ui.components.Muted
 import com.pearl.crm.core.ui.components.PearlCard
 import com.pearl.crm.core.ui.components.PearlRefreshBox
-import com.pearl.crm.core.ui.components.StatGrid
+import com.pearl.crm.core.ui.components.Accent
+import com.pearl.crm.core.ui.components.GreetingHeader
+import com.pearl.crm.core.ui.components.HeroCard
+import com.pearl.crm.core.ui.components.InfoLine
+import com.pearl.crm.core.ui.components.PhotoPreview
+import com.pearl.crm.core.ui.components.StatItem
+import com.pearl.crm.core.ui.components.StatTiles
+import com.pearl.crm.core.ui.components.StatusPill
+import com.pearl.crm.core.ui.components.accentColor
 import com.pearl.crm.core.ui.components.PearlButton
 import com.pearl.crm.core.ui.components.StatusLabel
 import com.pearl.crm.core.ui.components.StatusTone
@@ -97,6 +116,17 @@ fun bdmStateLabel(state: String): String = stringResource(
         else -> R.string.bdm_state_off_duty
     },
 )
+
+/** The icon and accent colour for where the day stands (decoration; the label says it in words). */
+@Composable
+private fun bdmStateLook(state: String, open: Boolean): Pair<ImageVector, androidx.compose.ui.graphics.Color> = when {
+    !open -> Icons.Outlined.WbSunny to accentColor(Accent.Orange)
+    state == BdmState.IN_OFFICE -> Icons.Outlined.Business to accentColor(Accent.Teal)
+    state == BdmState.TRAVELLING -> Icons.Outlined.DirectionsCar to accentColor(Accent.Blue)
+    state == BdmState.AT_VISIT -> Icons.Outlined.Place to accentColor(Accent.Violet)
+    state == BdmState.ON_BREAK -> Icons.Outlined.Coffee to accentColor(Accent.Amber)
+    else -> Icons.Outlined.WbSunny to accentColor(Accent.Orange)
+}
 
 /** Field → message (string resource) for the travel form. */
 fun validateTravel(destination: String): Map<String, Int> =
@@ -150,13 +180,20 @@ fun BdmDayScreen(
     // The camera writes a full photo to our private cache; it is shrunk before upload.
     var shot by rememberSaveable { mutableStateOf<String?>(null) }
     var onShot by remember { mutableStateOf<(File) -> Unit>({}) }
+    // True while a new photo is being shrunk, so the dialog can show a loader in its place.
+    var shrinking by remember { mutableStateOf(false) }
     val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
         val raw = shot?.let(::File)
         if (ok && raw != null && raw.exists()) {
+            shrinking = true
             scope.launch {
-                val webp = Photos.toWebp(raw, File(raw.parentFile, raw.nameWithoutExtension + ".webp"))
-                raw.delete()
-                onShot(webp)
+                try {
+                    val webp = Photos.toWebp(raw, File(raw.parentFile, raw.nameWithoutExtension + ".webp"))
+                    raw.delete()
+                    onShot(webp)
+                } finally {
+                    shrinking = false
+                }
             }
         }
     }
@@ -208,14 +245,32 @@ fun BdmDayScreen(
                 Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(Spacing.screen),
                 verticalArrangement = Arrangement.spacedBy(Spacing.section),
             ) {
-                Text(stringResource(R.string.bdm_hello, name), style = MaterialTheme.typography.titleLarge)
-                // Where the day stands, in one card: state, route recording, and any message.
-                PearlCard {
-                    StatusLabel(bdmStateLabel(day.state), if (day.open) StatusTone.Good else StatusTone.Info)
-                    if (day.open) StatusLabel(stringResource(R.string.bdm_recording_route), StatusTone.Info)
-                    if (day.open && !permitted) StatusLabel(stringResource(R.string.bdm_location_needed), StatusTone.Warning)
+                GreetingHeader(stringResource(R.string.bdm_hello, name), name)
+                // Where the day stands, in one card: state (and where to), route recording, and any message.
+                val (stateIcon, stateAccent) = bdmStateLook(if (day.ended) "" else day.state, day.open)
+                // Before the day starts the start card below says it all; only messages show here.
+                if (!day.open && !day.ended) {
                     message?.let { StatusLabel(stringResource(it), StatusTone.Info) }
                     failure?.let { StatusLabel(failureMessage(it), StatusTone.Critical, Modifier.testTag("bdm-failure")) }
+                } else HeroCard(
+                    title = if (day.ended) stringResource(R.string.bdm_state_ended) else bdmStateLabel(day.state),
+                    icon = stateIcon,
+                    accent = stateAccent,
+                    subtitle = when {
+                        day.breakOpen || day.visitId == null || !day.open -> null
+                        day.visitReached -> stringResource(R.string.bdm_at, day.visitDestination.orEmpty())
+                        else -> stringResource(R.string.bdm_going_to, day.visitDestination.orEmpty())
+                    },
+                ) {
+                    val notes = day.open || message != null || failure != null
+                    if (notes) {
+                        Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                            if (day.open) StatusPill(stringResource(R.string.bdm_recording_route), StatusTone.Good)
+                            if (day.open && !permitted) StatusLabel(stringResource(R.string.bdm_location_needed), StatusTone.Warning)
+                            message?.let { StatusLabel(stringResource(it), StatusTone.Info) }
+                            failure?.let { StatusLabel(failureMessage(it), StatusTone.Critical, Modifier.testTag("bdm-failure")) }
+                        }
+                    }
                 }
                 val allowLocation = @Composable {
                     PearlButton(stringResource(R.string.bdm_allow_location), Icons.Outlined.LocationOn, {
@@ -226,7 +281,7 @@ fun BdmDayScreen(
                 if (day.open && !permitted) allowLocation()
 
                 when {
-                    day.ended -> Text(stringResource(R.string.bdm_day_ended))
+                    day.ended -> StatusLabel(stringResource(R.string.bdm_day_ended), StatusTone.Good)
                     !day.open -> DayStartCard(bdm, location, photoAuthority, R.string.bdm_start_body) { r, approvedAway ->
                         permitted = location.permitted()
                         message = when {
@@ -264,7 +319,7 @@ fun BdmDayScreen(
             dialog = null
             act { bdm.startTravel(dest, purpose, location.current(5_000)) }
         }
-        "reached" -> ReachedDialog(day.visitDestination.orEmpty(), takePhoto = ::takePhoto, onDismiss = { dialog = null }) { photo ->
+        "reached" -> ReachedDialog(day.visitDestination.orEmpty(), shrinking, takePhoto = ::takePhoto, onDismiss = { dialog = null }) { photo ->
             dialog = null
             act { bdm.reached(location.current(5_000), photo) }
         }
@@ -317,16 +372,11 @@ private fun DayActions(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
         when {
-            breakOpen -> PearlButton(stringResource(R.string.bdm_end_break), Icons.Outlined.Coffee, onEndBreak, busy = busy, modifier = Modifier.testTag("bdm-end-break"))
-            hasVisit && !reached -> {
-                Text(stringResource(R.string.bdm_going_to, destination.orEmpty()), style = MaterialTheme.typography.titleMedium)
-                PearlButton(stringResource(R.string.bdm_reached), Icons.Outlined.LocationOn, onReached, busy = busy, modifier = Modifier.testTag("bdm-reached"))
-            }
-            hasVisit -> {
-                Text(stringResource(R.string.bdm_at, destination.orEmpty()), style = MaterialTheme.typography.titleMedium)
-                PearlButton(stringResource(R.string.bdm_complete), Icons.Outlined.TaskAlt, onComplete, busy = busy, modifier = Modifier.testTag("bdm-complete"))
-            }
-            else -> PearlButton(stringResource(R.string.bdm_travel), Icons.Outlined.DirectionsCar, onTravel, busy = busy, modifier = Modifier.testTag("bdm-travel"))
+            // The one main action, full width; the destination is in the card above.
+            breakOpen -> PearlButton(stringResource(R.string.bdm_end_break), Icons.Outlined.Coffee, onEndBreak, busy = busy, modifier = Modifier.fillMaxWidth().testTag("bdm-end-break"))
+            hasVisit && !reached -> PearlButton(stringResource(R.string.bdm_reached), Icons.Outlined.LocationOn, onReached, busy = busy, modifier = Modifier.fillMaxWidth().testTag("bdm-reached"))
+            hasVisit -> PearlButton(stringResource(R.string.bdm_complete), Icons.Outlined.TaskAlt, onComplete, busy = busy, modifier = Modifier.fillMaxWidth().testTag("bdm-complete"))
+            else -> PearlButton(stringResource(R.string.bdm_travel), Icons.Outlined.DirectionsCar, onTravel, busy = busy, modifier = Modifier.fillMaxWidth().testTag("bdm-travel"))
         }
         if (!breakOpen) {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.s), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
@@ -360,7 +410,12 @@ private fun MeetingRecorder(recorder: VoiceRecorder, path: String?, seconds: Int
             elapsed++
         }
     }
-    PearlCard {
+    HeroCard(
+        title = stringResource(R.string.bdm_meeting_title),
+        icon = Icons.Outlined.Mic,
+        accent = accentColor(Accent.Pink),
+        subtitle = if (recording || path != null) null else stringResource(R.string.bdm_consent),
+    ) {
         Column(verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
             when {
                 recording -> Row(horizontalArrangement = Arrangement.spacedBy(Spacing.m), verticalAlignment = Alignment.CenterVertically) {
@@ -373,7 +428,6 @@ private fun MeetingRecorder(recorder: VoiceRecorder, path: String?, seconds: Int
                 }
                 path != null -> StatusLabel(stringResource(R.string.bdm_meeting_ready, seconds / 60, seconds % 60), StatusTone.Good)
                 else -> {
-                    Text(stringResource(R.string.bdm_consent), color = Pearl.palette.textSecondary)
                     PearlButton(stringResource(R.string.bdm_record_meeting), Icons.Outlined.Mic, {
                         if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) start()
                         else mic.launch(Manifest.permission.RECORD_AUDIO)
@@ -390,27 +444,31 @@ private fun Tiles(d: BdmDashboard?, failed: Boolean) {
     val today = d?.today
     when {
         today != null -> {
-            StatGrid(
+            StatTiles(
                 listOf(
-                    stringResource(R.string.bdm_tiles_visits) to today.visits.toString(),
-                    stringResource(R.string.bdm_tiles_km) to "%.1f".format(today.distanceM / 1000.0),
-                    stringResource(R.string.bdm_tiles_leads) to today.leads.toString(),
+                    StatItem(stringResource(R.string.bdm_tiles_visits), today.visits.toString(), Icons.Outlined.Place, Accent.Violet),
+                    StatItem(stringResource(R.string.bdm_tiles_km), "%.1f".format(today.distanceM / 1000.0), Icons.Outlined.Route, Accent.Blue),
+                    StatItem(stringResource(R.string.bdm_tiles_leads), today.leads.toString(), Icons.Outlined.PersonAddAlt, Accent.Teal),
                 ),
             )
-            Muted(
-                stringResource(
-                    R.string.bdm_tiles_secondary,
-                    "%.1f".format(today.estM / 1000.0),
-                    stringResource(R.string.bdm_tiles_minutes, (today.breakS / 60).toInt(), (today.breakAllowedS / 60).toInt()),
-                ),
-            )
-            Muted(stringResource(R.string.bdm_time_split, (today.travelS / 60).toInt(), (today.meetingS / 60).toInt(), (today.breakS / 60).toInt(), (today.officeS / 60).toInt()))
+            PearlCard(verticalSpacing = Spacing.m) {
+                InfoLine(
+                    Icons.Outlined.Straighten,
+                    stringResource(
+                        R.string.bdm_tiles_secondary,
+                        "%.1f".format(today.estM / 1000.0),
+                        stringResource(R.string.bdm_tiles_minutes, (today.breakS / 60).toInt(), (today.breakAllowedS / 60).toInt()),
+                    ),
+                )
+                InfoLine(Icons.Outlined.Schedule, stringResource(R.string.bdm_time_split, (today.travelS / 60).toInt(), (today.meetingS / 60).toInt(), (today.breakS / 60).toInt(), (today.officeS / 60).toInt()))
+                d.month?.let { m -> InfoLine(Icons.Outlined.CalendarMonth, stringResource(R.string.bdm_month, m.visits, m.leads, m.conversions, "%.1f".format(m.km))) }
+            }
         }
         failed -> StatusLabel(stringResource(R.string.bdm_numbers_offline), StatusTone.Offline)
         // Loaded but no day yet (not started): nothing to show for today, only the month line.
         d == null -> LoadingBlock(rows = 1, rowHeight = 64.dp)
     }
-    d?.month?.let { m -> Muted(stringResource(R.string.bdm_month, m.visits, m.leads, m.conversions, "%.1f".format(m.km))) }
+    if (today == null) d?.month?.let { m -> InfoLine(Icons.Outlined.CalendarMonth, stringResource(R.string.bdm_month, m.visits, m.leads, m.conversions, "%.1f".format(m.km))) }
 }
 
 @Composable
@@ -455,7 +513,7 @@ private fun TravelDialog(onDismiss: () -> Unit, onGo: (String, String?) -> Unit)
 }
 
 @Composable
-private fun ReachedDialog(destination: String, takePhoto: ((File) -> Unit) -> Unit, onDismiss: () -> Unit, onConfirm: (File?) -> Unit) {
+private fun ReachedDialog(destination: String, shrinking: Boolean, takePhoto: ((File) -> Unit) -> Unit, onDismiss: () -> Unit, onConfirm: (File?) -> Unit) {
     var photo by remember { mutableStateOf<File?>(null) }
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -463,8 +521,19 @@ private fun ReachedDialog(destination: String, takePhoto: ((File) -> Unit) -> Un
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(Spacing.m)) {
                 Text(stringResource(R.string.bdm_reached_body))
-                if (photo != null) StatusLabel(stringResource(R.string.bdm_photo_ready), StatusTone.Good)
-                else PearlButton(stringResource(R.string.bdm_take_photo), Icons.Outlined.CameraAlt, { takePhoto { photo = it } }, kind = ButtonKind.Secondary)
+                val shot = photo
+                when {
+                    // Loader while the new photo is shrunk and read back.
+                    shrinking -> PhotoPreview(height = 160.dp)
+                    shot != null -> {
+                        PhotoPreview(file = shot, contentDescription = stringResource(R.string.bdm_photo_ready), height = 160.dp)
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                            StatusLabel(stringResource(R.string.bdm_photo_ready), StatusTone.Good, Modifier.weight(1f))
+                            PearlButton(stringResource(R.string.bdm_retake_photo), Icons.Outlined.Replay, { takePhoto { photo = it } }, kind = ButtonKind.Quiet, small = true)
+                        }
+                    }
+                    else -> PearlButton(stringResource(R.string.bdm_take_photo), Icons.Outlined.CameraAlt, { takePhoto { photo = it } }, kind = ButtonKind.Secondary)
+                }
             }
         },
         confirmButton = {
@@ -516,8 +585,14 @@ fun CompleteDialog(onDismiss: () -> Unit, onSave: (VisitResult) -> Unit) {
                     listOf("hot" to R.string.bdm_interest_hot, "warm" to R.string.bdm_interest_warm, "cold" to R.string.bdm_interest_cold, "none" to R.string.bdm_interest_none)
                         .forEach { (v, l) -> FilterChip(selected = interest == v, onClick = { interest = v }, label = { Text(stringResource(l)) }) }
                 }
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(checked = createLead, onCheckedChange = { createLead = it }, modifier = Modifier.testTag("bdm-create-lead"))
+                // The whole row ticks the box (the words too, not only the small square).
+                Row(
+                    Modifier.fillMaxWidth()
+                        .toggleable(value = createLead, role = Role.Checkbox, onValueChange = { createLead = it })
+                        .testTag("bdm-create-lead"),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Checkbox(checked = createLead, onCheckedChange = null)
                     Text(stringResource(R.string.bdm_create_lead))
                 }
                 if (createLead) {

@@ -260,4 +260,44 @@ class RecordingsRepositoryTest {
         assertEquals(0, repo.syncNow(listOf(id))) // already queued
         assertNull(db.recordings().get("unknown"))
     }
+
+    @Test
+    fun uploadCallRecordingQueuesTheFileAlreadyOnThePhone() = runTest {
+        crmCall()
+        dialerFile("Call recording +91 98450 12345_270115_110000.m4a")
+        repo.scan(folder)
+        val id = repo.observe().first().single().recording.id
+        assertEquals("on_phone", db.recordings().get(id)!!.status)
+
+        assertTrue(repo.requestCallUpload("L1", callAt))
+        assertEquals("queued", db.recordings().get(id)!!.status)
+        assertTrue("nothing left waiting for a file", settings.callUploadRequests.isEmpty())
+    }
+
+    @Test
+    fun uploadCallRecordingWaitsForTheFileThenQueuesItWhenFound() = runTest {
+        crmCall()
+        // Tapped before the dialer wrote the file.
+        assertFalse(repo.requestCallUpload("L1", callAt))
+        assertEquals(1, settings.callUploadRequests.size)
+
+        // Another lead's call at the same time is not taken by mistake.
+        db.callLogs().upsert(listOf(CallLogEntity("C2", "L2", "+919000011111", "outgoing", callAt + 60_000, 120, "connected", null, "x")))
+        dialerFile("Call recording +91 90000 11111_270115_110100.m4a", durationS = 120)
+        dialerFile("Call recording +91 98450 12345_270115_110000.m4a")
+        assertEquals(2, repo.scan(folder))
+
+        val byLead = repo.observe().first().associate { it.recording.leadId to it.recording.status }
+        assertEquals("queued", byLead["L1"])
+        assertEquals("on_phone", byLead["L2"])
+        assertTrue("the request is used up", settings.callUploadRequests.isEmpty())
+    }
+
+    @Test
+    fun anOldUploadRequestIsForgotten() = runTest {
+        assertFalse(repo.requestCallUpload("L1", callAt))
+        now += 3 * 86_400_000L // longer than a scan looks back: that file can't turn up any more
+        assertFalse(repo.requestCallUpload("L2", now))
+        assertEquals(listOf("L2"), settings.callUploadRequests.map { it.substringBefore('|') })
+    }
 }

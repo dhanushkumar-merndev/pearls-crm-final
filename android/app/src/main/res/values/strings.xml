@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Generic on purpose: the clinic's name comes from its settings, never from the app. -->
-    <string name="app_name">Clinic CRM</string>
+    <string name="app_name">Pearl CRM</string>
 
     <!-- Not set up -->
     <string name="not_configured_title">This app isn\'t set up yet</string>
@@ -45,7 +45,7 @@
     <string name="pin_save">Save PIN</string>
     <string name="pin_unlock_title">Enter your PIN</string>
     <string name="pin_unlock">Unlock</string>
-    <string name="biometric_title">Unlock Pearl CRM</string>
+    <string name="biometric_title">Unlock Pearl Aesthetic</string>
     <string name="biometric_subtitle">Touch the fingerprint sensor or look at the phone</string>
     <string name="biometric_cancel">Cancel</string>
     <string name="biometric_setup_title">Open the app with your fingerprint</string>

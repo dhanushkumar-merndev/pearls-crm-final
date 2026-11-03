@@ -38,7 +38,12 @@ import java.io.File
 data class VoiceClip(val file: File, val seconds: Int)
 
 /** Voice notes on this phone (the app provides it; screens without it just hide the button). */
-class VoiceNotes(val recorder: VoiceRecorder, val recordings: RecordingsRepository)
+class VoiceNotes(
+    val recorder: VoiceRecorder,
+    val recordings: RecordingsRepository,
+    /** Look for and upload recordings now (the app's recording worker). */
+    val syncRecordings: () -> Unit = {},
+)
 
 val LocalVoiceNotes = staticCompositionLocalOf<VoiceNotes?> { null }
 

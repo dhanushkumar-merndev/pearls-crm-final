@@ -2,6 +2,8 @@ package com.pearl.crm.feature.sales
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.layout.Column
@@ -14,6 +16,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.CloudUpload
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -50,6 +54,8 @@ import com.pearl.crm.core.ui.components.FieldError
 import com.pearl.crm.core.ui.components.Section
 import com.pearl.crm.core.ui.components.ButtonKind
 import com.pearl.crm.core.ui.components.PearlButton
+import com.pearl.crm.core.ui.components.StatusLabel
+import com.pearl.crm.core.ui.components.StatusTone
 import com.pearl.crm.core.ui.library.LibraryPicker
 import com.pearl.crm.core.ui.theme.Pearl
 import com.pearl.crm.core.ui.theme.Spacing
@@ -85,6 +91,8 @@ data class CallNotesInput(
     val lostReason: LibraryItem? = null,
     /** Optional, only for a lost lead: the person says why. */
     val voiceNote: VoiceClip? = null,
+    /** Lost lead: upload the dialer's recording of this call (found on the phone, or as soon as it is). */
+    val uploadRecording: Boolean = false,
 )
 
 enum class NotesField { Outcome, Notes, LostReason }
@@ -105,10 +113,11 @@ fun CallNotesSheet(
     onSave: (CallNotesInput) -> Unit,
     onDismiss: () -> Unit,
     busy: Boolean = false,
+    offerCallRecording: Boolean = false,
 ) {
     val state = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = state) {
-        CallNotesForm(leadName, library, onSave, onDismiss, busy, Modifier.navigationBarsPadding())
+        CallNotesForm(leadName, library, onSave, onDismiss, busy, Modifier.navigationBarsPadding(), offerCallRecording)
     }
 }
 
@@ -122,6 +131,8 @@ fun CallNotesForm(
     onLater: () -> Unit,
     busy: Boolean = false,
     modifier: Modifier = Modifier,
+    /** A call just made from the app: a lost lead can have its dialer recording uploaded. */
+    offerCallRecording: Boolean = false,
 ) {
     var outcome by rememberSaveable { mutableStateOf<String?>(null) }
     var notes by rememberSaveable { mutableStateOf("") }
@@ -129,6 +140,7 @@ fun CallNotesForm(
     var stage by rememberSaveable { mutableStateOf<String?>(null) }
     var lostReason by remember { mutableStateOf<LibraryItem?>(null) }
     var voiceNote by remember { mutableStateOf<VoiceClip?>(null) }
+    var uploadRecording by rememberSaveable { mutableStateOf(false) }
     var errors by remember { mutableStateOf<Map<NotesField, Int>>(emptyMap()) }
     val notesFocus = remember { FocusRequester() }
     val scroll = rememberScrollState()
@@ -240,6 +252,7 @@ fun CallNotesForm(
                 modifier = Modifier.bringIntoViewRequester(lostView).testTag("lost-reason"),
             )
             FieldError(errors[NotesField.LostReason], "lost-reason-error")
+            if (offerCallRecording) CallRecordingUpload(uploadRecording) { uploadRecording = it }
             VoiceNoteRecorder(voiceNote) { voiceNote = it }
         }
 
@@ -248,7 +261,11 @@ fun CallNotesForm(
                 stringResource(R.string.notes_save),
                 Icons.Outlined.Check,
                 onClick = {
-                    val input = CallNotesInput(outcome, notes, next, stage, lostReason, voiceNote.takeIf { stage == LeadStage.LOST })
+                    val input = CallNotesInput(
+                        outcome, notes, next, stage, lostReason,
+                        voiceNote = voiceNote.takeIf { stage == LeadStage.LOST },
+                        uploadRecording = uploadRecording && stage == LeadStage.LOST,
+                    )
                     val found = validateCallNotes(input)
                     errors = found
                     if (found.isEmpty()) onSave(input) else showFirst = NotesField.entries.first { it in found }
@@ -258,6 +275,25 @@ fun CallNotesForm(
             )
             PearlButton(stringResource(R.string.notes_later), Icons.Outlined.Schedule, onLater, kind = ButtonKind.Quiet)
         }
+    }
+}
+
+/** Lost lead: one tap uploads the phone's recording of this call (the dialer's file; nothing to pick). */
+@Composable
+private fun CallRecordingUpload(on: Boolean, onChange: (Boolean) -> Unit) {
+    if (on) {
+        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.m), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.weight(1f)) { StatusLabel(stringResource(R.string.notes_recording_will_upload), StatusTone.Good) }
+            PearlButton(stringResource(R.string.notes_recording_undo), Icons.Outlined.Close, { onChange(false) }, kind = ButtonKind.Quiet, small = true)
+        }
+    } else {
+        PearlButton(
+            stringResource(R.string.notes_recording_upload),
+            Icons.Outlined.CloudUpload,
+            { onChange(true) },
+            kind = ButtonKind.Tonal,
+            modifier = Modifier.testTag("upload-call-recording"),
+        )
     }
 }
 

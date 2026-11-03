@@ -53,6 +53,8 @@ data class BdmDay(
     val visitDestination: String? = null,
     val visitReached: Boolean = false,
     val breakOpen: Boolean = false,
+    /** What the day goes back to when the open break ends (the server keeps the same). */
+    val resumeState: String? = null,
     /** Office geofence result at day start (null = unknown). */
     val startedInOffice: Boolean? = null,
     /** Today's request to start away from the office, if any. */
@@ -241,6 +243,7 @@ class BdmRepository(
                 visitDestination = visit?.str("destination"),
                 visitReached = visit?.str("reached_at") != null,
                 breakOpen = r["break"] is JsonObject,
+                resumeState = (r["break"] as? JsonObject)?.str("resume_state"),
                 startedInOffice = day["start_in_geofence"]?.jsonPrimitive?.booleanOrNull,
                 startRequest = request,
             ),
@@ -270,7 +273,8 @@ class BdmRepository(
     /** Online only: the selfie is uploaded, then the server decides (office geofence). */
     suspend fun startDay(selfie: File?, fix: RawPoint, clientId: String): StartDayResult {
         val selfieId = selfie?.let {
-            uploader.upload("selfie", "image/webp", it, RecordingsRepository.sha256(it), emptyMap(), clientId = selfieClientId(clientId))
+            val sha = RecordingsRepository.sha256(it)
+            uploader.upload("selfie", "image/webp", it, sha, emptyMap(), clientId = selfieClientId(clientId, sha))
         }
         val r = rpc.call(
             "bdm_start_day",
@@ -409,7 +413,7 @@ class BdmRepository(
                 put("device_at", Instant.ofEpochMilli(clock()).toString())
             })
         }, id)
-        update { it.copy(breakOpen = true, state = BdmState.ON_BREAK) }
+        update { it.copy(breakOpen = true, state = BdmState.ON_BREAK, resumeState = it.state) }
     }
 
     suspend fun endBreak() {
@@ -424,7 +428,9 @@ class BdmRepository(
         update {
             it.copy(
                 breakOpen = false,
-                state = when {
+                resumeState = null,
+                // Back to what it was before the break (on the way back from a visit stays travelling).
+                state = it.resumeState ?: when {
                     it.visitReached -> BdmState.AT_VISIT
                     it.visitId != null -> BdmState.TRAVELLING
                     else -> BdmState.IN_OFFICE
@@ -614,8 +620,13 @@ class BdmRepository(
         /** Points per upload piece; the server takes up to 2000 (location_chunks.points). */
         const val MAX_CHUNK_POINTS = 1000
 
-        /** Retries of the same upload reuse the same file id on the server. */
-        fun selfieClientId(dayClientId: String): String = java.util.UUID.nameUUIDFromBytes("selfie|$dayClientId".toByteArray()).toString()
+        /**
+         * Retries of the same upload reuse the same file id on the server. A new selfie after a failed
+         * start (same day client id, different photo) gets its own file: the server checks the size it
+         * was first told, so reusing the old file would fail every retry.
+         */
+        fun selfieClientId(dayClientId: String, sha256: String): String =
+            java.util.UUID.nameUUIDFromBytes("selfie|$dayClientId|$sha256".toByteArray()).toString()
 
         fun photoClientId(visitId: String): String = java.util.UUID.nameUUIDFromBytes("punch|$visitId".toByteArray()).toString()
     }

@@ -54,10 +54,10 @@ interface LeadDao {
         ORDER BY CASE WHEN next_followup_at IS NOT NULL AND next_followup_at <= :now THEN 0 ELSE 1 END,
                  CASE WHEN next_followup_at IS NOT NULL AND next_followup_at <= :now THEN next_followup_at END,
                  last_activity_at DESC, id
-        LIMIT :limit
+        LIMIT :limit OFFSET :offset
         """,
     )
-    fun observeList(anyStage: Boolean, stages: List<String>, dueBy: Long?, pattern: String, now: Long, limit: Int): Flow<List<LeadEntity>>
+    fun observeList(anyStage: Boolean, stages: List<String>, dueBy: Long?, pattern: String, now: Long, limit: Int, offset: Int = 0): Flow<List<LeadEntity>>
 
     @Query("SELECT * FROM leads WHERE phone_last10 = :last10 OR (alt_phone_e164 IS NOT NULL AND substr(alt_phone_e164, -10) = :last10) LIMIT 1")
     suspend fun byPhone(last10: String): LeadEntity?
@@ -103,9 +103,10 @@ interface FollowupDao {
         LEFT JOIN leads AS l ON l.id = f.lead_id
         WHERE f.status = 'open' AND f.assigned_to = :staffId AND f.due_date <= :lastDay
         ORDER BY f.due_date, COALESCE(f.due_at, 0), f.id
+        LIMIT :limit OFFSET :offset
         """,
     )
-    fun observeOpenWithLead(staffId: String, lastDay: String): Flow<List<FollowupWithLead>>
+    fun observeOpenWithLead(staffId: String, lastDay: String, limit: Int = 100, offset: Int = 0): Flow<List<FollowupWithLead>>
 
     @Query("SELECT * FROM followups WHERE lead_id = :leadId ORDER BY due_date DESC, id")
     fun observeForLead(leadId: String): Flow<List<FollowupEntity>>
@@ -181,10 +182,10 @@ interface CallLogDao {
     @Query(
         """
         SELECT c.*, l.name AS lead_name FROM call_logs AS c LEFT JOIN leads AS l ON l.id = c.lead_id
-        ORDER BY c.started_at DESC LIMIT :limit
+        ORDER BY c.started_at DESC, c.id DESC LIMIT :limit OFFSET :offset
         """,
     )
-    fun observeRecentWithLead(limit: Int): Flow<List<CallWithLead>>
+    fun observeRecentWithLead(limit: Int, offset: Int = 0): Flow<List<CallWithLead>>
 
     @Query("SELECT COUNT(*) FROM call_logs WHERE device_call_key = :key")
     suspend fun countByDeviceKey(key: String): Int

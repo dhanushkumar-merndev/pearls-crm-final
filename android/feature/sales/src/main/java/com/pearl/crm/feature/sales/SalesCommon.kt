@@ -8,8 +8,10 @@ import android.widget.Toast
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -17,6 +19,11 @@ import com.pearl.crm.core.model.CallOutcome
 import com.pearl.crm.core.model.IstDates
 import com.pearl.crm.core.model.LeadStage
 import java.time.LocalDate
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 @Composable
 fun stageLabel(stage: String): String = stringResource(
@@ -97,10 +104,30 @@ fun openWhatsApp(context: Context, phone: String) {
 data class StartedCall(val leadId: String, val phone: String, val startedAt: Long)
 
 /**
- * Call → dialer → back in the app → the notes sheet opens for that lead. (Phase 12 reads the
- * real call from the phone's call log; until then the time away is the call's length.)
+ * The phone's call watcher (app module): after any call with a CRM number it opens the notes sheet
+ * itself, with the call's real length from the call log. A call started from the app is handed to
+ * it, so the sheet opens once, not twice.
  */
-class CallFlow(private val context: Context) {
+interface AfterCallWatcher {
+    /** It will open the sheet after CRM calls (pop-up setting on, phone permissions and "show over other apps" allowed). */
+    fun active(): Boolean
+
+    /** The lead whose notes sheet it has opened (null when none). */
+    val pendingLeadId: StateFlow<String?>
+}
+
+val LocalAfterCallWatcher = staticCompositionLocalOf<AfterCallWatcher?> { null }
+
+/**
+ * Call → dialer → back in the app → the notes sheet opens for that lead. When the call watcher is
+ * active it gets [HANDOFF_MS] to claim the call (it knows the real length); the sheet here opens
+ * only if it doesn't (e.g. a lead made on this phone that the watcher doesn't know yet).
+ */
+class CallFlow(
+    private val context: Context,
+    private val scope: CoroutineScope? = null,
+    private val watcher: AfterCallWatcher? = null,
+) {
     var started by mutableStateOf<StartedCall?>(null)
     var needsNotes by mutableStateOf<StartedCall?>(null)
     var awayMs by mutableStateOf(0L)
@@ -112,14 +139,31 @@ class CallFlow(private val context: Context) {
     fun onResume() {
         val call = started ?: return
         started = null
-        awayMs = System.currentTimeMillis() - call.startedAt
+        val away = System.currentTimeMillis() - call.startedAt
+        val w = watcher
+        if (w == null || scope == null || !w.active()) return show(call, away)
+        scope.launch {
+            val claimed = withTimeoutOrNull(HANDOFF_MS) { w.pendingLeadId.first { it == call.leadId } }
+            if (claimed == null) show(call, away)
+        }
+    }
+
+    private fun show(call: StartedCall, away: Long) {
+        awayMs = away
         needsNotes = call
+    }
+
+    companion object {
+        /** The watcher waits 1.5 s for the call log, then opens its sheet: 5 s is plenty. */
+        const val HANDOFF_MS = 5_000L
     }
 }
 
 @Composable
 fun rememberCallFlow(context: Context): CallFlow {
-    val flow = androidx.compose.runtime.remember { CallFlow(context) }
+    val scope = rememberCoroutineScope()
+    val watcher = LocalAfterCallWatcher.current
+    val flow = androidx.compose.runtime.remember { CallFlow(context, scope, watcher) }
     var saved by rememberSaveable { mutableStateOf<String?>(null) }
     // Survive the activity being recreated while the dialer is open.
     if (flow.started == null && saved != null) {

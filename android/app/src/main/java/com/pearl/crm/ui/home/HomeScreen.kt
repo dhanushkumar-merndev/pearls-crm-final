@@ -37,7 +37,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
-import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
@@ -57,6 +56,7 @@ import com.pearl.crm.feature.bdm.SalesDayCard
 import com.pearl.crm.feature.sales.AfterCallNotes
 import com.pearl.crm.feature.sales.BookScreen
 import com.pearl.crm.feature.sales.CallSetupScreen
+import com.pearl.crm.feature.sales.LocalAfterCallWatcher
 import com.pearl.crm.feature.sales.LocalVoiceNotes
 import com.pearl.crm.feature.sales.RecordingsOnPhoneScreen
 import com.pearl.crm.feature.sales.StartedCall
@@ -93,13 +93,15 @@ fun HomeScreen(container: AppContainer, session: Session) {
     val pinChanged = stringResource(R.string.pin_changed)
     val scope = rememberCoroutineScope()
     AskForNotifications()
-    val voiceNotes = remember { VoiceNotes(container.voiceRecorder, container.recordings) }
+    val voiceNotes = remember { VoiceNotes(container.voiceRecorder, container.recordings) { com.pearl.crm.core.sync.RecordingWorker.schedule(container.appContext) } }
     val isSales = role == StaffRole.SalesExecutive || role == StaffRole.SalesManager
     // Read once per sign-in: the tip shows on this visit to Leads, never after.
     val swipeHint = remember { !container.settings.swipeHintSeen }
 
     val online by container.network.online.collectAsStateWithLifecycle()
-    CompositionLocalProvider(LocalVoiceNotes provides voiceNotes, LocalOnline provides online) {
+    // Calls started from the app leave their notes sheet to the call watcher when it is on (one sheet, not two).
+    val callWatcher = remember { com.pearl.crm.calls.AppCallWatcher(container.appContext, container) }
+    CompositionLocalProvider(LocalVoiceNotes provides voiceNotes, LocalOnline provides online, LocalAfterCallWatcher provides callWatcher) {
         Scaffold(
             snackbarHost = { SnackbarHost(snackbar) },
             // Offline / unsent changes: one slim strip above every tab (Settings shows the details itself).
@@ -136,7 +138,7 @@ fun HomeScreen(container: AppContainer, session: Session) {
             },
         ) { padding ->
             // The bars' space is used up here, so screens inside don't add the status/navigation bar again.
-            NavHost(nav, startDestination = tabs.first().route, modifier = Modifier.padding(padding).consumeWindowInsets(padding)) {
+            HomeNavHost(nav, tabs, modifier = Modifier.padding(padding).consumeWindowInsets(padding).padding(vertical = Spacing.s)) {
                 val sales = role == StaffRole.SalesExecutive || role == StaffRole.SalesManager
                 val openLead: (String) -> Unit = { id -> nav.navigate("lead/$id") }
                 // Pull-down on a list of phone data = sync with the server now.

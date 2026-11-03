@@ -44,6 +44,7 @@ import com.pearl.crm.core.model.StaffRole
 import com.pearl.crm.core.model.ThemeMode
 import com.pearl.crm.core.ui.components.ButtonKind
 import com.pearl.crm.core.ui.components.ListRow
+import com.pearl.crm.core.ui.components.Avatar
 import com.pearl.crm.core.ui.components.PearlCard
 import com.pearl.crm.core.ui.components.Section
 import com.pearl.crm.core.ui.components.MinTouchTarget
@@ -133,14 +134,20 @@ fun SettingsScreen(
         verticalArrangement = Arrangement.spacedBy(Spacing.section),
     ) {
         Text(stringResource(R.string.settings_title), style = MaterialTheme.typography.titleLarge)
-        PearlCard(verticalSpacing = 2.dp) {
-            Text(state.fullName?.takeIf { it.isNotBlank() } ?: state.username, style = MaterialTheme.typography.titleSmall)
-            val role = state.role?.let { roleLabel(it) }
-            Text(
-                listOfNotNull(state.username, role).joinToString(" · "),
-                style = MaterialTheme.typography.bodySmall,
-                color = Pearl.palette.textSecondary,
-            )
+        PearlCard {
+            val shown = state.fullName?.takeIf { it.isNotBlank() } ?: state.username
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.l)) {
+                Avatar(shown.orEmpty(), size = 48.dp)
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(shown.orEmpty(), style = MaterialTheme.typography.titleSmall)
+                    val role = state.role?.let { roleLabel(it) }
+                    Text(
+                        listOfNotNull(state.username, role).joinToString(" · "),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Pearl.palette.textSecondary,
+                    )
+                }
+            }
         }
 
         Section(stringResource(R.string.settings_sync)) {

@@ -5,6 +5,10 @@
     <string name="common_try_again">Try again</string>
     <string name="common_back">Back</string>
     <string name="common_loading">Loading…</string>
+    <string name="common_loading_photo">Loading photo…</string>
+    <string name="common_previous_page">Previous</string>
+    <string name="common_next_page">Next</string>
+    <string name="common_page_number">Page %1$d</string>
 
     <!-- Charts (PearlCharts.kt) -->
     <string name="chart_show_table">Table</string>

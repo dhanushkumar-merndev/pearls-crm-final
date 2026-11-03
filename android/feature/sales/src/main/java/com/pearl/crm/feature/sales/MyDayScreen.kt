@@ -36,6 +36,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.Lifecycle
 import com.pearl.crm.core.data.SalesRepository
 import com.pearl.crm.core.model.CallsOnDay
 import com.pearl.crm.core.model.IstDates
@@ -50,6 +52,17 @@ import com.pearl.crm.core.ui.charts.LegendEntry
 import com.pearl.crm.core.ui.charts.PearlChartCard
 import com.pearl.crm.core.ui.charts.PearlColumnChart
 import com.pearl.crm.core.ui.components.ButtonKind
+import com.pearl.crm.core.ui.components.Accent
+import com.pearl.crm.core.ui.components.Avatar
+import com.pearl.crm.core.ui.components.GreetingHeader
+import com.pearl.crm.core.ui.components.InfoLine
+import com.pearl.crm.core.ui.components.StatItem
+import com.pearl.crm.core.ui.components.StatTiles
+import androidx.compose.material.icons.outlined.Call
+import androidx.compose.material.icons.outlined.PhoneInTalk
+import androidx.compose.material.icons.outlined.EventRepeat
+import androidx.compose.material.icons.outlined.Insights
+import androidx.compose.material.icons.outlined.TaskAlt
 import com.pearl.crm.core.ui.components.EmptyState
 import com.pearl.crm.core.ui.components.LoadingBlock
 import com.pearl.crm.core.ui.components.Muted
@@ -84,14 +97,14 @@ fun MyDayScreen(
     /** Above the numbers: the sales executive's Start / End day card (from feature:bdm). */
     header: @Composable () -> Unit = {},
 ) {
-    var dashboard by remember { mutableStateOf<SalesDashboard?>(null) }
+    var dashboard by remember { mutableStateOf(sales.cachedDashboard()) }
     var failure by remember { mutableStateOf<Throwable?>(null) }
-    val pending by remember { sales.observeNeedsConfirmation() }.collectAsStateWithLifecycle(emptyList())
+    val pending by remember { sales.observeNeedsConfirmation() }.collectAsStateWithLifecycle(emptyList(), minActiveState = Lifecycle.State.RESUMED)
     val scope = rememberCoroutineScope()
 
-    suspend fun load() {
+    suspend fun load(forceRefresh: Boolean = false) {
         try {
-            dashboard = sales.dashboard()
+            dashboard = sales.dashboard(forceRefresh)
             failure = null
         } catch (e: CancellationException) {
             throw e
@@ -99,16 +112,17 @@ fun MyDayScreen(
             failure = e
         }
     }
-    LaunchedEffect(Unit) { load() }
+    // Network results and chart setup should not compete with the incoming slide.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { scope.launch { load() } }
     val online = LocalOnline.current
-    LaunchedEffect(online) { if (online && failure != null) load() }
+    LaunchedEffect(online) { if (online && failure != null) load(forceRefresh = true) }
 
-    PearlRefreshBox(onRefresh = { load() }, modifier = Modifier.fillMaxSize()) {
+    PearlRefreshBox(onRefresh = { load(forceRefresh = true) }, modifier = Modifier.fillMaxSize()) {
         Column(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(Spacing.screen),
             verticalArrangement = Arrangement.spacedBy(Spacing.section),
         ) {
-            Text(stringResource(R.string.myday_hello, name), style = MaterialTheme.typography.titleLarge)
+            GreetingHeader(stringResource(R.string.myday_hello, name), name)
             header()
 
             val d = dashboard
@@ -120,7 +134,7 @@ fun MyDayScreen(
                         if (f is RpcFailure.Transient) stringResource(R.string.myday_offline_numbers) else failureMessage(f),
                         if (f is RpcFailure.Transient) StatusTone.Offline else StatusTone.Critical,
                     )
-                    PearlButton(stringResource(R.string.myday_refresh), Icons.Outlined.Refresh, { scope.launch { load() } }, kind = ButtonKind.Tonal, small = true)
+                    PearlButton(stringResource(R.string.myday_refresh), Icons.Outlined.Refresh, { scope.launch { load(forceRefresh = true) } }, kind = ButtonKind.Tonal, small = true)
                 }
                 // Loading: the tiles' space, so nothing jumps when the numbers arrive.
                 else -> LoadingBlock(rows = 1, rowHeight = 64.dp)
@@ -132,12 +146,13 @@ fun MyDayScreen(
 
             Section(stringResource(R.string.myday_confirm_title)) {
                 if (pending.isEmpty()) {
-                    Muted(stringResource(R.string.myday_confirm_none))
+                    InfoLine(Icons.Outlined.TaskAlt, stringResource(R.string.myday_confirm_none))
                 }
                 pending.forEach { row ->
                     val a = row.appointment
                     PearlCard(onClick = a.leadId?.let { id -> { onOpenLead(id) } }) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.m)) {
+                            Avatar(row.leadName ?: "?", size = 36.dp)
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                 Text(row.leadName ?: "—", style = MaterialTheme.typography.titleSmall)
                                 Muted(listOfNotNull(row.leadPhone, a.slotStart?.let(IstDates::formatDateTime), a.doctor).joinToString(" · "))
@@ -163,14 +178,14 @@ fun MyDayScreen(
 @Composable
 private fun TodayTiles(d: SalesDashboard) {
     val t = d.today
-    StatGrid(
+    StatTiles(
         listOf(
-            stringResource(R.string.myday_calls) to t.calls.toString(),
-            stringResource(R.string.myday_connected) to t.connected.toString(),
-            stringResource(R.string.myday_due) to t.followupsDue.toString(),
+            StatItem(stringResource(R.string.myday_calls), t.calls.toString(), Icons.Outlined.Call, Accent.Blue),
+            StatItem(stringResource(R.string.myday_connected), t.connected.toString(), Icons.Outlined.PhoneInTalk, Accent.Teal),
+            StatItem(stringResource(R.string.myday_due), t.followupsDue.toString(), Icons.Outlined.EventRepeat, Accent.Amber),
         ),
     )
-    Muted(stringResource(R.string.myday_secondary, t.followupsOverdue, t.booked, t.pendingConfirmations), Modifier.testTag("myday-secondary"))
+    InfoLine(Icons.Outlined.Insights, stringResource(R.string.myday_secondary, t.followupsOverdue, t.booked, t.pendingConfirmations), Modifier.testTag("myday-secondary"))
 }
 
 /** This month's targets: a meter per metric that has one (the number is written out too). */

@@ -14,8 +14,8 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -48,8 +48,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -61,6 +65,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -72,7 +77,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.Lifecycle
 import com.pearl.crm.core.data.LeadDraft
 import com.pearl.crm.core.data.LeadFilter
 import com.pearl.crm.core.data.SalesRepository
@@ -82,6 +89,13 @@ import com.pearl.crm.core.model.LibraryKind
 import com.pearl.crm.core.model.LibrarySource
 import com.pearl.crm.core.model.Phones
 import com.pearl.crm.core.ui.components.ButtonKind
+import com.pearl.crm.core.ui.components.Accent
+import com.pearl.crm.core.ui.components.Avatar
+import com.pearl.crm.core.ui.components.InfoLine
+import com.pearl.crm.core.ui.components.Tag
+import com.pearl.crm.core.ui.components.TintedIconButton
+import com.pearl.crm.core.ui.components.accentColor
+import androidx.compose.material.icons.outlined.Schedule
 import com.pearl.crm.core.ui.components.EmptyAction
 import com.pearl.crm.core.ui.components.EmptyState
 import com.pearl.crm.core.ui.components.IconSize
@@ -89,6 +103,9 @@ import com.pearl.crm.core.ui.components.LoadingBlock
 import com.pearl.crm.core.ui.components.Muted
 import com.pearl.crm.core.ui.components.PearlButton
 import com.pearl.crm.core.ui.components.PearlCard
+import com.pearl.crm.core.ui.components.PearlLazyColumn
+import com.pearl.crm.core.ui.components.PageControls
+import com.pearl.crm.core.ui.components.ListPageSize
 import com.pearl.crm.core.ui.components.PearlRefreshBox
 import com.pearl.crm.core.ui.components.PearlTopBar
 import com.pearl.crm.core.ui.components.StatusLabel
@@ -130,8 +147,16 @@ fun LeadsScreen(
     val context = LocalContext.current
     var filter by rememberSaveable { mutableStateOf(LeadFilter.Due) }
     var query by rememberSaveable { mutableStateOf("") }
+    val search by remember { snapshotFlow { query }.debouncedLeadSearch() }.collectAsStateWithLifecycle(query)
+    var page by rememberSaveable(filter, search) { mutableIntStateOf(0) }
+    val listState = key(filter, search, page) { rememberLazyListState() }
     var adding by rememberSaveable { mutableStateOf(false) }
-    val leads by remember(filter, query) { sales.observeLeads(filter, query) }.collectAsStateWithLifecycle(null)
+    // Start row composition once the navigation slide has finished, not in its first frames.
+    val leads by key(filter, search, page) {
+        remember { sales.observeLeads(filter, search, ListPageSize + 1, page * ListPageSize) }
+            .collectAsStateWithLifecycle(sales.cachedLeads(filter, search, ListPageSize + 1, page * ListPageSize), minActiveState = Lifecycle.State.RESUMED)
+    }
+    LaunchedEffect(leads, page) { if (leads?.isEmpty() == true && page > 0) page-- }
     val calls = rememberCallFlow(context)
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -185,27 +210,30 @@ fun LeadsScreen(
                 }
             }
             PearlRefreshBox(onRefresh = onRefresh, modifier = Modifier.weight(1f)) {
-                val list = leads
-                LazyColumn(
+                val list = remember(leads) { leads?.take(ListPageSize) }
+                PearlLazyColumn(
                     Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(start = Spacing.screen, end = Spacing.screen, top = Spacing.xs, bottom = FabClearance),
                     verticalArrangement = Arrangement.spacedBy(Spacing.item),
-                ) {
+                    state = if (list == null) rememberLazyListState() else listState,
+                ) { emptyModifier ->
                     when {
                         list == null -> item(key = "loading") { LoadingBlock(rows = 4, rowHeight = 64.dp) }
                         list.isEmpty() -> item(key = "empty") {
                             when {
-                                query.isNotBlank() -> EmptyState(
+                                search.isNotBlank() -> EmptyState(
                                     Icons.Outlined.SearchOff,
-                                    stringResource(R.string.leads_empty_search, query),
+                                    stringResource(R.string.leads_empty_search, search),
+                                    modifier = emptyModifier,
                                     action = EmptyAction(stringResource(R.string.leads_clear_search), Icons.Outlined.Close) { query = "" },
                                 )
                                 filter == LeadFilter.Due -> EmptyState(
                                     Icons.Outlined.EventAvailable,
                                     stringResource(R.string.leads_empty_due),
+                                    modifier = emptyModifier,
                                     action = EmptyAction(stringResource(R.string.leads_show_all), Icons.Outlined.People) { filter = LeadFilter.All },
                                 )
-                                else -> EmptyState(Icons.Outlined.People, stringResource(R.string.leads_empty))
+                                else -> EmptyState(Icons.Outlined.People, stringResource(R.string.leads_empty), emptyModifier)
                             }
                         }
                         else -> {
@@ -219,6 +247,9 @@ fun LeadsScreen(
                                 )
                             }
                         }
+                    }
+                    if (leads != null) item(key = "pagination") {
+                        PageControls(page, leads!!.size > ListPageSize, { page-- }, { page++ })
                     }
                 }
             }
@@ -287,21 +318,27 @@ fun LeadRow(lead: LeadEntity, onOpen: () -> Unit, onCall: () -> Unit, onWhatsApp
         modifier = Modifier.testTag("lead-${lead.id}"),
         contentPadding = PaddingValues(start = Spacing.l, top = Spacing.m, bottom = Spacing.m, end = Spacing.xs),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.m)) {
+            Avatar(lead.name)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(lead.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(
-                    listOfNotNull(lead.phoneE164, stageLabel(lead.stage)).joinToString(" · "),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Pearl.palette.textSecondary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                lead.nextFollowupAt?.let { Text(dueText(it), style = MaterialTheme.typography.bodySmall) }
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                    Tag(stageLabel(lead.stage))
+                    Text(
+                        lead.phoneE164,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Pearl.palette.textSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                }
+                lead.nextFollowupAt?.let { InfoLine(Icons.Outlined.Schedule, dueText(it), small = true, color = if (it < System.currentTimeMillis()) Pearl.palette.badText else null) }
                 if (lead.pending) StatusLabel(stringResource(R.string.not_sent_yet), StatusTone.Info)
             }
-            IconButton(onClick = onCall) { Icon(Icons.Outlined.Call, stringResource(R.string.call), Modifier.size(IconSize)) }
-            IconButton(onClick = onWhatsApp) { Icon(Icons.Outlined.Chat, stringResource(R.string.whatsapp), Modifier.size(IconSize)) }
+            TintedIconButton(Icons.Outlined.Call, stringResource(R.string.call), accentColor(Accent.Teal), onCall)
+            TintedIconButton(Icons.Outlined.Chat, stringResource(R.string.whatsapp), accentColor(Accent.Blue), onWhatsApp)
+            Spacer(Modifier.width(Spacing.xs))
         }
     }
 }
@@ -319,6 +356,8 @@ fun AfterCallNotes(
     durationS: Int? = null,
     direction: String = com.pearl.crm.core.model.CallDirection.OUTGOING,
     deviceCallKey: String? = null,
+    /** False for notes typed without a call from the app (no call time to find its recording by). */
+    offerCallRecording: Boolean = true,
 ) {
     val scope = rememberCoroutineScope()
     val voice = LocalVoiceNotes.current
@@ -327,6 +366,7 @@ fun AfterCallNotes(
         leadName = leadName,
         library = library,
         busy = busy,
+        offerCallRecording = offerCallRecording && voice != null,
         onDismiss = { onDone(false) },
         onSave = { input ->
             busy = true
@@ -348,6 +388,8 @@ fun AfterCallNotes(
                 )
                 val clip = input.voiceNote
                 if (clip != null && voice != null) voice.recordings.addVoiceNote(call.leadId, clip.file, clip.seconds, lostNote = true)
+                if (input.uploadRecording && voice != null) runCatching { voice.recordings.requestCallUpload(call.leadId, call.startedAt) }
+                if ((clip != null || input.uploadRecording) && voice != null) voice.syncRecordings()
                 busy = false
                 onDone(true)
             }
@@ -410,9 +452,12 @@ fun NewLeadDialog(sales: SalesRepository, library: LibrarySource, onClose: (Stri
 
     // Edge to edge: the form draws behind the bars itself and keeps Save above the keyboard.
     Dialog(onDismissRequest = { onClose(null) }, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+        // This form has its own window, so it needs the same directional motion as a page.
+        val window = (LocalView.current.parent as? DialogWindowProvider)?.window
+        SideEffect { window?.setWindowAnimations(R.style.Pearl_FullScreenDialogAnimation) }
         Surface(Modifier.fillMaxSize()) {
-            Column(Modifier.fillMaxSize().safeDrawingPadding()) {
-                PearlTopBar(stringResource(R.string.new_lead_title), modifier = Modifier.padding(top = Spacing.xs))
+            Column(Modifier.fillMaxSize().safeDrawingPadding().padding(vertical = Spacing.s)) {
+                PearlTopBar(stringResource(R.string.new_lead_title), onBack = { onClose(null) })
                 Column(
                     Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = Spacing.screen),
                     verticalArrangement = Arrangement.spacedBy(Spacing.m),

@@ -187,28 +187,45 @@ fun PearlTopBar(
 /** What an empty list offers next, e.g. "Show all leads". */
 data class EmptyAction(val label: String, val icon: ImageVector, val onClick: () -> Unit)
 
-/** Nothing to show: an icon, a short title, a line of help and (optionally) the next step. */
+/**
+ * Nothing to show, centered in the space supplied by the screen. In [PearlLazyColumn] use
+ * its empty modifier; leave the modifier compact for an inline chart message.
+ */
 @Composable
 fun EmptyState(icon: ImageVector, title: String, modifier: Modifier = Modifier, body: String? = null, action: EmptyAction? = null) {
-    Column(
-        modifier.fillMaxWidth().padding(vertical = Spacing.xl, horizontal = Spacing.l).testTag("empty-state"),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(Spacing.s),
+    Box(
+        modifier.fillMaxWidth().padding(vertical = Spacing.xl, horizontal = Spacing.l),
+        contentAlignment = Alignment.Center,
     ) {
-        Icon(icon, contentDescription = null, tint = Pearl.palette.textMuted, modifier = Modifier.size(32.dp))
-        Text(title, style = MaterialTheme.typography.titleSmall, textAlign = TextAlign.Center)
-        body?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = Pearl.palette.textSecondary, textAlign = TextAlign.Center, modifier = Modifier.widthIn(max = 320.dp)) }
-        action?.let { PearlButton(it.label, it.icon, it.onClick, kind = ButtonKind.Tonal, small = true, modifier = Modifier.padding(top = Spacing.xs)) }
+        Column(
+            Modifier.widthIn(max = 320.dp).testTag("empty-state"),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(Spacing.s),
+        ) {
+            Box(
+                Modifier.padding(bottom = Spacing.xs).size(64.dp).background(MaterialTheme.colorScheme.surfaceContainerHigh, androidx.compose.foundation.shape.CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(icon, contentDescription = null, tint = Pearl.palette.textSecondary, modifier = Modifier.size(28.dp))
+            }
+            Text(title, style = MaterialTheme.typography.titleSmall, textAlign = TextAlign.Center)
+            body?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = Pearl.palette.textSecondary, textAlign = TextAlign.Center) }
+            action?.let { PearlButton(it.label, it.icon, it.onClick, kind = ButtonKind.Tonal, small = true, modifier = Modifier.padding(top = Spacing.xs)) }
+        }
     }
 }
 
-/** A grey placeholder block while something loads (no shimmer: calm, and cheap to draw). */
+/** A grey placeholder block while something loads; it pulses gently (no sweeping shimmer: calm). */
 @Composable
-fun SkeletonBox(modifier: Modifier = Modifier) {
-    Box(modifier.background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f), MaterialTheme.shapes.small))
+fun SkeletonBox(modifier: Modifier = Modifier, shape: androidx.compose.ui.graphics.Shape = MaterialTheme.shapes.small) {
+    val pulse = rememberPulseAlpha()
+    Box(modifier.background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = pulse), shape))
 }
 
-/** [rows] placeholder rows of [rowHeight], read out as "Loading…". Keeps the screen from jumping. */
+/**
+ * [rows] placeholder rows of [rowHeight], read out as "Loading…". Keeps the screen from jumping.
+ * Rows 56 dp and taller look like the list rows they stand for (a round mark and two lines).
+ */
 @Composable
 fun LoadingBlock(modifier: Modifier = Modifier, rows: Int = 3, rowHeight: Dp = 56.dp) {
     val loading = stringResource(R.string.common_loading)
@@ -216,7 +233,22 @@ fun LoadingBlock(modifier: Modifier = Modifier, rows: Int = 3, rowHeight: Dp = 5
         modifier.fillMaxWidth().semantics(mergeDescendants = true) { contentDescription = loading }.testTag("loading"),
         verticalArrangement = Arrangement.spacedBy(Spacing.item),
     ) {
-        repeat(rows) { SkeletonBox(Modifier.fillMaxWidth().height(rowHeight)) }
+        repeat(rows) { i ->
+            if (rowHeight < 56.dp) {
+                SkeletonBox(Modifier.fillMaxWidth().height(rowHeight))
+            } else {
+                PearlCard(Modifier.height(rowHeight), contentPadding = PaddingValues(horizontal = Spacing.l), verticalSpacing = 0.dp) {
+                    Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.l)) {
+                        SkeletonBox(Modifier.size(32.dp), androidx.compose.foundation.shape.CircleShape)
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                            // Slightly different widths per row, so the block reads as a list.
+                            SkeletonBox(Modifier.fillMaxWidth(if (i % 2 == 0) 0.55f else 0.45f).height(12.dp))
+                            SkeletonBox(Modifier.fillMaxWidth(if (i % 2 == 0) 0.8f else 0.7f).height(10.dp))
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

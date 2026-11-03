@@ -131,6 +131,10 @@ interface RecordingDao {
     @Query("SELECT COUNT(*) FROM recordings WHERE status IN ('queued', 'uploading')")
     fun observeWaitingCount(): Flow<Int>
 
+    /** Dialer recordings of a lead's call around a time (for "Upload call recording" after that call). */
+    @Query("SELECT id FROM recordings WHERE kind = 'call' AND lead_id = :leadId AND recorded_at BETWEEN :from AND :to")
+    suspend fun callIdsOfLead(leadId: String, from: Long, to: Long): List<String>
+
     /** Queue for upload (a manager asked, the person tapped Sync, or the mode uploads every call). */
     @Query("UPDATE recordings SET status = 'queued', attempts = 0, error = NULL WHERE id IN (:ids) AND status IN ('on_phone', 'failed')")
     suspend fun queue(ids: List<String>): Int

@@ -67,6 +67,16 @@ class SettingsStore(private val prefs: SharedPreferences) {
             prefs.edit().putInt(KEY_REC_MAX, value).apply()
         }
 
+    /**
+     * "Upload call recording" taps whose file wasn't on the phone yet: "leadId|callStartedAt|tappedAt".
+     * The next scan that finds the file uploads it (RecordingsRepository.requestCallUpload).
+     */
+    var callUploadRequests: Set<String>
+        get() = prefs.getStringSet(KEY_REC_REQUESTS, null)?.toSet().orEmpty()
+        set(value) {
+            prefs.edit().putStringSet(KEY_REC_REQUESTS, value).commit()
+        }
+
     /** The caller pop-up is on (the person can switch it off in Settings). */
     var callerPopup: Boolean
         get() = prefs.getBoolean(KEY_POPUP, true)
@@ -103,6 +113,7 @@ class SettingsStore(private val prefs: SharedPreferences) {
         const val KEY_REC_FOLDER = "recording_folder"
         const val KEY_REC_MODE = "recording_mode"
         const val KEY_REC_MAX = "recording_max_seconds"
+        const val KEY_REC_REQUESTS = "recording_call_requests"
         const val KEY_POPUP = "caller_popup"
         const val KEY_SWIPE_HINT = "swipe_hint_seen"
         const val KEY_BIOMETRIC = "biometric_lock"

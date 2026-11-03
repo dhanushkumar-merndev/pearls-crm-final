@@ -8,8 +8,8 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Call
 import androidx.compose.material.icons.outlined.Check
@@ -27,6 +27,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -39,17 +44,27 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.Lifecycle
 import com.pearl.crm.core.data.SalesRepository
 import com.pearl.crm.core.data.db.FollowupWithLead
 import com.pearl.crm.core.model.CallDirection
 import com.pearl.crm.core.model.IstDates
 import com.pearl.crm.core.model.LibrarySource
 import com.pearl.crm.core.ui.components.ButtonKind
+import com.pearl.crm.core.ui.components.Accent
+import com.pearl.crm.core.ui.components.IconBadge
+import com.pearl.crm.core.ui.components.TintedIconButton
+import com.pearl.crm.core.ui.components.accentColor
+import androidx.compose.material.icons.outlined.EventRepeat
+import androidx.compose.material.icons.outlined.PhoneCallback
 import com.pearl.crm.core.ui.components.EmptyState
 import com.pearl.crm.core.ui.components.IconSize
 import com.pearl.crm.core.ui.components.LoadingBlock
 import com.pearl.crm.core.ui.components.PearlButton
 import com.pearl.crm.core.ui.components.PearlCard
+import com.pearl.crm.core.ui.components.PearlLazyColumn
+import com.pearl.crm.core.ui.components.PageControls
+import com.pearl.crm.core.ui.components.ListPageSize
 import com.pearl.crm.core.ui.components.PearlRefreshBox
 import com.pearl.crm.core.ui.components.StatusLabel
 import com.pearl.crm.core.ui.components.StatusTone
@@ -75,8 +90,13 @@ fun FollowupsScreen(
 ) {
     val context = LocalContext.current
     val today = remember { istToday() }
-    val tasks by remember(staffId) { sales.observeOpenFollowups(staffId, today.plusDays(7).toString()) }
-        .collectAsStateWithLifecycle(null)
+    var page by rememberSaveable(staffId) { mutableIntStateOf(0) }
+    val listState = key(staffId, page) { rememberLazyListState() }
+    val tasks by key(staffId, page) {
+        remember { sales.observeOpenFollowups(staffId, today.plusDays(7).toString(), ListPageSize + 1, page * ListPageSize) }
+            .collectAsStateWithLifecycle(sales.cachedOpenFollowups(staffId, today.plusDays(7).toString(), ListPageSize + 1, page * ListPageSize), minActiveState = Lifecycle.State.RESUMED)
+    }
+    LaunchedEffect(tasks, page) { if (tasks?.isEmpty() == true && page > 0) page-- }
     val calls = rememberCallFlow(context)
     val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
@@ -84,7 +104,7 @@ fun FollowupsScreen(
     val hidden = remember { mutableStateListOf<String>() }
     val doneText = stringResource(R.string.followups_done_snack)
     val undoText = stringResource(R.string.followups_undo)
-    val list = tasks?.filter { it.task.id !in hidden }
+    val list = tasks?.take(ListPageSize)?.filter { it.task.id !in hidden }
 
     fun done(id: String) {
         hidden += id
@@ -105,15 +125,16 @@ fun FollowupsScreen(
         Column(Modifier.fillMaxSize().padding(padding)) {
             ScreenTitle(stringResource(R.string.followups_title))
             PearlRefreshBox(onRefresh = onRefresh, modifier = Modifier.weight(1f)) {
-                LazyColumn(
+                PearlLazyColumn(
                     Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(start = Spacing.screen, end = Spacing.screen, bottom = Spacing.screen),
+                    contentPadding = PaddingValues(start = Spacing.screen, end = Spacing.screen, top = Spacing.s, bottom = Spacing.xl),
                     verticalArrangement = Arrangement.spacedBy(Spacing.item),
-                ) {
+                    state = if (list == null) rememberLazyListState() else listState,
+                ) { emptyModifier ->
                     when {
                         list == null -> item(key = "loading") { LoadingBlock(rows = 4, rowHeight = 64.dp) }
                         list.isEmpty() -> item(key = "empty") {
-                            EmptyState(Icons.Outlined.TaskAlt, stringResource(R.string.followups_empty), body = stringResource(R.string.followups_empty_body))
+                            EmptyState(Icons.Outlined.TaskAlt, stringResource(R.string.followups_empty), emptyModifier, body = stringResource(R.string.followups_empty_body))
                         }
                         else -> {
                             val todayText = today.toString()
@@ -143,6 +164,9 @@ fun FollowupsScreen(
                             }
                         }
                     }
+                    if (tasks != null) item(key = "pagination") {
+                        PageControls(page, tasks!!.size > ListPageSize, { page-- }, { page++ })
+                    }
                 }
             }
         }
@@ -171,7 +195,11 @@ private fun TaskRow(row: FollowupWithLead, overdue: Boolean, onOpen: () -> Unit,
         modifier = Modifier.testTag("task-${task.id}"),
         contentPadding = PaddingValues(start = Spacing.l, top = Spacing.m, bottom = Spacing.m, end = Spacing.s),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.m)) {
+            IconBadge(
+                if (task.kind == "call_to_confirm") Icons.Outlined.PhoneCallback else Icons.Outlined.EventRepeat,
+                if (overdue) Pearl.palette.badText else accentColor(Accent.Amber),
+            )
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(row.leadName ?: task.reason, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
@@ -188,7 +216,7 @@ private fun TaskRow(row: FollowupWithLead, overdue: Boolean, onOpen: () -> Unit,
                 )
             }
             if (onCall != null) {
-                IconButton(onClick = onCall) { Icon(Icons.Outlined.Call, stringResource(R.string.call), Modifier.size(IconSize)) }
+                TintedIconButton(Icons.Outlined.Call, stringResource(R.string.call), accentColor(Accent.Teal), onCall)
             }
             PearlButton(stringResource(R.string.followups_done), Icons.Outlined.Check, onDone, kind = ButtonKind.Tonal, small = true)
         }
@@ -198,19 +226,26 @@ private fun TaskRow(row: FollowupWithLead, overdue: Boolean, onOpen: () -> Unit,
 /** Calls made or received in the last 60 days, newest first, each with its direction. */
 @Composable
 fun CallsScreen(sales: SalesRepository, onOpenLead: (String) -> Unit, onRefresh: suspend () -> Unit = {}) {
-    val calls by remember { sales.observeRecentCalls(200) }.collectAsStateWithLifecycle(null)
+    var page by rememberSaveable { mutableIntStateOf(0) }
+    val listState = key(page) { rememberLazyListState() }
+    val calls by key(page) {
+        remember { sales.observeRecentCalls(ListPageSize + 1, page * ListPageSize) }
+            .collectAsStateWithLifecycle(sales.cachedRecentCalls(ListPageSize + 1, page * ListPageSize), minActiveState = Lifecycle.State.RESUMED)
+    }
+    LaunchedEffect(calls, page) { if (calls?.isEmpty() == true && page > 0) page-- }
     Column(Modifier.fillMaxSize()) {
         ScreenTitle(stringResource(R.string.calls_title))
         PearlRefreshBox(onRefresh = onRefresh, modifier = Modifier.weight(1f)) {
-            val list = calls
-            LazyColumn(
+            val list = remember(calls) { calls?.take(ListPageSize) }
+            PearlLazyColumn(
                 Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(start = Spacing.screen, end = Spacing.screen, bottom = Spacing.screen),
+                contentPadding = PaddingValues(start = Spacing.screen, end = Spacing.screen, top = Spacing.s, bottom = Spacing.xl),
                 verticalArrangement = Arrangement.spacedBy(Spacing.item),
-            ) {
+                state = if (list == null) rememberLazyListState() else listState,
+            ) { emptyModifier ->
                 when {
                     list == null -> item(key = "loading") { LoadingBlock(rows = 4, rowHeight = 64.dp) }
-                    list.isEmpty() -> item(key = "empty") { EmptyState(Icons.Outlined.PhoneDisabled, stringResource(R.string.calls_empty)) }
+                    list.isEmpty() -> item(key = "empty") { EmptyState(Icons.Outlined.PhoneDisabled, stringResource(R.string.calls_empty), emptyModifier) }
                     else -> items(list, key = { it.call.id }) { row ->
                         val c = row.call
                         val missed = c.direction == CallDirection.MISSED
@@ -242,6 +277,9 @@ fun CallsScreen(sales: SalesRepository, onOpenLead: (String) -> Unit, onRefresh:
                             if (c.pending) StatusLabel(stringResource(R.string.not_sent_yet), StatusTone.Info)
                         }
                     }
+                }
+                if (calls != null) item(key = "pagination") {
+                    PageControls(page, calls!!.size > ListPageSize, { page-- }, { page++ })
                 }
             }
         }

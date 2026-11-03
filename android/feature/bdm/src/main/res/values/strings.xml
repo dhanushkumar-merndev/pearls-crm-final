@@ -2,6 +2,7 @@
 <resources>
     <string name="bdm_hello">Hello, %1$s</string>
     <string name="bdm_state_off_duty">Not started</string>
+    <string name="bdm_state_ended">Day ended</string>
     <string name="bdm_state_in_office">At the office</string>
     <string name="bdm_state_travelling">Travelling</string>
     <string name="bdm_state_at_visit">At a visit</string>
@@ -46,6 +47,12 @@
     <string name="bdm_reached_body">Take a photo at the place as proof of the visit (optional).</string>
     <string name="bdm_take_photo">Take photo</string>
     <string name="bdm_photo_ready">Photo ready ✓</string>
+    <string name="bdm_retake_photo">Retake</string>
+    <string name="bdm_meeting_title">Meeting recording</string>
+    <string name="day_step_photo">Preparing your photo…</string>
+    <string name="day_step_location">Finding your location…</string>
+    <string name="day_step_upload">Starting your day…</string>
+    <string name="day_selfie_alt">Your selfie</string>
     <string name="bdm_confirm_reached">Mark reached</string>
 
     <!-- Meeting audio -->
