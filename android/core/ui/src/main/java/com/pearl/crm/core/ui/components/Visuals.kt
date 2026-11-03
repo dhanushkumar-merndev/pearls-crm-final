@@ -51,7 +51,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -204,7 +203,7 @@ fun StatTiles(items: List<StatItem>, modifier: Modifier = Modifier, perRow: Int 
 
 /**
  * A card that leads with an icon badge and a title (and a line under it), then [content].
- * A faint wash of the accent at the top sets it apart from plain cards (the screen's main card).
+ * Flat like every card (ChatGPT style, owner 03/11/2026: no gradients): raised colour, hairline border.
  */
 @Composable
 fun HeroCard(
@@ -223,9 +222,7 @@ fun HeroCard(
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(
-            Modifier
-                .background(Brush.verticalGradient(listOf(accent.copy(alpha = 0.10f), Color.Transparent)))
-                .padding(Spacing.card),
+            Modifier.padding(Spacing.card),
             verticalArrangement = Arrangement.spacedBy(Spacing.m),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.m)) {

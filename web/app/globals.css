@@ -99,12 +99,10 @@
 }
 
 /* WhatsApp-style chat (components/whatsapp): every surface mixed from theme tokens, so it
-   follows dark/light. A very faint dot pattern on the wall, like WhatsApp Web. */
+   follows dark/light. The wall is a plain flat colour (ChatGPT style: no patterns or gradients). */
 @layer components {
   .chat-wall {
     background-color: color-mix(in srgb, var(--muted) 55%, var(--background));
-    background-image: radial-gradient(color-mix(in srgb, var(--foreground) 6%, transparent) 1px, transparent 1px);
-    background-size: 18px 18px;
   }
   .chat-in {
     background-color: var(--card);

@@ -30,7 +30,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.RectangleShape
@@ -317,7 +316,7 @@ fun PearlColumnChart(
 }
 
 /**
- * A smooth line with a soft gradient under it (for trends: money per month, leads per week…).
+ * A smooth line with a light flat fill under it (for trends: money per month, leads per week…).
  * Same axes, marker and fit-to-width rules as [PearlColumnChart].
  */
 @Composable
@@ -337,7 +336,8 @@ fun PearlLineChart(
         producer.runTransaction { lineSeries { series(values) } }
     }
     val area = remember(color) {
-        LineCartesianLayer.AreaFill.single(Fill(Brush.verticalGradient(listOf(color.copy(alpha = 0.32f), color.copy(alpha = 0f)))))
+        // Flat, light fill under the line (no gradients anywhere, owner 03/11/2026).
+        LineCartesianLayer.AreaFill.single(Fill(color.copy(alpha = 0.14f)))
     }
     val line = LineCartesianLayer.rememberLine(
         fill = remember(color) { LineCartesianLayer.LineFill.single(Fill(color)) },
