@@ -1,4 +1,4 @@
-import { AudioLines, BedDouble, Car, CalendarDays, Goal, House, LayoutDashboard, ListTodo, Megaphone, MessageCircle, Palette, Pill, Plus, ReceiptIndianRupee, Settings, Target, Users, type LucideIcon } from "lucide-react";
+import { AudioLines, BedDouble, Bell, Car, CalendarDays, Goal, House, LayoutDashboard, ListTodo, Megaphone, MessageCircle, Palette, Pill, Plus, ReceiptIndianRupee, Settings, Target, Users, type LucideIcon } from "lucide-react";
 import type { StaffRole } from "@pearl/shared";
 
 export interface NavItem {
@@ -39,6 +39,8 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/pharmacy", labelKey: "nav.pharmacy", icon: Pill, roles: ["receptionist", "admin"], badge: "pharmacy" },
   { href: "/followups", labelKey: "nav.followups", icon: ListTodo, roles: ["receptionist", "admin"] },
   { href: "/admin", labelKey: "nav.admin", icon: Settings, roles: ["admin"] },
+  // Opened from the bell ("See all notifications") and Ctrl+K; not in the sidebar.
+  { href: "/notifications", labelKey: "nav.notifications", icon: Bell, roles: ["receptionist", "sales_manager", "admin"], inMenu: false },
   { href: "/design", labelKey: "nav.design", icon: Palette, roles: ["admin"], inMenu: false },
 ];
 

@@ -1,11 +1,10 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bell } from "lucide-react";
+import { Bell, ListChecks } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect } from "react";
-import { formatDateTime } from "@pearl/shared";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -16,17 +15,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
+import { type Notification, markNotificationRead, NOTIFICATION_COLUMNS, NotificationText } from "@/components/notifications/notification-text";
 
-interface Notification {
-  id: string;
-  title: string;
-  body: string | null;
-  link: string | null;
-  read_at: string | null;
-  created_at: string;
-}
-
-/** Bell with unread count. Realtime pushes new notifications; no polling. */
+/** Bell with unread count (the newest 10; "See all notifications" opens the full list). Realtime pushes new ones; no polling. */
 export function NotificationBell({ staffId }: { staffId: string }) {
   const t = useTranslations("notifications");
   const queryClient = useQueryClient();
@@ -37,11 +28,20 @@ export function NotificationBell({ staffId }: { staffId: string }) {
     queryFn: async () => {
       const { data, error } = await getSupabaseBrowser()
         .from("notifications")
-        .select("id, title, body, link, read_at, created_at")
+        .select(NOTIFICATION_COLUMNS)
         .order("created_at", { ascending: false })
         .limit(10);
       if (error) throw error;
       return data as Notification[];
+    },
+  });
+  // The real number of unread ones, not just those among the newest 10.
+  const { data: unreadCount } = useQuery({
+    queryKey: [...queryKey, "unread"],
+    queryFn: async () => {
+      const { count, error } = await getSupabaseBrowser().from("notifications").select("id", { count: "exact", head: true }).is("read_at", null);
+      if (error) throw error;
+      return count ?? 0;
     },
   });
 
@@ -60,11 +60,15 @@ export function NotificationBell({ staffId }: { staffId: string }) {
     };
   }, [staffId, queryClient]);
 
-  const unread = data?.filter((n) => !n.read_at).length ?? 0;
+  const unread = unreadCount ?? data?.filter((n) => !n.read_at).length ?? 0;
 
   async function markAllRead() {
     await getSupabaseBrowser().rpc("mark_notifications_read", { p_ids: null });
-    await queryClient.invalidateQueries({ queryKey });
+    await queryClient.invalidateQueries({ queryKey: ["notifications"] });
+  }
+
+  function opened(n: Notification) {
+    if (!n.read_at) void markNotificationRead(n.id).then(() => queryClient.invalidateQueries({ queryKey: ["notifications"] }));
   }
 
   return (
@@ -89,7 +93,7 @@ export function NotificationBell({ staffId }: { staffId: string }) {
         {(data ?? []).length === 0 && <p className="px-3 py-4 text-text-secondary">{t("empty")}</p>}
         <div className="-mx-1.5 min-h-0 flex-1 overflow-y-auto overscroll-contain px-1.5">
           {(data ?? []).map((n) => (
-            <DropdownMenuItem key={n.id} asChild={Boolean(n.link)} className="flex-col items-start gap-0.5 py-2">
+            <DropdownMenuItem key={n.id} asChild={Boolean(n.link)} onSelect={() => opened(n)} className="flex-col items-start gap-0.5 py-2">
               {n.link ? (
                 <Link href={n.link}>
                   <NotificationText n={n} />
@@ -100,23 +104,15 @@ export function NotificationBell({ staffId }: { staffId: string }) {
             </DropdownMenuItem>
           ))}
         </div>
-        {unread > 0 && (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={markAllRead}>{t("markAllRead")}</DropdownMenuItem>
-          </>
-        )}
+        <DropdownMenuSeparator />
+        {unread > 0 && <DropdownMenuItem onSelect={markAllRead}>{t("markAllRead")}</DropdownMenuItem>}
+        <DropdownMenuItem asChild>
+          <Link href="/notifications">
+            <ListChecks aria-hidden />
+            {t("seeAll")}
+          </Link>
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
-  );
-}
-
-function NotificationText({ n }: { n: Notification }) {
-  return (
-    <span className="flex w-full flex-col">
-      <span className={n.read_at ? "" : "font-semibold"}>{n.title}</span>
-      {n.body && <span className="text-[0.9rem] text-text-secondary">{n.body}</span>}
-      <span className="text-[0.9rem] text-text-secondary">{formatDateTime(new Date(n.created_at))}</span>
-    </span>
   );
 }
