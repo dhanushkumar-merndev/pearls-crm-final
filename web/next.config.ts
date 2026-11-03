@@ -12,6 +12,8 @@ const securityHeaders = [
 ];
 
 const config: NextConfig = {
+  // A second build beside the normal one (scripts/videos records from its own copy); default .next.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   transpilePackages: ["@pearl/shared"],
   poweredByHeader: false,
   async headers() {

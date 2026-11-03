@@ -7,7 +7,9 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { formatDate, formatINR, istDateString } from "@pearl/shared";
 import { ClearFilters } from "@/components/ui/filter-bar";
+import { StatTile } from "@/components/kpi/stat-tile";
 import { Button } from "@/components/ui/button";
+import { Card, CardTitle } from "@/components/ui/card";
 import { Field, Select } from "@/components/ui/form";
 import { DateRangePicker } from "@/components/ui/date-picker";
 import { Pager } from "@/components/ui/pager";
@@ -36,9 +38,20 @@ interface Row {
   /** What the bill is for (treatment session, visit, IP stay). */
   for?: BillFor;
 }
+interface Summary {
+  billed_paise: number;
+  received_paise: number;
+  due_paise: number;
+  drafts: number;
+  cancelled: number;
+  by_type: { bill_type: BillType; count: number; billed_paise: number; received_paise: number }[];
+  by_mode: { mode: string; received_paise: number }[];
+}
 interface Page {
   total: number;
   sum_paise: number;
+  /** Finalized bills the filters pick: billed / received / due, by type and by payment mode. */
+  summary?: Summary;
   rows: Row[];
 }
 const LIMIT = 25;
@@ -166,6 +179,7 @@ export function BillsTable({ patientId }: { patientId?: string }) {
       </div>
       {list.isError && <p className="text-bad-text">{t("rangeTooWide")}</p>}
       {list.data && !patientId && <p className="text-text-secondary">{t("sum", { n: list.data.total, amount: formatINR(list.data.sum_paise) })}</p>}
+      {list.data?.summary && !patientId && <BillsSummary summary={list.data.summary} />}
       <Table>
         <THead>
           <tr>
@@ -210,5 +224,67 @@ export function BillsTable({ patientId }: { patientId?: string }) {
       </Table>
       {list.data && <Pager offset={offset} limit={LIMIT} total={list.data.total} onOffset={setOffset} />}
     </div>
+  );
+}
+
+/** The breakdown above the list (owner, 03/11/2026): billed, received, due; by bill type; by payment mode. */
+function BillsSummary({ summary: s }: { summary: Summary }) {
+  const t = useTranslations("bills");
+  const b = useTranslations("bill");
+  const notFinal = [s.drafts > 0 && t("drafts", { n: s.drafts }), s.cancelled > 0 && t("cancelledCount", { n: s.cancelled })].filter(Boolean).join(" · ");
+  return (
+    <section aria-label={t("summaryTitle")} className="flex flex-col gap-3" data-testid="bills-summary">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <StatTile label={t("billed")} value={formatINR(s.billed_paise)} hint={notFinal || t("finalizedOnly")} />
+        <StatTile label={t("received")} value={formatINR(s.received_paise)} />
+        <StatTile label={t("balanceDue")} value={formatINR(s.due_paise)} tone={s.due_paise > 0 ? "warning" : undefined} />
+      </div>
+      <div className="grid items-start gap-3 lg:grid-cols-2">
+        <Card className="flex flex-col gap-2">
+          <CardTitle>{t("byType")}</CardTitle>
+          {s.by_type.length === 0 ? (
+            <p className="text-text-secondary">{t("none")}</p>
+          ) : (
+            <Table>
+              <THead>
+                <tr>
+                  <TH>{t("col.type")}</TH>
+                  <TH className="text-right">{t("billed")}</TH>
+                  <TH className="text-right">{t("received")}</TH>
+                  <TH className="text-right">{t("balanceDue")}</TH>
+                </tr>
+              </THead>
+              <tbody>
+                {s.by_type.map((r) => (
+                  <TR key={r.bill_type} data-testid={`by-type-${r.bill_type}`}>
+                    <TD>
+                      {b(`type.${r.bill_type}`)} <span className="text-text-secondary">· {t("billCount", { n: r.count })}</span>
+                    </TD>
+                    <TD className="text-right tabular-nums">{formatINR(r.billed_paise)}</TD>
+                    <TD className="text-right tabular-nums">{formatINR(r.received_paise)}</TD>
+                    <TD className="text-right tabular-nums">{formatINR(Math.max(r.billed_paise - r.received_paise, 0))}</TD>
+                  </TR>
+                ))}
+              </tbody>
+            </Table>
+          )}
+        </Card>
+        <Card className="flex flex-col gap-2">
+          <CardTitle>{t("byMode")}</CardTitle>
+          {s.by_mode.length === 0 ? (
+            <p className="text-text-secondary">{t("noPaymentsYet")}</p>
+          ) : (
+            <ul className="flex flex-col gap-1 tabular-nums">
+              {s.by_mode.map((m) => (
+                <li key={m.mode} className="flex justify-between gap-3">
+                  <span>{m.mode}</span>
+                  <span>{formatINR(m.received_paise)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      </div>
+    </section>
   );
 }

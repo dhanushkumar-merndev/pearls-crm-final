@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import type { ComponentProps, ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { AboutPage, HeaderActions } from "./page-header-phone";
 
 /**
  * The root of every signed-in page: one vertical rhythm (gap-5 between blocks), full width.
@@ -48,18 +49,26 @@ export interface PageHeaderProps {
  */
 export function PageHeader({ title, description, actions, back, badges, meta, actionsBesideTitle = false }: PageHeaderProps) {
   return (
+    // Phone width: smaller title, the description behind ⓘ, the first button beside the title and
+    // the rest behind ⋯ (owner, 03/11/2026). From "sm" up: unchanged.
     <header className="flex flex-col gap-1">
       {back && <BackLink href={back.href}>{back.label}</BackLink>}
-      <div className={cn("flex flex-wrap justify-between gap-x-4 gap-y-3", actionsBesideTitle ? "items-start" : "items-end")}>
-        <div className="flex min-w-0 flex-col gap-1">
-          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
-            <h1 className="min-w-0 text-[1.75rem] leading-tight font-semibold tracking-tight break-words">{title}</h1>
+      <div
+        className={cn(
+          "flex flex-wrap justify-between gap-x-4 gap-y-3 max-sm:items-start max-sm:justify-start max-sm:gap-x-2 max-sm:gap-y-2",
+          actionsBesideTitle ? "items-start" : "items-end",
+        )}
+      >
+        <div className="flex min-w-0 flex-col gap-1 max-sm:order-0 max-sm:flex-1">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 max-sm:gap-x-1.5">
+            <h1 className="min-w-0 text-[1.75rem] leading-tight font-semibold tracking-tight break-words max-sm:text-[1.35rem]">{title}</h1>
+            {description && <AboutPage title={title} description={description} />}
             {badges}
           </div>
           {meta && <p className="text-text-secondary">{meta}</p>}
-          {description && <p className="max-w-prose text-text-secondary">{description}</p>}
+          {description && <p className="max-w-prose text-text-secondary max-sm:hidden">{description}</p>}
         </div>
-        {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
+        {actions && <HeaderActions>{actions}</HeaderActions>}
       </div>
     </header>
   );

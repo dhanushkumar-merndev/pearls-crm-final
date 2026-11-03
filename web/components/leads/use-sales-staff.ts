@@ -1,23 +1,21 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { unwrap } from "@/lib/rpc";
-import { getSupabaseBrowser } from "@/lib/supabase/client";
+import { rpc } from "@/lib/rpc";
 import type { SalesStaff } from "./types";
 
-/** Active sales executives and managers (the staff directory is readable by every role). */
+/**
+ * Active sales executives and managers, for owner dropdowns and filters.
+ * Read through `staff_directory` (names for every signed-in role): the `staff` table itself only shows
+ * a non-admin their own row, so a sales manager reading it directly saw nobody but themselves.
+ */
 export function useSalesStaff() {
   return useQuery({
     queryKey: ["sales_staff"],
     staleTime: 5 * 60_000,
     queryFn: async () =>
-      unwrap(
-        await getSupabaseBrowser()
-          .from("staff")
-          .select("id, full_name, role")
-          .in("role", ["sales_executive", "sales_manager"])
-          .eq("active", true)
-          .order("full_name"),
-      ) as SalesStaff[],
+      (await rpc<(SalesStaff | { id: string; full_name: string; role: string })[]>("staff_directory")).filter(
+        (s): s is SalesStaff => s.role === "sales_executive" || s.role === "sales_manager",
+      ),
   });
 }

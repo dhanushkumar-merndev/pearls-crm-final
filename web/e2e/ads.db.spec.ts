@@ -31,7 +31,9 @@ test("ads page: tiles, filters with clear, campaign side panel", async ({ page }
   }
 });
 
-test("campaigns table: its own period, up to 24 months, a total of every campaign, 10 per page", async ({ page }) => {
+test("campaigns table: its own period, up to 24 months, a total of every campaign, 10 per page", async ({
+  page,
+}) => {
   await open(page, "/ads");
   const table = page.getByTestId("ads-campaigns");
   await expect(table).toBeVisible({ timeout: 20_000 });
@@ -54,7 +56,9 @@ test("campaigns table: its own period, up to 24 months, a total of every campaig
   await expect(rows.first()).toBeVisible({ timeout: 20_000 });
   const total = page.getByTestId("ads-campaigns-total");
   if (await total.count()) {
-    const n = Number((await total.locator("td").first().textContent())?.match(/(\d+) campaigns?/)?.[1]);
+    const n = Number(
+      (await total.locator("td").first().textContent())?.match(/(\d+) campaigns?/)?.[1],
+    );
     expect(await rows.count()).toBe(Math.min(n, 10));
     if (n > 10) {
       await expect(page.getByText(`Rows 1–10 of ${n}`)).toBeVisible();
@@ -65,26 +69,41 @@ test("campaigns table: its own period, up to 24 months, a total of every campaig
   }
 });
 
-test("Sync now: when the server can't be reached the message says so (and why), not only 'went wrong'", async ({ page }) => {
-  // The browser gets no answer at all, as when this web address isn't allowed to call functions (31/10/2026).
-  await page.route(/\/functions\/v1\/meta-ads/, (r) => r.abort("failed"));
+test("the sales manager sees the numbers but not Sync now or Import past leads (admin only, 03/11/2026)", async ({
+  page,
+}) => {
   await open(page, "/ads");
-  const sync = page.getByRole("button", { name: "Sync now" });
-  test.skip(!(await sync.count()), "no Sync now for this login");
-  await sync.click();
-  await expect(page.getByText(/Couldn't reach the server\. .*\(meta-ads: /).first()).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId("ads-tiles")).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole("button", { name: "Sync now" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Import past leads" })).toHaveCount(0);
 });
 
-test("ads page: the sidebar has it, and Import past leads explains itself", async ({ page }) => {
-  await open(page, "/home");
-  await page.getByRole("link", { name: "Ads", exact: true }).first().click();
-  await expect(page).toHaveURL(/\/ads$/);
-  await page.getByRole("button", { name: "Import past leads" }).click();
-  const dialog = page.getByRole("dialog", { name: "Import past leads" });
-  await expect(dialog.getByText(/no alert per lead and no WhatsApp welcome/)).toBeVisible();
-  await expect(dialog.getByLabel("How far back")).toHaveText(/Last 30 days/);
-  await dialog.getByRole("button", { name: "Cancel" }).click();
-  await expect(dialog).toHaveCount(0);
+test.describe("as the admin", () => {
+  test.use({ storageState: STATE.admin });
+
+  test("Sync now: when the server can't be reached the message says so (and why), not only 'went wrong'", async ({
+    page,
+  }) => {
+    // The browser gets no answer at all, as when this web address isn't allowed to call functions (31/10/2026).
+    await page.route(/\/functions\/v1\/meta-ads/, (r) => r.abort("failed"));
+    await open(page, "/ads");
+    await page.getByRole("button", { name: "Sync now" }).click();
+    await expect(page.getByText(/Couldn't reach the server\. .*\(meta-ads: /).first()).toBeVisible({
+      timeout: 15_000,
+    });
+  });
+
+  test("ads page: the sidebar has it, and Import past leads explains itself", async ({ page }) => {
+    await open(page, "/home");
+    await page.getByRole("link", { name: "Ads", exact: true }).first().click();
+    await expect(page).toHaveURL(/\/ads$/);
+    await page.getByRole("button", { name: "Import past leads" }).click();
+    const dialog = page.getByRole("dialog", { name: "Import past leads" });
+    await expect(dialog.getByText(/no alert per lead and no WhatsApp welcome/)).toBeVisible();
+    await expect(dialog.getByLabel("How far back")).toHaveText(/Last 30 days/);
+    await dialog.getByRole("button", { name: "Cancel" }).click();
+    await expect(dialog).toHaveCount(0);
+  });
 });
 
 test("reception has no Ads page", async ({ browser }) => {

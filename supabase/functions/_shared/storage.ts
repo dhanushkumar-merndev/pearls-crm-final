@@ -12,6 +12,10 @@ export interface StorageConfig {
   // false (default): https://<bucket>.<host>/key, where Tigris applies the bucket's CORS rules.
   // true: https://<host>/<bucket>/key, for MinIO. Tigris answers CORS with "*" on this form.
   pathStyle?: boolean;
+  // Local development only: the address browsers and phones use when it differs from the one
+  // these functions reach storage at (functions run in Docker; an emulator only allows plain
+  // HTTP to 127.0.0.1 / 10.0.2.2). Signed links use it; the functions' own requests don't.
+  publicEndpoint?: string;
 }
 
 export interface ObjectInfo {
@@ -36,14 +40,18 @@ export function s3Storage(cfg: StorageConfig, datetime?: string): StorageAdapter
     service: "s3",
     region: cfg.region,
   });
-  const endpoint = new URL(cfg.endpoint);
-  const base = cfg.pathStyle
-    ? `${endpoint.origin}/${cfg.bucket}`
-    : `${endpoint.protocol}//${cfg.bucket}.${endpoint.host}`;
+  const baseOf = (address: string) => {
+    const endpoint = new URL(address);
+    // Path-style keeps the endpoint's own path (local Supabase serves S3 at /storage/v1/s3).
+    const path = endpoint.pathname.replace(/\/+$/, "");
+    return cfg.pathStyle ? `${endpoint.origin}${path}/${cfg.bucket}` : `${endpoint.protocol}//${cfg.bucket}.${endpoint.host}`;
+  };
+  const base = baseOf(cfg.endpoint);
+  const publicBase = cfg.publicEndpoint ? baseOf(cfg.publicEndpoint) : base;
   const objectUrl = (key: string) => `${base}/${encodeKey(key)}`;
 
   async function presign(method: "GET" | "PUT", key: string, expiresSec: number, headers: Record<string, string> = {}) {
-    const url = new URL(objectUrl(key));
+    const url = new URL(`${publicBase}/${encodeKey(key)}`);
     url.searchParams.set("X-Amz-Expires", String(expiresSec));
     const signed = await aws.sign(url.toString(), {
       method,
@@ -88,5 +96,6 @@ export function storageFromEnv(): StorageAdapter {
     accessKeyId: get("STORAGE_ACCESS_KEY_ID"),
     secretAccessKey: get("STORAGE_SECRET_ACCESS_KEY"),
     pathStyle: Deno.env.get("STORAGE_PATH_STYLE") === "true",
+    publicEndpoint: Deno.env.get("STORAGE_PUBLIC_ENDPOINT") || undefined,
   });
 }

@@ -2,7 +2,7 @@
 // daily spend, reach, clicks and leads, for the Ads page.
 //   Every 3 hours from the database timer (pg_cron → pg_net, header x-cron-secret): a full run that
 //   also fills in older history, 30 days a run, up to a year back.
-//   From the Ads page ("Sync now", login token of a sales manager or admin): the recent days only.
+//   From the Ads page ("Sync now", login token of an admin): the recent days only.
 // The first run pulls 90 days; later runs re-read from 3 days before the last synced day (Meta
 // revises recent days). Meta's throttling just waits for the next run.
 // Pure logic here; index.ts wires the real Graph API and database.

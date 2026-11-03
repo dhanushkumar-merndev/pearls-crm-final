@@ -4,7 +4,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, FileInput, RefreshCw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useMemo, useState, type ReactNode } from "react";
-import { adsDateRangeSchema, ADS_MAX_RANGE_DAYS, formatDateTime, formatINR, formatINRShort, istDateString } from "@pearl/shared";
+import {
+  adsDateRangeSchema,
+  ADS_MAX_RANGE_DAYS,
+  formatDateTime,
+  formatINR,
+  formatINRShort,
+  istDateString,
+} from "@pearl/shared";
 import { EChart } from "@/components/charts/echart";
 import { StatTile } from "@/components/kpi/stat-tile";
 import { Button } from "@/components/ui/button";
@@ -22,6 +29,7 @@ import { rangeFor, type Preset } from "@/lib/periods";
 import { callFunction, rpc } from "@/lib/rpc";
 import { useDateRangeCheck } from "@/lib/use-date-range";
 import { useFeedback } from "@/lib/use-feedback";
+import { useMe } from "@/lib/use-me";
 import { cn } from "@/lib/utils";
 import { CampaignStatus, dayLabel, money, num, ratio, roas } from "./ad-format";
 import { CampaignSheet } from "./campaign-sheet";
@@ -84,7 +92,8 @@ interface Overview {
 
 const STATUSES = ["", "active", "paused", "off"] as const;
 type StatusFilter = (typeof STATUSES)[number];
-type SortKey = "spend" | "meta_leads" | "cpl" | "crm_leads" | "booked" | "converted" | "cpp" | "collected";
+type SortKey =
+  "spend" | "meta_leads" | "cpl" | "crm_leads" | "booked" | "converted" | "cpp" | "collected";
 
 /** The dashboard periods plus "all": the last 24 months (the longest the Ads page allows). */
 const ADS_PRESETS = ["today", "7d", "mtd", "lastMonth", "all", "custom"] as const;
@@ -94,13 +103,18 @@ type TablePreset = "page" | AdsPreset;
 const PAGE_SIZE = 10;
 
 /** The dates in the "Last synced …" line stand out (theme warning colour, never a raw hex). */
-const syncDate = (chunks: ReactNode) => <span className="font-medium text-status-warning">{chunks}</span>;
+const syncDate = (chunks: ReactNode) => (
+  <span className="font-medium text-status-warning">{chunks}</span>
+);
 
 function adsRange(preset: AdsPreset, custom: { from: string; to: string }) {
   if (preset === "custom") return custom;
   if (preset !== "all") return rangeFor(preset as Exclude<Preset, "custom">);
   const now = new Date();
-  return { from: istDateString(new Date(now.getTime() - ADS_MAX_RANGE_DAYS * 86_400_000)), to: istDateString(now) };
+  return {
+    from: istDateString(new Date(now.getTime() - ADS_MAX_RANGE_DAYS * 86_400_000)),
+    to: istDateString(now),
+  };
 }
 
 function statusGroup(s: string | null): Exclude<StatusFilter, ""> {
@@ -126,6 +140,8 @@ export function AdsDashboard() {
   const dp = useTranslations("datePicker");
   const queryClient = useQueryClient();
   const { errorMessage } = useFeedback();
+  // Sync now / Import past leads: the admin only (owner, 03/11/2026; the server checks it too).
+  const isAdmin = useMe()?.role === "admin";
   const [preset, setPreset] = useState<AdsPreset>("mtd");
   const [custom, setCustom] = useState(() => rangeFor("mtd"));
   const [status, setStatus] = useState<StatusFilter>("");
@@ -148,7 +164,10 @@ export function AdsDashboard() {
     queryFn: () => rpc<Overview>("ads_overview", { p_from: range.from, p_to: range.to }),
   });
   const sync = useMutation({
-    mutationFn: () => callFunction<{ ok: boolean; error?: string; rate_limited?: boolean }>("meta-ads", { source: "staff" }),
+    mutationFn: () =>
+      callFunction<{ ok: boolean; error?: string; rate_limited?: boolean }>("meta-ads", {
+        source: "staff",
+      }),
     onSettled: () => void queryClient.invalidateQueries({ queryKey: ["ads_overview"] }),
   });
   const d = overview.data;
@@ -165,7 +184,9 @@ export function AdsDashboard() {
   const rows = useMemo(() => {
     const needle = q.trim().toLowerCase();
     const list = (td?.campaigns ?? []).filter(
-      (c) => (!status || statusGroup(c.effective_status) === status) && (!needle || c.name.toLowerCase().includes(needle)),
+      (c) =>
+        (!status || statusGroup(c.effective_status) === status) &&
+        (!needle || c.name.toLowerCase().includes(needle)),
     );
     const dir = sort.desc ? -1 : 1;
     // "No leads yet" (an endless cost per lead) always sorts last.
@@ -196,13 +217,23 @@ export function AdsDashboard() {
   );
   const start = offset < rows.length ? offset : 0;
   const pageRows = rows.slice(start, start + PAGE_SIZE);
-  const chartRows = useMemo(() => [...(d?.campaigns ?? [])].filter((c) => c.spend > 0 || c.crm_leads > 0).slice(0, 10), [d]);
+  const chartRows = useMemo(
+    () => [...(d?.campaigns ?? [])].filter((c) => c.spend > 0 || c.crm_leads > 0).slice(0, 10),
+    [d],
+  );
 
   const spendPerDay = useCallback(
     () => ({
-      tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, valueFormatter: (v: number) => formatINR(Math.round(v * 100)) },
+      tooltip: {
+        trigger: "axis",
+        axisPointer: { type: "shadow" },
+        valueFormatter: (v: number) => formatINR(Math.round(v * 100)),
+      },
       xAxis: { type: "category", data: (d?.daily ?? []).map((x) => dayLabel(x.day)) },
-      yAxis: { type: "value", axisLabel: { formatter: (v: number) => formatINRShort(Math.round(v * 100)) } },
+      yAxis: {
+        type: "value",
+        axisLabel: { formatter: (v: number) => formatINRShort(Math.round(v * 100)) },
+      },
       series: [{ name: t("spent"), type: "bar", data: (d?.daily ?? []).map((x) => x.spend / 100) }],
     }),
     [d, t],
@@ -214,8 +245,18 @@ export function AdsDashboard() {
       xAxis: { type: "category", data: (d?.daily ?? []).map((x) => dayLabel(x.day)) },
       yAxis: { type: "value", minInterval: 1 },
       series: [
-        { name: t("metaLeads"), type: "line", smooth: true, data: (d?.daily ?? []).map((x) => x.meta_leads) },
-        { name: t("crmLeads"), type: "line", smooth: true, data: (d?.daily ?? []).map((x) => x.crm_leads) },
+        {
+          name: t("metaLeads"),
+          type: "line",
+          smooth: true,
+          data: (d?.daily ?? []).map((x) => x.meta_leads),
+        },
+        {
+          name: t("crmLeads"),
+          type: "line",
+          smooth: true,
+          data: (d?.daily ?? []).map((x) => x.crm_leads),
+        },
       ],
     }),
     [d, t],
@@ -223,14 +264,25 @@ export function AdsDashboard() {
   const spendByCampaign = useCallback(
     () => ({
       grid: { right: 72 },
-      tooltip: { trigger: "axis", axisPointer: { type: "shadow" }, valueFormatter: (v: number) => formatINR(Math.round(v * 100)) },
-      xAxis: { type: "value", axisLabel: { formatter: (v: number) => formatINRShort(Math.round(v * 100)) } },
+      tooltip: {
+        trigger: "axis",
+        axisPointer: { type: "shadow" },
+        valueFormatter: (v: number) => formatINR(Math.round(v * 100)),
+      },
+      xAxis: {
+        type: "value",
+        axisLabel: { formatter: (v: number) => formatINRShort(Math.round(v * 100)) },
+      },
       yAxis: { type: "category", inverse: true, data: chartRows.map((c) => c.name) },
       series: [
         {
           type: "bar",
           data: chartRows.map((c) => c.spend / 100),
-          label: { show: true, position: "right", formatter: (p: { value: number }) => formatINRShort(Math.round(p.value * 100)) },
+          label: {
+            show: true,
+            position: "right",
+            formatter: (p: { value: number }) => formatINRShort(Math.round(p.value * 100)),
+          },
         },
       ],
     }),
@@ -260,14 +312,28 @@ export function AdsDashboard() {
     setOffset(0);
   };
   const sortBy = (key: SortKey) => {
-    setSort((s) => (s.key === key ? { key, desc: !s.desc } : { key, desc: key !== "cpl" && key !== "cpp" }));
+    setSort((s) =>
+      s.key === key ? { key, desc: !s.desc } : { key, desc: key !== "cpl" && key !== "cpp" },
+    );
     setOffset(0);
   };
   const head = (key: SortKey, label: string) => (
-    <TH className="text-right" aria-sort={sort.key === key ? (sort.desc ? "descending" : "ascending") : undefined}>
-      <button type="button" className="inline-flex items-center gap-1 hover:text-foreground" onClick={() => sortBy(key)}>
+    <TH
+      className="text-right"
+      aria-sort={sort.key === key ? (sort.desc ? "descending" : "ascending") : undefined}
+    >
+      <button
+        type="button"
+        className="inline-flex items-center gap-1 hover:text-foreground"
+        onClick={() => sortBy(key)}
+      >
         {label}
-        {sort.key === key && (sort.desc ? <ArrowDown aria-hidden className="size-3.5" /> : <ArrowUp aria-hidden className="size-3.5" />)}
+        {sort.key === key &&
+          (sort.desc ? (
+            <ArrowDown aria-hidden className="size-3.5" />
+          ) : (
+            <ArrowUp aria-hidden className="size-3.5" />
+          ))}
       </button>
     </TH>
   );
@@ -280,9 +346,25 @@ export function AdsDashboard() {
         title={t("title")}
         description={t("description")}
         actionsBesideTitle
+        meta={
+          <span className="text-sm" role="status" data-testid="ads-sync">
+            {acct?.last_synced_at
+              ? t.rich("lastSynced", {
+                  when: formatDateTime(new Date(acct.last_synced_at)),
+                  account: acct.name ?? acct.id,
+                  d: syncDate,
+                })
+              : overview.isSuccess
+                ? t(isAdmin ? "neverSynced" : "neverSyncedAskAdmin")
+                : ""}
+            {acct?.backfilled_from && (
+              <> · {t.rich("historyFrom", { day: dayLabel(acct.backfilled_from), d: syncDate })}</>
+            )}
+          </span>
+        }
         actions={
-          <div className="flex flex-col gap-1.5 sm:items-end">
-            <div className="flex flex-wrap gap-2">
+          isAdmin && (
+            <>
               <Button variant="secondary" disabled={sync.isPending} onClick={() => sync.mutate()}>
                 <RefreshCw aria-hidden className={sync.isPending ? "animate-spin" : undefined} />
                 {sync.isPending ? t("syncing") : t("syncNow")}
@@ -291,16 +373,8 @@ export function AdsDashboard() {
                 <FileInput aria-hidden />
                 {t("importPast")}
               </Button>
-            </div>
-            <p className="text-sm text-text-secondary sm:text-right" role="status" data-testid="ads-sync">
-              {acct?.last_synced_at
-                ? t.rich("lastSynced", { when: formatDateTime(new Date(acct.last_synced_at)), account: acct.name ?? acct.id, d: syncDate })
-                : overview.isSuccess
-                  ? t("neverSynced")
-                  : ""}
-              {acct?.backfilled_from && <> · {t.rich("historyFrom", { day: dayLabel(acct.backfilled_from), d: syncDate })}</>}
-            </p>
-          </div>
+            </>
+          )
         }
       />
       {(syncResult && !syncResult.ok) || (!syncResult && acct?.last_error) ? (
@@ -326,14 +400,26 @@ export function AdsDashboard() {
       <FilterBar
         search={
           <Field label={t("search")} className="w-full sm:w-64">
-            {(a) => <Input {...a} type="search" placeholder={t("searchPlaceholder")} value={q} onChange={(e) => (setQ(e.target.value), setOffset(0))} />}
+            {(a) => (
+              <Input
+                {...a}
+                type="search"
+                placeholder={t("searchPlaceholder")}
+                value={q}
+                onChange={(e) => (setQ(e.target.value), setOffset(0))}
+              />
+            )}
           </Field>
         }
         active={(preset === "mtd" ? 0 : 1) + (status ? 1 : 0)}
         canClear={changed}
         onClear={clear}
         actions={
-          <Button variant="ghost" disabled={overview.isFetching} onClick={() => void overview.refetch()}>
+          <Button
+            variant="ghost"
+            disabled={overview.isFetching}
+            onClick={() => void overview.refetch()}
+          >
             <RefreshCw aria-hidden className={overview.isFetching ? "animate-spin" : undefined} />
             {t("refresh")}
           </Button>
@@ -359,7 +445,11 @@ export function AdsDashboard() {
         )}
         <Field label={t("status")}>
           {(a) => (
-            <Select {...a} value={status} onChange={(e) => (setStatus(e.target.value as StatusFilter), setOffset(0))}>
+            <Select
+              {...a}
+              value={status}
+              onChange={(e) => (setStatus(e.target.value as StatusFilter), setOffset(0))}
+            >
               {STATUSES.map((s) => (
                 <option key={s} value={s}>
                   {t(`statusFilter.${s || "all"}`)}
@@ -383,21 +473,51 @@ export function AdsDashboard() {
 
       {tl && (
         <div className="grid grid-cols-2 gap-3 xl:grid-cols-4" data-testid="ads-tiles">
-          <StatTile label={t("spent")} value={formatINR(tl.spend)} hint={t("campaignsHint", { n: tl.campaigns, active: tl.active })} />
-          <StatTile label={t("metaLeads")} value={num(tl.meta_leads)} hint={t("cplHint", { v: money(ratio(tl.spend, tl.meta_leads)) })} />
+          <StatTile
+            label={t("spent")}
+            value={formatINR(tl.spend)}
+            hint={t("campaignsHint", { n: tl.campaigns, active: tl.active })}
+          />
+          <StatTile
+            label={t("metaLeads")}
+            value={num(tl.meta_leads)}
+            hint={t("cplHint", { v: money(ratio(tl.spend, tl.meta_leads)) })}
+          />
           <StatTile
             label={t("crmLeads")}
             value={num(tl.crm_leads)}
-            hint={tl.unlinked ? t("unlinkedHint", { n: tl.unlinked }) : t("contactedHint", { n: num(tl.contacted) })}
+            hint={
+              tl.unlinked
+                ? t("unlinkedHint", { n: tl.unlinked })
+                : t("contactedHint", { n: num(tl.contacted) })
+            }
           />
-          <StatTile label={t("booked")} value={num(tl.booked)} hint={t("costEachHint", { v: money(ratio(tl.spend, tl.booked)) })} />
-          <StatTile label={t("patients")} value={num(tl.converted)} hint={t("costEachHint", { v: money(ratio(tl.spend, tl.converted)) })} />
-          <StatTile label={t("collected")} value={formatINR(tl.collected)} hint={t("roasHint", { v: roas(tl.collected, tl.spend) })} />
-          <StatTile label={t("impressions")} value={num(tl.impressions)} hint={t("reachHint", { n: num(tl.reach) })} />
+          <StatTile
+            label={t("booked")}
+            value={num(tl.booked)}
+            hint={t("costEachHint", { v: money(ratio(tl.spend, tl.booked)) })}
+          />
+          <StatTile
+            label={t("patients")}
+            value={num(tl.converted)}
+            hint={t("costEachHint", { v: money(ratio(tl.spend, tl.converted)) })}
+          />
+          <StatTile
+            label={t("collected")}
+            value={formatINR(tl.collected)}
+            hint={t("roasHint", { v: roas(tl.collected, tl.spend) })}
+          />
+          <StatTile
+            label={t("impressions")}
+            value={num(tl.impressions)}
+            hint={t("reachHint", { n: num(tl.reach) })}
+          />
           <StatTile
             label={t("clicks")}
             value={num(tl.link_clicks)}
-            hint={t("ctrHint", { v: tl.impressions ? ((tl.link_clicks / tl.impressions) * 100).toFixed(2) : "0" })}
+            hint={t("ctrHint", {
+              v: tl.impressions ? ((tl.link_clicks / tl.impressions) * 100).toFixed(2) : "0",
+            })}
           />
         </div>
       )}
@@ -408,21 +528,30 @@ export function AdsDashboard() {
             title={t("spendPerDay")}
             option={spendPerDay}
             empty={d.daily.every((x) => !x.spend)}
-            table={{ columns: [t("day"), t("spent")], rows: d.daily.map((x) => [dayLabel(x.day), formatINR(x.spend)]) }}
+            table={{
+              columns: [t("day"), t("spent")],
+              rows: d.daily.map((x) => [dayLabel(x.day), formatINR(x.spend)]),
+            }}
           />
           <EChart
             title={t("leadsPerDay")}
             description={t("leadsPerDayHint")}
             option={leadsPerDay}
             empty={d.daily.every((x) => !x.meta_leads && !x.crm_leads)}
-            table={{ columns: [t("day"), t("metaLeads"), t("crmLeads")], rows: d.daily.map((x) => [dayLabel(x.day), x.meta_leads, x.crm_leads]) }}
+            table={{
+              columns: [t("day"), t("metaLeads"), t("crmLeads")],
+              rows: d.daily.map((x) => [dayLabel(x.day), x.meta_leads, x.crm_leads]),
+            }}
           />
           <EChart
             title={t("spendByCampaign")}
             option={spendByCampaign}
             rows={chartRows.length}
             empty={chartRows.every((c) => !c.spend)}
-            table={{ columns: [t("campaign"), t("spent")], rows: chartRows.map((c) => [c.name, formatINR(c.spend)]) }}
+            table={{
+              columns: [t("campaign"), t("spent")],
+              rows: chartRows.map((c) => [c.name, formatINR(c.spend)]),
+            }}
           />
           <EChart
             title={t("resultsByCampaign")}
@@ -446,7 +575,11 @@ export function AdsDashboard() {
             </div>
             <Field label={t("tablePeriod")}>
               {(a) => (
-                <Select {...a} value={tablePreset} onChange={(e) => (setTablePreset(e.target.value as TablePreset), setOffset(0))}>
+                <Select
+                  {...a}
+                  value={tablePreset}
+                  onChange={(e) => (setTablePreset(e.target.value as TablePreset), setOffset(0))}
+                >
                   <option value="page">{t("samePeriod")}</option>
                   {ADS_PRESETS.map((p) => (
                     <option key={p} value={p}>
@@ -459,7 +592,14 @@ export function AdsDashboard() {
             {tablePreset === "custom" && (
               <>
                 <Field label={t("tableDates")} error={tableCheck.fromError ?? tableCheck.toError}>
-                  {(a) => <DateRangePicker {...a} quick={false} value={tableCustom} onChange={(r) => (setTableCustom(r), setOffset(0))} />}
+                  {(a) => (
+                    <DateRangePicker
+                      {...a}
+                      quick={false}
+                      value={tableCustom}
+                      onChange={(r) => (setTableCustom(r), setOffset(0))}
+                    />
+                  )}
                 </Field>
               </>
             )}
@@ -480,9 +620,17 @@ export function AdsDashboard() {
               </tr>
             </THead>
             <tbody>
-              {td && rows.length === 0 && <EmptyRow colSpan={9}>{td.campaigns.length ? t("noMatch") : t("noCampaigns")}</EmptyRow>}
+              {td && rows.length === 0 && (
+                <EmptyRow colSpan={9}>
+                  {td.campaigns.length ? t("noMatch") : t("noCampaigns")}
+                </EmptyRow>
+              )}
               {pageRows.map((c) => (
-                <TR key={c.id} className="cursor-pointer hover:bg-accent/40" onClick={() => setOpenId(c.id)}>
+                <TR
+                  key={c.id}
+                  className="cursor-pointer hover:bg-accent/40"
+                  onClick={() => setOpenId(c.id)}
+                >
                   <TD className="max-w-[22rem]">
                     <button
                       type="button"
@@ -500,21 +648,30 @@ export function AdsDashboard() {
                   <TD className="text-right tabular-nums">{num(c.booked)}</TD>
                   <TD className="text-right tabular-nums">{num(c.converted)}</TD>
                   <TD className="text-right tabular-nums">{money(ratio(c.spend, c.converted))}</TD>
-                  <TD className={cn("text-right tabular-nums", c.collected > 0 && "font-medium")}>{formatINR(c.collected)}</TD>
+                  <TD className={cn("text-right tabular-nums", c.collected > 0 && "font-medium")}>
+                    {formatINR(c.collected)}
+                  </TD>
                 </TR>
               ))}
             </tbody>
             {rows.length > 0 && (
-              <tfoot data-testid="ads-campaigns-total" className="border-t-2 border-border font-semibold">
+              <tfoot
+                data-testid="ads-campaigns-total"
+                className="border-t-2 border-border font-semibold"
+              >
                 <tr>
                   <TD>{t("totalRow", { n: rows.length })}</TD>
                   <TD className="text-right tabular-nums">{formatINR(sum.spend)}</TD>
                   <TD className="text-right tabular-nums">{num(sum.meta_leads)}</TD>
-                  <TD className="text-right tabular-nums">{money(ratio(sum.spend, sum.meta_leads))}</TD>
+                  <TD className="text-right tabular-nums">
+                    {money(ratio(sum.spend, sum.meta_leads))}
+                  </TD>
                   <TD className="text-right tabular-nums">{num(sum.crm_leads)}</TD>
                   <TD className="text-right tabular-nums">{num(sum.booked)}</TD>
                   <TD className="text-right tabular-nums">{num(sum.converted)}</TD>
-                  <TD className="text-right tabular-nums">{money(ratio(sum.spend, sum.converted))}</TD>
+                  <TD className="text-right tabular-nums">
+                    {money(ratio(sum.spend, sum.converted))}
+                  </TD>
                   <TD className="text-right tabular-nums">{formatINR(sum.collected)}</TD>
                 </tr>
               </tfoot>
@@ -525,10 +682,21 @@ export function AdsDashboard() {
       )}
 
       <Sheet open={!!openId} onOpenChange={(o) => !o && setOpenId(null)}>
-        {openId && <CampaignSheet id={openId} from={tableRange.from} to={tableRange.to} row={td?.campaigns.find((c) => c.id === openId)} />}
+        {openId && (
+          <CampaignSheet
+            id={openId}
+            from={tableRange.from}
+            to={tableRange.to}
+            row={td?.campaigns.find((c) => c.id === openId)}
+          />
+        )}
       </Sheet>
       <Dialog open={importing} onOpenChange={setImporting}>
-        {importing && <ImportLeadsDialog onDone={() => void queryClient.invalidateQueries({ queryKey: ["ads_overview"] })} />}
+        {importing && (
+          <ImportLeadsDialog
+            onDone={() => void queryClient.invalidateQueries({ queryKey: ["ads_overview"] })}
+          />
+        )}
       </Dialog>
     </div>
   );

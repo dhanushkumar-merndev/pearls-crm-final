@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "Clinic CRM",
+    "name": "Pearl Aesthetic",
     "skipToContent": "Skip to main content"
   },
   "roles": {
@@ -226,6 +226,8 @@
   },
   "common": {
     "saved": "Saved ✓",
+    "aboutPage": "About this page",
+    "moreActions": "More actions",
     "close": "Close",
     "pages": "Pages",
     "rowsOf": "Rows {from}–{to} of {total}",
@@ -1757,7 +1759,14 @@
     "discountGuide": "Up to {bargain} if the patient bargains",
     "discountAboveBargain": "More than the bargain discount ({bargain} = {amount})",
     "discountMax": "limit {amount} ({max})",
-    "discountOverLimit": "More than your discount limit. Lower it, or ask an admin."
+    "discountOverLimit": "More than your discount limit. Lower it, or ask an admin.",
+    "breakdown": "Breakdown",
+    "categorySummary": "By category",
+    "gstByRate": "GST by rate",
+    "gstRate": "GST rate",
+    "subtotal": "Subtotal",
+    "otherCategory": "Other",
+    "noTax": "No GST on this bill."
   },
   "payment": {
     "title": "Advance or refund",
@@ -1823,7 +1832,15 @@
     "balanceDue": "Balance due",
     "advanceHeld": "Advance held",
     "advanceCanPay": "The advance can pay this: open the bill → Use advance.",
-    "newPharmacyBill": "New pharmacy bill"
+    "newPharmacyBill": "New pharmacy bill",
+    "summaryTitle": "Breakdown for these filters",
+    "byType": "By bill type",
+    "byMode": "Received by mode",
+    "noPaymentsYet": "No payments received yet.",
+    "billCount": "{n, plural, one {# bill} other {# bills}}",
+    "drafts": "{n, plural, one {# draft} other {# drafts}} not finalized",
+    "cancelledCount": "{n, plural, one {# cancelled} other {# cancelled}}",
+    "finalizedOnly": "Totals count finalized bills only."
   },
   "printBill": {
     "title": {
@@ -3689,6 +3706,7 @@
     "description": "What each Facebook and Instagram campaign cost and what it brought in: leads, bookings, patients and money collected.",
     "lastSynced": "Last synced <d>{when}</d> · {account}",
     "neverSynced": "Not synced with Meta yet. Press “Sync now”.",
+    "neverSyncedAskAdmin": "Not synced with Meta yet. The admin can sync it.",
     "historyFrom": "history from <d>{day}</d>",
     "syncNow": "Sync now",
     "syncing": "Syncing…",
@@ -3834,27 +3852,20 @@
   },
   "officePicker": {
     "useMyLocation": "Use my current location",
-    "useMyLocationHint": "Stand in the office with this computer or phone.",
-    "search": "Search a place",
-    "searchHint": "A business, place or address, then Enter.",
-    "searchPlaceholder": "e.g. Star Tech India, Jayanagar",
-    "searchButton": "Search",
-    "searchShort": "Type at least 3 letters.",
+    "useMyLocationHint": "Stand in the office with this phone.",
     "searchFailed": "Couldn't reach the map service. Check the internet and try again.",
-    "results": "Places found",
-    "noResults": "Nothing found. Try another name, or paste the Google Maps link.",
-    "link": "Or paste a Google Maps link",
+    "link": "Google Maps link",
     "linkHint": "In Google Maps: Share → Copy link. Numbers like 12.93, 77.55 work too.",
     "useLink": "Use link",
     "linkInvalid": "Paste a Google Maps link (https://maps.app.goo.gl/…) or two numbers.",
     "linkNoPlace": "That link doesn't show a place. Open the place in Google Maps, then Share → Copy link.",
     "gpsDenied": "Location is blocked for this site. Allow it in the browser's address bar, then try again.",
-    "gpsUnavailable": "This device couldn't find its location. Try again near a window, or search instead.",
+    "gpsUnavailable": "This device couldn't find its location. Try again near a window, or paste the Google Maps link.",
     "map": "Map: click or drag the pin to fine-tune the office",
-    "mapFailed": "The map couldn't load. You can still search, use your location, or type the numbers.",
+    "mapFailed": "The map couldn't load. You can still paste a Google Maps link or type the numbers.",
     "pin": "Office pin",
     "pinAt": "Pin {lat}, {lng} · circle {radius} m. Click the map or drag the pin to fine-tune.",
-    "noPin": "No pin yet: search, use your location, paste a link or click the map.",
+    "noPin": "No pin yet: paste a Google Maps link or click the map.",
     "accuracy": "your location ± {m} m"
   },
   "dayStart": {

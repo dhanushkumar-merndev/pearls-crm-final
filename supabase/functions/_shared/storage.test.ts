@@ -45,3 +45,29 @@ Deno.test("path-style links (MinIO) put the bucket in the path", async () => {
   const url = new URL(await minio.presignGet("pdf/2026/10/a.pdf", 60));
   assertEquals(url.origin + url.pathname, "http://127.0.0.1:9000/pearl-test/pdf/2026/10/a.pdf");
 });
+
+Deno.test("local development: signed links use the public address, the functions' own requests don't", async () => {
+  const seen: string[] = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (input: RequestInfo | URL) => {
+    seen.push(input instanceof Request ? input.url : String(input));
+    return Promise.resolve(new Response(null, { status: 404 }));
+  };
+  try {
+    const local = s3Storage({
+      endpoint: "http://host.docker.internal:54321/storage/v1/s3",
+      publicEndpoint: "http://127.0.0.1:54321/storage/v1/s3",
+      region: "local",
+      bucket: "pearl-files",
+      accessKeyId: "AKIDEXAMPLE",
+      secretAccessKey: "secret-example",
+      pathStyle: true,
+    });
+    const put = new URL(await local.presignPut("selfie/2026/11/a.webp", "image/webp", 300));
+    assertEquals(put.origin + put.pathname, "http://127.0.0.1:54321/storage/v1/s3/pearl-files/selfie/2026/11/a.webp");
+    assertEquals(await local.head("selfie/2026/11/a.webp"), null);
+    assertEquals(seen, ["http://host.docker.internal:54321/storage/v1/s3/pearl-files/selfie/2026/11/a.webp"]);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});

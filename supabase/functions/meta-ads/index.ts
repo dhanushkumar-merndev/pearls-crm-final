@@ -36,7 +36,7 @@ const deps: Deps = {
 Deno.serve(handler(async (req) => {
   const cron = cronOk(req.headers.get("x-cron-secret"), cronSecret);
   if (!cron) {
-    // "Sync now" on the Ads page: sales managers and admins, at most once a minute.
+    // "Sync now" on the Ads page: admins only (ads_sync_request), at most once a minute.
     const caller = await callerClient(req);
     if (!caller) return fail("not_signed_in", 401);
     const { data, error } = await caller.rpc("ads_sync_request");

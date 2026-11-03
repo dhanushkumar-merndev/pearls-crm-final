@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { amountInWords, formatDate, formatDateTime, formatINR } from "@pearl/shared";
 import type { Bill, BillItem } from "@/components/bills/types";
+import { billBreakdown } from "@/lib/bill-breakdown";
 import { getSupabaseServer } from "@/lib/supabase/server";
 import { Letterhead, Watermark, type Clinic } from "../../letterhead";
 import { PrintToolbar } from "../../print-toolbar";
@@ -49,18 +50,8 @@ export default async function PrintBillPage({ params }: { params: Promise<{ id: 
   const cols = 5 + (showDate ? 1 : 0) + (showDisc ? 1 : 0) + (hasTax ? 1 : 0);
 
   // Final bill: lines grouped by category with a subtotal each (PLAN.md C6), and a summary.
-  const groups = new Map<string, BillItem[]>();
-  for (const i of b.items) {
-    const key = final ? (i.category ?? t("other")) : "";
-    groups.set(key, [...(groups.get(key) ?? []), i]);
-  }
-  // GST by rate (what a tax invoice must show), from the lines.
-  const byRate = new Map<number, { taxable: number; cgst: number; sgst: number }>();
-  for (const i of b.items) {
-    if (i.cgst_paise + i.sgst_paise === 0) continue;
-    const r = byRate.get(i.gst_rate_bp) ?? { taxable: 0, cgst: 0, sgst: 0 };
-    byRate.set(i.gst_rate_bp, { taxable: r.taxable + i.taxable_paise, cgst: r.cgst + i.cgst_paise, sgst: r.sgst + i.sgst_paise });
-  }
+  // GST by rate (what a tax invoice must show), from the lines. Same helper as the bill screen.
+  const { groups, byRate } = billBreakdown(b.items, { grouped: final, otherLabel: t("other") });
   const age = [b.patient_strip.age !== null ? `${b.patient_strip.age} ${t("years")}` : null, g(b.patient_strip.gender || "unknown")].filter(Boolean).join(" / ");
 
   return (
@@ -137,7 +128,7 @@ export default async function PrintBillPage({ params }: { params: Promise<{ id: 
             </tr>
           </thead>
           <tbody>
-            {[...groups.entries()].map(([group, items]) => (
+            {groups.map(({ name: group, items }) => (
               <GroupRows key={group || "all"} group={group} items={items} cols={cols} pharmacy={pharmacy} showDate={showDate} showDisc={showDisc} hasTax={hasTax} t={t} />
             ))}
           </tbody>
@@ -145,20 +136,20 @@ export default async function PrintBillPage({ params }: { params: Promise<{ id: 
 
         <div className="summary">
           <div className="summary-left">
-            {final && groups.size > 1 && (
+            {final && groups.length > 1 && (
               <table className="mini">
                 <caption>{t("categorySummary")}</caption>
                 <tbody>
-                  {[...groups.entries()].map(([group, items]) => (
-                    <tr key={group}>
-                      <td>{group}</td>
-                      <td className="num">{money(items.reduce((s, i) => s + i.total_paise, 0))}</td>
+                  {groups.map((g) => (
+                    <tr key={g.name}>
+                      <td>{g.name}</td>
+                      <td className="num">{money(g.total_paise)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             )}
-            {byRate.size > 0 && (
+            {byRate.length > 0 && (
               <table className="mini">
                 <caption>{t("gstSummary")}</caption>
                 <thead>
@@ -170,12 +161,12 @@ export default async function PrintBillPage({ params }: { params: Promise<{ id: 
                   </tr>
                 </thead>
                 <tbody>
-                  {[...byRate.entries()].sort(([a], [c]) => a - c).map(([rate, r]) => (
-                    <tr key={rate}>
-                      <td>{gstText(rate)}</td>
-                      <td className="num">{money(r.taxable)}</td>
-                      <td className="num">{money(r.cgst)}</td>
-                      <td className="num">{money(r.sgst)}</td>
+                  {byRate.map((r) => (
+                    <tr key={r.rate_bp}>
+                      <td>{gstText(r.rate_bp)}</td>
+                      <td className="num">{money(r.taxable_paise)}</td>
+                      <td className="num">{money(r.cgst_paise)}</td>
+                      <td className="num">{money(r.sgst_paise)}</td>
                     </tr>
                   ))}
                 </tbody>

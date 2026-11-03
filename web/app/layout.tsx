@@ -10,7 +10,7 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 
 export const metadata: Metadata = {
-  title: { default: "Clinic CRM", template: "%s · Clinic CRM" },
+  title: { default: "Pearl Aesthetic", template: "%s · Pearl Aesthetic" },
   robots: { index: false, follow: false },
 };
 

@@ -15,7 +15,9 @@ async function noSidewaysScroll(page: Page, path: string) {
     scroll: document.scrollingElement!.scrollWidth,
     client: document.scrollingElement!.clientWidth,
   }));
-  expect(scroll, `${path} is ${scroll - client}px wider than the screen`).toBeLessThanOrEqual(client + 1);
+  expect(scroll, `${path} is ${scroll - client}px wider than the screen`).toBeLessThanOrEqual(
+    client + 1,
+  );
 }
 
 const PAGES = {
@@ -27,7 +29,8 @@ const PAGES = {
 for (const [role, paths] of Object.entries(PAGES) as [keyof typeof PAGES, readonly string[]][]) {
   test.describe(`${role} at phone width`, () => {
     test.use({ storageState: STATE[role] });
-    for (const path of paths) test(`${path} fits the screen`, ({ page }) => noSidewaysScroll(page, path));
+    for (const path of paths)
+      test(`${path} fits the screen`, ({ page }) => noSidewaysScroll(page, path));
   });
 }
 
@@ -39,7 +42,11 @@ test.describe("patient file at phone width", () => {
     const fileLink = () =>
       page
         .locator('a[href^="/patients/"]')
-        .evaluateAll((links) => links.map((a) => a.getAttribute("href") ?? "").find((h) => /^\/patients\/[0-9a-f-]{36}$/.test(h)));
+        .evaluateAll((links) =>
+          links
+            .map((a) => a.getAttribute("href") ?? "")
+            .find((h) => /^\/patients\/[0-9a-f-]{36}$/.test(h)),
+        );
     await expect.poll(fileLink, { timeout: 15_000 }).toBeTruthy();
     const href = await fileLink();
     await noSidewaysScroll(page, href!);
@@ -48,4 +55,47 @@ test.describe("patient file at phone width", () => {
     const box = await tabs.boundingBox();
     expect(box!.height).toBeLessThan(60);
   });
+});
+
+// Page tops at phone width (owner, 03/11/2026): the description waits behind ⓘ, only the first
+// button shows beside the title (the rest behind ⋯), and search + Filters + Refresh share one row.
+test.describe("page tops at phone width", () => {
+  // The admin: Sync now / Import past leads are theirs only (03/11/2026).
+  test.use({ storageState: STATE.admin });
+
+  for (const [path, first, rest] of [
+    ["/ads", "Sync now", "Import past leads"],
+    ["/leads", "New lead", "Dashboard"],
+  ] as const) {
+    test(`${path}: description behind ⓘ, first button + ⋯, one search row`, async ({ page }) => {
+      await page.goto(path);
+      await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible();
+
+      const description = page.locator("header p.max-w-prose");
+      await expect(description).toBeHidden();
+      const text = (await description.textContent())!.trim();
+      expect(text.length).toBeGreaterThan(10);
+      await page.getByRole("button", { name: "About this page" }).click();
+      await expect(page.getByRole("dialog")).toContainText(text);
+      await page.keyboard.press("Escape");
+
+      const header = page.locator("header", { has: page.getByRole("heading", { level: 1 }) });
+      await expect(
+        header.getByRole("button", { name: first }).or(header.getByRole("link", { name: first })),
+      ).toBeVisible();
+      const other = header
+        .getByRole("button", { name: rest })
+        .or(header.getByRole("link", { name: rest }));
+      await expect(other).toBeHidden();
+      await header.getByRole("button", { name: "More actions" }).click();
+      await expect(other).toBeVisible();
+
+      // One row: the search box and the Filters button start at about the same height.
+      const search = page.getByRole("searchbox").first();
+      const filters = page.getByRole("button", { name: /^Filters/ });
+      await expect(search).toBeVisible();
+      const [a, b] = [await search.boundingBox(), await filters.boundingBox()];
+      expect(Math.abs(a!.y + a!.height / 2 - (b!.y + b!.height / 2))).toBeLessThan(12);
+    });
+  }
 });

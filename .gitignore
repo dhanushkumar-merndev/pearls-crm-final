@@ -18,6 +18,7 @@ supabase/.branches/
 node_modules/
 .pnpm-store/
 .next/
+.next-video/
 out/
 dist/
 build/

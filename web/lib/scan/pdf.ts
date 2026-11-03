@@ -21,8 +21,8 @@ export function loadPdfLib(): Promise<PdfLib> {
 export async function assemblePdf(parts: PdfPart[]): Promise<Uint8Array> {
   const { PDFDocument } = await loadPdfLib();
   const doc = await PDFDocument.create();
-  doc.setProducer("Pearl CRM");
-  doc.setCreator("Pearl CRM");
+  doc.setProducer("Pearl Aesthetic");
+  doc.setCreator("Pearl Aesthetic");
   for (const part of parts) {
     if (part.kind === "jpeg") {
       const image = await doc.embedJpg(part.bytes);

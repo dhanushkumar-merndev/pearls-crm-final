@@ -21,6 +21,14 @@ class RecordingsTest {
     }
 
     @Test
+    fun samsungOneUi8() {
+        // One UI 8 (Galaxy SM-E366B, Android 16, 03/11/2026): "Call <name or number>_yymmdd_hhmmss.m4a".
+        assertEquals(ParsedRecordingName(null, at), parsed("Call Asha_241024_153045.m4a"))
+        assertEquals(ParsedRecordingName("9845012345", at), parsed("Call +91 98450 12345_241024_153045.m4a"))
+        assertEquals(ParsedRecordingName("9845012345", at), parsed("Call 098450 12345_241024_153045.m4a"))
+    }
+
+    @Test
     fun samsungOlder() {
         assertEquals(ParsedRecordingName("9845012345", at), parsed("Asha_9845012345_20241024153045.m4a"))
     }

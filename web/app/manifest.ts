@@ -5,8 +5,8 @@ import { colorTokens } from "@pearl/shared";
 // apple-icon.png (Next adds their <link> tags); these are the bigger ones for installing.
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Clinic CRM",
-    short_name: "Clinic CRM",
+    name: "Pearl Aesthetic",
+    short_name: "Pearl Aesthetic",
     start_url: "/home",
     display: "standalone",
     background_color: colorTokens("dark").page,

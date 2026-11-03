@@ -5,7 +5,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(43);
+select plan(46);
 
 create function pg_temp.login(p_id uuid)
 returns void
@@ -24,11 +24,13 @@ grant execute on function pg_temp.login(uuid) to authenticated;
 insert into auth.users (id, email) values
   ('26262626-0000-4000-a000-0000000000b1', 'ads-rec@staff.invalid'),
   ('26262626-0000-4000-a000-0000000000c1', 'ads-sales@staff.invalid'),
-  ('26262626-0000-4000-a000-0000000000c2', 'ads-manager@staff.invalid');
+  ('26262626-0000-4000-a000-0000000000c2', 'ads-manager@staff.invalid'),
+  ('26262626-0000-4000-a000-0000000000a1', 'ads-admin@staff.invalid');
 insert into public.staff (id, role, full_name, username) values
   ('26262626-0000-4000-a000-0000000000b1', 'receptionist', 'Ads Rec', 'adsrec'),
   ('26262626-0000-4000-a000-0000000000c1', 'sales_executive', 'Ads Sales', 'adssales'),
-  ('26262626-0000-4000-a000-0000000000c2', 'sales_manager', 'Ads Manager', 'adsmanager');
+  ('26262626-0000-4000-a000-0000000000c2', 'sales_manager', 'Ads Manager', 'adsmanager'),
+  ('26262626-0000-4000-a000-0000000000a1', 'admin', 'Ads Admin', 'adsadmin');
 
 -- New leads go to the one salesperson in the pool; WhatsApp is on with a welcome template,
 -- so an ordinary new lead would get an alert and a welcome message.
@@ -128,8 +130,14 @@ select throws_ok($$ select public.ads_campaign('26777', '2030-05-01', '2030-05-3
 ------------------------------------------------------------------------------
 -- Who may see it
 ------------------------------------------------------------------------------
-select is(public.ads_sync_request(), true, 'a manager may press Sync now…');
+-- Sync now and Import past leads: the admin only (owner, 03/11/2026).
+select throws_ok($$ select public.ads_sync_request() $$, 'P0001', 'not_allowed', 'a manager cannot press Sync now');
+select throws_ok($$ select public.meta_lead_import_check() $$, 'P0001', 'not_allowed', '…nor import past leads');
+select pg_temp.login('26262626-0000-4000-a000-0000000000a1');
+select is(public.ads_sync_request(), true, 'the admin may press Sync now…');
 select is(public.ads_sync_request(), false, '…but not twice in a minute');
+select is(public.meta_lead_import_check(), true, 'the admin may import past leads');
+select pg_temp.login('26262626-0000-4000-a000-0000000000c2');
 -- Only this test's two (the online project also holds the clinic's real campaigns).
 select is((select count(*)::int from public.ad_campaigns where id in ('26001', '26002')), 2, 'a manager reads the campaigns');
 select lives_ok($$ select public.ads_overview('2028-06-01', '2030-05-31') $$, 'the Ads page takes up to 24 months');

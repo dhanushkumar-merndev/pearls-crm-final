@@ -16,6 +16,7 @@ data class ParsedRecordingName(
 /**
  * File names of the dialers' own call recordings. Seen on the phones we support:
  * - Samsung One UI: `Call recording Asha_241024_153045.m4a`, `Call recording +91 98450 12345_241024_153045.m4a`
+ * - Samsung One UI 8 (Android 16): `Call Asha_241024_153045.m4a`, `Call +91 98450 12345_241024_153045.m4a`
  * - Samsung (older): `Asha_9845012345_20241024153045.m4a`
  * - Xiaomi / Redmi (MIUI): `Asha(+919845012345)_20241024153045.mp3`, `Call@Asha(09845012345)_20241024153045.mp3`
  * - OnePlus / Oppo / Realme (ColorOS): `Asha 9845012345_2024-10-24-15-30-45.m4a`

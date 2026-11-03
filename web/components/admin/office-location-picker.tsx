@@ -2,25 +2,23 @@
 
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { GeoJSONSource, Map as MlMap, Marker } from "maplibre-gl";
-import { Link2, Loader2, LocateFixed, Search } from "lucide-react";
+import { Link2, Loader2, LocateFixed } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
 import { useEffect, useRef, useState } from "react";
-import { z } from "zod";
 import { STYLE_URL, token } from "@/components/bdm/bdm-map";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { mapsLinkSchema, parseMapsLocation, type LatLngPoint } from "@/lib/maps-link";
+import { useMediaQuery } from "@/lib/use-media-query";
 import { useZodForm } from "@/lib/use-zod-form";
 
 const INDIA: [number, number] = [77.5946, 12.9716];
 const round7 = (n: number) => Math.round(n * 1e7) / 1e7;
 
-/** OpenStreetMap search (Nominatim): free, fair use = one search when the admin asks, never per key press. */
-const SEARCH_URL = "https://nominatim.openstreetmap.org/search";
-const placesSchema = z.array(z.object({ display_name: z.string(), lat: z.coerce.number(), lon: z.coerce.number() }));
-const searchSchema = z.object({ q: z.string().trim().min(3, { error: "officePicker.searchShort" }).max(200, { error: "tooLong" }) });
+/** Phones and tablets (a finger, not a mouse): they have GPS. A computer's "location" comes from its internet line and is often kilometres off. */
+const TOUCH = "(pointer: coarse)";
 
 /** A circle of [radius] metres around a point, as a polygon the map can draw. */
 function circle(p: LatLngPoint, radius: number) {
@@ -52,8 +50,9 @@ function pinElement(label: string): HTMLElement {
 }
 
 /**
- * Admin → Offices: where the office is. Search a business / place / address, use this computer's
- * location, paste a Google Maps link, or click / drag on the map. The circle shows "at the office".
+ * Admin → Offices: where the office is. Paste a Google Maps link, or click / drag on the map.
+ * On a phone or tablet also "Use my current location" (GPS). Not on a computer, and no place
+ * search: both gave wrong places (owner, 03/11/2026). The circle shows "at the office".
  */
 export function OfficeLocationPicker({
   lat,
@@ -82,15 +81,13 @@ export function OfficeLocationPicker({
   const point = lat !== null && lng !== null && Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
   const startPoint = useRef(point);
   const [accuracy, setAccuracy] = useState<number | null>(null);
-  const [busy, setBusy] = useState<"gps" | "search" | "link" | null>(null);
+  const [busy, setBusy] = useState<"gps" | "link" | null>(null);
   const [note, setNote] = useState<string | null>(null);
-  const [q, setQ] = useState("");
-  const [places, setPlaces] = useState<z.infer<typeof placesSchema> | null>(null);
   const [link, setLink] = useState("");
-  const searchForm = useZodForm(searchSchema);
   const linkForm = useZodForm(mapsLinkSchema);
+  const hasGps = useMediaQuery(TOUCH, false);
 
-  /** A new point from search / GPS / link: move the pin and the view there. */
+  /** A new point from GPS / link: move the pin and the view there. */
   const go = (p: LatLngPoint, acc: number | null = null) => {
     const r = { lat: round7(p.lat), lng: round7(p.lng) };
     setAccuracy(acc);
@@ -186,22 +183,6 @@ export function OfficeLocationPicker({
     );
   }
 
-  async function search() {
-    setNote(null);
-    const v = searchForm.validate({ q });
-    if (!v) return;
-    setBusy("search");
-    try {
-      const res = await fetch(`${SEARCH_URL}?format=jsonv2&limit=5&q=${encodeURIComponent(v.q)}`, { headers: { "Accept-Language": "en" } });
-      const found = placesSchema.safeParse(await res.json());
-      setPlaces(found.success ? found.data : []);
-    } catch {
-      setNote(t("searchFailed"));
-    } finally {
-      setBusy(null);
-    }
-  }
-
   async function applyLink() {
     setNote(null);
     const v = linkForm.validate({ link });
@@ -225,7 +206,7 @@ export function OfficeLocationPicker({
   }
 
   const enter = (fn: () => void) => (e: React.KeyboardEvent) => {
-    // The picker sits inside the office form: Enter searches instead of saving.
+    // The picker sits inside the office form: Enter reads the link instead of saving.
     if (e.key === "Enter") {
       e.preventDefault();
       fn();
@@ -234,76 +215,35 @@ export function OfficeLocationPicker({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <Button type="button" variant="secondary" onClick={locateMe} disabled={busy !== null}>
-          {busy === "gps" ? <Loader2 aria-hidden className="animate-spin" /> : <LocateFixed aria-hidden />}
-          {t("useMyLocation")}
-        </Button>
-        <span className="text-[0.9rem] text-text-secondary">{t("useMyLocationHint")}</span>
-      </div>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field label={t("search")} hint={t("searchHint")} error={searchForm.error("q")}>
-          {(a) => (
-            <div className="flex gap-2">
-              <Input
-                {...a}
-                value={q}
-                placeholder={t("searchPlaceholder")}
-                onChange={(e) => {
-                  setQ(e.target.value);
-                  searchForm.clear("q");
-                }}
-                onKeyDown={enter(() => void search())}
-              />
-              <Button type="button" variant="secondary" onClick={() => void search()} disabled={busy !== null} aria-label={t("searchButton")}>
-                {busy === "search" ? <Loader2 aria-hidden className="animate-spin" /> : <Search aria-hidden />}
-                {t("searchButton")}
-              </Button>
-            </div>
-          )}
-        </Field>
-        <Field label={t("link")} hint={t("linkHint")} error={linkForm.error("link")}>
-          {(a) => (
-            <div className="flex gap-2">
-              <Input
-                {...a}
-                value={link}
-                placeholder="https://maps.app.goo.gl/…"
-                onChange={(e) => {
-                  setLink(e.target.value);
-                  linkForm.clear("link");
-                }}
-                onKeyDown={enter(() => void applyLink())}
-              />
-              <Button type="button" variant="secondary" onClick={() => void applyLink()} disabled={busy !== null}>
-                {busy === "link" ? <Loader2 aria-hidden className="animate-spin" /> : <Link2 aria-hidden />}
-                {t("useLink")}
-              </Button>
-            </div>
-          )}
-        </Field>
-      </div>
-      {places !== null && (
-        <div role="region" aria-label={t("results")} className="flex flex-col gap-1 rounded-lg border border-border p-1">
-          {places.length === 0 ? (
-            <p className="p-2 text-text-secondary">{t("noResults")}</p>
-          ) : (
-            places.map((p, i) => (
-              <button
-                key={`${p.lat},${p.lon},${i}`}
-                type="button"
-                className="rounded-md px-2 py-1.5 text-left hover:bg-accent focus-visible:outline-2 focus-visible:outline-ring"
-                onClick={() => {
-                  setPlaces(null);
-                  go({ lat: p.lat, lng: p.lon });
-                }}
-              >
-                {p.display_name}
-              </button>
-            ))
-          )}
+      {hasGps && (
+        <div className="flex flex-wrap items-center gap-2">
+          <Button type="button" variant="secondary" onClick={locateMe} disabled={busy !== null}>
+            {busy === "gps" ? <Loader2 aria-hidden className="animate-spin" /> : <LocateFixed aria-hidden />}
+            {t("useMyLocation")}
+          </Button>
+          <span className="text-[0.9rem] text-text-secondary">{t("useMyLocationHint")}</span>
         </div>
       )}
+      <Field label={t("link")} hint={t("linkHint")} error={linkForm.error("link")}>
+        {(a) => (
+          <div className="flex gap-2">
+            <Input
+              {...a}
+              value={link}
+              placeholder="https://maps.app.goo.gl/…"
+              onChange={(e) => {
+                setLink(e.target.value);
+                linkForm.clear("link");
+              }}
+              onKeyDown={enter(() => void applyLink())}
+            />
+            <Button type="button" variant="secondary" onClick={() => void applyLink()} disabled={busy !== null}>
+              {busy === "link" ? <Loader2 aria-hidden className="animate-spin" /> : <Link2 aria-hidden />}
+              {t("useLink")}
+            </Button>
+          </div>
+        )}
+      </Field>
       {note && (
         <p role="status" className="text-[0.9rem] text-bad-text">
           {note}

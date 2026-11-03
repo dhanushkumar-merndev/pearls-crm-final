@@ -1,21 +1,18 @@
 import { expect, test } from "@playwright/test";
 import { open, randomUUID, rpcAs, STATE } from "./helpers";
 
-// Phase 18 (owner, 02/11/2026): offices are picked on a map (search, this computer's location,
-// a Google Maps link), and BDMs / sales executives can ask the admin to start the day where they
-// are. The phone side and the rules are in supabase/tests/database/32_day_start_requests.test.sql.
+// Phase 18 (owner, 02/11/2026): offices are picked on a map with a Google Maps link (and, on a
+// phone or tablet, "Use my current location"; a computer's location is often wrong and the place
+// search found wrong places: both off on a computer since 03/11/2026). BDMs / sales executives can
+// ask the admin to start the day where they are. The phone side and the rules are in
+// supabase/tests/database/32_day_start_requests.test.sql.
 test.skip(!process.env.E2E_DB, "needs the Supabase backend (E2E_DB=1)");
 test.use({ storageState: STATE.admin });
 test.setTimeout(120_000);
 
-test("office: use my location, search a place, or paste a Google Maps link; the circle starts at 100 m", async ({ page, context }) => {
-  // No outside calls from the test: map tiles off, the place search answered here.
+test("office: a Google Maps link places the pin; no 'my location' or place search on a computer; the circle starts at 100 m", async ({ page, context }) => {
+  // No outside calls from the test: map tiles off.
   await context.route("https://tiles.openfreemap.org/**", (r) => r.abort());
-  await context.route("https://nominatim.openstreetmap.org/**", (r) =>
-    r.fulfill({ json: [{ display_name: "E2E Place, Jayanagar, Bengaluru", lat: "12.9301", lon: "77.5834" }] }),
-  );
-  await context.grantPermissions(["geolocation"]);
-  await context.setGeolocation({ latitude: 12.9373626, longitude: 77.5582325, accuracy: 20 });
 
   const name = `E2E Picked Office ${Date.now()}`;
   await open(page, "/admin/libraries/offices");
@@ -24,22 +21,10 @@ test("office: use my location, search a place, or paste a Google Maps link; the 
   await expect(dialog.getByLabel("Circle (metres)")).toHaveValue("100");
   const pin = dialog.getByTestId("office-pin");
   await expect(pin).toContainText("No pin yet");
+  await expect(dialog.getByRole("button", { name: "Use my current location" })).toHaveCount(0);
+  await expect(dialog.getByLabel("Search a place")).toHaveCount(0);
 
-  await dialog.getByRole("button", { name: "Use my current location" }).click();
-  await expect(pin).toContainText("Pin 12.937363, 77.558233 · circle 100 m");
-  await expect(pin).toContainText("± 20 m");
-  await expect(dialog.getByLabel("Latitude")).toHaveValue("12.9373626");
-
-  const search = dialog.getByLabel("Search a place");
-  await search.fill("ab");
-  await search.press("Enter");
-  await expect(dialog.getByText("Type at least 3 letters.")).toBeVisible();
-  await search.fill("E2E Place");
-  await search.press("Enter");
-  await dialog.getByRole("button", { name: /E2E Place, Jayanagar/ }).click();
-  await expect(dialog.getByLabel("Longitude")).toHaveValue("77.5834");
-
-  const link = dialog.getByLabel("Or paste a Google Maps link");
+  const link = dialog.getByLabel("Google Maps link");
   await link.fill("hello");
   await dialog.getByRole("button", { name: "Use link" }).click();
   await expect(dialog.getByText("Paste a Google Maps link (https://maps.app.goo.gl/…) or two numbers.")).toBeVisible();
@@ -61,6 +46,30 @@ test("office: use my location, search a place, or paste a Google Maps link; the 
   await page.getByRole("dialog").getByText("Active (shown in pickers)").click();
   await page.getByRole("dialog").getByRole("button", { name: "Save" }).click();
   await expect(page.getByText("Saved ✓").first()).toBeVisible();
+});
+
+test("office on a phone or tablet: 'Use my current location' puts the pin where the device is", async ({ browser }) => {
+  const phone = await browser.newContext({
+    storageState: STATE.admin,
+    hasTouch: true,
+    isMobile: true,
+    viewport: { width: 390, height: 844 },
+    permissions: ["geolocation"],
+    geolocation: { latitude: 12.9373626, longitude: 77.5582325, accuracy: 20 },
+  });
+  await phone.route("https://tiles.openfreemap.org/**", (r) => r.abort());
+  const page = await phone.newPage();
+  await page.goto("/admin/libraries/offices");
+  await page.getByRole("button", { name: "Add office" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: "Use my current location" }).click();
+  const pin = dialog.getByTestId("office-pin");
+  await expect(pin).toContainText("Pin 12.937363, 77.558233 · circle 100 m");
+  await expect(pin).toContainText("± 20 m");
+  await expect(dialog.getByLabel("Latitude")).toHaveValue("12.9373626");
+  await expect(dialog.getByLabel("Google Maps link")).toBeVisible();
+  // Nothing saved: closing leaves the offices as they were.
+  await phone.close();
 });
 
 test("the Google Maps link reader: admins only, and it reads a full link without going out", async ({ page, browser, baseURL }) => {

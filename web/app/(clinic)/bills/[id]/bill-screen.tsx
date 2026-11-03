@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CircleX, IndianRupee, Pencil, Printer, Wallet } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { formatDateTime, formatINR } from "@pearl/shared";
 import { BillEditor } from "@/components/bills/bill-editor";
 import { useBillForLabel } from "@/components/bills/bill-for";
@@ -23,6 +23,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { Table, TD, TH, THead, TR } from "@/components/ui/table";
 import { rpc } from "@/lib/rpc";
 import { useMe } from "@/lib/use-me";
+import { billBreakdown } from "@/lib/bill-breakdown";
 import { applyAdvanceSchema } from "@/lib/schemas/billing";
 import { reasonSchema } from "@/lib/schemas/clinical";
 import { useFeedback } from "@/lib/use-feedback";
@@ -142,6 +143,9 @@ function BillView({ bill: b }: { bill: Bill }) {
     queryKey: ["bill_view", b.id, b.version, b.received_paise],
     queryFn: () => rpc<PrintData>("bill_print_data", { p_bill_id: b.id, p_count: false }),
   });
+  // Final bill: by category (only worth it with more than one); any bill: GST by rate.
+  const { groups, byRate } = billBreakdown(b.items, { grouped: b.bill_type === "final_bill", otherLabel: t("otherCategory") });
+  const grouped = b.bill_type === "final_bill" && groups.length > 1;
   return (
     <div className="flex flex-col gap-4">
       <Table>
@@ -157,7 +161,18 @@ function BillView({ bill: b }: { bill: Bill }) {
           </tr>
         </THead>
         <tbody>
-          {b.items.map((i) => (
+          {groups.map((g) => (
+            <Fragment key={g.name || "all"}>
+              {/* Final bill: lines under their category with a subtotal (as on the printed bill). */}
+              {grouped && (
+                <TR className="bg-muted" data-testid="bill-group">
+                  <TD colSpan={6} className="font-semibold">
+                    {g.name}
+                  </TD>
+                  <TD className="text-right font-semibold tabular-nums">{formatINR(g.total_paise)}</TD>
+                </TR>
+              )}
+              {g.items.map((i) => (
             <TR key={i.id}>
               <TD className="tabular-nums">{i.line_no}</TD>
               <TD>
@@ -173,9 +188,12 @@ function BillView({ bill: b }: { bill: Bill }) {
               <TD className="text-right tabular-nums">{i.gst_rate_bp / 100}%</TD>
               <TD className="text-right font-medium tabular-nums">{formatINR(i.total_paise)}</TD>
             </TR>
+              ))}
+            </Fragment>
           ))}
         </tbody>
       </Table>
+      <BreakdownCards groups={grouped ? groups : []} byRate={byRate} />
       <div className="grid items-start gap-4 lg:grid-cols-2">
         <Card className="flex flex-col gap-2">
           <CardTitle>{t("payments")}</CardTitle>
@@ -224,6 +242,56 @@ function BillView({ bill: b }: { bill: Bill }) {
           </span>
         </Card>
       </div>
+    </div>
+  );
+}
+
+/** Where the total comes from: subtotals by category (final bill) and GST by rate. */
+function BreakdownCards({ groups, byRate }: { groups: ReturnType<typeof billBreakdown>["groups"]; byRate: ReturnType<typeof billBreakdown>["byRate"] }) {
+  const t = useTranslations("bill");
+  if (groups.length === 0 && byRate.length === 0) return null;
+  return (
+    <div className="grid items-start gap-4 lg:grid-cols-2" data-testid="bill-breakdown">
+      {groups.length > 0 && (
+        <Card className="flex flex-col gap-2">
+          <CardTitle>{t("categorySummary")}</CardTitle>
+          <ul className="flex flex-col gap-1 tabular-nums">
+            {groups.map((g) => (
+              <li key={g.name} className="flex justify-between gap-3">
+                <span>
+                  {g.name} <span className="text-text-secondary">· {g.items.length}</span>
+                </span>
+                <span>{formatINR(g.total_paise)}</span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+      {byRate.length > 0 && (
+        <Card className="flex flex-col gap-2">
+          <CardTitle>{t("gstByRate")}</CardTitle>
+          <Table>
+            <THead>
+              <tr>
+                <TH>{t("gstRate")}</TH>
+                <TH className="text-right">{t("taxable")}</TH>
+                <TH className="text-right">{t("cgst")}</TH>
+                <TH className="text-right">{t("sgst")}</TH>
+              </tr>
+            </THead>
+            <tbody>
+              {byRate.map((r) => (
+                <TR key={r.rate_bp}>
+                  <TD className="tabular-nums">{r.rate_bp / 100}%</TD>
+                  <TD className="text-right tabular-nums">{formatINR(r.taxable_paise)}</TD>
+                  <TD className="text-right tabular-nums">{formatINR(r.cgst_paise)}</TD>
+                  <TD className="text-right tabular-nums">{formatINR(r.sgst_paise)}</TD>
+                </TR>
+              ))}
+            </tbody>
+          </Table>
+        </Card>
+      )}
     </div>
   );
 }
