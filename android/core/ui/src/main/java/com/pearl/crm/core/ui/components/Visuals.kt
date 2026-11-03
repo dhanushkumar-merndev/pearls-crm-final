@@ -79,19 +79,21 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /**
- * Accent colours for icons and tiles, in the fixed chart order from tokens.json (never raw hex).
- * Used for meaning-free decoration only; status keeps [StatusTone] (icon + label).
+ * Which decoration an icon stands for. All of them draw in the plain text colour (white in the
+ * dark theme): owner, 03/11/2026, "icons white", ChatGPT style. Colour stays for status only
+ * ([StatusTone]: icon + label) and for charts. Kept as a name so call sites read clearly.
  */
-enum class Accent(internal val index: Int) { Blue(0), Orange(1), Teal(2), Amber(3), Pink(4), Violet(6) }
+enum class Accent { Blue, Orange, Teal, Amber, Pink, Violet }
 
 @Composable
-fun accentColor(accent: Accent): Color = Pearl.palette.chartSeries[accent.index % Pearl.palette.chartSeries.size]
+@Suppress("UNUSED_PARAMETER")
+fun accentColor(accent: Accent): Color = Pearl.palette.text
 
-/** A small icon on a soft tinted square: gives a card or a tile something to look at. */
+/** A small icon on a grey rounded square: gives a card or a tile something to look at. */
 @Composable
 fun IconBadge(icon: ImageVector, color: Color, modifier: Modifier = Modifier, size: Dp = 36.dp, iconSize: Dp = 18.dp) {
     Box(
-        modifier.size(size).clip(RoundedCornerShape(size * 0.3f)).background(color.copy(alpha = 0.16f)),
+        modifier.size(size).clip(RoundedCornerShape(size * 0.3f)).background(MaterialTheme.colorScheme.surfaceContainerHighest),
         contentAlignment = Alignment.Center,
     ) {
         Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(iconSize))
@@ -108,13 +110,13 @@ fun initialsOf(name: String): String {
     }
 }
 
-/** A round letter mark for a person. The colour comes from the name, so it stays the same everywhere. */
+/** A round letter mark for a person: their initials on a grey circle. */
 @Composable
 fun Avatar(name: String, modifier: Modifier = Modifier, size: Dp = 40.dp) {
-    val series = Pearl.palette.chartSeries
-    val color = series[Math.floorMod(name.trim().lowercase().hashCode(), series.size)]
+    // Neutral like the rest of the ChatGPT look: grey circle, white letters.
+    val color = Pearl.palette.text
     Box(
-        modifier.size(size).clip(CircleShape).background(color.copy(alpha = 0.20f)),
+        modifier.size(size).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceContainerHighest),
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -127,7 +129,7 @@ fun Avatar(name: String, modifier: Modifier = Modifier, size: Dp = 40.dp) {
     }
 }
 
-/** A status as a small tinted pill: still an icon and a label (never colour alone). */
+/** A status as a small grey pill: a status-coloured icon and a label (never colour alone). */
 @Composable
 fun StatusPill(text: String, tone: StatusTone, modifier: Modifier = Modifier) {
     val palette = Pearl.palette
@@ -141,7 +143,7 @@ fun StatusPill(text: String, tone: StatusTone, modifier: Modifier = Modifier) {
     Row(
         modifier
             .clip(CircleShape)
-            .background(color.copy(alpha = 0.14f))
+            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
             .padding(horizontal = Spacing.m, vertical = 3.dp),
         horizontalArrangement = Arrangement.spacedBy(Spacing.xs),
         verticalAlignment = Alignment.CenterVertically,
@@ -371,13 +373,13 @@ fun PhotoPreview(
     }
 }
 
-/** A round icon-only action on a soft tint of [color] (e.g. Call / WhatsApp on a row). 40 dp to tap. */
+/** A round icon-only action on a grey circle (e.g. Call / WhatsApp on a row). 40 dp to tap. */
 @Composable
 fun TintedIconButton(icon: ImageVector, label: String, color: Color, onClick: () -> Unit, modifier: Modifier = Modifier) {
     androidx.compose.material3.IconButton(
         onClick = onClick,
         modifier = modifier.size(MinTouchTarget),
-        colors = androidx.compose.material3.IconButtonDefaults.iconButtonColors(containerColor = color.copy(alpha = 0.14f), contentColor = color),
+        colors = androidx.compose.material3.IconButtonDefaults.iconButtonColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest, contentColor = color),
     ) {
         Icon(icon, contentDescription = label, modifier = Modifier.size(18.dp))
     }

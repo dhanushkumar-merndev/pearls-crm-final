@@ -198,7 +198,7 @@ private fun TaskRow(row: FollowupWithLead, overdue: Boolean, onOpen: () -> Unit,
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.m)) {
             IconBadge(
                 if (task.kind == "call_to_confirm") Icons.Outlined.PhoneCallback else Icons.Outlined.EventRepeat,
-                if (overdue) Pearl.palette.badText else accentColor(Accent.Amber),
+                accentColor(Accent.Amber),
             )
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(row.leadName ?: task.reason, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)

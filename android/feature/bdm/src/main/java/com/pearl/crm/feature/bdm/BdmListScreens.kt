@@ -115,7 +115,7 @@ private fun VisitCard(v: BdmVisit) {
     val done = v.completedAt != null
     PearlCard(verticalSpacing = Spacing.s) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.m)) {
-            IconBadge(if (done) Icons.Outlined.TaskAlt else Icons.Outlined.Place, if (done) Pearl.palette.goodText else accentColor(Accent.Violet))
+            IconBadge(if (done) Icons.Outlined.TaskAlt else Icons.Outlined.Place, accentColor(Accent.Violet))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(v.destination, style = MaterialTheme.typography.titleSmall)
                 StatusPill(stringResource(if (done) R.string.bdm_visit_done else R.string.bdm_visit_open), if (done) StatusTone.Good else StatusTone.Info)
