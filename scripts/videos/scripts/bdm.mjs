@@ -26,6 +26,18 @@ function estimateRoutes() {
   execFileSync("docker", ["exec", "supabase_db_pearl-crm", "psql", "-U", "postgres", "-qtAc", sql]);
 }
 
+/** A tab in the phone's bottom bar (the same word can also be a tile or heading on the screen). */
+const tab = (label) => (n) => n.text === label && n.bounds[1] > 2400;
+
+/**
+ * The visit cards' "km driven" is filled in when the day's trips are built (at End day). Build them
+ * now so the Visits tab shows the real distance mid-day (local database only).
+ */
+function buildTrips() {
+  execFileSync("docker", ["exec", "supabase_db_pearl-crm", "psql", "-U", "postgres", "-qtAc",
+    `select private.bdm_build_trips(id) from public.bdm_days where staff_id = '${BDM_ID}' and ended_at is null`]);
+}
+
 function yesterday() {
   const d = new Date(Date.now() + 5.5 * 3600_000 - 86_400_000);
   return d.toISOString().slice(0, 10);
@@ -151,6 +163,7 @@ export default {
       offscreen: async (phone) => {
         await phone.drive([...ROUTE].reverse());
         estimateRoutes();
+        buildTrips();
       },
     },
     {
@@ -160,7 +173,7 @@ export default {
       run: async (phone) => {
         await phone.tap("I'm at the office");
         await phone.find("At the office", { timeout: 15_000 });
-        await phone.tap("Visits", { index: 1 }); // the tab (the tile above is also "Visits")
+        await phone.tap(tab("Visits"));
         await phone.wait(400);
         await phone.tap("My day");
         await phone.find(/^Time: travel/, { timeout: 15_000 });
@@ -171,10 +184,10 @@ export default {
       phone: PHONE_LABEL,
       say: "The Visits tab lists today's visits, with the kilometres driven against the expected route. The Leads tab has the leads Bhavya brought in.",
       run: async (phone) => {
-        await phone.tap("Visits", { index: 1 });
+        await phone.tap(tab("Visits"));
         await phone.find(PLACE, { timeout: 15_000 });
         await phone.wait(2500);
-        await phone.tap("Leads", { index: 1 });
+        await phone.tap(tab("Leads"));
         await phone.find("Arjun Nair", { timeout: 15_000 });
         await phone.wait(1500);
         await phone.tap("My day");

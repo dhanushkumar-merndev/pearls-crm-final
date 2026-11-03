@@ -130,15 +130,18 @@ export class Phone {
     const inside = (n, [x, y]) => x >= n.bounds[0] && x <= n.bounds[2] && y >= n.bounds[1] && y <= n.bounds[3];
     for (let i = 0; i < 4; i++) {
       // An open keyboard can cover the box (the tap would land on a key): close it first.
-      if (this.hideKeyboard()) await sleep(600);
+      if (this.hideKeyboard()) await this.keyboardGone();
       await this.tap(what);
-      await sleep(700);
-      const all = this.nodes();
-      const label = all.find((n) => this.matches(n, what));
-      const focused = all.find((n) => n.edit && n.focused);
-      if (label && focused && inside(focused, [(label.bounds[0] + label.bounds[2]) / 2, (label.bounds[1] + label.bounds[3]) / 2])) {
-        await this.type(text);
-        return;
+      // The keyboard opening slides the form; check a few times while it settles.
+      for (let k = 0; k < 4; k++) {
+        await sleep(500);
+        const all = this.nodes();
+        const label = all.find((n) => this.matches(n, what));
+        const focused = all.find((n) => n.edit && n.focused);
+        if (label && focused && inside(focused, [(label.bounds[0] + label.bounds[2]) / 2, (label.bounds[1] + label.bounds[3]) / 2])) {
+          await this.type(text);
+          return;
+        }
       }
     }
     throw new Error(`phone: could not focus ${what}`);
@@ -172,6 +175,15 @@ export class Phone {
   async back() {
     adb("shell", "input", "keyevent", "4");
     await sleep(600);
+  }
+
+  /** Waits until the on-screen keyboard has closed (so taps don't land on its keys). */
+  async keyboardGone(ms = 3000) {
+    for (let t = 0; t < ms; t += 250) {
+      if (!adb("shell", "dumpsys", "input_method").includes("mInputShown=true")) break;
+      await sleep(250);
+    }
+    await sleep(400);
   }
 
   hideKeyboard() {

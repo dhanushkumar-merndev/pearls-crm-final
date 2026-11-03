@@ -9,6 +9,7 @@ Working files (frames, phone clips, voice) go to `~/Videos/pearl-crm-videos/_wor
 
 | Script (`scripts/`) | Video |
 |---|---|
+| `all-features.mjs` | 1: a tour of everything, role by role (reception, sales manager, admin, phone app) |
 | `inventory.mjs` | 2: stock in, stock out, pharmacy bill |
 | `patient-journey.mjs` | 3: new patient → appointment → WhatsApp → prescription → admission → final bill |
 | `leads.mjs` | 4: leads, from enquiry to patient (web + sales executive's phone) |
