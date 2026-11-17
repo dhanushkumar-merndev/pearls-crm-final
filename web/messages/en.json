@@ -309,7 +309,8 @@
     "pickSlot": "Please choose a time slot.",
     "rangeTooLong": "Choose at most one year.",
     "rangeTooLongAds": "Choose at most 24 months.",
-    "botNeedsProducts": "Add at least one treatment before switching the bot on."
+    "botNeedsProducts": "Add at least one treatment before switching the bot on.",
+    "signatureType": "Please choose a picture (PNG, WebP or JPEG) under 300 KB."
   },
   "picker": {
     "choose": "Choose…",
@@ -421,9 +422,9 @@
     "slotMinutesHint": "Empty = the clinic's default.",
     "capacity": "Patients per slot",
     "capacityHint": "Empty = the clinic's default.",
-    "colour": "Colour number (0–7)",
+    "colour": "Colour",
     "colourHint": "Colour on the appointment board and charts.",
-    "hoursAndLeave": "Hours & leave",
+    "hoursAndLeave": "Hours, leave and signature",
     "date": "Date",
     "holidayName": "Holiday",
     "whichList": "Which list",
@@ -485,11 +486,12 @@
     "lng": "Longitude",
     "latHint": "In Google Maps, long-press the office: the two numbers shown are latitude, longitude.",
     "radius": "Circle (metres)",
-    "radiusHint": "How far from this point still counts as \"at the office\" (25–5000 m)."
+    "radiusHint": "How far from this point still counts as \"at the office\" (25–5000 m).",
+    "colourN": "Colour {n}"
   },
   "doctorHours": {
-    "title": "Hours and leave — {name}",
-    "description": "Weekly hours decide the appointment slots. Leave blocks booking for those days.",
+    "title": "{name}",
+    "description": "Details, signature, weekly hours and leave. Weekly hours decide the appointment slots; leave blocks booking for those days.",
     "back": "Back to doctors",
     "weeklyHours": "Weekly hours",
     "day": "Day",
@@ -896,7 +898,18 @@
       "title": "Sales targets",
       "body": "Monthly targets per salesperson (optional)."
     },
-    "backToAdmin": "Back to admin"
+    "backToAdmin": "Back to admin",
+    "guide": {
+      "title": "How to set up and use",
+      "body": "Step by step: add a doctor, add a service and its price, the four billing sections, and what the money boxes mean."
+    },
+    "groups": {
+      "clinicStaff": "Clinic and staff",
+      "doctorsServices": "Doctors and services",
+      "billingDocs": "Billing and documents",
+      "salesMarketing": "Sales and marketing",
+      "dataSafety": "Data and safety"
+    }
   },
   "patientForm": {
     "who": "Patient",
@@ -2352,7 +2365,8 @@
     "followUp": "Follow-up",
     "followUpOn": "Review on {date}.",
     "for": "For",
-    "regNo": "Reg. no."
+    "regNo": "Reg. no.",
+    "signatureAlt": "Doctor's signature"
   },
   "scan": {
     "title": "Add document",
@@ -4139,6 +4153,84 @@
       "noStays": "This patient has no visit, treatment session or IP stay yet.",
       "next": "Next",
       "cancel": "Cancel"
+    }
+  },
+  "doctorPage": {
+    "savedTitle": "Doctor saved. Now set the working hours.",
+    "savedBody": "Add the weekly hours below so patients can be booked. Upload the signature to print it on discharge summaries.",
+    "details": "Details",
+    "detailsHint": "As they print on bills and discharge summaries.",
+    "edit": "Edit on the doctors list",
+    "minutes": "{n} min",
+    "clinicDefault": "Clinic default",
+    "signature": "Signature",
+    "signatureHint": "Prints above the doctor's name on discharge summaries. A clear picture of the signature on white paper, PNG or WebP (a photo is made smaller for you).",
+    "signatureAlt": "Signature of {name}",
+    "signatureOnFile": "A signature is saved.",
+    "noSignature": "No signature yet: the summary prints a blank line to sign by hand.",
+    "uploadSignature": "Upload signature",
+    "replaceSignature": "Replace signature",
+    "removeSignature": "Remove",
+    "uploading": "Uploading…",
+    "signatureSaved": "Signature saved",
+    "signatureRemoved": "Signature removed"
+  },
+  "adminGuide": {
+    "title": "How to set up and use",
+    "description": "Step-by-step answers to the questions from the sales and desk training.",
+    "back": "Back to admin",
+    "contents": "On this page",
+    "links": {
+      "doctors": "Open Doctors",
+      "services": "Open Services",
+      "treatments": "Open Treatments",
+      "medicines": "Open Medicines",
+      "rooms": "Open Room types",
+      "bills": "Open Bills"
+    },
+    "doctor": {
+      "title": "Add a doctor",
+      "intro": "A doctor needs weekly hours before patients can be booked with them.",
+      "steps": [
+        "Admin → Doctors and services → Doctors → Add doctor.",
+        "Type the full name as it prints (for example Dr. Priya Rao), the qualification, registration number and consultation fee. Pick a colour for the appointment board. Save.",
+        "The doctor's page opens. Under Weekly hours pick the day, the From and To time, and press Add hours. Repeat for each day. Leave the slot and patients-per-slot boxes empty to use the clinic's default.",
+        "Under Leave add the days the doctor is away; booking is blocked on those days.",
+        "Under Signature press Upload signature and choose a clear picture of the signature on white paper. It prints on discharge summaries.",
+        "The consultation fee fills in by itself: a new surgery bill made for a consultation visit starts with a “Consultation – Dr …” line at this fee. Change or remove the line on the bill if needed."
+      ]
+    },
+    "service": {
+      "title": "Add a service and its price",
+      "intro": "Four lists hold what can go on a bill. Pick the one that matches what you sell.",
+      "steps": [
+        "Services: anything charged once on a bill, such as a consultation, a scan, a dressing or a doctor's charge. Admin → Services → Add service, type the name and price, choose the category and GST rate, Save.",
+        "Treatments: a plan with sessions and a package price, such as Laser hair reduction with 6 sessions. Starting a treatment for a patient creates its sessions.",
+        "Medicines: pharmacy items with their batches, stock and selling price. They go on pharmacy bills.",
+        "Room types: the in-patient rooms and their daily rate, used on the IP final bill.",
+        "A service typed on a bill that isn't in the list yet is saved too. It waits under Admin → New items to review until you check its price."
+      ]
+    },
+    "billing": {
+      "title": "The four billing sections",
+      "intro": "Patient file → Bills tab (and the Bills page) has four sections. Each has its own New button.",
+      "steps": [
+        "Surgery bills: the bill for a consultation, a procedure or a treatment session. The IP final bill for a stay is listed here too, marked “IP final”.",
+        "Pharmacy bills: medicines sold to the patient.",
+        "Breakdown bills (insurance): the charges split up the way an insurance company asks. Choose the surgery or IP stay, tick its sessions and bills, and the lines fill in. Change any amount, split a package into parts, add or rename lines, then Finalize; the finalized copy is saved. A breakdown never changes what the patient owes.",
+        "Discharge summaries: for an IP stay or an OP visit or session. Start one from a template, check the text, choose who signs, and Finalize. Print it from the summary.",
+        "From an open surgery bill, the Breakdown bill and Discharge summary buttons open the one already made, or start one for that bill."
+      ]
+    },
+    "money": {
+      "title": "What the four money boxes mean",
+      "intro": "The boxes at the top of a patient's Bills tab.",
+      "steps": [
+        "Billed: the total of the patient's finalized bills (not drafts, not cancelled bills, not breakdown bills).",
+        "Received: what the patient has paid against those bills.",
+        "Balance due: Billed minus Received. This is what the patient still owes.",
+        "Advance held: money paid in advance that hasn't been used on a bill yet. Open a bill → Use advance to pay it from the advance."
+      ]
     }
   }
 }

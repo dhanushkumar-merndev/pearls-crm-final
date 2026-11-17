@@ -15,13 +15,21 @@ test.describe("as admin", () => {
     await page.getByRole("button", { name: "Add doctor" }).click();
     await page.getByLabel("Doctor's full name").fill(name);
     await page.getByLabel("Consultation fee").fill("600");
+    // The colour is a row of swatches, not a number.
+    await page.getByRole("radiogroup", { name: "Colour" }).getByRole("radio", { name: "Colour 3" }).click();
+    await expect(page.getByRole("radio", { name: "Colour 3" })).toHaveAttribute("aria-checked", "true");
     await page.getByRole("button", { name: "Save" }).click();
     await expect(page.getByText("Saved ✓")).toBeVisible();
 
-    await page.getByLabel("Search Doctors").fill(name);
-    const row = page.getByRole("row", { name: new RegExp(name) });
-    await expect(row).toContainText("₹600.00");
-    await row.getByRole("link", { name: "Hours & leave" }).click();
+    // A new doctor goes straight to their page: details, signature, then hours.
+    await expect(page).toHaveURL(/\/admin\/doctors\/[0-9a-f-]{36}\?new=1$/);
+    await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
+    await expect(page.getByText("Doctor saved. Now set the working hours.")).toBeVisible();
+    await expect(page.getByText("₹600.00")).toBeVisible();
+    await expect(page.getByText("No signature yet", { exact: false })).toBeVisible();
+    // Only a picture can be a signature (checked before anything is sent).
+    await page.locator("#signature-file").setInputFiles({ name: "notes.txt", mimeType: "text/plain", buffer: Buffer.from("x") });
+    await expect(page.getByText("Please choose a picture (PNG, WebP or JPEG) under 300 KB.")).toBeVisible();
 
     await choose(page, page.getByLabel("Day", { exact: true }), "Monday");
     await pickTime(page, page.getByLabel("From").first(), "10:00");
@@ -33,6 +41,28 @@ test.describe("as admin", () => {
     await pickTime(page, page.getByLabel("To").first(), "14:00");
     await page.getByRole("button", { name: "Add hours" }).click();
     await expect(page.getByText("This overlaps with an existing entry")).toBeVisible();
+
+    // The doctors list links to the same page.
+    await page.getByRole("link", { name: "Back to doctors" }).click();
+    await page.getByLabel("Search Doctors").fill(name);
+    const row = page.getByRole("row", { name: new RegExp(name) });
+    await expect(row).toContainText("₹600.00");
+    await row.getByRole("link", { name: "Hours, leave and signature" }).click();
+    await expect(page.getByRole("cell", { name: "Monday" })).toBeVisible();
+  });
+
+  test("the admin page is grouped and opens the how-to guide", async ({ page }) => {
+    await open(page, "/admin");
+    for (const group of ["Clinic and staff", "Doctors and services", "Billing and documents", "Sales and marketing", "Data and safety"]) {
+      await expect(page.getByRole("heading", { level: 2, name: group })).toBeVisible();
+    }
+    await page.getByRole("link", { name: /How to set up and use/ }).click();
+    await expect(page).toHaveURL(/\/admin\/guide$/);
+    for (const section of ["Add a doctor", "Add a service and its price", "The four billing sections", "What the four money boxes mean"]) {
+      await expect(page.getByRole("heading", { level: 2, name: section })).toBeVisible();
+    }
+    await page.getByRole("link", { name: "Open Doctors" }).click();
+    await expect(page).toHaveURL(/\/admin\/libraries\/doctors$/);
   });
 
   test("admin adds a service and finds it in the change history", async ({ page }) => {

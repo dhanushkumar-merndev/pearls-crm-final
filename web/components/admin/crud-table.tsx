@@ -2,6 +2,7 @@
 
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Pencil, Plus, Save, Search } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { formatINR } from "@pearl/shared";
@@ -19,6 +20,7 @@ import { newId, unwrap } from "@/lib/rpc";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
 import { useFeedback } from "@/lib/use-feedback";
 import { useZodForm } from "@/lib/use-zod-form";
+import { cn } from "@/lib/utils";
 import { crudSchema, type FieldDef } from "./crud-schema";
 
 export type { FieldDef } from "./crud-schema";
@@ -50,19 +52,39 @@ export interface CrudConfig {
   rowActions?: (row: Row) => ReactNode;
   pageSize?: number;
   /** Something above the fields that fills several of them at once (e.g. the office map picker). */
-  formTop?: (values: Record<string, unknown>, set: (key: string, value: unknown) => void) => ReactNode;
+  formTop?: (
+    values: Record<string, unknown>,
+    set: (key: string, value: unknown) => void,
+  ) => ReactNode;
   /** A wide dialog regardless of the number of fields. */
   wideForm?: boolean;
+  /** Where to go after adding a row (e.g. a new doctor → their page to set hours). */
+  afterCreate?: (id: string) => string;
 }
 
 const read = (row: Row, path: string): unknown =>
-  path.split(".").reduce<unknown>((acc, part) => (acc && typeof acc === "object" ? (acc as Record<string, unknown>)[part] : undefined), row);
+  path
+    .split(".")
+    .reduce<unknown>(
+      (acc, part) =>
+        acc && typeof acc === "object" ? (acc as Record<string, unknown>)[part] : undefined,
+      row,
+    );
 
-export const money = (key: string) => (row: Row) => (typeof row[key] === "number" ? formatINR(row[key] as number) : "—");
+export const money = (key: string) => (row: Row) =>
+  typeof row[key] === "number" ? formatINR(row[key] as number) : "—";
 export const gstLabel = (bp: unknown) => (typeof bp === "number" ? `${bp / 100}%` : "—");
 
 /** Admin master-data table: server search + offset paging (exact count), add / edit dialog. */
-export function CrudTable({ config, title, addLabel }: { config: CrudConfig; title: string; addLabel: string }) {
+export function CrudTable({
+  config,
+  title,
+  addLabel,
+}: {
+  config: CrudConfig;
+  title: string;
+  addLabel: string;
+}) {
   const t = useTranslations("common");
   const queryClient = useQueryClient();
   const [q, setQ] = useState("");
@@ -77,9 +99,12 @@ export function CrudTable({ config, title, addLabel }: { config: CrudConfig; tit
     placeholderData: keepPreviousData,
     queryFn: async () => {
       let query = getSupabaseBrowser().from(config.table).select(config.select, { count: "exact" });
-      for (const [column, value] of Object.entries(config.where ?? {})) query = query.eq(column, value);
-      if (search) query = query.ilike(config.searchColumn, `%${search.replace(/[%_\\]/g, (c) => `\\${c}`)}%`);
-      for (const o of config.order) query = query.order(o.column, { ascending: o.ascending ?? true });
+      for (const [column, value] of Object.entries(config.where ?? {}))
+        query = query.eq(column, value);
+      if (search)
+        query = query.ilike(config.searchColumn, `%${search.replace(/[%_\\]/g, (c) => `\\${c}`)}%`);
+      for (const o of config.order)
+        query = query.order(o.column, { ascending: o.ascending ?? true });
       const { data, error, count } = await query.range(offset, offset + limit - 1);
       unwrap({ data, error });
       return { rows: (data ?? []) as unknown as Row[], total: count ?? 0 };
@@ -92,7 +117,10 @@ export function CrudTable({ config, title, addLabel }: { config: CrudConfig; tit
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative min-w-60 flex-1">
-          <Search aria-hidden className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-muted-foreground" />
+          <Search
+            aria-hidden
+            className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-muted-foreground"
+          />
           <Input
             value={q}
             onChange={(e) => {
@@ -127,7 +155,9 @@ export function CrudTable({ config, title, addLabel }: { config: CrudConfig; tit
         <tbody>
           {list.isPending && <EmptyRow colSpan={colCount}>{t("loading")}</EmptyRow>}
           {list.isError && <EmptyRow colSpan={colCount}>{t("loadFailed")}</EmptyRow>}
-          {list.data?.rows.length === 0 && <EmptyRow colSpan={colCount}>{search ? t("noMatches") : t("empty")}</EmptyRow>}
+          {list.data?.rows.length === 0 && (
+            <EmptyRow colSpan={colCount}>{search ? t("noMatches") : t("empty")}</EmptyRow>
+          )}
           {list.data?.rows.map((row) => (
             <TR key={row.id}>
               {config.columns.map((c) => (
@@ -155,7 +185,9 @@ export function CrudTable({ config, title, addLabel }: { config: CrudConfig; tit
           ))}
         </tbody>
       </Table>
-      {list.data && <Pager offset={offset} limit={limit} total={list.data.total} onOffset={setOffset} />}
+      {list.data && (
+        <Pager offset={offset} limit={limit} total={list.data.total} onOffset={setOffset} />
+      )}
 
       <Dialog open={editing !== null} onOpenChange={(open) => !open && setEditing(null)}>
         {editing !== null && (
@@ -180,19 +212,40 @@ function initialValues(config: CrudConfig, row: Row | null): Record<string, unkn
   for (const f of config.fields) {
     if (f.type === "lookup") {
       const id = row?.[f.key] as string | null | undefined;
-      values[f.key] = id ? ({ id, label: String(read(row!, f.labelPath) ?? ""), subtitle: null, on_the_fly: false, defaults: {} } as LibraryItem) : null;
+      values[f.key] = id
+        ? ({
+            id,
+            label: String(read(row!, f.labelPath) ?? ""),
+            subtitle: null,
+            on_the_fly: false,
+            defaults: {},
+          } as LibraryItem)
+        : null;
     } else if (f.type === "int_list") {
       const list = (row?.[f.key] ?? config.defaults?.[f.key]) as number[] | undefined;
       values[f.key] = list ? list.join(", ") : "";
     } else {
-      values[f.key] = row ? row[f.key] : (config.defaults?.[f.key] ?? (f.type === "boolean" ? false : f.type === "gst" ? 0 : null));
+      values[f.key] = row
+        ? row[f.key]
+        : (config.defaults?.[f.key] ??
+          (f.type === "boolean" ? false : f.type === "gst" ? 0 : null));
     }
   }
   if (config.hasActive) values.active = row ? row.active : true;
   return values;
 }
 
-function CrudForm({ config, row, title, onDone }: { config: CrudConfig; row: Row | null; title: string; onDone: () => void }) {
+function CrudForm({
+  config,
+  row,
+  title,
+  onDone,
+}: {
+  config: CrudConfig;
+  row: Row | null;
+  title: string;
+  onDone: () => void;
+}) {
   const t = useTranslations("common");
   const { saved, failed } = useFeedback();
   const [values, setValues] = useState(() => initialValues(config, row));
@@ -203,15 +256,27 @@ function CrudForm({ config, row, title, onDone }: { config: CrudConfig; row: Row
     form.clear(key);
   };
 
+  const router = useRouter();
   const save = useMutation({
-    mutationFn: async (payload: Record<string, unknown>) => {
+    mutationFn: async (payload: Record<string, unknown>): Promise<string | null> => {
       const db = getSupabaseBrowser().from(config.table);
-      if (row) unwrap(await db.update(payload).eq("id", row.id).select("id").single());
-      else unwrap(await db.insert({ id: newId(), ...config.where, ...payload }).select("id").single());
+      if (row) {
+        unwrap(await db.update(payload).eq("id", row.id).select("id").single());
+        return null;
+      }
+      const id = newId();
+      unwrap(
+        await db
+          .insert({ id, ...config.where, ...payload })
+          .select("id")
+          .single(),
+      );
+      return id;
     },
-    onSuccess: () => {
+    onSuccess: (createdId) => {
       saved();
       onDone();
+      if (createdId && config.afterCreate) router.push(config.afterCreate(createdId));
     },
     onError: failed,
   });
@@ -236,12 +301,27 @@ function CrudForm({ config, row, title, onDone }: { config: CrudConfig; row: Row
       <form id="crud-form" onSubmit={onSubmit} className="grid gap-4 sm:grid-cols-2" noValidate>
         {config.formTop && <div className="sm:col-span-2">{config.formTop(values, set)}</div>}
         {config.fields.map((f) => (
-          <div key={f.key} className={f.type === "textarea" || f.type === "boolean" ? "sm:col-span-2" : undefined}>
+          <div
+            key={f.key}
+            className={f.type === "textarea" || f.type === "boolean" ? "sm:col-span-2" : undefined}
+          >
             {f.type === "boolean" ? (
-              <Checkbox label={f.label} hint={f.hint} checked={Boolean(values[f.key])} onChange={(e) => set(f.key, e.target.checked)} />
+              <Checkbox
+                label={f.label}
+                hint={f.hint}
+                checked={Boolean(values[f.key])}
+                onChange={(e) => set(f.key, e.target.checked)}
+              />
             ) : (
               <Field label={f.label} hint={f.hint} error={form.error(f.key)}>
-                {(a) => <FieldControl field={f} value={values[f.key]} onChange={(v) => set(f.key, v)} a11y={a} />}
+                {(a) => (
+                  <FieldControl
+                    field={f}
+                    value={values[f.key]}
+                    onChange={(v) => set(f.key, v)}
+                    a11y={a}
+                  />
+                )}
               </Field>
             )}
           </div>
@@ -274,7 +354,14 @@ function FieldControl({
   const t = useTranslations("common");
   switch (f.type) {
     case "textarea":
-      return <Textarea {...a11y} value={String(value ?? "")} maxLength={f.maxLength} onChange={(e) => onChange(e.target.value)} />;
+      return (
+        <Textarea
+          {...a11y}
+          value={String(value ?? "")}
+          maxLength={f.maxLength}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      );
     case "number":
       return (
         <Input
@@ -292,7 +379,11 @@ function FieldControl({
       return <MoneyInput {...a11y} value={(value as number | null) ?? null} onChange={onChange} />;
     case "gst":
       return (
-        <Select {...a11y} value={String(value ?? 0)} onChange={(e) => onChange(Number(e.target.value))}>
+        <Select
+          {...a11y}
+          value={String(value ?? 0)}
+          onChange={(e) => onChange(Number(e.target.value))}
+        >
           {GST_RATES_BP.map((bp) => (
             <option key={bp} value={bp}>
               {bp / 100}%
@@ -302,7 +393,11 @@ function FieldControl({
       );
     case "select":
       return (
-        <Select {...a11y} value={String(value ?? "")} onChange={(e) => onChange(e.target.value || null)}>
+        <Select
+          {...a11y}
+          value={String(value ?? "")}
+          onChange={(e) => onChange(e.target.value || null)}
+        >
           {!f.required && <option value="">{t("none")}</option>}
           {f.options.map((o) => (
             <option key={o.value} value={o.value}>
@@ -322,9 +417,27 @@ function FieldControl({
         />
       );
     case "int_list":
-      return <Input {...a11y} inputMode="numeric" value={String(value ?? "")} onChange={(e) => onChange(e.target.value)} />;
+      return (
+        <Input
+          {...a11y}
+          inputMode="numeric"
+          value={String(value ?? "")}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      );
     case "date":
-      return <DatePicker {...a11y} value={String(value ?? "")} onChange={(v) => onChange(v || null)} />;
+      return (
+        <DatePicker {...a11y} value={String(value ?? "")} onChange={(v) => onChange(v || null)} />
+      );
+    case "colour":
+      return (
+        <ColourSwatches
+          label={f.label}
+          value={typeof value === "number" ? value : Number(value ?? 0)}
+          onChange={onChange}
+          a11y={a11y}
+        />
+      );
     case "boolean":
       return null;
     default:
@@ -339,4 +452,49 @@ function FieldControl({
         />
       );
   }
+}
+
+/** The 8 chart colours as round swatches (a radio group); the number stays 0–7 in the database. */
+function ColourSwatches({
+  label,
+  value,
+  onChange,
+  a11y,
+}: {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+  a11y: { id: string; "aria-describedby"?: string; "aria-invalid"?: boolean };
+}) {
+  const t = useTranslations("library");
+  return (
+    <div
+      id={a11y.id}
+      role="radiogroup"
+      aria-label={label}
+      aria-describedby={a11y["aria-describedby"]}
+      className="flex flex-wrap gap-2"
+    >
+      {[0, 1, 2, 3, 4, 5, 6, 7].map((n) => (
+        <button
+          key={n}
+          type="button"
+          role="radio"
+          aria-checked={value === n}
+          aria-label={t("colourN", { n: n + 1 })}
+          onClick={() => onChange(n)}
+          className={cn(
+            "flex size-9 cursor-pointer items-center justify-center rounded-full border border-border focus-visible:outline-2",
+            value === n && "ring-2 ring-foreground ring-offset-2 ring-offset-background",
+          )}
+        >
+          <span
+            aria-hidden
+            className="size-6 rounded-full"
+            style={{ background: `var(--chart-${n + 1})` }}
+          />
+        </button>
+      ))}
+    </div>
+  );
 }

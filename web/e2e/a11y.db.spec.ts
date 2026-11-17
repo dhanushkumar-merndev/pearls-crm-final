@@ -33,7 +33,7 @@ const PAGES = {
     "/admin/backup", "/admin/notifications", "/admin/import", "/admin/review", "/admin/whatsapp", "/admin/drips",
     "/admin/meta-leads", "/admin/discharge-templates", "/admin/libraries/doctors", "/admin/libraries/holidays",
     "/admin/libraries/offices", "/admin/libraries/services", "/admin/libraries/treatments", "/admin/libraries/rooms",
-    "/admin/libraries/medicines", "/admin/libraries/lists", "/bdm", "/recordings", "/account/password",
+    "/admin/libraries/medicines", "/admin/libraries/lists", "/admin/guide", "/bdm", "/recordings", "/account/password",
   ],
   reception: [
     "/home", "/patients", "/patients/new", "/patients/pending", "/patients/qr", "/appointments", "/sessions",

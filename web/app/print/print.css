@@ -491,3 +491,9 @@ html:has(.print-root) body {
 .print-root .signature .space {
   height: 42px;
 }
+.print-root .signature .sign-image {
+  display: inline-block;
+  max-height: 56px;
+  max-width: 200px;
+  margin: 4px 0;
+}

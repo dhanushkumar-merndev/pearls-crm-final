@@ -34,15 +34,41 @@ export type FieldDef =
       /** A fixed shape the database also checks: HSN/SAC codes, GSTIN. */
       format?: "hsn_sac" | "gstin";
     }
-  | { key: string; label: string; type: "number"; required?: boolean; min?: number; max?: number; step?: number; decimals?: number; hint?: string }
+  | {
+      key: string;
+      label: string;
+      type: "number";
+      required?: boolean;
+      min?: number;
+      max?: number;
+      step?: number;
+      decimals?: number;
+      hint?: string;
+    }
   | { key: string; label: string; type: "money"; required?: boolean; hint?: string }
   | { key: string; label: string; type: "gst"; hint?: string }
   | { key: string; label: string; type: "boolean"; hint?: string }
-  | { key: string; label: string; type: "select"; options: { value: string; label: string }[]; required?: boolean; hint?: string }
+  | {
+      key: string;
+      label: string;
+      type: "select";
+      options: { value: string; label: string }[];
+      required?: boolean;
+      hint?: string;
+    }
   | { key: string; label: string; type: "int_list"; hint?: string }
   | { key: string; label: string; type: "date"; required?: boolean; hint?: string }
+  /** One of the 8 chart colours (0–7), picked as swatches. */
+  | { key: string; label: string; type: "colour"; hint?: string }
   /** A foreign key picked with the LibraryCombobox; labelPath reads the joined label for editing. */
-  | { key: string; label: string; type: "lookup"; kind: LibraryKind; labelPath: string; hint?: string };
+  | {
+      key: string;
+      label: string;
+      type: "lookup";
+      kind: LibraryKind;
+      labelPath: string;
+      hint?: string;
+    };
 
 /** The zod schema for a config's form: the same limits the table's CHECK constraints hold. */
 export function crudSchema(config: { fields: FieldDef[]; hasActive?: boolean }) {
@@ -59,7 +85,9 @@ export function crudSchema(config: { fields: FieldDef[]; hasActive?: boolean }) 
       }
       case "email":
         shape[f.key] = f.required
-          ? requiredText(f.maxLength ?? 200).refine((v) => EMAIL_PATTERN.test(v), { error: "email" })
+          ? requiredText(f.maxLength ?? 200).refine((v) => EMAIL_PATTERN.test(v), {
+              error: "email",
+            })
           : optionalEmail(f.maxLength ?? 200);
         break;
       case "url":
@@ -67,8 +95,12 @@ export function crudSchema(config: { fields: FieldDef[]; hasActive?: boolean }) 
         break;
       case "tel":
         // Stored as typed (some suppliers give landlines with extensions); must still look like a number.
-        shape[f.key] = f.required ? requiredText(f.maxLength ?? 40) : optionalText(f.maxLength ?? 40);
-        shape[f.key] = shape[f.key]!.refine((v) => !v || optionalPhone().safeParse(v).success, { error: "phone" });
+        shape[f.key] = f.required
+          ? requiredText(f.maxLength ?? 40)
+          : optionalText(f.maxLength ?? 40);
+        shape[f.key] = shape[f.key]!.refine((v) => !v || optionalPhone().safeParse(v).success, {
+          error: "phone",
+        });
         break;
       case "number": {
         const min = f.min ?? 0;
@@ -95,10 +127,18 @@ export function crudSchema(config: { fields: FieldDef[]; hasActive?: boolean }) 
       case "select":
         shape[f.key] = f.required
           ? requiredChoice(f.options.map((o) => o.value))
-          : z.preprocess((v) => (v === "" || v === undefined ? null : v), z.enum(f.options.map((o) => o.value) as [string, ...string[]], { error: "choose" }).nullable());
+          : z.preprocess(
+              (v) => (v === "" || v === undefined ? null : v),
+              z
+                .enum(f.options.map((o) => o.value) as [string, ...string[]], { error: "choose" })
+                .nullable(),
+            );
         break;
       case "int_list":
         shape[f.key] = intList().transform((list) => (list.length ? list : [0]));
+        break;
+      case "colour":
+        shape[f.key] = requiredInt(0, 7);
         break;
       case "date":
         shape[f.key] = f.required ? requiredDate() : optionalDate();
@@ -111,4 +151,3 @@ export function crudSchema(config: { fields: FieldDef[]; hasActive?: boolean }) 
   if (config.hasActive) shape.active = z.boolean();
   return z.object(shape);
 }
-

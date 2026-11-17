@@ -120,7 +120,28 @@ last 24 h, and that haven't sent STOP. If it stays silent, that's probably why: 
 
 ---
 
-## H. After testing
+## H. Phase 19: billing sections, breakdown, OP summary, sales sheet, doctors (17/11/2026)
+
+Use the logins named in each row.
+
+| Do this | Should happen | ✓ |
+|---|---|---|
+| Reception → a TEST patient → **Bills** tab | Four sections: **Surgery bills · Pharmacy bills · Breakdown bills (insurance) · Discharge summaries**, each with its own **New** button | ☐ |
+| Open a finalized surgery bill → **Breakdown bill** → tick the sessions → **Create** | The lines fill in from the bills. Change an amount, **Split** a line, **Finalize**, **Print** | ☐ |
+| Print the breakdown on paper | Title "Breakdown bill", lines by category, insurer details, total in words | ☐ |
+| A TEST patient with a treatment session done → Bills → **Discharge summaries → New** → pick the OP session | The summary fills with the session; choose **Signed by**, **Finalize**, **Print** shows "OP (day care)" | ☐ |
+| Care tab → a visited booking → **Discharge summary** | Starts an OP summary for that visit; after saving, the same row opens it | ☐ |
+| Admin → Doctors → open a doctor → **Upload signature** (a photo of a signature on white paper) | The picture shows on the page; a printed discharge summary signed by that doctor shows it | ☐ |
+| Admin → Doctors → **Add doctor** with a fee | The doctor's page opens: "Doctor saved. Now set the working hours." | ☐ |
+| Reception → Walk-in with that doctor → Care tab → **Bill** | The bill starts with "Consultation – Dr …" at the doctor's fee | ☐ |
+| Admin → **How to set up and use** | The four guide sections; the links open the right lists | ☐ |
+| Web, **sales** login | Lands on **Sales sheet**: only your leads, columns like Priyanka's sheet. Click **Remarks**, type, Enter: it saves | ☐ |
+| Sales sheet → **Log a call** on a lead | Follow-up 1 fills with today, the result and your name | ☐ |
+| Phone (1.2.15), **sales** login → a lead | A **Sheet** card with source, team, doctor, consultation, quotation, surgery date, follow-up 1–3, remarks | ☐ |
+
+---
+
+## I. After testing
 
 ☐ Tell me which boxes failed (photo + phone model). ☐ Delete any **TEST** WhatsApp lead you made on the live
 number. ☐ The phone tests use PIN **2468**; change yours in **Settings → Change PIN** if you like.

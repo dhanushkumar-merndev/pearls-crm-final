@@ -34,11 +34,23 @@ interface PrintSummary {
     anaesthesia: string | null;
     diagnosis: string | null;
     surgeons?: string | null;
-    signature?: { name: string | null; qualification: string | null; designation: string | null; reg_council: string | null; reg_number: string | null };
+    signature?: {
+      name: string | null;
+      qualification: string | null;
+      designation: string | null;
+      reg_council: string | null;
+      reg_number: string | null;
+    };
   };
   body: {
     sections: { key: string; title: string; body: string }[];
-    medications: { name: string; dose: string; frequency: string; duration: string; instructions: string }[];
+    medications: {
+      name: string;
+      dose: string;
+      frequency: string;
+      duration: string;
+      instructions: string;
+    }[];
     follow_up_note: string;
     follow_up_days: number | null;
     vars: Record<string, string>;
@@ -55,6 +67,19 @@ export default async function PrintDischargePage({ params }: { params: Promise<{
   const { data, error } = await supabase.rpc("discharge_print_data", { p_id: id, p_count: true });
   if (error || !data) notFound();
   const d = data as PrintSummary;
+  // The signing doctor's signature image (uploaded on the doctor's page): a 5-minute link, or none.
+  let signatureUrl: string | null = null;
+  try {
+    const { data: fileId } = await supabase.rpc("discharge_signature_file", { p_id: id });
+    if (typeof fileId === "string") {
+      const { data: links } = await supabase.functions.invoke("files-sign", {
+        body: { op: "get", file_ids: [fileId] },
+      });
+      signatureUrl = (links as { urls?: Record<string, string> } | null)?.urls?.[fileId] ?? null;
+    }
+  } catch {
+    signatureUrl = null;
+  }
   const p = d.patient_strip;
   const sig = p.signature;
   const followUp = d.body.vars.follow_up_date;
@@ -88,7 +113,10 @@ export default async function PrintDischargePage({ params }: { params: Promise<{
                     <strong>{t("uhid")}:</strong> {p.uhid}
                   </div>
                   <div>
-                    <strong>{t("ageGender")}:</strong> {[p.age !== null ? `${p.age} ${t("years")}` : null, g(p.gender || "unknown")].filter(Boolean).join(" / ")}
+                    <strong>{t("ageGender")}:</strong>{" "}
+                    {[p.age !== null ? `${p.age} ${t("years")}` : null, g(p.gender || "unknown")]
+                      .filter(Boolean)
+                      .join(" / ")}
                   </div>
                   {op ? (
                     <>
@@ -96,11 +124,13 @@ export default async function PrintDischargePage({ params }: { params: Promise<{
                         <strong>{t("visitType")}:</strong> {t("opVisit")}
                       </div>
                       <div>
-                        <strong>{t("visitDate")}:</strong> {p.visit_date ? formatDate(new Date(p.visit_date)) : "—"}
+                        <strong>{t("visitDate")}:</strong>{" "}
+                        {p.visit_date ? formatDate(new Date(p.visit_date)) : "—"}
                       </div>
                       {(p.signature?.name ?? p.doctor ?? d.body.vars.doctor) && (
                         <div>
-                          <strong>{t("doctor")}:</strong> {p.signature?.name ?? p.doctor ?? d.body.vars.doctor}
+                          <strong>{t("doctor")}:</strong>{" "}
+                          {p.signature?.name ?? p.doctor ?? d.body.vars.doctor}
                         </div>
                       )}
                     </>
@@ -113,7 +143,8 @@ export default async function PrintDischargePage({ params }: { params: Promise<{
                         <strong>{t("admitted")}:</strong> {formatDateTime(new Date(p.admitted_at))}
                       </div>
                       <div>
-                        <strong>{t("discharged")}:</strong> {p.discharged_at ? formatDateTime(new Date(p.discharged_at)) : "—"}
+                        <strong>{t("discharged")}:</strong>{" "}
+                        {p.discharged_at ? formatDateTime(new Date(p.discharged_at)) : "—"}
                       </div>
                     </>
                   )}
@@ -188,7 +219,12 @@ export default async function PrintDischargePage({ params }: { params: Promise<{
                   <div>
                     {t("for")} {d.header?.name}
                   </div>
-                  <div className="space" />
+                  {signatureUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- a short-lived private link, printed
+                    <img className="sign-image" src={signatureUrl} alt={t("signatureAlt")} />
+                  ) : (
+                    <div className="space" />
+                  )}
                   {sig?.name && <div>{sig.name}</div>}
                   {sig?.qualification && <div className="muted">{sig.qualification}</div>}
                   {sig?.designation && <div className="muted">{sig.designation}</div>}

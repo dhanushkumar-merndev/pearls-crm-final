@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { formatDateTime, istDayStart } from "@pearl/shared";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardTitle } from "@/components/ui/card";
@@ -50,7 +50,15 @@ function parseRange(range: string): [Date, Date] {
   return [new Date(from!.trim().replace(" ", "T")), new Date(to!.trim().replace(" ", "T"))];
 }
 
-export function DoctorHours({ doctorId, doctorName }: { doctorId: string; doctorName: string }) {
+export function DoctorHours({
+  doctorId,
+  doctorName,
+  children,
+}: {
+  doctorId: string;
+  doctorName: string;
+  children?: ReactNode;
+}) {
   const t = useTranslations("doctorHours");
   const c = useTranslations("common");
   const { saved, failed } = useFeedback();
@@ -91,8 +99,13 @@ export function DoctorHours({ doctorId, doctorName }: { doctorId: string; doctor
     void queryClient.invalidateQueries({ queryKey: ["doctor_leaves", doctorId] });
   };
   const remove = useMutation({
-    mutationFn: async ({ table, id }: { table: "doctor_schedules" | "doctor_leaves"; id: string }) =>
-      unwrap(await db.from(table).delete().eq("id", id).select("id")),
+    mutationFn: async ({
+      table,
+      id,
+    }: {
+      table: "doctor_schedules" | "doctor_leaves";
+      id: string;
+    }) => unwrap(await db.from(table).delete().eq("id", id).select("id")),
     onSuccess: () => {
       saved(t("removed"));
       refresh();
@@ -100,24 +113,39 @@ export function DoctorHours({ doctorId, doctorName }: { doctorId: string; doctor
     onError: failed,
   });
 
-  const [hours, setHours] = useState({ weekday: "1", start: "10:00", end: "13:00", slot: "", capacity: "" });
+  const [hours, setHours] = useState({
+    weekday: "1",
+    start: "10:00",
+    end: "13:00",
+    slot: "",
+    capacity: "",
+  });
   const hoursChecks = useZodForm(doctorHoursSchema);
   const setHour = (key: keyof typeof hours, value: string) => {
     setHours((h) => ({ ...h, [key]: value }));
     hoursChecks.clear(key);
   };
   const addHours = useMutation({
-    mutationFn: async (h: { weekday: number; start: string; end: string; slot: number | null; capacity: number | null }) =>
+    mutationFn: async (h: {
+      weekday: number;
+      start: string;
+      end: string;
+      slot: number | null;
+      capacity: number | null;
+    }) =>
       unwrap(
-        await db.from("doctor_schedules").insert({
-          id: newId(),
-          doctor_id: doctorId,
-          weekday: h.weekday,
-          start_time: h.start,
-          end_time: h.end,
-          slot_minutes: h.slot,
-          capacity: h.capacity,
-        }).select("id"),
+        await db
+          .from("doctor_schedules")
+          .insert({
+            id: newId(),
+            doctor_id: doctorId,
+            weekday: h.weekday,
+            start_time: h.start,
+            end_time: h.end,
+            slot_minutes: h.slot,
+            capacity: h.capacity,
+          })
+          .select("id"),
       ),
     onSuccess: () => {
       saved();
@@ -142,7 +170,9 @@ export function DoctorHours({ doctorId, doctorName }: { doctorId: string; doctor
       const to = new Date(istDayStart(l.to).getTime() + 24 * 3600 * 1000);
       if (conflicts === null) {
         const found = await rpc<Conflict[]>("leave_conflicts", {
-          p_doctor_id: doctorId, p_from: from.toISOString(), p_to: to.toISOString(),
+          p_doctor_id: doctorId,
+          p_from: from.toISOString(),
+          p_to: to.toISOString(),
         });
         if (found.length > 0) {
           setConflicts(found);
@@ -150,12 +180,15 @@ export function DoctorHours({ doctorId, doctorName }: { doctorId: string; doctor
         }
       }
       return unwrap(
-        await db.from("doctor_leaves").insert({
-          id: newId(),
-          doctor_id: doctorId,
-          during: `[${from.toISOString()},${to.toISOString()})`,
-          reason: l.reason,
-        }).select("id"),
+        await db
+          .from("doctor_leaves")
+          .insert({
+            id: newId(),
+            doctor_id: doctorId,
+            during: `[${from.toISOString()},${to.toISOString()})`,
+            reason: l.reason,
+          })
+          .select("id"),
       );
     },
     onSuccess: (result) => {
@@ -181,7 +214,12 @@ export function DoctorHours({ doctorId, doctorName }: { doctorId: string; doctor
 
   return (
     <Page>
-      <PageHeader back={{ href: "/admin/libraries/doctors", label: t("back") }} title={t("title", { name: doctorName })} description={t("description")} />
+      <PageHeader
+        back={{ href: "/admin/libraries/doctors", label: t("back") }}
+        title={t("title", { name: doctorName })}
+        description={t("description")}
+      />
+      {children}
 
       <Card className="flex flex-col gap-4">
         <CardTitle>{t("weeklyHours")}</CardTitle>
@@ -208,7 +246,10 @@ export function DoctorHours({ doctorId, doctorName }: { doctorId: string; doctor
                 <TD>{s.slot_minutes ? t("minutes", { n: s.slot_minutes }) : t("default")}</TD>
                 <TD>{s.capacity ?? t("default")}</TD>
                 <TD className="text-right">
-                  <Button variant="ghost" onClick={() => remove.mutate({ table: "doctor_schedules", id: s.id })}>
+                  <Button
+                    variant="ghost"
+                    onClick={() => remove.mutate({ table: "doctor_schedules", id: s.id })}
+                  >
                     <Trash2 aria-hidden />
                     {c("remove")}
                   </Button>
@@ -217,10 +258,18 @@ export function DoctorHours({ doctorId, doctorName }: { doctorId: string; doctor
             ))}
           </tbody>
         </Table>
-        <form onSubmit={submitHours} className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6 lg:items-start" noValidate>
+        <form
+          onSubmit={submitHours}
+          className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6 lg:items-start"
+          noValidate
+        >
           <Field label={t("day")} error={hoursChecks.error("weekday")}>
             {(a) => (
-              <Select {...a} value={hours.weekday} onChange={(e) => setHour("weekday", e.target.value)}>
+              <Select
+                {...a}
+                value={hours.weekday}
+                onChange={(e) => setHour("weekday", e.target.value)}
+              >
                 {WEEKDAYS.map((d) => (
                   <option key={d} value={d}>
                     {t(`weekday.${d}`)}
@@ -237,17 +286,36 @@ export function DoctorHours({ doctorId, doctorName }: { doctorId: string; doctor
           </Field>
           <Field label={t("slot")} error={hoursChecks.error("slot")}>
             {(a) => (
-              <Input {...a} type="number" min={5} max={240} placeholder={t("default")} value={hours.slot}
-                onChange={(e) => setHour("slot", e.target.value)} />
+              <Input
+                {...a}
+                type="number"
+                min={5}
+                max={240}
+                placeholder={t("default")}
+                value={hours.slot}
+                onChange={(e) => setHour("slot", e.target.value)}
+              />
             )}
           </Field>
           <Field label={t("capacity")} error={hoursChecks.error("capacity")}>
             {(a) => (
-              <Input {...a} type="number" min={1} max={50} placeholder={t("default")} value={hours.capacity}
-                onChange={(e) => setHour("capacity", e.target.value)} />
+              <Input
+                {...a}
+                type="number"
+                min={1}
+                max={50}
+                placeholder={t("default")}
+                value={hours.capacity}
+                onChange={(e) => setHour("capacity", e.target.value)}
+              />
             )}
           </Field>
-          <Button type="submit" variant="secondary" className="lg:mt-7" disabled={addHours.isPending}>
+          <Button
+            type="submit"
+            variant="secondary"
+            className="lg:mt-7"
+            disabled={addHours.isPending}
+          >
             <Plus aria-hidden />
             {t("addHours")}
           </Button>
@@ -278,7 +346,10 @@ export function DoctorHours({ doctorId, doctorName }: { doctorId: string; doctor
                   <TD>{formatDateTime(to)}</TD>
                   <TD className={wrapText}>{l.reason ?? "—"}</TD>
                   <TD className="text-right">
-                    <Button variant="ghost" onClick={() => remove.mutate({ table: "doctor_leaves", id: l.id })}>
+                    <Button
+                      variant="ghost"
+                      onClick={() => remove.mutate({ table: "doctor_leaves", id: l.id })}
+                    >
                       <Trash2 aria-hidden />
                       {c("remove")}
                     </Button>
@@ -288,17 +359,42 @@ export function DoctorHours({ doctorId, doctorName }: { doctorId: string; doctor
             })}
           </tbody>
         </Table>
-        <form onSubmit={submitLeave} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-start" noValidate>
+        <form
+          onSubmit={submitLeave}
+          className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-start"
+          noValidate
+        >
           <Field label={t("firstDay")} error={leaveChecks.error("from")}>
-            {(a) => <DatePicker {...a} value={leave.from} onChange={(v) => setLeaveField("from", v)} />}
+            {(a) => (
+              <DatePicker {...a} value={leave.from} onChange={(v) => setLeaveField("from", v)} />
+            )}
           </Field>
           <Field label={t("lastDay")} error={leaveChecks.error("to")}>
-            {(a) => <DatePicker {...a} value={leave.to} min={leave.from || undefined} onChange={(v) => setLeaveField("to", v)} />}
+            {(a) => (
+              <DatePicker
+                {...a}
+                value={leave.to}
+                min={leave.from || undefined}
+                onChange={(v) => setLeaveField("to", v)}
+              />
+            )}
           </Field>
           <Field label={t("reason")} error={leaveChecks.error("reason")}>
-            {(a) => <Input {...a} maxLength={300} value={leave.reason} onChange={(e) => setLeaveField("reason", e.target.value)} />}
+            {(a) => (
+              <Input
+                {...a}
+                maxLength={300}
+                value={leave.reason}
+                onChange={(e) => setLeaveField("reason", e.target.value)}
+              />
+            )}
           </Field>
-          <Button type="submit" variant="secondary" className="lg:mt-7" disabled={addLeave.isPending}>
+          <Button
+            type="submit"
+            variant="secondary"
+            className="lg:mt-7"
+            disabled={addLeave.isPending}
+          >
             <Plus aria-hidden />
             {conflicts ? t("addLeaveAnyway") : t("addLeave")}
           </Button>
@@ -309,7 +405,8 @@ export function DoctorHours({ doctorId, doctorName }: { doctorId: string; doctor
             <ul className="mt-2 list-disc pl-6">
               {conflicts.map((c) => (
                 <li key={c.id}>
-                  {formatDateTime(new Date(c.slot_start))} — {c.patient ?? "—"} {c.phone ? `(${c.phone})` : ""}
+                  {formatDateTime(new Date(c.slot_start))} — {c.patient ?? "—"}{" "}
+                  {c.phone ? `(${c.phone})` : ""}
                 </li>
               ))}
             </ul>
