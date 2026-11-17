@@ -27,8 +27,14 @@ export const USERNAME: Record<keyof typeof STATE, string> = {
   bdm: "e2e_bdm",
 };
 
-/** Roles that work in the phone app, not the web. */
-export const PHONE_ROLES = new Set<string>(["sales", "bdm"]);
+/** Roles that work in the phone app only (a sales executive also has the web sales sheet). */
+export const PHONE_ROLES = new Set<string>(["bdm"]);
+
+/** Where each saved login lands after signing in. */
+export function landingFor(role: string): RegExp {
+  if (PHONE_ROLES.has(role)) return /\/use-the-app$/;
+  return role === "sales" ? /\/leads\/sheet$/ : /\/home$/;
+}
 
 /** A random valid Indian mobile — unique even when tests start in the same millisecond. */
 export { randomUUID };
@@ -62,8 +68,14 @@ export async function choose(page: Page, field: Locator, option: string) {
  * Patient file → Bills → Surgery / Pharmacy section → "New surgery bill" / "New pharmacy bill":
  * answers "What is this bill for?" (default "Nothing in particular") and makes it; the bill's page opens.
  */
-export async function newBill(page: Page, button: "New surgery bill" | "New pharmacy bill", forOption = "Nothing in particular") {
-  await page.getByRole("tab", { name: button === "New pharmacy bill" ? "Pharmacy bills" : "Surgery bills" }).click();
+export async function newBill(
+  page: Page,
+  button: "New surgery bill" | "New pharmacy bill",
+  forOption = "Nothing in particular",
+) {
+  await page
+    .getByRole("tab", { name: button === "New pharmacy bill" ? "Pharmacy bills" : "Surgery bills" })
+    .click();
   await page.getByRole("button", { name: button }).click();
   const dialog = page.getByRole("dialog");
   await choose(page, dialog.getByRole("combobox", { name: "What is this bill for?" }), forOption);
@@ -81,7 +93,10 @@ function backend(): { url: string; anonKey: string } {
         const at = line.indexOf("=");
         if (at < 0) continue;
         const k = line.slice(0, at).trim();
-        const v = line.slice(at + 1).trim().replace(/^['"]|['"]$/g, "");
+        const v = line
+          .slice(at + 1)
+          .trim()
+          .replace(/^['"]|['"]$/g, "");
         if (k === "NEXT_PUBLIC_SUPABASE_URL") url ||= v;
         if (k === "NEXT_PUBLIC_SUPABASE_ANON_KEY") anonKey ||= v;
       }
@@ -97,7 +112,11 @@ function backend(): { url: string; anonKey: string } {
 export async function rpcAs<T>(page: Page, fn: string, args: Record<string, unknown>): Promise<T> {
   const { url, anonKey } = backend();
   const res = await page.request.post(`${url}/rest/v1/rpc/${fn}`, {
-    headers: { apikey: anonKey, Authorization: `Bearer ${await accessToken(page)}`, "Content-Type": "application/json" },
+    headers: {
+      apikey: anonKey,
+      Authorization: `Bearer ${await accessToken(page)}`,
+      "Content-Type": "application/json",
+    },
     data: args,
   });
   if (!res.ok()) throw new Error(`${fn}: HTTP ${res.status()} ${await res.text()}`);
@@ -106,10 +125,18 @@ export async function rpcAs<T>(page: Page, fn: string, args: Record<string, unkn
 
 /** Reads rows as the person logged in on [page] (RLS applies), e.g. `selectAs(page, "clinic_settings?branch_code=eq.main")`. */
 /** Calls an Edge Function as the person logged in on [page]; returns the HTTP status and body text. */
-export async function functionAs(page: Page, name: string, body: Record<string, unknown>): Promise<{ status: number; text: string }> {
+export async function functionAs(
+  page: Page,
+  name: string,
+  body: Record<string, unknown>,
+): Promise<{ status: number; text: string }> {
   const { url, anonKey } = backend();
   const res = await page.request.post(`${url}/functions/v1/${name}`, {
-    headers: { apikey: anonKey, Authorization: `Bearer ${await accessToken(page)}`, "Content-Type": "application/json" },
+    headers: {
+      apikey: anonKey,
+      Authorization: `Bearer ${await accessToken(page)}`,
+      "Content-Type": "application/json",
+    },
     data: body,
   });
   return { status: res.status(), text: await res.text() };
@@ -129,11 +156,25 @@ async function accessToken(page: Page): Promise<string> {
     .filter((c) => /^sb-.+-auth-token(\.\d+)?$/.test(c.name))
     .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
   let raw = decodeURIComponent(parts.map((c) => c.value).join(""));
-  if (raw.startsWith("base64-")) raw = Buffer.from(raw.slice("base64-".length), "base64").toString("utf8");
+  if (raw.startsWith("base64-"))
+    raw = Buffer.from(raw.slice("base64-".length), "base64").toString("utf8");
   return (JSON.parse(raw) as { access_token: string }).access_token;
 }
 
-const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
 
 /**
  * A themed DatePicker (components/ui/date-picker.tsx): opens it, jumps to the month with the
@@ -169,7 +210,11 @@ async function showDay(page: Page, picker: Locator, iso: string) {
   const cell = picker.locator(`td[data-day="${iso}"]:not([data-outside]) button`);
   if ((await cell.count()) > 0) return cell.first();
   await choose(page, picker.getByRole("combobox", { name: "Year" }).first(), iso.slice(0, 4));
-  await choose(page, picker.getByRole("combobox", { name: "Month" }).first(), MONTHS[Number(iso.slice(5, 7)) - 1]!);
+  await choose(
+    page,
+    picker.getByRole("combobox", { name: "Month" }).first(),
+    MONTHS[Number(iso.slice(5, 7)) - 1]!,
+  );
   return cell.first();
 }
 
@@ -177,7 +222,13 @@ async function showDay(page: Page, picker: Locator, iso: string) {
  * A themed DateRangePicker ("Dates" on list screens): click the first day, then the last, then OK.
  * `from` / `to` are "YYYY-MM-DD".
  */
-export async function pickRange(page: Page, field: Locator, from: string, to: string, title = "Pick dates") {
+export async function pickRange(
+  page: Page,
+  field: Locator,
+  from: string,
+  to: string,
+  title = "Pick dates",
+) {
   await field.click();
   const picker = page.getByRole("dialog", { name: title });
   await (await showDay(page, picker, from)).click();
@@ -185,7 +236,10 @@ export async function pickRange(page: Page, field: Locator, from: string, to: st
   await picker.getByRole("button", { name: "OK", exact: true }).click();
   await expect(picker).toBeHidden();
   // A range picked backwards is put in order.
-  await expect(field).toHaveAttribute("data-value", from <= to ? `${from}..${to}` : `${to}..${from}`);
+  await expect(field).toHaveAttribute(
+    "data-value",
+    from <= to ? `${from}..${to}` : `${to}..${from}`,
+  );
 }
 
 /** "14:05" → "2:05 PM" (the time list's labels). */
@@ -200,7 +254,12 @@ export async function pickTime(page: Page, field: Locator, hhmm: string) {
 }
 
 /** A themed DateTimePicker: day, then the time list, then OK. `value` is "YYYY-MM-DDTHH:mm". */
-export async function pickDateTime(page: Page, field: Locator, value: string, title = "Pick a date and time") {
+export async function pickDateTime(
+  page: Page,
+  field: Locator,
+  value: string,
+  title = "Pick a date and time",
+) {
   const [iso, hhmm] = value.split("T") as [string, string];
   await field.click();
   const picker = page.getByRole("dialog", { name: title });

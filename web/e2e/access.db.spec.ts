@@ -89,31 +89,68 @@ test.describe("menu shows only the pages a role may open", () => {
         await page.goto("/home");
         const menu = page.getByRole("navigation", { name: "Main menu" }).first();
         await expect(menu).toBeVisible();
-        const hrefs = await menu.getByRole("link").evaluateAll((links) => links.map((a) => new URL((a as HTMLAnchorElement).href).pathname));
+        const hrefs = await menu
+          .getByRole("link")
+          .evaluateAll((links) =>
+            links.map((a) => new URL((a as HTMLAnchorElement).href).pathname),
+          );
         for (const href of hrefs) {
-          if (href in ROUTES) expect(ROUTES[href], `${role} sees ${href} in the menu`).toContain(role);
+          if (href in ROUTES)
+            expect(ROUTES[href], `${role} sees ${href} in the menu`).toContain(role);
         }
       });
     });
   }
 });
 
-for (const role of ["sales", "bdm"] as const) {
-  test.describe(`${role} (phone app) on the web`, () => {
-    test.use({ storageState: STATE[role] });
-    for (const path of ["/home", "/leads", "/patients", "/admin", "/dashboard"]) {
-      test(`${path} → use the mobile app`, async ({ page }) => {
-        await page.goto(path);
-        await expect(page).toHaveURL(/\/use-the-app$/);
-        await expect(page.getByRole("heading", { name: "Please use the mobile app" })).toBeVisible();
-      });
-    }
-  });
-}
+test.describe("bdm (phone app) on the web", () => {
+  test.use({ storageState: STATE.bdm });
+  for (const path of ["/home", "/leads", "/patients", "/admin", "/dashboard"]) {
+    test(`${path} → use the mobile app`, async ({ page }) => {
+      await page.goto(path);
+      await expect(page).toHaveURL(/\/use-the-app$/);
+      await expect(page.getByRole("heading", { name: "Please use the mobile app" })).toBeVisible();
+    });
+  }
+});
+
+// A sales executive has the web sales sheet (19c, 16/11/2026) and nothing else.
+test.describe("sales executive on the web", () => {
+  test.use({ storageState: STATE.sales });
+  for (const path of ["/home", "/leads"]) {
+    test(`${path} → the sales sheet`, async ({ page }) => {
+      await page.goto(path);
+      await expect(page).toHaveURL(/\/leads\/sheet$/);
+      await expect(page.getByRole("heading", { level: 1, name: "Sales sheet" })).toBeVisible();
+    });
+  }
+  for (const path of [
+    "/patients",
+    "/admin",
+    "/dashboard",
+    "/bills",
+    "/whatsapp",
+    "/leads/dashboard",
+    "/leads/import",
+    "/leads/pool",
+    "/recordings",
+  ]) {
+    test(`${path} → doesn't exist`, async ({ page }) => {
+      await page.goto(path);
+      await expect(page.getByText("This page doesn't exist.")).toBeVisible();
+    });
+  }
+});
 
 test.describe("logged out", () => {
   test.use({ storageState: { cookies: [], origins: [] } });
-  for (const path of ["/home", "/patients", "/admin/users", "/leads", "/print/bill/00000000-0000-0000-0000-000000000000"]) {
+  for (const path of [
+    "/home",
+    "/patients",
+    "/admin/users",
+    "/leads",
+    "/print/bill/00000000-0000-0000-0000-000000000000",
+  ]) {
     test(`${path} → login`, async ({ page }) => {
       await page.goto(path);
       await expect(page).toHaveURL(/\/login/);

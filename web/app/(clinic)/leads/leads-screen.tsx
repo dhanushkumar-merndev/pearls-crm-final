@@ -1,6 +1,6 @@
 "use client";
 
-import { ChartColumn, FileInput, Plus, Shuffle } from "lucide-react";
+import { ChartColumn, FileInput, Plus, Sheet, Shuffle } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -33,6 +33,12 @@ export function LeadsScreen({ openNew, phone = null }: { openNew: boolean; phone
             <Button onClick={() => setCreating(true)}>
               <Plus aria-hidden />
               {t("newLead")}
+            </Button>
+            <Button asChild variant="secondary">
+              <Link href="/leads/sheet">
+                <Sheet aria-hidden />
+                {t("sheet.sheetView")}
+              </Link>
             </Button>
             <Button asChild variant="secondary">
               <Link href="/leads/dashboard">

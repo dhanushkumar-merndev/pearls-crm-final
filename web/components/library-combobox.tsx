@@ -67,6 +67,7 @@ export function LibraryCombobox({
   className,
   "aria-invalid": ariaInvalid,
   "aria-describedby": describedBy,
+  "aria-label": ariaLabel,
 }: {
   kind: LibraryKind;
   value: LibraryItem | null;
@@ -82,6 +83,8 @@ export function LibraryCombobox({
   /** From Field's render props, so `{...a}` marks the picker when its field has an error. */
   "aria-invalid"?: boolean;
   "aria-describedby"?: string;
+  /** For a picker without a visible label (a sheet cell). */
+  "aria-label"?: string;
 }) {
   const t = useTranslations("picker");
   const { failed } = useFeedback();
@@ -142,6 +145,7 @@ export function LibraryCombobox({
           aria-controls={listId}
           aria-invalid={invalid || ariaInvalid || undefined}
           aria-describedby={describedBy}
+          aria-label={ariaLabel}
           disabled={disabled}
           className={cn(
             "flex min-h-10 w-full items-center gap-2 rounded-xl border border-input bg-background px-3.5 text-left text-base",

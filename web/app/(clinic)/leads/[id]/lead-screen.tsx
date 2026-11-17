@@ -89,11 +89,12 @@ export function LeadScreen({ initial }: { initial: LeadDetail }) {
     refresh();
   };
   const isAdmin = me?.role === "admin";
+  const isExec = me?.role === "sales_executive";
 
   return (
     <Page>
       <DetailHeader
-        back={{ href: "/leads", label: t("backToLeads") }}
+        back={isExec ? { href: "/leads/sheet", label: t("sheet.back") } : { href: "/leads", label: t("backToLeads") }}
         title={l.name}
         badges={
           <>
@@ -140,10 +141,13 @@ export function LeadScreen({ initial }: { initial: LeadDetail }) {
                 <Pencil aria-hidden />
                 {t("edit")}
               </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setDialog("delete")}>
-                <Trash2 aria-hidden />
-                {t("delete")}
-              </DropdownMenuItem>
+              {/* Deleting a lead is for managers (the database refuses executives too). */}
+              {!isExec && (
+                <DropdownMenuItem onSelect={() => setDialog("delete")}>
+                  <Trash2 aria-hidden />
+                  {t("delete")}
+                </DropdownMenuItem>
+              )}
             </MoreMenu>
           </>
         }

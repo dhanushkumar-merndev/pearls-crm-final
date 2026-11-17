@@ -7,9 +7,11 @@ import { isActive, navFor, PRIMARY_ACTIONS } from "./nav";
 import { isPublicPath } from "./supabase/proxy";
 
 describe("menus per role", () => {
-  it("every web role has Home; mobile roles have no web menu", () => {
-    for (const role of WEB_ROLES) expect(navFor(role).map((i) => i.href)).toContain("/home");
-    expect(navFor("sales_executive")).toEqual([]);
+  it("every web role has Home (a sales executive: just Leads); BDMs have no web menu", () => {
+    for (const role of WEB_ROLES)
+      if (role !== "sales_executive") expect(navFor(role).map((i) => i.href)).toContain("/home");
+    expect(navFor("sales_executive").map((i) => i.href)).toEqual(["/leads", "/notifications"]);
+    expect(PRIMARY_ACTIONS.sales_executive?.href).toBe("/leads/sheet?new=1");
     expect(navFor("bdm")).toEqual([]);
   });
 
@@ -20,9 +22,11 @@ describe("menus per role", () => {
   });
 
   it("every menu label and primary action has a translation", () => {
-    const has = (key: string) => key.split(".").reduce<unknown>((o, k) => (o as Record<string, unknown>)?.[k], messages);
+    const has = (key: string) =>
+      key.split(".").reduce<unknown>((o, k) => (o as Record<string, unknown>)?.[k], messages);
     for (const role of STAFF_ROLES) {
-      for (const item of navFor(role)) expect(has(item.labelKey), item.labelKey).toBeTypeOf("string");
+      for (const item of navFor(role))
+        expect(has(item.labelKey), item.labelKey).toBeTypeOf("string");
       const action = PRIMARY_ACTIONS[role];
       if (action) expect(has(action.labelKey), action.labelKey).toBeTypeOf("string");
     }
@@ -73,7 +77,16 @@ describe("login redirects", () => {
       expect(isPublicPath(p), p).toBe(true);
     }
     // No email links: the old reset / callback routes are gone and not public.
-    for (const p of ["/", "/home", "/design", "/loginx", "/api/other", "/use-the-app", "/reset-password", "/auth/callback"]) {
+    for (const p of [
+      "/",
+      "/home",
+      "/design",
+      "/loginx",
+      "/api/other",
+      "/use-the-app",
+      "/reset-password",
+      "/auth/callback",
+    ]) {
       expect(isPublicPath(p), p).toBe(false);
     }
   });

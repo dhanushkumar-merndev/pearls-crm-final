@@ -29,7 +29,11 @@ test.describe("admin shell", () => {
     // The design preview is a developer page: Ctrl+K search only, not in the menu.
     await expect(menu.getByRole("link", { name: "Design preview" })).toHaveCount(0);
     const results = await new AxeBuilder({ page }).analyze();
-    expect(results.violations.filter((v) => v.impact === "serious" || v.impact === "critical").map((v) => v.id)).toEqual([]);
+    expect(
+      results.violations
+        .filter((v) => v.impact === "serious" || v.impact === "critical")
+        .map((v) => v.id),
+    ).toEqual([]);
   });
 
   test("Ctrl+K search opens and navigates", async ({ page }) => {
@@ -77,8 +81,17 @@ test("a receptionist logs in and does not see admin pages", async ({ page }) => 
   await expect(page.getByText("This page doesn't exist.")).toBeVisible();
 });
 
-test("sales executives are pointed to the Android app", async ({ page }) => {
+test("a sales executive lands on the sales sheet with only Leads in the menu", async ({ page }) => {
   await login(page, USERNAME.sales);
+  await expect(page).toHaveURL(/\/leads\/sheet$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Sales sheet" })).toBeVisible();
+  const menu = page.getByRole("navigation", { name: "Main menu" }).first();
+  await expect(menu.getByRole("link", { name: /^Leads/ })).toBeVisible();
+  await expect(menu.getByRole("link", { name: "Patients" })).toHaveCount(0);
+});
+
+test("BDMs are pointed to the Android app", async ({ page }) => {
+  await login(page, USERNAME.bdm);
   await expect(page).toHaveURL(/\/use-the-app$/);
   await expect(page.getByRole("heading", { name: "Please use the mobile app" })).toBeVisible();
 });

@@ -1,5 +1,6 @@
 import { CalendarDays } from "lucide-react";
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { formatDate, istParts } from "@pearl/shared";
 import { SalesDashboard } from "@/components/sales/sales-dashboard";
@@ -13,6 +14,8 @@ export const metadata: Metadata = { title: "Home" };
 
 export default async function HomePage() {
   const [me, t] = await Promise.all([getMe(), getTranslations("home")]);
+  // A sales executive's home is the sales sheet.
+  if (me?.role === "sales_executive") redirect("/leads/sheet");
   const now = new Date();
   const firstName = me?.full_name.split(" ")[0] ?? "";
 

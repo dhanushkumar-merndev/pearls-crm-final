@@ -1,4 +1,24 @@
-import { AudioLines, BedDouble, Bell, Car, CalendarDays, Goal, House, LayoutDashboard, ListTodo, Megaphone, MessageCircle, Palette, Pill, Plus, ReceiptIndianRupee, Settings, Target, Users, type LucideIcon } from "lucide-react";
+import {
+  AudioLines,
+  BedDouble,
+  Bell,
+  Car,
+  CalendarDays,
+  Goal,
+  House,
+  LayoutDashboard,
+  ListTodo,
+  Megaphone,
+  MessageCircle,
+  Palette,
+  Pill,
+  Plus,
+  ReceiptIndianRupee,
+  Settings,
+  Target,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
 import type { StaffRole } from "@pearl/shared";
 
 export interface NavItem {
@@ -17,9 +37,22 @@ export interface NavItem {
 
 /** Menu items, in order. Each phase adds its pages here. */
 export const NAV_ITEMS: readonly NavItem[] = [
-  { href: "/home", labelKey: "nav.home", icon: House, roles: ["receptionist", "sales_manager", "admin"] },
+  // A sales executive's menu is just Leads (their home, /home, opens the sales sheet).
+  {
+    href: "/home",
+    labelKey: "nav.home",
+    icon: House,
+    roles: ["receptionist", "sales_manager", "admin"],
+  },
   { href: "/dashboard", labelKey: "nav.dashboard", icon: LayoutDashboard, roles: ["admin"] },
-  { href: "/leads", labelKey: "nav.leads", icon: Target, roles: ["sales_manager", "admin"], badge: "leads", badgeLabelKey: "nav.leadsWithCount" },
+  {
+    href: "/leads",
+    labelKey: "nav.leads",
+    icon: Target,
+    roles: ["sales_executive", "sales_manager", "admin"],
+    badge: "leads",
+    badgeLabelKey: "nav.leadsWithCount",
+  },
   { href: "/ads", labelKey: "nav.ads", icon: Megaphone, roles: ["sales_manager", "admin"] },
   {
     href: "/whatsapp",
@@ -30,17 +63,54 @@ export const NAV_ITEMS: readonly NavItem[] = [
     badgeLabelKey: "nav.whatsappWithCount",
   },
   { href: "/bdm", labelKey: "nav.bdm", icon: Car, roles: ["admin"] },
-  { href: "/recordings", labelKey: "nav.recordings", icon: AudioLines, roles: ["sales_manager", "admin"] },
+  {
+    href: "/recordings",
+    labelKey: "nav.recordings",
+    icon: AudioLines,
+    roles: ["sales_manager", "admin"],
+  },
   { href: "/targets", labelKey: "nav.targets", icon: Goal, roles: ["sales_manager", "admin"] },
-  { href: "/appointments", labelKey: "nav.appointments", icon: CalendarDays, roles: ["receptionist", "admin"] },
+  {
+    href: "/appointments",
+    labelKey: "nav.appointments",
+    icon: CalendarDays,
+    roles: ["receptionist", "admin"],
+  },
   { href: "/patients", labelKey: "nav.patients", icon: Users, roles: ["receptionist", "admin"] },
-  { href: "/admissions", labelKey: "nav.admissions", icon: BedDouble, roles: ["receptionist", "admin"] },
-  { href: "/bills", labelKey: "nav.bills", icon: ReceiptIndianRupee, roles: ["receptionist", "admin"] },
-  { href: "/pharmacy", labelKey: "nav.pharmacy", icon: Pill, roles: ["receptionist", "admin"], badge: "pharmacy" },
-  { href: "/followups", labelKey: "nav.followups", icon: ListTodo, roles: ["receptionist", "admin"] },
+  {
+    href: "/admissions",
+    labelKey: "nav.admissions",
+    icon: BedDouble,
+    roles: ["receptionist", "admin"],
+  },
+  {
+    href: "/bills",
+    labelKey: "nav.bills",
+    icon: ReceiptIndianRupee,
+    roles: ["receptionist", "admin"],
+  },
+  {
+    href: "/pharmacy",
+    labelKey: "nav.pharmacy",
+    icon: Pill,
+    roles: ["receptionist", "admin"],
+    badge: "pharmacy",
+  },
+  {
+    href: "/followups",
+    labelKey: "nav.followups",
+    icon: ListTodo,
+    roles: ["receptionist", "admin"],
+  },
   { href: "/admin", labelKey: "nav.admin", icon: Settings, roles: ["admin"] },
   // Opened from the bell ("See all notifications") and Ctrl+K; not in the sidebar.
-  { href: "/notifications", labelKey: "nav.notifications", icon: Bell, roles: ["receptionist", "sales_manager", "admin"], inMenu: false },
+  {
+    href: "/notifications",
+    labelKey: "nav.notifications",
+    icon: Bell,
+    roles: ["receptionist", "sales_executive", "sales_manager", "admin"],
+    inMenu: false,
+  },
   { href: "/design", labelKey: "nav.design", icon: Palette, roles: ["admin"], inMenu: false },
 ];
 
@@ -56,6 +126,7 @@ export const PRIMARY_ACTIONS: Partial<Record<StaffRole, PrimaryAction>> = {
   receptionist: { labelKey: "actions.newPatient", icon: Plus, href: "/patients/new" },
   admin: { labelKey: "actions.newPatient", icon: Plus, href: "/patients/new" },
   sales_manager: { labelKey: "actions.newLead", icon: Plus, href: "/leads?new=1" },
+  sales_executive: { labelKey: "actions.newLead", icon: Plus, href: "/leads/sheet?new=1" },
 };
 
 export function navFor(role: StaffRole): NavItem[] {

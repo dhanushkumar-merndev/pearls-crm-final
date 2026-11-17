@@ -13,5 +13,5 @@ export function searchHref(hit: SearchHit, role: StaffRole): string {
 
 /** Roles whose top search bar looks up people (patients and/or leads). */
 export function canSearchPeople(role: StaffRole): boolean {
-  return role === "receptionist" || role === "admin" || role === "sales_manager";
+  return role === "receptionist" || role === "admin" || role === "sales_manager" || role === "sales_executive";
 }
