@@ -9,7 +9,13 @@ import { Button } from "@/components/ui/button";
 import { Page, PageHeader } from "@/components/ui/page";
 import { Pager } from "@/components/ui/pager";
 import { RowSkeletons } from "@/components/ui/skeletons";
-import { type Notification, markNotificationRead, NOTIFICATION_COLUMNS, NotificationText } from "@/components/notifications/notification-text";
+import {
+  type Notification,
+  markNotificationRead,
+  NOTIFICATION_COLUMNS,
+  NotificationText,
+} from "@/components/notifications/notification-text";
+import { PushCard } from "@/components/notifications/push-toggle";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
 import { useUrlParam } from "@/lib/use-url-param";
 import { cn } from "@/lib/utils";
@@ -52,7 +58,8 @@ export function NotificationsScreen() {
   const total = list.data?.total ?? 0;
   // Past the end (e.g. after marking read on the Unread view): back to the last page there is.
   useEffect(() => {
-    if (list.isSuccess && items.length === 0 && offset > 0) setAt(`${Math.max(0, Math.floor((total - 1) / PAGE) * PAGE)}`);
+    if (list.isSuccess && items.length === 0 && offset > 0)
+      setAt(`${Math.max(0, Math.floor((total - 1) / PAGE) * PAGE)}`);
   }, [list.isSuccess, items.length, offset, total, setAt]);
   const anyUnread = items.some((n) => !n.read_at);
 
@@ -86,6 +93,7 @@ export function NotificationsScreen() {
           )
         }
       />
+      <PushCard />
       <div className="flex gap-2" role="group" aria-label={t("show")}>
         {(["all", "unread"] as const).map((v) => (
           <button
@@ -98,7 +106,9 @@ export function NotificationsScreen() {
             }}
             className={cn(
               "min-h-8 rounded-full border px-3 font-medium",
-              show === v ? "border-transparent bg-secondary text-foreground" : "border-border text-text-secondary hover:bg-accent hover:text-foreground",
+              show === v
+                ? "border-transparent bg-secondary text-foreground"
+                : "border-border text-text-secondary hover:bg-accent hover:text-foreground",
             )}
           >
             {t(`filter.${v}`)}
@@ -107,13 +117,24 @@ export function NotificationsScreen() {
       </div>
       {list.isPending && <RowSkeletons rows={4} />}
       {list.isError && <p className="text-bad-text">{t("loadFailed")}</p>}
-      {list.isSuccess && items.length === 0 && <p className="text-text-secondary">{show === "unread" ? t("noUnread") : t("none")}</p>}
+      {list.isSuccess && items.length === 0 && (
+        <p className="text-text-secondary">{show === "unread" ? t("noUnread") : t("none")}</p>
+      )}
       {items.length > 0 && (
-        <ul aria-label={t("title")} className="flex flex-col divide-y divide-border rounded-xl border border-border">
+        <ul
+          aria-label={t("title")}
+          className="flex flex-col divide-y divide-border rounded-xl border border-border"
+        >
           {items.map((n) => {
             const row = (
               <>
-                <span aria-hidden className={cn("mt-2 size-2 shrink-0 rounded-full", n.read_at ? "bg-transparent" : "bg-link")} />
+                <span
+                  aria-hidden
+                  className={cn(
+                    "mt-2 size-2 shrink-0 rounded-full",
+                    n.read_at ? "bg-transparent" : "bg-link",
+                  )}
+                />
                 <NotificationText n={n} />
                 {!n.read_at && <span className="sr-only">{t("unreadMark")}</span>}
               </>
@@ -121,11 +142,19 @@ export function NotificationsScreen() {
             return (
               <li key={n.id} data-id={n.id} data-unread={n.read_at ? undefined : "true"}>
                 {n.link ? (
-                  <Link href={n.link} onClick={() => opened(n)} className="flex gap-3 px-4 py-3 hover:bg-accent">
+                  <Link
+                    href={n.link}
+                    onClick={() => opened(n)}
+                    className="flex gap-3 px-4 py-3 hover:bg-accent"
+                  >
                     {row}
                   </Link>
                 ) : (
-                  <button type="button" onClick={() => opened(n)} className="flex w-full gap-3 px-4 py-3 text-left hover:bg-accent">
+                  <button
+                    type="button"
+                    onClick={() => opened(n)}
+                    className="flex w-full gap-3 px-4 py-3 text-left hover:bg-accent"
+                  >
                     {row}
                   </button>
                 )}

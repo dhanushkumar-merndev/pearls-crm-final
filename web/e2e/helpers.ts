@@ -120,7 +120,9 @@ export async function rpcAs<T>(page: Page, fn: string, args: Record<string, unkn
     data: args,
   });
   if (!res.ok()) throw new Error(`${fn}: HTTP ${res.status()} ${await res.text()}`);
-  return (await res.json()) as T;
+  // A function that returns nothing (void) answers with an empty body.
+  const text = await res.text();
+  return (text ? JSON.parse(text) : null) as T;
 }
 
 /** Reads rows as the person logged in on [page] (RLS applies), e.g. `selectAs(page, "clinic_settings?branch_code=eq.main")`. */

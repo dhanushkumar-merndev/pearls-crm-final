@@ -1,5 +1,5 @@
-// push-send: delivers one notification to the recipient's Android phones with Firebase Cloud
-// Messaging (HTTP v1). Called by Postgres (trigger on public.notifications → pg_net, header
+// push-send: delivers one notification to the recipient's Android phones and, since Phase 20a, the
+// browsers they turned pop-ups on in, with Firebase Cloud Messaging (HTTP v1). Called by Postgres (trigger on public.notifications → pg_net, header
 // x-cron-secret) right after the notification is saved. Best effort: the notification is
 // already in the app's bell; push only makes the phone ring. Tokens Firebase no longer knows
 // are removed. Pure logic here; index.ts wires the real Firebase and database.
@@ -23,6 +23,8 @@ export const payloadSchema = z.object({
   link: z.string().nullable().optional(),
   read: z.boolean().default(false),
   tokens: z.array(z.string()).default([]),
+  /** Browsers with pop-ups on (Phase 20a). */
+  web_tokens: z.array(z.string()).default([]),
 });
 export type Payload = z.infer<typeof payloadSchema>;
 
@@ -59,14 +61,18 @@ export async function signedAssertion(sa: ServiceAccount, nowSeconds: number): P
   return `${header}.${claims}.${b64url(new Uint8Array(signature))}`;
 }
 
-/** One FCM v1 message. Data only, so the app always shows it itself (its channel, its icon). */
-export function fcmMessage(token: string, p: Payload): Record<string, unknown> {
+export type Platform = "android" | "web";
+
+/**
+ * One FCM v1 message. Data only, so the app (or the browser's push-sw.js) always shows it itself:
+ * its channel / icon, and on a computer nothing while a CRM tab is in front (the bell is live there).
+ */
+export function fcmMessage(token: string, p: Payload, platform: Platform = "android"): Record<string, unknown> {
+  const data = { id: p.id, type: p.type, title: p.title.slice(0, 200), body: p.body.slice(0, 1000), link: p.link ?? "" };
   return {
-    message: {
-      token,
-      data: { id: p.id, type: p.type, title: p.title.slice(0, 200), body: p.body.slice(0, 1000), link: p.link ?? "" },
-      android: { priority: "HIGH", ttl: "86400s" },
-    },
+    message: platform === "web"
+      ? { token, data, webpush: { headers: { Urgency: "high", TTL: "86400" } } }
+      : { token, data, android: { priority: "HIGH", ttl: "86400s" } },
   };
 }
 
@@ -96,20 +102,26 @@ export interface Result {
   failed: number;
 }
 
-/** Sends notification [id] to every Android phone of its recipient. */
+/** Sends notification [id] to every Android phone and pop-up browser of its recipient (10 of each at most). */
 export async function run(id: string, configured: boolean, deps: Deps): Promise<Result> {
   const result: Result = { state: "done", sent: 0, dropped: 0, failed: 0 };
   if (!configured) return { ...result, state: "off" };
   const { data, error } = await deps.rpc("push_payload", { p_id: id });
   if (error) throw new Error(error.message);
   const parsed = payloadSchema.safeParse(data);
-  // Deleted already, read already, or no phone: nothing to ring.
-  if (!parsed.success || parsed.data.read || parsed.data.tokens.length === 0) return { ...result, state: "skipped" };
+  const targets: [string, Platform][] = parsed.success
+    ? [
+      ...parsed.data.tokens.slice(0, 10).map((t): [string, Platform] => [t, "android"]),
+      ...parsed.data.web_tokens.slice(0, 10).map((t): [string, Platform] => [t, "web"]),
+    ]
+    : [];
+  // Deleted already, read already, or no phone / browser: nothing to ring.
+  if (!parsed.success || parsed.data.read || targets.length === 0) return { ...result, state: "skipped" };
   const gone: string[] = [];
-  for (const token of parsed.data.tokens.slice(0, 10)) {
+  for (const [token, platform] of targets) {
     let outcome: SendOutcome;
     try {
-      const res = await deps.send(fcmMessage(token, parsed.data));
+      const res = await deps.send(fcmMessage(token, parsed.data, platform));
       outcome = classify(res.status, res.body);
     } catch {
       outcome = "failed";
@@ -117,7 +129,7 @@ export async function run(id: string, configured: boolean, deps: Deps): Promise<
     if (outcome === "sent") result.sent++;
     else if (outcome === "gone") gone.push(token);
     else if (outcome === "auth") {
-      // Wrong key or project: every phone would fail the same way.
+      // Wrong key or project: every phone and browser would fail the same way.
       result.state = "auth_error";
       result.failed++;
       break;

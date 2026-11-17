@@ -4,7 +4,7 @@ import { classify, type Deps, fcmMessage, pemToDer, pushSchema, run, serviceAcco
 
 const payload = (over: Record<string, unknown> = {}) => ({
   id: "n1", type: "lead_assigned", title: "New lead: Asha", body: "Call within 15 minutes", link: "/leads/1", read: false,
-  tokens: ["tok-a", "tok-b"], ...over,
+  tokens: ["tok-a", "tok-b"], web_tokens: [] as string[], ...over,
 });
 
 function fakeDeps(opts: { data?: unknown; answer?: (token: string) => { status: number; body: unknown } } = {}) {
@@ -117,4 +117,27 @@ Deno.test("push-send: the Google assertion is a valid RS256 JWT", async () => {
   assertEquals(claims.exp - claims.iat, 3600);
   const ok = await crypto.subtle.verify("RSASSA-PKCS1-v1_5", pair.publicKey, decode(s) as BufferSource, new TextEncoder().encode(`${h}.${c}`));
   assert(ok);
+});
+
+Deno.test("push-send: browsers get a web message after the phones (Phase 20a)", async () => {
+  const { deps, sent } = fakeDeps({ data: payload({ tokens: ["tok-a"], web_tokens: ["web-1", "web-2"] }) });
+  const r = await run("n1", true, deps);
+  assertEquals(r, { state: "done", sent: 3, dropped: 0, failed: 0 });
+  const msgs = sent.map((m) => m.message as Record<string, unknown>);
+  assertEquals(msgs.map((m) => m.token), ["tok-a", "web-1", "web-2"]);
+  assert("android" in msgs[0]! && !("webpush" in msgs[0]!));
+  assertEquals(msgs[1]!.webpush, { headers: { Urgency: "high", TTL: "86400" } });
+  assert(!("android" in msgs[1]!));
+  assertEquals((msgs[1]!.data as Record<string, string>).link, "/leads/1");
+});
+
+Deno.test("push-send: someone with only a browser is not skipped; a gone browser is removed", async () => {
+  const { deps, calls } = fakeDeps({
+    data: payload({ tokens: [], web_tokens: ["web-old", "web-new"] }),
+    answer: (t) => t === "web-old" ? { status: 404, body: { error: { status: "NOT_FOUND" } } } : { status: 200, body: {} },
+  });
+  const r = await run("n1", true, deps);
+  assertEquals(r.state, "done");
+  assertEquals(r.sent, 1);
+  assertEquals(calls.find((c) => c.fn === "push_tokens_drop")?.args, { p_tokens: ["web-old"] });
 });

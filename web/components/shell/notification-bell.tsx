@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bell, ListChecks } from "lucide-react";
+import { Bell, BellRing, ListChecks } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect } from "react";
@@ -15,11 +15,19 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
-import { type Notification, markNotificationRead, NOTIFICATION_COLUMNS, NotificationText } from "@/components/notifications/notification-text";
+import {
+  type Notification,
+  markNotificationRead,
+  NOTIFICATION_COLUMNS,
+  NotificationText,
+} from "@/components/notifications/notification-text";
+import { usePushState } from "@/components/notifications/push-toggle";
 
 /** Bell with unread count (the newest 10; "See all notifications" opens the full list). Realtime pushes new ones; no polling. */
 export function NotificationBell({ staffId }: { staffId: string }) {
   const t = useTranslations("notifications");
+  const tp = useTranslations("pushNotify");
+  const [push] = usePushState();
   const queryClient = useQueryClient();
   const queryKey = ["notifications", staffId];
 
@@ -39,7 +47,10 @@ export function NotificationBell({ staffId }: { staffId: string }) {
   const { data: unreadCount } = useQuery({
     queryKey: [...queryKey, "unread"],
     queryFn: async () => {
-      const { count, error } = await getSupabaseBrowser().from("notifications").select("id", { count: "exact", head: true }).is("read_at", null);
+      const { count, error } = await getSupabaseBrowser()
+        .from("notifications")
+        .select("id", { count: "exact", head: true })
+        .is("read_at", null);
       if (error) throw error;
       return count ?? 0;
     },
@@ -51,7 +62,12 @@ export function NotificationBell({ staffId }: { staffId: string }) {
       .channel(`notifications:${staffId}`)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "notifications", filter: `recipient_id=eq.${staffId}` },
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
+          filter: `recipient_id=eq.${staffId}`,
+        },
         () => void queryClient.invalidateQueries({ queryKey: ["notifications", staffId] }),
       )
       .subscribe();
@@ -68,13 +84,21 @@ export function NotificationBell({ staffId }: { staffId: string }) {
   }
 
   function opened(n: Notification) {
-    if (!n.read_at) void markNotificationRead(n.id).then(() => queryClient.invalidateQueries({ queryKey: ["notifications"] }));
+    if (!n.read_at)
+      void markNotificationRead(n.id).then(() =>
+        queryClient.invalidateQueries({ queryKey: ["notifications"] }),
+      );
   }
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative" aria-label={`${t("label")}: ${unread > 99 ? t("unreadOver") : t("unread", { count: unread })}`}>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="relative"
+          aria-label={`${t("label")}: ${unread > 99 ? t("unreadOver") : t("unread", { count: unread })}`}
+        >
           <Bell aria-hidden />
           {unread > 0 && (
             <span className="absolute top-1.5 right-1.5 inline-flex min-w-5 items-center justify-center rounded-full bg-status-critical px-1 text-[0.75rem] font-bold text-destructive-foreground">
@@ -93,7 +117,12 @@ export function NotificationBell({ staffId }: { staffId: string }) {
         {(data ?? []).length === 0 && <p className="px-3 py-4 text-text-secondary">{t("empty")}</p>}
         <div className="-mx-1.5 min-h-0 flex-1 overflow-y-auto overscroll-contain px-1.5">
           {(data ?? []).map((n) => (
-            <DropdownMenuItem key={n.id} asChild={Boolean(n.link)} onSelect={() => opened(n)} className="flex-col items-start gap-0.5 py-2">
+            <DropdownMenuItem
+              key={n.id}
+              asChild={Boolean(n.link)}
+              onSelect={() => opened(n)}
+              className="flex-col items-start gap-0.5 py-2"
+            >
               {n.link ? (
                 <Link href={n.link}>
                   <NotificationText n={n} />
@@ -105,13 +134,23 @@ export function NotificationBell({ staffId }: { staffId: string }) {
           ))}
         </div>
         <DropdownMenuSeparator />
-        {unread > 0 && <DropdownMenuItem onSelect={markAllRead}>{t("markAllRead")}</DropdownMenuItem>}
+        {unread > 0 && (
+          <DropdownMenuItem onSelect={markAllRead}>{t("markAllRead")}</DropdownMenuItem>
+        )}
         <DropdownMenuItem asChild>
           <Link href="/notifications">
             <ListChecks aria-hidden />
             {t("seeAll")}
           </Link>
         </DropdownMenuItem>
+        {push === "ask" && (
+          <DropdownMenuItem asChild>
+            <Link href="/notifications">
+              <BellRing aria-hidden />
+              {tp("bellItem")}
+            </Link>
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

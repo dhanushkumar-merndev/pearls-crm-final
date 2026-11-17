@@ -100,7 +100,9 @@ select throws_ok($$ select public.day_start_decide('32323232-2222-4000-a000-0000
   'P0001', 'invalid_input', 'saying no needs a note');
 select is(public.day_start_decide('32323232-2222-4000-a000-000000000004', false, 'Please come to the office') ->> 'decline_note',
   'Please come to the office', 'the admin says no, with a note');
-select is(jsonb_array_length(public.day_start_requests_list()), 2, 'the admin sees both requests');
+-- Only this test's two (a local database also holds requests made by browser tests).
+select is((select count(*)::int from jsonb_array_elements(public.day_start_requests_list()) e
+           where e ->> 'id' like '32323232-%'), 2, 'the admin sees both requests');
 select pg_temp.login('32323232-0000-4000-a000-0000000000c1');
 select is(public.bdm_today() -> 'start_request' ->> 'decline_note', 'Please come to the office', 'the phone shows the note');
 select is((select count(*) from public.day_start_requests), 1::bigint, 'a sales executive sees only their own requests');

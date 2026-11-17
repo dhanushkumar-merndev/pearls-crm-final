@@ -4232,5 +4232,26 @@
         "Advance held: money paid in advance that hasn't been used on a bill yet. Open a bill → Use advance to pay it from the advance."
       ]
     }
+  },
+  "pushNotify": {
+    "title": "Pop-ups on this computer",
+    "description": "A pop-up for each new notification, even when this tab is closed or minimised. Only for you, only in this browser. Nothing pops up while you are looking at the CRM: the bell shows it.",
+    "state": {
+      "ask": "Off in this browser.",
+      "on": "On in this browser.",
+      "blocked": "Blocked in this browser.",
+      "unsupported": "This browser can't show pop-ups.",
+      "off": "Not set up."
+    },
+    "turnOn": "Turn on pop-ups",
+    "turningOn": "Turning on…",
+    "turnOff": "Turn off",
+    "turnedOff": "Pop-ups turned off ✓",
+    "sendTest": "Send a test",
+    "testSent": "Test sent. It should pop up in a few seconds ✓",
+    "turnOnFailed": "Couldn't turn on pop-ups. Check the internet and try again.",
+    "blockedHelp": "Click the lock icon left of the web address → Notifications → Allow, then reload this page.",
+    "unsupportedHelp": "Use Chrome, Edge or Firefox on a computer. A private window can't show pop-ups.",
+    "bellItem": "Turn on pop-ups on this computer"
   }
 }

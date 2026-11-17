@@ -10,3 +10,5 @@ allowBuilds:
   "@swc/core": false # prebuilt binary comes from optional deps
   unrs-resolver: false # prebuilt binary comes from optional deps
   "@tigrisdata/cli": false # postinstall only prints a banner
+  "@firebase/util": false # postinstall only bakes in default app config (we pass ours)
+  protobufjs: false # postinstall only checks versions; browser push doesn't need it
