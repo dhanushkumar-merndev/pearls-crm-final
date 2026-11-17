@@ -346,4 +346,47 @@ class SalesScreensTest {
         compose.waitUntil(5_000) { exists(hasTestTag("book-failure")) }
         compose.onNodeWithText(text(com.pearl.crm.core.ui.R.string.error_slot_full)).assertIsDisplayed()
     }
+
+    private fun showLead(transport: RpcTransport) {
+        val database = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), AppDatabase::class.java)
+            .allowMainThreadQueries().build()
+        db = database
+        runBlocking {
+            database.leads().upsert(listOf(LeadEntity.fromRow(PearlJson.parseToJsonElement(
+                """{"id":"L1","sl_no":7,"name":"Asha","phone_e164":"+919845000001","stage":"interested","amount_quoted_paise":6000000,
+                "comments1":"Wants EMI","updated_at":"2026-11-03T00:00:00Z"}""",
+            ).jsonObject)))
+        }
+        val sales = SalesRepository(transport, database, OutboxWriter(database.outbox()))
+        compose.setContent { PearlTheme { LeadDetailScreen("L1", sales, library, onBack = {}, onBook = {}) } }
+    }
+
+    @Test
+    fun theLeadPageShowsTheSalesSheetColumnsFromTheServer() {
+        showLead { fn, _ ->
+            assertEquals("lead_sheet_row", fn)
+            PearlJson.parseToJsonElement(
+                """{"id":"L1","source_label":"Instagram","assigned_name":"Priya","doctor_name":"Dr Rao","amount_quoted_paise":6000000,
+                "amount_finalised_paise":5500000,"amount_locked":false,"surgery_date":"2026-11-27","comments1":"Wants EMI",
+                "consult":{"at":"2026-11-20T05:30:00+00:00","date":"2026-11-20","status":"confirmed","doctor":"Dr Rao"},
+                "followups":[{"at":"2026-11-17T04:30:00+00:00","outcome":"connected","by":"Priya","notes":null}],"calls_total":1}""",
+            )
+        }
+        compose.waitUntil(5_000) { exists(hasText("Instagram")) }
+        compose.onNodeWithText("20/11/2026 11:00 AM · Dr Rao · Confirmed").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Quoted ₹60,000.00 → Final ₹55,000.00").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("27/11/2026").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("17/11/2026 10:00 AM · Spoke · Priya").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText(text(R.string.sheet_followup, 3)).performScrollTo().assertIsDisplayed()
+        assertFalse(exists(hasText(text(R.string.sheet_offline))))
+    }
+
+    @Test
+    fun offlineTheSheetShowsWhatThePhoneHasAndSaysTheRestNeedsTheConnection() {
+        showLead { _, _ -> throw RpcFailure.Transient("offline") }
+        compose.waitUntil(5_000) { exists(hasText(text(R.string.sheet_offline))) }
+        compose.onNodeWithText("Quoted ₹60,000.00").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Wants EMI").performScrollTo().assertIsDisplayed()
+        assertFalse(exists(hasText(text(R.string.sheet_followup, 1))))
+    }
 }

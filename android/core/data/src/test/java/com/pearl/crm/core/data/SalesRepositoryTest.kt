@@ -406,4 +406,36 @@ class SalesRepositoryTest {
         assertEquals(4, d.today.pendingConfirmations)
         assertEquals(listOf(5, 12), d.callsPerDay.map { it.calls })
     }
+
+    @Test
+    fun theLeadSheetRowIsReadFromTheServersShape() = runTest {
+        answer = { fn, _ ->
+            assertEquals("lead_sheet_row", fn)
+            PearlJson.parseToJsonElement(
+                """{"id":"L1","name":"Asha","source_label":"Instagram","assigned_name":"Priya","doctor_name":"Dr Rao",
+                "amount_quoted_paise":6000000,"amount_finalised_paise":5500000,"amount_locked":false,"surgery_date":"2026-11-27",
+                "comments1":"Wants EMI","stage":"surgery_scheduled","version":4,
+                "consult":{"appointment_id":"A1","at":"2026-11-20T05:30:00+00:00","date":"2026-11-20","status":"confirmed","doctor":"Dr Rao"},
+                "followups":[{"at":"2026-11-17T04:30:00.25+00:00","outcome":"connected","by":"Priya","notes":null}],"calls_total":1}""",
+            )
+        }
+        val row = repo.leadSheet("L1")
+        assertEquals("L1", calls.single().second["p_lead_id"]!!.jsonPrimitive.content)
+        assertEquals("Instagram", row.sourceLabel)
+        assertEquals("Quoted ₹60,000.00 → Final ₹55,000.00", row.quotation({ "Quoted $it" }, { "Final $it" }))
+        assertEquals("20/11/2026 11:00 AM · Dr Rao", row.consultText())
+        assertEquals("27/11/2026", row.surgeryText())
+        assertEquals(listOf("connected"), row.followups.map { it.outcome })
+        assertEquals(1, row.callsTotal)
+    }
+
+    @Test
+    fun anEmptyLeadSheetRowHasNoQuotationOrConsultation() = runTest {
+        answer = { _, _ -> PearlJson.parseToJsonElement("""{"id":"L2","consult":null,"followups":[],"calls_total":0}""") }
+        val row = repo.leadSheet("L2")
+        assertNull(row.quotation({ it }, { it }))
+        assertNull(row.consultText())
+        assertNull(row.surgeryText())
+        assertTrue(row.followups.isEmpty())
+    }
 }

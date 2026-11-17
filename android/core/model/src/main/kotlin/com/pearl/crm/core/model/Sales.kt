@@ -102,3 +102,64 @@ data class CallsOnDay(
     val calls: Int = 0,
     val connected: Int = 0,
 )
+
+/** The consultation in a lead's sheet row: the next upcoming booking, else the latest. */
+@Serializable
+data class SheetConsult(
+    val at: String? = null,
+    val date: String? = null,
+    val status: String = "",
+    val doctor: String? = null,
+)
+
+/** One of the first three calls (Follow-up 1, 2, 3). [at] is the server's timestamptz text. */
+@Serializable
+data class SheetCall(
+    val at: String,
+    val outcome: String? = null,
+    val by: String? = null,
+    val notes: String? = null,
+)
+
+/**
+ * `lead_sheet_row(lead)`: the sales sheet's columns for one lead (16/11/2026 training): source,
+ * sales team, doctor, consultation, quotation (quoted → final), surgery date, follow-up 1–3, remarks.
+ */
+@Serializable
+data class LeadSheetRow(
+    @SerialName("source_label") val sourceLabel: String? = null,
+    @SerialName("assigned_name") val assignedName: String? = null,
+    @SerialName("doctor_name") val doctorName: String? = null,
+    @SerialName("amount_quoted_paise") val amountQuotedPaise: Long? = null,
+    @SerialName("amount_finalised_paise") val amountFinalisedPaise: Long? = null,
+    @SerialName("amount_locked") val amountLocked: Boolean = false,
+    @SerialName("surgery_date") val surgeryDate: String? = null,
+    val comments1: String? = null,
+    val consult: SheetConsult? = null,
+    val followups: List<SheetCall> = emptyList(),
+    @SerialName("calls_total") val callsTotal: Int = 0,
+) {
+    /** "Quoted ₹60,000.00 → Final ₹55,000.00" parts; null when neither is set. */
+    fun quotation(quoted: (String) -> String, final: (String) -> String): String? {
+        if (amountQuotedPaise == null && amountFinalisedPaise == null) return null
+        return listOfNotNull(
+            amountQuotedPaise?.let { quoted(Money.formatInr(it)) },
+            amountFinalisedPaise?.let { final(Money.formatInr(it)) },
+        ).joinToString(" → ")
+    }
+
+    /** The consultation as one line: date and time (or the day), then the doctor. */
+    fun consultText(): String? = consult?.let { c ->
+        val whenText = c.at?.let(SheetTimes::ms)?.let(IstDates::formatDateTime)
+            ?: c.date?.let { runCatching { java.time.LocalDate.parse(it) }.getOrNull() }?.let(IstDates::formatDay)
+        listOfNotNull(whenText, c.doctor).joinToString(" · ").ifEmpty { null }
+    }
+
+    /** "DD/MM/YYYY" for the surgery date. */
+    fun surgeryText(): String? = surgeryDate?.let { runCatching { java.time.LocalDate.parse(it) }.getOrNull() }?.let(IstDates::formatDay)
+}
+
+object SheetTimes {
+    /** A Postgres timestamptz ("2026-11-17T04:30:00.12+00:00") → epoch ms. */
+    fun ms(text: String): Long? = runCatching { java.time.OffsetDateTime.parse(text).toInstant().toEpochMilli() }.getOrNull()
+}

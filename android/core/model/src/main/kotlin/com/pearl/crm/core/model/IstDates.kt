@@ -16,4 +16,9 @@ object IstDates {
     fun formatTime(epochMs: Long): String = TIME.format(Instant.ofEpochMilli(epochMs))
 
     fun formatDateTime(epochMs: Long): String = "${formatDate(epochMs)} ${formatTime(epochMs)}"
+
+    private val DAY = DateTimeFormatter.ofPattern("dd/MM/yyyy", Locale.ENGLISH)
+
+    /** A calendar day (a `date` column, no time zone) as DD/MM/YYYY. */
+    fun formatDay(day: java.time.LocalDate): String = DAY.format(day)
 }

@@ -11,6 +11,7 @@ import com.pearl.crm.core.data.net.PearlJson
 import com.pearl.crm.core.model.CallDirection
 import com.pearl.crm.core.model.CallOutcome
 import com.pearl.crm.core.model.FreeSlot
+import com.pearl.crm.core.model.LeadSheetRow
 import com.pearl.crm.core.model.LeadStage
 import com.pearl.crm.core.model.Phones
 import com.pearl.crm.core.model.RpcFailure
@@ -395,6 +396,13 @@ class SalesRepository(
         }
         return row
     }
+
+    /**
+     * Online only: the lead's sales-sheet columns (consultation, follow-up 1–3, quotation…), which
+     * the server works out from bookings and calls. A sales executive gets only their own lead.
+     */
+    suspend fun leadSheet(leadId: String): LeadSheetRow =
+        PearlJson.decodeFromJsonElement(LeadSheetRow.serializer(), rpc.call("lead_sheet_row", buildJsonObject { put("p_lead_id", leadId) }))
 
     private fun dashboardKey() = DashboardKey(cacheOwner(), Instant.ofEpochMilli(clock()).atZone(IstDates.ZONE).toLocalDate())
 

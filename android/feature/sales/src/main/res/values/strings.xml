@@ -255,4 +255,19 @@
     <string name="myday_target_agreed">Agreed amount</string>
     <string name="myday_target_calls">Calls</string>
     <string name="myday_target_progress">%1$s of %2$s (%3$d%%)</string>
+    <!-- Sales sheet card on a lead (19c) -->
+    <string name="sheet_title">Sheet</string>
+    <string name="sheet_source">Source</string>
+    <string name="sheet_team">Sales team</string>
+    <string name="sheet_doctor">Doctor</string>
+    <string name="sheet_consult">Consultation</string>
+    <string name="sheet_quote">Prescription (quotation)</string>
+    <string name="sheet_quoted">Quoted %1$s</string>
+    <string name="sheet_final">Final %1$s</string>
+    <string name="sheet_locked">locked</string>
+    <string name="sheet_surgery">Surgery date</string>
+    <string name="sheet_followup">Follow-up %1$d</string>
+    <string name="sheet_more_calls">+%1$d more calls</string>
+    <string name="sheet_remarks">Remarks</string>
+    <string name="sheet_offline">Connect to the internet to load the consultation and follow-ups.</string>
 </resources>

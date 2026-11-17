@@ -34,6 +34,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,7 +55,9 @@ import com.pearl.crm.core.data.SalesRepository
 import com.pearl.crm.core.data.db.LeadEntity
 import com.pearl.crm.core.model.CallDirection
 import com.pearl.crm.core.model.IstDates
+import com.pearl.crm.core.model.LeadSheetRow
 import com.pearl.crm.core.model.LeadStage
+import com.pearl.crm.core.model.SheetTimes
 import com.pearl.crm.core.model.LibraryItem
 import com.pearl.crm.core.model.LibraryKind
 import com.pearl.crm.core.model.LibrarySource
@@ -79,8 +82,12 @@ import com.pearl.crm.core.ui.components.StatusTone
 import com.pearl.crm.core.ui.library.LibraryPicker
 import com.pearl.crm.core.ui.theme.Pearl
 import com.pearl.crm.core.ui.theme.Spacing
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+
+/** The sales-sheet card: [row] from the server, or null with [offline] when it couldn't be loaded. */
+private class SheetLoad(val row: LeadSheetRow?, val offline: Boolean)
 
 /** The lead as read from the phone; [lead] null = not on this phone (any more). */
 private class LeadLoad(val lead: LeadEntity?)
@@ -127,6 +134,17 @@ fun LeadDetailScreen(
     val savedText = stringResource(R.string.saved_offline)
     val showSaved: (Boolean) -> Unit = { saved -> if (saved) scope.launch { snackbar.showSnackbar(savedText) } }
     val lead = load?.lead
+    // The sheet's columns come from the server (bookings and calls); reloaded when the phone logs a call or a booking.
+    var sheet by remember(leadId) { mutableStateOf<SheetLoad?>(null) }
+    LaunchedEffect(leadId, calls.size, bookings.size) {
+        sheet = try {
+            SheetLoad(sales.leadSheet(leadId), offline = false)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            SheetLoad(null, offline = true)
+        }
+    }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0),
@@ -215,6 +233,8 @@ fun LeadDetailScreen(
                 }
             }
 
+            SheetCard(current, sheet)
+
             History(stringResource(R.string.lead_tasks), tasks.isEmpty(), Icons.Outlined.EventRepeat) {
                 tasks.forEachIndexed { i, task ->
                     if (i > 0) HorizontalDivider()
@@ -282,6 +302,65 @@ fun LeadDetailScreen(
                 }
             })
         }
+    }
+}
+
+/**
+ * The sales sheet's columns for this lead (the web's /leads/sheet, 16/11/2026): source, sales team,
+ * doctor, consultation, quotation, surgery date, follow-up 1–3, remarks. Offline it shows what the
+ * phone has (quotation, remarks) and says the rest needs the connection.
+ */
+@Composable
+private fun SheetCard(lead: LeadEntity, load: SheetLoad?) {
+    Section(stringResource(R.string.sheet_title)) {
+        PearlCard(Modifier.testTag("lead-sheet"), verticalSpacing = Spacing.s) {
+            if (load == null) {
+                LoadingBlock(rows = 3, rowHeight = 20.dp)
+                return@PearlCard
+            }
+            val row = load.row ?: LeadSheetRow(
+                amountQuotedPaise = lead.amountQuotedPaise,
+                amountFinalisedPaise = lead.amountFinalisedPaise,
+                comments1 = lead.comments1,
+            )
+            val dash = "—"
+            val quoted = stringResource(R.string.sheet_quoted, "%s")
+            val final = stringResource(R.string.sheet_final, "%s")
+            if (!load.offline) {
+                SheetLine(stringResource(R.string.sheet_source), row.sourceLabel ?: dash)
+                SheetLine(stringResource(R.string.sheet_team), row.assignedName ?: dash)
+                SheetLine(stringResource(R.string.sheet_doctor), row.doctorName ?: dash)
+                SheetLine(stringResource(R.string.sheet_consult), row.consultText()?.let { text ->
+                    row.consult?.status?.takeIf { it.isNotEmpty() }?.let { "$text · ${apptStatusLabel(it)}" } ?: text
+                } ?: dash)
+            }
+            SheetLine(
+                stringResource(R.string.sheet_quote),
+                (row.quotation({ quoted.format(it) }, { final.format(it) }) ?: dash) +
+                    if (row.amountLocked) " · " + stringResource(R.string.sheet_locked) else "",
+            )
+            if (!load.offline) {
+                SheetLine(stringResource(R.string.sheet_surgery), row.surgeryText() ?: dash)
+                (0 until 3).forEach { i ->
+                    val f = row.followups.getOrNull(i)
+                    val text = f?.let { c ->
+                        listOfNotNull(SheetTimes.ms(c.at)?.let(IstDates::formatDateTime), c.outcome?.let { outcomeLabel(it) }, c.by).joinToString(" · ")
+                    }
+                    SheetLine(stringResource(R.string.sheet_followup, i + 1), text ?: dash)
+                }
+                if (row.callsTotal > 3) Muted(stringResource(R.string.sheet_more_calls, row.callsTotal - 3))
+            }
+            SheetLine(stringResource(R.string.sheet_remarks), row.comments1 ?: dash)
+            if (load.offline) StatusLabel(stringResource(R.string.sheet_offline), StatusTone.Info)
+        }
+    }
+}
+
+@Composable
+private fun SheetLine(label: String, value: String) {
+    Row(Modifier.fillMaxWidth().semantics(mergeDescendants = true) {}, horizontalArrangement = Arrangement.spacedBy(Spacing.m)) {
+        Text(label, Modifier.weight(0.42f), style = MaterialTheme.typography.bodyMedium, color = Pearl.palette.textSecondary)
+        Text(value, Modifier.weight(0.58f), style = MaterialTheme.typography.bodyMedium)
     }
 }
 
