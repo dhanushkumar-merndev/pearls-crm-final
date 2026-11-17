@@ -106,7 +106,7 @@ test("IP stay: add several charges at once from the stay page, see the total, fi
   await expect(dues).toHaveText(/Balance due ₹2,500\.00/);
 
   // Bills tab: balance due matches, and the payment is listed with its mode and bill.
-  await page.getByRole("tab", { name: "Bills" }).click();
+  await page.getByRole("tab", { name: "Bills", exact: true }).click();
   const history = page.getByTestId("payment-history");
   await expect(history.getByRole("row").filter({ hasText: "Cash" })).toContainText("₹1,000.00");
   await expect(history.getByRole("link", { name: billNo })).toBeVisible();

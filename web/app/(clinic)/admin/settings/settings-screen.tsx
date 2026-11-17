@@ -265,7 +265,7 @@ interface Series {
   next_value: number;
   last_used: number;
 }
-const SERIES_KEYS = ["uhid", "ip_number", "procedure_receipt", "pharmacy_invoice", "final_bill"] as const;
+const SERIES_KEYS = ["uhid", "ip_number", "procedure_receipt", "pharmacy_invoice", "final_bill", "breakdown_bill"] as const;
 
 function NumberSeries() {
   const t = useTranslations("settings.series");

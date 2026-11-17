@@ -49,8 +49,8 @@ test.describe("admin", () => {
   test("a finalized bill: amend keeps its number (a reason is needed); cancel stops payments", async ({ page }) => {
     test.setTimeout(90_000);
     await newPatient(page, `E2E Amend ${Date.now()}`);
-    await page.getByRole("tab", { name: "Bills" }).click();
-    await newBill(page, "New bill");
+    await page.getByRole("tab", { name: "Bills", exact: true }).click();
+    await newBill(page, "New surgery bill");
     await expect(page).toHaveURL(/\/bills\/[0-9a-f-]{36}$/);
     await page.getByRole("combobox", { name: "Service or item" }).first().click();
     await page.getByPlaceholder("Type to search…").fill("Consultation");
@@ -118,7 +118,7 @@ test.describe("reception pharmacy", () => {
     await expect(page.getByText(/posted to stock ✓/)).toBeVisible();
 
     await newPatient(page, `E2E FEFO ${Date.now()}`);
-    await page.getByRole("tab", { name: "Bills" }).click();
+    await page.getByRole("tab", { name: "Bills", exact: true }).click();
     await newBill(page, "New pharmacy bill");
     await page.getByRole("combobox", { name: "Medicine" }).click();
     await page.getByPlaceholder("Type to search…").fill(medicine);

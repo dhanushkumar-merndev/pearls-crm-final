@@ -1,12 +1,15 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CircleX, IndianRupee, Pencil, Printer, Wallet } from "lucide-react";
+import { CircleX, FileSpreadsheet, FileText, IndianRupee, Pencil, Printer, Wallet } from "lucide-react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Fragment, useState } from "react";
 import { formatDateTime, formatINR } from "@pearl/shared";
 import { BillEditor } from "@/components/bills/bill-editor";
+import { NewBreakdownDialog } from "@/components/breakdown/new-breakdown-dialog";
+import { StartSummaryDialog } from "@/components/discharge/start-summary-dialog";
 import { useBillForLabel } from "@/components/bills/bill-for";
 import { FinalizeDialog } from "@/components/bills/finalize-dialog";
 import { PaymentDialog } from "@/components/bills/payment-dialog";
@@ -99,6 +102,7 @@ export function BillScreen({ initial }: { initial: Bill }) {
               </Button>
             )}
             {printLink(!canPay)}
+            {b.status === "finalized" && b.bill_type !== "pharmacy_invoice" && <Paperwork bill={b} />}
             {canPay && (b.patient_credit_paise ?? 0) > 0 && (
               <Button variant="secondary" onClick={() => setDialog("advance")}>
                 <Wallet aria-hidden />
@@ -134,6 +138,67 @@ export function BillScreen({ initial }: { initial: Bill }) {
         {finalizing && <FinalizeDialog bill={finalizing} onDone={() => (setFinalizing(null), router.refresh(), void bill.refetch())} />}
       </Dialog>
     </Page>
+  );
+}
+
+interface Paperwork {
+  breakdowns: { id: string; bb_no: string | null; status: "draft" | "finalized"; total_paise: number }[];
+  admission: { id: string; ip_number: string; status: string; summary: { id: string; status: string } | null } | null;
+}
+
+/**
+ * The papers that go with a surgery or final bill, right on the bill (owner, 17/11/2026: "hard to
+ * find"): its breakdown bill for insurance and, for an IP stay, the discharge summary.
+ */
+function Paperwork({ bill: b }: { bill: Bill }) {
+  const t = useTranslations("breakdown");
+  const ti = useTranslations("ip");
+  const [dialog, setDialog] = useState<"breakdown" | "summary" | null>(null);
+  const papers = useQuery({ queryKey: ["bill_paperwork", b.id], queryFn: () => rpc<Paperwork>("bill_paperwork", { p_bill_id: b.id }) });
+  if (!papers.data) return null;
+  const bb = papers.data.breakdowns[0];
+  const stay = papers.data.admission;
+  return (
+    <>
+      {bb ? (
+        <Button asChild variant="secondary">
+          <Link href={`/breakdown/${bb.id}`}>
+            <FileSpreadsheet aria-hidden />
+            {t("open", { no: bb.bb_no ?? t("draft") })}
+          </Link>
+        </Button>
+      ) : (
+        <Button variant="secondary" onClick={() => setDialog("breakdown")}>
+          <FileSpreadsheet aria-hidden />
+          {t("make")}
+        </Button>
+      )}
+      {stay &&
+        stay.status !== "cancelled" &&
+        (stay.summary ? (
+          <Button asChild variant="secondary">
+            <Link href={`/discharge/${stay.summary.id}`}>
+              <FileText aria-hidden />
+              {ti("openSummary")}
+            </Link>
+          </Button>
+        ) : (
+          <Button variant="secondary" onClick={() => setDialog("summary")}>
+            <FileText aria-hidden />
+            {ti("writeSummary")}
+          </Button>
+        ))}
+      <Dialog open={dialog !== null} onOpenChange={(o) => !o && setDialog(null)}>
+        {dialog === "breakdown" && (
+          <NewBreakdownDialog
+            patientId={b.patient_id}
+            preset={{ bill_id: b.id, treatment_id: b.treatment_id, admission_id: b.admission_id }}
+            onDone={() => setDialog(null)}
+          />
+        )}
+        {dialog === "summary" && stay && <StartSummaryDialog admissionId={stay.id} />}
+      </Dialog>
+    </>
   );
 }
 

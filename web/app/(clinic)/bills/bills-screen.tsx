@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { BillsTable } from "@/components/bills/bills-table";
+import { BillingSections } from "@/components/bills/billing-sections";
 import { PageHeader } from "@/components/ui/form";
 import { Page } from "@/components/ui/page";
 
@@ -10,7 +10,7 @@ export function BillsScreen() {
   return (
     <Page>
       <PageHeader title={t("title")} description={t("description")} />
-      <BillsTable />
+      <BillingSections />
     </Page>
   );
 }

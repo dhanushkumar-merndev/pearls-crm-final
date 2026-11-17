@@ -23,8 +23,8 @@ test("bill cum receipt: letterhead and terms from the clinic profile, empty colu
   await page.getByRole("button", { name: "Save patient" }).first().click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(name);
 
-  await page.getByRole("tab", { name: "Bills" }).click();
-  await newBill(page, "New bill");
+  await page.getByRole("tab", { name: "Bills", exact: true }).click();
+  await newBill(page, "New surgery bill");
   await expect(page).toHaveURL(/\/bills\/[0-9a-f-]{36}$/);
   const service = `E2E Print Service ${stamp}`;
   await page.getByRole("combobox", { name: "Service or item" }).first().click();

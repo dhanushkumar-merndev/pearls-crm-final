@@ -59,10 +59,11 @@ export async function choose(page: Page, field: Locator, option: string) {
 }
 
 /**
- * Patient file → Bills → "New bill" / "New pharmacy bill": answers "What is this bill for?" (default
- * "Nothing in particular") and makes it; the bill's page opens.
+ * Patient file → Bills → Surgery / Pharmacy section → "New surgery bill" / "New pharmacy bill":
+ * answers "What is this bill for?" (default "Nothing in particular") and makes it; the bill's page opens.
  */
-export async function newBill(page: Page, button: "New bill" | "New pharmacy bill", forOption = "Nothing in particular") {
+export async function newBill(page: Page, button: "New surgery bill" | "New pharmacy bill", forOption = "Nothing in particular") {
+  await page.getByRole("tab", { name: button === "New pharmacy bill" ? "Pharmacy bills" : "Surgery bills" }).click();
   await page.getByRole("button", { name: button }).click();
   const dialog = page.getByRole("dialog");
   await choose(page, dialog.getByRole("combobox", { name: "What is this bill for?" }), forOption);

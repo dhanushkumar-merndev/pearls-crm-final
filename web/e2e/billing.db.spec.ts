@@ -14,10 +14,10 @@ test("receipt: new service on the fly, split payment, original then duplicate pr
   await page.getByRole("button", { name: "Save patient" }).first().click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(name);
 
-  await page.getByRole("tab", { name: "Bills" }).click();
-  await newBill(page, "New bill");
+  await page.getByRole("tab", { name: "Bills", exact: true }).click();
+  await newBill(page, "New surgery bill");
   await expect(page).toHaveURL(/\/bills\/[0-9a-f-]{36}$/);
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("Procedure receipt");
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("Surgery bill");
 
   // Line 1: a service that isn't in the library yet, added from the bill.
   const service = `E2E Service ${stamp}`;

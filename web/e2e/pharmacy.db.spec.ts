@@ -40,7 +40,7 @@ test("purchase a new medicine, sell 3 on a pharmacy bill, write off 1", async ({
   await page.getByLabel("Mobile number").fill(uniquePhone());
   await page.getByRole("button", { name: "Save patient" }).first().click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(name);
-  await page.getByRole("tab", { name: "Bills" }).click();
+  await page.getByRole("tab", { name: "Bills", exact: true }).click();
   await newBill(page, "New pharmacy bill");
   // Makes the bill on the server, then opens its page.
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Pharmacy invoice", { timeout: 30_000 });

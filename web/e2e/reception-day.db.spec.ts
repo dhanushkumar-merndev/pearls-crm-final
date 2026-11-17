@@ -102,7 +102,7 @@ test("follow-ups: a task needs what to do; added, then done with an outcome", as
 
 test("advance and refund: kept for later bills; a refund can't be more than the advance", async ({ page }) => {
   await newPatient(page, `E2E Advance ${Date.now()}`);
-  await page.getByRole("tab", { name: "Bills" }).click();
+  await page.getByRole("tab", { name: "Bills", exact: true }).click();
   await page.getByRole("button", { name: "Advance / refund" }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByRole("button", { name: "Save advance" }).click();
@@ -128,8 +128,8 @@ test("advance and refund: kept for later bills; a refund can't be more than the 
 test("a receptionist's discount above the limit is refused; within it the bill is finalized", async ({ page }) => {
   const stamp = Date.now();
   await newPatient(page, `E2E Discount ${stamp}`);
-  await page.getByRole("tab", { name: "Bills" }).click();
-  await newBill(page, "New bill");
+  await page.getByRole("tab", { name: "Bills", exact: true }).click();
+  await newBill(page, "New surgery bill");
   await expect(page).toHaveURL(/\/bills\/[0-9a-f-]{36}$/);
   // The rule is on the bill: what to give only when the patient bargains, and the limit.
   await expect(page.getByTestId("discount-rule")).toContainText("only if the patient bargains");

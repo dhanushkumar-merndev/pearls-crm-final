@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { FilePlus2, Pill, Wallet } from "lucide-react";
+import { Wallet } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { formatINR } from "@pearl/shared";
@@ -9,8 +9,7 @@ import { StatTile } from "@/components/kpi/stat-tile";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { rpc } from "@/lib/rpc";
-import { BillsTable } from "./bills-table";
-import { NewBillDialog } from "./new-bill-dialog";
+import { BillingSections } from "./billing-sections";
 import { PaymentDialog } from "./payment-dialog";
 import { PaymentHistory } from "./payment-history";
 
@@ -21,11 +20,13 @@ interface Balance {
   advance_paise: number;
 }
 
-/** Patient file → Bills: balance, new bill (first: what is it for?), advance/refund, the patient's bills. */
+/**
+ * Patient file → Bills: the money boxes, advance/refund, then the four billing sections (Surgery,
+ * Pharmacy, Breakdown for insurance, Discharge summaries), each with its own "New …".
+ */
 export function PatientBillsTab({ patientId }: { patientId: string }) {
   const t = useTranslations("bills");
   const [paying, setPaying] = useState(false);
-  const [making, setMaking] = useState<"procedure_receipt" | "pharmacy_invoice" | null>(null);
   const balance = useQuery({
     queryKey: ["patient_balance", patientId],
     queryFn: () => rpc<Balance>("patient_balance", { p_patient_id: patientId }),
@@ -42,14 +43,6 @@ export function PatientBillsTab({ patientId }: { patientId: string }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap gap-2">
-        <Button onClick={() => setMaking("procedure_receipt")}>
-          <FilePlus2 aria-hidden />
-          {t("newBill")}
-        </Button>
-        <Button variant="secondary" onClick={() => setMaking("pharmacy_invoice")}>
-          <Pill aria-hidden />
-          {t("newPharmacyBill")}
-        </Button>
         <Button variant="secondary" onClick={() => setPaying(true)}>
           <Wallet aria-hidden />
           {t("advanceOrRefund")}
@@ -68,11 +61,8 @@ export function PatientBillsTab({ patientId }: { patientId: string }) {
           <StatTile label={t("advanceHeld")} value={formatINR(b.advance_paise)} />
         </div>
       )}
-      <BillsTable patientId={patientId} />
+      <BillingSections patientId={patientId} />
       <PaymentHistory patientId={patientId} />
-      <Dialog open={making !== null} onOpenChange={(o) => !o && setMaking(null)}>
-        {making && <NewBillDialog patientId={patientId} type={making} onDone={() => setMaking(null)} />}
-      </Dialog>
       <Dialog open={paying} onOpenChange={setPaying}>
         {paying && <PaymentDialog patientId={patientId} onDone={() => (setPaying(false), void balance.refetch(), void dues.refetch())} />}
       </Dialog>

@@ -62,7 +62,10 @@ function startFilters() {
   return { from: istDateString(new Date(Date.now() - 30 * 86_400_000)), to: istDateString(new Date()), status: "", bill_type: "" };
 }
 
-export function BillsTable({ patientId }: { patientId?: string }) {
+const ALL_TYPES: BillType[] = ["procedure_receipt", "pharmacy_invoice", "final_bill"];
+
+/** `types`: only these bill types (a billing section: Surgery = surgery + IP final bills, Pharmacy). */
+export function BillsTable({ patientId, types = ALL_TYPES }: { patientId?: string; types?: BillType[] }) {
   const t = useTranslations("bills");
   const b = useTranslations("bill");
   const dp = useTranslations("datePicker");
@@ -77,6 +80,7 @@ export function BillsTable({ patientId }: { patientId?: string }) {
       ...(patientId ? { patient_id: patientId } : { from: filters.from, to: filters.to }),
       ...(filters.status ? { status: filters.status } : {}),
       ...(filters.bill_type ? { bill_type: filters.bill_type } : {}),
+      ...(types.length < ALL_TYPES.length ? { bill_types: types } : {}),
     },
     p_offset: o,
     p_limit: limit,
@@ -84,7 +88,7 @@ export function BillsTable({ patientId }: { patientId?: string }) {
   const rangeCheck = useDateRangeCheck(filters.from, filters.to);
   const list = useQuery({
     enabled: Boolean(patientId) || rangeCheck.valid,
-    queryKey: ["bills", patientId ?? "all", filters, offset],
+    queryKey: ["bills", patientId ?? "all", types.join(","), filters, offset],
     placeholderData: keepPreviousData,
     queryFn: () => rpc<Page>("bills_table", args(offset, LIMIT)),
   });
@@ -142,18 +146,20 @@ export function BillsTable({ patientId }: { patientId?: string }) {
             </Field>
           </>
         )}
-        <Field label={t("type")}>
-          {(a) => (
-            <Select {...a} value={filters.bill_type} onChange={(e) => set("bill_type", e.target.value)}>
-              <option value="">{t("all")}</option>
-              {(["procedure_receipt", "pharmacy_invoice", "final_bill"] as const).map((x) => (
-                <option key={x} value={x}>
-                  {b(`type.${x}`)}
-                </option>
-              ))}
-            </Select>
-          )}
-        </Field>
+        {types.length > 1 && (
+          <Field label={t("type")}>
+            {(a) => (
+              <Select {...a} value={filters.bill_type} onChange={(e) => set("bill_type", e.target.value)}>
+                <option value="">{t("all")}</option>
+                {types.map((x) => (
+                  <option key={x} value={x}>
+                    {b(`type.${x}`)}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
+        )}
         <Field label={t("status")}>
           {(a) => (
             <Select {...a} value={filters.status} onChange={(e) => set("status", e.target.value)}>
@@ -240,7 +246,7 @@ function BillsSummary({ summary: s }: { summary: Summary }) {
         <StatTile label={t("balanceDue")} value={formatINR(s.due_paise)} tone={s.due_paise > 0 ? "warning" : undefined} />
       </div>
       <div className="grid items-start gap-3 lg:grid-cols-2">
-        <Card className="flex flex-col gap-2">
+        <Card className="flex min-w-0 flex-col gap-2">
           <CardTitle>{t("byType")}</CardTitle>
           {s.by_type.length === 0 ? (
             <p className="text-text-secondary">{t("none")}</p>
@@ -269,7 +275,7 @@ function BillsSummary({ summary: s }: { summary: Summary }) {
             </Table>
           )}
         </Card>
-        <Card className="flex flex-col gap-2">
+        <Card className="flex min-w-0 flex-col gap-2">
           <CardTitle>{t("byMode")}</CardTitle>
           {s.by_mode.length === 0 ? (
             <p className="text-text-secondary">{t("noPaymentsYet")}</p>

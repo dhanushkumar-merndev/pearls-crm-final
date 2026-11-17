@@ -41,7 +41,7 @@ test("a session's bill says which session it is for, and the treatment shows its
   // …and Back returns to the Care tab, where the session shows its bill.
   await page.getByRole("link", { name: "Back" }).first().click();
   await expect(page).toHaveURL(/[?&]tab=care/);
-  await expect(session1.getByRole("link", { name: /Open bill Draft \(Procedure receipt\)/ })).toBeVisible();
+  await expect(session1.getByRole("link", { name: /Open bill Draft \(Surgery bill\)/ })).toBeVisible();
 
   // A part payment for the package counts towards the treatment.
   await page.getByRole("button", { name: "Part payment" }).click();
@@ -53,9 +53,9 @@ test("a session's bill says which session it is for, and the treatment shows its
   await expect(page.getByTestId("treatment-money")).toContainText("Paid ₹1,000.00");
 
   // Bills tab: the For column; a new bill first asks what it is for.
-  await page.getByRole("tab", { name: "Bills" }).click();
+  await page.getByRole("tab", { name: "Bills", exact: true }).click();
   await expect(page.getByRole("cell", { name: /Laser hair reduction — 6 sessions · Session 1/ })).toBeVisible();
-  await page.getByRole("button", { name: "New bill" }).click();
+  await page.getByRole("button", { name: "New surgery bill" }).click();
   const make = page.getByRole("dialog");
   await make.getByRole("button", { name: "Make bill" }).click();
   await expect(make.getByText("Please choose one.")).toBeVisible();

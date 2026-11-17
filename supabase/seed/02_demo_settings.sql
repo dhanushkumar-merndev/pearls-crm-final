@@ -26,7 +26,8 @@ insert into public.number_series (series_key, fy, prefix, format, next_value) va
   ('uhid', 'ALL', 'DEMO', '{prefix}{n}', 1001),
   ('procedure_receipt', '2026-27', 'DEMO', '{prefix}/{fy}/{n}', 1),
   ('pharmacy_invoice', '2026-27', 'DEMO', '{prefix}/{fy}/{n}', 1),
-  ('final_bill', '2026-27', 'DEMO', '{prefix}/{fy}/{n}', 1)
+  ('final_bill', '2026-27', 'DEMO', '{prefix}/{fy}/{n}', 1),
+  ('breakdown_bill', '2026-27', 'DEMO', '{prefix}/{fy}/{n}', 1)
 on conflict do nothing;
 
 insert into public.integration_status (integration, state) values

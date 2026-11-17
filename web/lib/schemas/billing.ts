@@ -130,3 +130,42 @@ export function billTargetLinks(target: BillTarget): Record<string, string> {
   const [kind, id] = target.split(":") as [string, string];
   return { [`${kind}_id`]: id };
 }
+
+/** New breakdown bill: what it is for (a treatment `t:<id>`, a stay `s:<id>`, other bills, or empty). */
+export const breakdownTargetSchema = z.object({
+  target: z.string().regex(/^(t:[0-9a-f-]{36}|s:[0-9a-f-]{36}|other|empty)$/, { error: "choose" }),
+});
+
+const breakdownLineSchema = z.object({
+  key: z.string(),
+  category: z.unknown(),
+  description: requiredText(300),
+  service_date: z.string(),
+  qty: requiredDecimal(0.001, 9_999_999),
+  unit_paise: optionalPaise(),
+  amount_paise: requiredPaise(0),
+  gst_rate_bp: z.number().int().min(0).max(4000),
+  source_bill_item_id: z.string().nullable(),
+});
+
+/**
+ * Breakdown bill (insurance): every line needs a name and an amount; the total is free (owner, 17/11:
+ * it may differ from what was billed). Finalize needs at least one line; an amendment needs a reason.
+ */
+export const breakdownSchema = ({ needLine, amend }: { needLine: boolean; amend: boolean }) =>
+  z.object({
+    bill_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { error: "required" }),
+    insurer: optionalText(120),
+    tpa: optionalText(120),
+    policy_no: optionalText(60),
+    claim_no: optionalText(60),
+    notes: optionalText(1000),
+    lines: z
+      .array(breakdownLineSchema)
+      .max(300, { error: "tooMany" })
+      .refine((l) => !needLine || l.length > 0, { error: "breakdown.needLine" }),
+    reason: amend ? requiredReason(300) : z.unknown(),
+  });
+
+/** New discharge summary from the Bills tab: which IP stay. */
+export const pickPatientStaySchema = z.object({ stay: z.string().regex(/^[0-9a-f-]{36}$/, { error: "choose" }) });
