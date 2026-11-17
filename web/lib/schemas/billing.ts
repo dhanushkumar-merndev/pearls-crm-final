@@ -167,5 +167,7 @@ export const breakdownSchema = ({ needLine, amend }: { needLine: boolean; amend:
     reason: amend ? requiredReason(300) : z.unknown(),
   });
 
-/** New discharge summary from the Bills tab: which IP stay. */
-export const pickPatientStaySchema = z.object({ stay: z.string().regex(/^[0-9a-f-]{36}$/, { error: "choose" }) });
+/** New discharge summary from the Bills tab: an IP stay (`ip:<id>`) or an OP visit / session (`op:<visit>|<session>`). */
+export const pickSummaryTargetSchema = z.object({
+  target: z.string().regex(/^(ip:[0-9a-f-]{36}|op:([0-9a-f-]{36})?\|([0-9a-f-]{36})?)$/, { error: "choose" }),
+});

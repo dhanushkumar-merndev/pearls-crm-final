@@ -42,6 +42,7 @@ internal val ERROR_STRINGS: Map<String, Int> = mapOf(
     "not_discharged" to R.string.error_not_discharged,
     "dates_invalid" to R.string.error_dates_invalid,
     "surgeon_required" to R.string.error_surgeon_required,
+    "doctor_required" to R.string.error_doctor_required,
     "placeholders_left" to R.string.error_placeholders_left,
     "link_used" to R.string.error_link_used,
     "too_many_pages" to R.string.error_too_many_pages,

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { formatDateTime } from "@pearl/shared";
+import { formatDate, formatDateTime } from "@pearl/shared";
 import { getSupabaseServer } from "@/lib/supabase/server";
 import { Letterhead, type Clinic } from "../../letterhead";
 import { PrintToolbar } from "../../print-toolbar";
@@ -10,6 +10,7 @@ export const metadata: Metadata = { title: "Print discharge summary" };
 export const dynamic = "force-dynamic";
 
 interface PrintSummary {
+  kind?: "ip" | "op";
   status: "draft" | "finalized" | "cancelled";
   copy: "original" | "duplicate" | "draft";
   header: Clinic;
@@ -20,6 +21,11 @@ interface PrintSummary {
     age: number | null;
     phone: string | null;
     address: string;
+    /** Missing on summaries frozen before OP summaries existed (all IP). */
+    kind?: "ip" | "op";
+    doctor?: string | null;
+    visit_date?: string;
+    treatment?: string | null;
     ip_number: string;
     admitted_at: string;
     discharged_at: string | null;
@@ -52,6 +58,8 @@ export default async function PrintDischargePage({ params }: { params: Promise<{
   const p = d.patient_strip;
   const sig = p.signature;
   const followUp = d.body.vars.follow_up_date;
+  // OP (a day procedure or visit): the visit date and doctor instead of the stay's lines.
+  const op = (p.kind ?? d.kind) === "op";
   return (
     <>
       <PrintToolbar />
@@ -82,21 +90,39 @@ export default async function PrintDischargePage({ params }: { params: Promise<{
                   <div>
                     <strong>{t("ageGender")}:</strong> {[p.age !== null ? `${p.age} ${t("years")}` : null, g(p.gender || "unknown")].filter(Boolean).join(" / ")}
                   </div>
-                  <div>
-                    <strong>{t("ipNumber")}:</strong> {p.ip_number}
-                  </div>
-                  <div>
-                    <strong>{t("admitted")}:</strong> {formatDateTime(new Date(p.admitted_at))}
-                  </div>
-                  <div>
-                    <strong>{t("discharged")}:</strong> {p.discharged_at ? formatDateTime(new Date(p.discharged_at)) : "—"}
-                  </div>
-                  {p.surgery_at && (
+                  {op ? (
+                    <>
+                      <div>
+                        <strong>{t("visitType")}:</strong> {t("opVisit")}
+                      </div>
+                      <div>
+                        <strong>{t("visitDate")}:</strong> {p.visit_date ? formatDate(new Date(p.visit_date)) : "—"}
+                      </div>
+                      {(p.signature?.name ?? p.doctor ?? d.body.vars.doctor) && (
+                        <div>
+                          <strong>{t("doctor")}:</strong> {p.signature?.name ?? p.doctor ?? d.body.vars.doctor}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <div>
+                        <strong>{t("ipNumber")}:</strong> {p.ip_number}
+                      </div>
+                      <div>
+                        <strong>{t("admitted")}:</strong> {formatDateTime(new Date(p.admitted_at))}
+                      </div>
+                      <div>
+                        <strong>{t("discharged")}:</strong> {p.discharged_at ? formatDateTime(new Date(p.discharged_at)) : "—"}
+                      </div>
+                    </>
+                  )}
+                  {!op && p.surgery_at && (
                     <div>
                       <strong>{t("surgery")}:</strong> {formatDateTime(new Date(p.surgery_at))}
                     </div>
                   )}
-                  {(p.surgeons || d.body.vars.surgeons) && (
+                  {!op && (p.surgeons || d.body.vars.surgeons) && (
                     <div>
                       <strong>{t("surgeons")}:</strong> {p.surgeons ?? d.body.vars.surgeons}
                     </div>

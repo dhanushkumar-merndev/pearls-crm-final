@@ -2,10 +2,10 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { BookmarkPlus, CheckCheck, Pencil, Pill, Printer, Save, X } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import { formatDateTime, leftoverPlaceholders, renderPlaceholders, type PlaceholderVars } from "@pearl/shared";
+import { formatDate, formatDateTime, leftoverPlaceholders, renderPlaceholders, type PlaceholderVars } from "@pearl/shared";
 import type { Admission } from "@/components/admissions/types";
 import { MedicationsEditor, SectionsEditor, type Medication, type Section } from "@/components/discharge/sections-editor";
 import { LibraryCombobox, type LibraryItem } from "@/components/library-combobox";
@@ -38,10 +38,24 @@ interface Rendered {
   follow_up_days: number | null;
   vars: PlaceholderVars;
 }
+/** An OP summary's visit / treatment session (private.op_card). */
+export interface OpCard {
+  visit_id: string | null;
+  session_id: string | null;
+  date: string;
+  treatment: string | null;
+  session_seq: number | null;
+  doctor_id: string | null;
+  doctor: string | null;
+}
 export interface Summary {
   id: string;
-  admission_id: string;
+  kind: "ip" | "op";
+  admission_id: string | null;
+  visit_id: string | null;
+  session_id: string | null;
   patient_id: string;
+  patient: { id: string; full_name: string; uhid: string };
   status: "draft" | "finalized" | "cancelled";
   version: number;
   content: Content;
@@ -49,7 +63,8 @@ export interface Summary {
   preview: Rendered;
   template: string | null;
   finalized_at: string | null;
-  admission: Admission;
+  admission: Admission | null;
+  op: OpCard | null;
 }
 
 const withDefaults = (c: Partial<Content>): Content => ({
@@ -100,8 +115,11 @@ export function SummaryScreen({ initial }: { initial: Summary }) {
   const editable = s.status === "draft" || amending;
   const vars = useMemo(() => s.preview?.vars ?? s.rendered?.vars ?? {}, [s.preview, s.rendered]);
   const [doctor, setDoctor] = useState<LibraryItem | null>(() => {
-    const d = s.admission.surgeons.find((x) => x.doctor_id === initial.content.doctor_id);
-    return d ? { id: d.doctor_id, label: d.name, subtitle: null, on_the_fly: false, defaults: {} } : null;
+    const d = s.admission?.surgeons.find((x) => x.doctor_id === initial.content.doctor_id);
+    if (d) return { id: d.doctor_id, label: d.name, subtitle: null, on_the_fly: false, defaults: {} };
+    // OP: the visit's doctor (the summary starts with them as the signer).
+    if (s.op?.doctor_id && s.op.doctor_id === initial.content.doctor_id) return { id: s.op.doctor_id, label: s.op.doctor ?? "", subtitle: null, on_the_fly: false, defaults: {} };
+    return null;
   });
 
   // Live preview with the server's values (the same filling rule as the database).
@@ -145,7 +163,8 @@ export function SummaryScreen({ initial }: { initial: Summary }) {
     onSuccess: (next) => {
       saved(t("finalized"));
       queryClient.setQueryData(["discharge_summary", s.id], next);
-      void queryClient.invalidateQueries({ queryKey: ["admission", s.admission_id] });
+      if (s.admission_id) void queryClient.invalidateQueries({ queryKey: ["admission", s.admission_id] });
+      void queryClient.invalidateQueries({ queryKey: ["discharge_summaries"] });
       setDialog(null);
       router.refresh();
     },
@@ -168,11 +187,18 @@ export function SummaryScreen({ initial }: { initial: Summary }) {
   });
 
   const a = s.admission;
+  const op = s.op;
   const frozen = s.rendered;
+  // OP: Back goes where it was opened from (a bill, the Care tab), else the patient's Discharge section.
+  const backParam = useSearchParams().get("back");
+  const backTo = backParam && backParam.startsWith("/") && !backParam.startsWith("//") ? backParam : null;
+  const back = a
+    ? { href: `/admissions/${a.id}`, label: t("backToStay", { ip: a.ip_number }) }
+    : { href: backTo ?? `/patients/${s.patient_id}?tab=bills&section=discharge`, label: backTo ? t("back") : t("backToPatient", { name: s.patient.full_name }) };
   return (
     <Page>
       <DetailHeader
-        back={{ href: `/admissions/${a.id}`, label: t("backToStay", { ip: a.ip_number }) }}
+        back={back}
         title={t("title")}
         badges={
           <>
@@ -181,9 +207,17 @@ export function SummaryScreen({ initial }: { initial: Summary }) {
           </>
         }
         meta={
-          <>
-            {a.patient} · {a.uhid} · {a.ip_number} · {formatDateTime(new Date(a.admitted_at))} – {a.discharged_at ? formatDateTime(new Date(a.discharged_at)) : t("stillAdmitted")}
-          </>
+          a ? (
+            <>
+              {a.patient} · {a.uhid} · {a.ip_number} · {formatDateTime(new Date(a.admitted_at))} – {a.discharged_at ? formatDateTime(new Date(a.discharged_at)) : t("stillAdmitted")}
+            </>
+          ) : (
+            <span data-testid="summary-op">
+              {s.patient.full_name} · {s.patient.uhid} · {t("opLine", { date: op ? formatDate(new Date(op.date)) : "—" })}
+              {op?.treatment && ` · ${op.session_seq ? t("opSession", { name: op.treatment, n: op.session_seq }) : op.treatment}`}
+              {op?.doctor && ` · ${op.doctor}`}
+            </span>
+          )
         }
       />
 

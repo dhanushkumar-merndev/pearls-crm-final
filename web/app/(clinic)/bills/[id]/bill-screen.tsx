@@ -144,6 +144,8 @@ export function BillScreen({ initial }: { initial: Bill }) {
 interface Paperwork {
   breakdowns: { id: string; bb_no: string | null; status: "draft" | "finalized"; total_paise: number }[];
   admission: { id: string; ip_number: string; status: string; summary: { id: string; status: string } | null } | null;
+  /** OP bill (a visit or treatment session): its summary, or which visit a new one is for. */
+  op: { visit_id: string | null; session_id: string | null; summary: { id: string; status: string } | null } | null;
 }
 
 /**
@@ -157,7 +159,10 @@ function Paperwork({ bill: b }: { bill: Bill }) {
   const papers = useQuery({ queryKey: ["bill_paperwork", b.id], queryFn: () => rpc<Paperwork>("bill_paperwork", { p_bill_id: b.id }) });
   if (!papers.data) return null;
   const bb = papers.data.breakdowns[0];
-  const stay = papers.data.admission;
+  const stay = papers.data.admission && papers.data.admission.status !== "cancelled" ? papers.data.admission : null;
+  const op = papers.data.op;
+  const summary = stay ? stay.summary : op?.summary;
+  const canWrite = Boolean(stay || op);
   return (
     <>
       {bb ? (
@@ -173,11 +178,10 @@ function Paperwork({ bill: b }: { bill: Bill }) {
           {t("make")}
         </Button>
       )}
-      {stay &&
-        stay.status !== "cancelled" &&
-        (stay.summary ? (
+      {canWrite &&
+        (summary ? (
           <Button asChild variant="secondary">
-            <Link href={`/discharge/${stay.summary.id}`}>
+            <Link href={stay ? `/discharge/${summary.id}` : `/discharge/${summary.id}?back=${encodeURIComponent(`/bills/${b.id}`)}`}>
               <FileText aria-hidden />
               {ti("openSummary")}
             </Link>
@@ -197,6 +201,7 @@ function Paperwork({ bill: b }: { bill: Bill }) {
           />
         )}
         {dialog === "summary" && stay && <StartSummaryDialog admissionId={stay.id} />}
+        {dialog === "summary" && !stay && op && <StartSummaryDialog visitId={op.visit_id} sessionId={op.session_id} />}
       </Dialog>
     </>
   );

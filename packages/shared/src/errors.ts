@@ -41,6 +41,7 @@ export const ERROR_CODES = [
   "not_discharged",
   "dates_invalid",
   "surgeon_required",
+  "doctor_required",
   "placeholders_left",
   // Phase 8: scanning
   "link_used",

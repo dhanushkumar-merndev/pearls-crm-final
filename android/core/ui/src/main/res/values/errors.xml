@@ -38,6 +38,7 @@
     <string name="error_not_discharged">Discharge the patient first, then finalize the summary.</string>
     <string name="error_dates_invalid">The dates don\'t fit: check admission, surgery and discharge times.</string>
     <string name="error_surgeon_required">Add at least one surgeon to the stay.</string>
+    <string name="error_doctor_required">Choose the doctor who signs the summary.</string>
     <string name="error_placeholders_left">Some {{placeholders}} are still unfilled. Fill in the stay details or edit the text.</string>
     <string name="error_link_used">This code was already opened on another phone. Please ask reception for a new code.</string>
     <string name="error_too_many_pages">That is the most pages one document can have. Save these, then scan the rest as a new document.</string>

@@ -18,10 +18,10 @@ import { RowSkeletons } from "@/components/ui/skeletons";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
 import { rpc } from "@/lib/rpc";
-import { pickPatientStaySchema } from "@/lib/schemas/billing";
+import { pickSummaryTargetSchema } from "@/lib/schemas/billing";
 import { useDateRangeCheck } from "@/lib/use-date-range";
 import { useZodForm } from "@/lib/use-zod-form";
-import { StartSummaryDialog } from "./start-summary-dialog";
+import { StartSummaryDialog, type SummaryTarget } from "./start-summary-dialog";
 
 interface Row {
   id: string;
@@ -37,6 +37,8 @@ interface Row {
   admitted_at: string | null;
   discharged_at: string | null;
   procedures: string[] | null;
+  visit_date?: string | null;
+  session_seq?: number | null;
 }
 interface Page {
   total: number;
@@ -128,7 +130,7 @@ export function DischargeSummariesTable({ patientId }: { patientId?: string }) {
                 </TD>
               )}
               <TD className="text-[0.9rem]">
-                {r.ip_number && t("ipStay", { ip: r.ip_number })}
+                {r.kind === "ip" ? r.ip_number && t("ipStay", { ip: r.ip_number }) : t("opVisit", { date: r.visit_date ? formatDate(new Date(r.visit_date)) : "—" })}
                 {r.procedures?.length ? <span className="block text-text-secondary">{r.procedures.join(", ")}</span> : null}
               </TD>
               <TD>
@@ -149,28 +151,53 @@ interface StayRow {
   status: string;
   admitted_at: string;
 }
+interface OpTarget {
+  visit_id: string | null;
+  session_id: string | null;
+  date: string;
+  treatment: string | null;
+  session_seq: number | null;
+  doctor: string | null;
+  summary_id: string | null;
+}
 
 /**
- * New discharge summary from the Bills tab: choose the patient's IP stay, then the template. A stay
- * that already has one opens it instead (one summary per stay).
+ * New discharge summary from the Bills tab: an IP stay or an OP visit / treatment session (owner,
+ * 17/11/2026), then the template. One that already has a summary opens it instead.
  */
 export function NewSummaryDialog({ patientId, onDone }: { patientId: string; onDone: () => void }) {
   const t = useTranslations("dischargeList.new");
   const router = useRouter();
-  const checks = useZodForm(pickPatientStaySchema);
+  const checks = useZodForm(pickSummaryTargetSchema);
   const stays = useQuery({
     queryKey: ["admissions", "patient", patientId],
     queryFn: () => rpc<{ rows: StayRow[] }>("admissions_table", { p_filters: { patient_id: patientId }, p_limit: 20 }),
   });
   const summaries = useQuery({
     queryKey: ["discharge_summaries", patientId, "all-for-new"],
-    queryFn: () => rpc<Page>("discharge_summaries_table", { p_filters: { patient_id: patientId }, p_limit: 100 }),
+    queryFn: () => rpc<Page>("discharge_summaries_table", { p_filters: { patient_id: patientId, kind: "ip" }, p_limit: 100 }),
+  });
+  const visits = useQuery({
+    queryKey: ["discharge_op_targets", patientId],
+    queryFn: () => rpc<OpTarget[]>("discharge_op_targets", { p_patient_id: patientId }),
   });
   const open = (stays.data?.rows ?? []).filter((s) => s.status !== "cancelled");
   const existing = new Map((summaries.data?.rows ?? []).filter((r) => r.status !== "cancelled" && r.admission_id).map((r) => [r.admission_id!, r.id]));
-  const [stay, setStay] = useState("");
-  const [next, setNext] = useState<string | null>(null);
-  if (next) return <StartSummaryDialog admissionId={next} />;
+  const ops = visits.data ?? [];
+  const opKey = (o: OpTarget) => `op:${o.visit_id ?? ""}|${o.session_id ?? ""}`;
+  const [target, setTarget] = useState("");
+  const [next, setNext] = useState<SummaryTarget | null>(null);
+  const loading = stays.isPending || summaries.isPending || visits.isPending;
+  if (next) return <StartSummaryDialog {...next} />;
+  const opLabel = (o: OpTarget) =>
+    [
+      t("opOption", { date: formatDate(new Date(o.date)) }),
+      o.treatment && (o.session_seq ? t("opSession", { name: o.treatment, n: o.session_seq }) : o.treatment),
+      o.doctor,
+      o.summary_id && t("opHasSummary"),
+    ]
+      .filter(Boolean)
+      .join(" · ");
   return (
     <DialogContent
       title={t("title")}
@@ -181,13 +208,21 @@ export function NewSummaryDialog({ patientId, onDone }: { patientId: string; onD
             {t("cancel")}
           </Button>
           <Button
-            disabled={stays.isPending || summaries.isPending || open.length === 0}
+            disabled={loading || open.length + ops.length === 0}
             onClick={() => {
-              const d = checks.validate({ stay });
+              const d = checks.validate({ target });
               if (!d) return;
-              const has = existing.get(d.stay);
-              if (has) router.push(`/discharge/${has}`);
-              else setNext(d.stay);
+              if (d.target.startsWith("ip:")) {
+                const stay = d.target.slice(3);
+                const has = existing.get(stay);
+                if (has) router.push(`/discharge/${has}`);
+                else setNext({ admissionId: stay });
+                return;
+              }
+              const o = ops.find((x) => opKey(x) === d.target);
+              if (!o) return;
+              if (o.summary_id) router.push(`/discharge/${o.summary_id}`);
+              else setNext({ visitId: o.visit_id, sessionId: o.session_id });
             }}
           >
             <ArrowRight aria-hidden />
@@ -196,17 +231,22 @@ export function NewSummaryDialog({ patientId, onDone }: { patientId: string; onD
         </>
       }
     >
-      {!stays.isPending && open.length === 0 ? (
+      {!loading && open.length + ops.length === 0 ? (
         <p className="text-text-secondary">{t("noStays")}</p>
       ) : (
-        <Field label={t("for")} error={checks.error("stay")}>
+        <Field label={t("for")} error={checks.error("target")}>
           {(a) => (
-            <Select {...a} value={stay} onChange={(e) => (setStay(e.target.value), checks.clear("stay"))}>
+            <Select {...a} value={target} onChange={(e) => (setTarget(e.target.value), checks.clear("target"))}>
               <option value="" disabled>
-                {t("choose")}
+                {loading ? t("loading") : t("choose")}
               </option>
+              {ops.map((o) => (
+                <option key={opKey(o)} value={opKey(o)}>
+                  {opLabel(o)}
+                </option>
+              ))}
               {open.map((s) => (
-                <option key={s.id} value={s.id}>
+                <option key={s.id} value={`ip:${s.id}`}>
                   {existing.has(s.id) ? t("hasSummary", { ip: s.ip_number }) : t("stayOption", { ip: s.ip_number, date: formatDate(new Date(s.admitted_at)) })}
                 </option>
               ))}
