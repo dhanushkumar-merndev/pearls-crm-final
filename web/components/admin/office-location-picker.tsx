@@ -29,7 +29,11 @@ function circle(p: LatLngPoint, radius: number) {
     const a = (i / 64) * 2 * Math.PI;
     ring.push([p.lng + dLng * Math.cos(a), p.lat + dLat * Math.sin(a)]);
   }
-  return { type: "Feature" as const, properties: {}, geometry: { type: "Polygon" as const, coordinates: [ring] } };
+  return {
+    type: "Feature" as const,
+    properties: {},
+    geometry: { type: "Polygon" as const, coordinates: [ring] },
+  };
 }
 
 function pinElement(label: string): HTMLElement {
@@ -78,7 +82,17 @@ export function OfficeLocationPicker({
   const [ready, setReady] = useState(false);
   const [mapFailed, setMapFailed] = useState(false);
 
-  const point = lat !== null && lng !== null && Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
+  // Only a real place goes on the map (a typed 123.4 would make the map library throw and take the page
+  // down); the form itself explains the bad number.
+  const point =
+    lat !== null &&
+    lng !== null &&
+    Number.isFinite(lat) &&
+    Number.isFinite(lng) &&
+    Math.abs(lat) <= 90 &&
+    Math.abs(lng) <= 180
+      ? { lat, lng }
+      : null;
   const startPoint = useRef(point);
   const [accuracy, setAccuracy] = useState<number | null>(null);
   const [busy, setBusy] = useState<"gps" | "link" | null>(null);
@@ -92,7 +106,11 @@ export function OfficeLocationPicker({
     const r = { lat: round7(p.lat), lng: round7(p.lng) };
     setAccuracy(acc);
     pickRef.current(r);
-    map.current?.easeTo({ center: [r.lng, r.lat], zoom: Math.max(map.current.getZoom(), 16), duration: 600 });
+    map.current?.easeTo({
+      center: [r.lng, r.lat],
+      zoom: Math.max(map.current.getZoom(), 16),
+      duration: 600,
+    });
   };
 
   useEffect(() => {
@@ -113,9 +131,22 @@ export function OfficeLocationPicker({
         });
         m.addControl(new maplibre.NavigationControl({ showCompass: false }), "top-right");
         m.on("style.load", () => {
-          m.addSource("office-circle", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
-          m.addLayer({ id: "office-circle-fill", type: "fill", source: "office-circle", paint: { "fill-color": token("--ring"), "fill-opacity": 0.15 } });
-          m.addLayer({ id: "office-circle-line", type: "line", source: "office-circle", paint: { "line-color": token("--ring"), "line-width": 2 } });
+          m.addSource("office-circle", {
+            type: "geojson",
+            data: { type: "FeatureCollection", features: [] },
+          });
+          m.addLayer({
+            id: "office-circle-fill",
+            type: "fill",
+            source: "office-circle",
+            paint: { "fill-color": token("--ring"), "fill-opacity": 0.15 },
+          });
+          m.addLayer({
+            id: "office-circle-line",
+            type: "line",
+            source: "office-circle",
+            paint: { "line-color": token("--ring"), "line-width": 2 },
+          });
           if (!cancelled) setReady(true);
         });
         m.on("click", (e) => {
@@ -151,7 +182,9 @@ export function OfficeLocationPicker({
       return;
     }
     if (!marker.current) {
-      marker.current = new maplibre.Marker({ element: pinElement(t("pin")), draggable: true }).setLngLat([point.lng, point.lat]).addTo(m);
+      marker.current = new maplibre.Marker({ element: pinElement(t("pin")), draggable: true })
+        .setLngLat([point.lng, point.lat])
+        .addTo(m);
       marker.current.on("dragend", () => {
         const at = marker.current?.getLngLat();
         if (at) {
@@ -173,7 +206,10 @@ export function OfficeLocationPicker({
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setBusy(null);
-        go({ lat: pos.coords.latitude, lng: pos.coords.longitude }, Math.round(pos.coords.accuracy));
+        go(
+          { lat: pos.coords.latitude, lng: pos.coords.longitude },
+          Math.round(pos.coords.accuracy),
+        );
       },
       (err) => {
         setBusy(null);
@@ -194,9 +230,14 @@ export function OfficeLocationPicker({
     }
     setBusy("link");
     try {
-      const res = await fetch("/api/maps-link", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(v) });
+      const res = await fetch("/api/maps-link", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(v),
+      });
       const body = (await res.json()) as Partial<LatLngPoint> & { error?: string };
-      if (res.ok && typeof body.lat === "number" && typeof body.lng === "number") go({ lat: body.lat, lng: body.lng });
+      if (res.ok && typeof body.lat === "number" && typeof body.lng === "number")
+        go({ lat: body.lat, lng: body.lng });
       else linkForm.setError("link", "officePicker.linkNoPlace");
     } catch {
       setNote(t("searchFailed"));
@@ -218,7 +259,11 @@ export function OfficeLocationPicker({
       {hasGps && (
         <div className="flex flex-wrap items-center gap-2">
           <Button type="button" variant="secondary" onClick={locateMe} disabled={busy !== null}>
-            {busy === "gps" ? <Loader2 aria-hidden className="animate-spin" /> : <LocateFixed aria-hidden />}
+            {busy === "gps" ? (
+              <Loader2 aria-hidden className="animate-spin" />
+            ) : (
+              <LocateFixed aria-hidden />
+            )}
             {t("useMyLocation")}
           </Button>
           <span className="text-[0.9rem] text-text-secondary">{t("useMyLocationHint")}</span>
@@ -237,8 +282,17 @@ export function OfficeLocationPicker({
               }}
               onKeyDown={enter(() => void applyLink())}
             />
-            <Button type="button" variant="secondary" onClick={() => void applyLink()} disabled={busy !== null}>
-              {busy === "link" ? <Loader2 aria-hidden className="animate-spin" /> : <Link2 aria-hidden />}
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => void applyLink()}
+              disabled={busy !== null}
+            >
+              {busy === "link" ? (
+                <Loader2 aria-hidden className="animate-spin" />
+              ) : (
+                <Link2 aria-hidden />
+              )}
               {t("useLink")}
             </Button>
           </div>
@@ -251,11 +305,16 @@ export function OfficeLocationPicker({
       )}
       <div className="relative overflow-hidden rounded-xl border border-border">
         <div ref={box} role="region" aria-label={t("map")} className="h-72 w-full" />
-        {mapFailed && <p className="absolute inset-0 grid place-items-center p-4 text-center text-text-secondary">{t("mapFailed")}</p>}
+        {mapFailed && (
+          <p className="absolute inset-0 grid place-items-center p-4 text-center text-text-secondary">
+            {t("mapFailed")}
+          </p>
+        )}
       </div>
       <p className="text-[0.9rem] text-text-secondary" data-testid="office-pin">
         {point
-          ? t("pinAt", { lat: point.lat.toFixed(6), lng: point.lng.toFixed(6), radius }) + (accuracy !== null ? ` · ${t("accuracy", { m: accuracy })}` : "")
+          ? t("pinAt", { lat: point.lat.toFixed(6), lng: point.lng.toFixed(6), radius }) +
+            (accuracy !== null ? ` · ${t("accuracy", { m: accuracy })}` : "")
           : t("noPin")}
       </p>
     </div>
