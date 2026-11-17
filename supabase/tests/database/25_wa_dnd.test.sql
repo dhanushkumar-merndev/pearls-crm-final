@@ -121,8 +121,11 @@ select pg_temp.wa_in('+919811025006', 'Price?');
 insert into public.leads (id, name, phone_e164) values ('25252525-5555-4000-a000-000000000006', 'Later Lead', '+919811025006');
 select is((select lead_id::text from public.wa_threads where phone_e164 = '+919811025006'), '25252525-5555-4000-a000-000000000006',
   'adding the lead names the conversation');
+-- Compare with what the old number had before (online, where WhatsApp is on, adding the lead already
+-- queued a welcome message and named its conversation; locally there is none).
+create temp table t25_before as select lead_id from public.wa_threads where phone_e164 = '+919811025002';
 update public.leads set phone_e164 = '+919811025099' where id = '25252525-5555-4000-a000-000000000001';
-select is((select lead_id from public.wa_threads where phone_e164 = '+919811025002'), null,
+select is((select lead_id from public.wa_threads where phone_e164 = '+919811025002'), (select lead_id from t25_before),
   'a lead''s old number keeps whatever it had (nothing is unlinked)');
 
 select * from finish();
