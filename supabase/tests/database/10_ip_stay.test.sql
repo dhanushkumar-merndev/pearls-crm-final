@@ -36,7 +36,7 @@ values ('aaaaaaaa-2222-4000-a000-00000000000a', 'Dr P7 Surgeon', 'MS (ENT)', 'Co
 insert into public.room_types (id, name, daily_rate_paise, gst_rate_bp) values ('aaaaaaaa-3333-4000-a000-000000000001', 'P7 Semi Deluxe', 200000, 0);
 delete from public.number_series where series_key in ('ip_number', 'procedure_receipt', 'final_bill') and fy = private.fy_label(now());
 insert into public.number_series (series_key, fy, prefix, format, next_value) values
-  ('ip_number', private.fy_label(now()), 'IP', '{prefix}/{fy}/{n}', 7),
+  ('ip_number', private.fy_label(now()), 'IPT', '{prefix}/{fy}/{n}', 7),
   ('procedure_receipt', private.fy_label(now()), 'T', '{prefix}/{fy}/{n}', 1),
   ('final_bill', private.fy_label(now()), 'F', '{prefix}/{fy}/{n}', 1);
 update public.app_settings set value = value || '{"ip_number_mode": "separate", "receptionist_max_discount_bp": 2000}' where section = 'billing';
@@ -67,7 +67,7 @@ create temp table a1 on commit drop as select public.admit_patient(jsonb_build_o
   'surgeons', jsonb_build_array(jsonb_build_object('doctor_id', 'aaaaaaaa-2222-4000-a000-00000000000a', 'role', 'primary'))),
   'aaaaaaaa-4444-4000-a000-000000000001') as r;
 grant select on a1 to authenticated;
-select is((select r ->> 'ip_number' from a1), 'IP/' || (select fy from k) || '/7', 'the IP number comes from its own series');
+select is((select r ->> 'ip_number' from a1), 'IPT/' || (select fy from k) || '/7', 'the IP number comes from its own series');
 select is((public.admit_patient('{"patient_id": "aaaaaaaa-1111-4000-a000-000000000001"}', 'aaaaaaaa-4444-4000-a000-000000000001')) ->> 'id',
   'aaaaaaaa-4444-4000-a000-000000000001', 'retrying the same admission creates nothing new');
 select throws_ok($$ select public.admit_patient('{"patient_id": "aaaaaaaa-1111-4000-a000-000000000001"}', gen_random_uuid()) $$,
