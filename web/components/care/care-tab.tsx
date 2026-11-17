@@ -1,7 +1,8 @@
 "use client";
 
-import { useInfiniteQuery, useMutation } from "@tanstack/react-query";
-import { FileText, Loader2, Receipt } from "lucide-react";
+import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query";
+import { ClipboardList, FileText, Loader2, Receipt } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState, type ReactNode } from "react";
@@ -10,9 +11,11 @@ import { AppointmentActions, type ApptCard } from "@/components/appointments/app
 import { ApptStatusBadge } from "@/components/appointments/status";
 import { PatientAdmissionsTab } from "@/components/admissions/patient-admissions-tab";
 import { BillChip, type BillChipData } from "@/components/bills/bill-for";
+import { StartSummaryDialog } from "@/components/discharge/start-summary-dialog";
 import type { PatientHit } from "@/components/patients/patient-picker";
 import { TreatmentsTab } from "@/components/treatments/treatments-tab";
 import { Button } from "@/components/ui/button";
+import { Dialog } from "@/components/ui/dialog";
 import { LoadMore } from "@/components/ui/load-more";
 import { RowSkeletons } from "@/components/ui/skeletons";
 import { EmptyRow, Table, TD, TH, THead, TR } from "@/components/ui/table";
@@ -78,15 +81,38 @@ function PatientVisits({ patientId }: { patientId: string }) {
     queryKey: ["patient_appointments", patientId],
     initialPageParam: null as string | null,
     queryFn: ({ pageParam }) =>
-      rpc<{ items: VisitRow[]; next_cursor: string | null }>("patient_appointments", { p_patient_id: patientId, p_cursor: pageParam }),
+      rpc<{ items: VisitRow[]; next_cursor: string | null }>("patient_appointments", {
+        p_patient_id: patientId,
+        p_cursor: pageParam,
+      }),
     getNextPageParam: (last) => last.next_cursor,
     staleTime: 0,
   });
   const items = list.data?.pages.flatMap((x) => x.items) ?? [];
+  // The OP discharge summary each visit already has (owner, 17/11/2026: discharge summary for OP too).
+  const ops = useQuery({
+    queryKey: ["discharge_op_targets", patientId],
+    queryFn: () =>
+      rpc<{ visit_id: string | null; summary_id: string | null }[]>("discharge_op_targets", {
+        p_patient_id: patientId,
+      }),
+    staleTime: 0,
+  });
+  const summaryFor = new Map(
+    (ops.data ?? [])
+      .filter((o) => o.visit_id && o.summary_id)
+      .map((o) => [o.visit_id!, o.summary_id!]),
+  );
+  const [summaryFrom, setSummaryFrom] = useState<VisitRow | null>(null);
   const [billing, setBilling] = useState<string | null>(null);
   const makeBill = useMutation({
     mutationFn: (a: VisitRow) =>
-      rpc<{ id: string }>("create_bill", { p_type: "procedure_receipt", p_patient_id: patientId, p_links: { appointment_id: a.id }, p_client_id: newId() }),
+      rpc<{ id: string }>("create_bill", {
+        p_type: "procedure_receipt",
+        p_patient_id: patientId,
+        p_links: { appointment_id: a.id },
+        p_client_id: newId(),
+      }),
     onMutate: (a) => setBilling(a.id),
     onSuccess: (b) => router.push(`/bills/${b.id}?back=${encodeURIComponent(back)}`),
     onError: (e) => {
@@ -119,13 +145,20 @@ function PatientVisits({ patientId }: { patientId: string }) {
         </THead>
         <tbody>
           {list.isPending && <RowSkeletons asRow rows={3} cols={6} />}
-          {list.isSuccess && items.length === 0 && <EmptyRow colSpan={6}>{p("noAppointments")}</EmptyRow>}
+          {list.isSuccess && items.length === 0 && (
+            <EmptyRow colSpan={6}>{p("noAppointments")}</EmptyRow>
+          )}
           {items.map((a) => (
             <TR key={a.id}>
               <TD className="whitespace-nowrap tabular-nums">
-                {formatDate(new Date(a.appt_date))} {a.slot_start ? formatTime(new Date(a.slot_start)) : p("walkIn")}
+                {formatDate(new Date(a.appt_date))}{" "}
+                {a.slot_start ? formatTime(new Date(a.slot_start)) : p("walkIn")}
               </TD>
-              <TD>{a.session ? `${a.session.treatment} — ${tr("sessionN", { n: a.session.seq })}` : t("consultation")}</TD>
+              <TD>
+                {a.session
+                  ? `${a.session.treatment} — ${tr("sessionN", { n: a.session.seq })}`
+                  : t("consultation")}
+              </TD>
               <TD>{a.doctor ?? "—"}</TD>
               <TD>
                 <ApptStatusBadge status={a.status} />
@@ -133,18 +166,61 @@ function PatientVisits({ patientId }: { patientId: string }) {
               <TD>
                 <div className="flex flex-wrap items-center gap-1.5">
                   {(a.documents ?? []).map((d) => (
-                    <Button key={d.id} variant="ghost" onClick={() => void openDoc(d.file_id)} aria-label={t("openDoc", { title: d.title })}>
+                    <Button
+                      key={d.id}
+                      variant="ghost"
+                      onClick={() => void openDoc(d.file_id)}
+                      aria-label={t("openDoc", { title: d.title })}
+                    >
                       <FileText aria-hidden />
                       {d.title}
                     </Button>
                   ))}
-                  {(a.bills ?? []).map((b) => <BillChip key={b.id} bill={b} back={back} />)}
+                  {(a.bills ?? []).map((b) => (
+                    <BillChip key={b.id} bill={b} back={back} />
+                  ))}
                   {VISITED.has(a.status) && (a.bills ?? []).length === 0 && (
-                    <Button variant="ghost" disabled={makeBill.isPending} onClick={() => makeBill.mutate(a)} aria-label={t("billVisit", { date: formatDate(new Date(a.appt_date)) })}>
-                      {billing === a.id ? <Loader2 aria-hidden className="animate-spin" /> : <Receipt aria-hidden />}
+                    <Button
+                      variant="ghost"
+                      disabled={makeBill.isPending}
+                      onClick={() => makeBill.mutate(a)}
+                      aria-label={t("billVisit", { date: formatDate(new Date(a.appt_date)) })}
+                    >
+                      {billing === a.id ? (
+                        <Loader2 aria-hidden className="animate-spin" />
+                      ) : (
+                        <Receipt aria-hidden />
+                      )}
                       {tr("bill")}
                     </Button>
                   )}
+                  {VISITED.has(a.status) &&
+                    a.visit_id &&
+                    ops.isSuccess &&
+                    (() => {
+                      const date = formatDate(new Date(a.appt_date));
+                      const id = summaryFor.get(a.visit_id);
+                      return id ? (
+                        <Button asChild variant="ghost">
+                          <Link
+                            href={`/discharge/${id}?back=${encodeURIComponent(back)}`}
+                            aria-label={t("openSummary", { date })}
+                          >
+                            <ClipboardList aria-hidden />
+                            {t("summary")}
+                          </Link>
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          onClick={() => setSummaryFrom(a)}
+                          aria-label={t("newSummary", { date })}
+                        >
+                          <ClipboardList aria-hidden />
+                          {t("summary")}
+                        </Button>
+                      );
+                    })()}
                 </div>
               </TD>
               <TD className="text-right">
@@ -154,7 +230,19 @@ function PatientVisits({ patientId }: { patientId: string }) {
           ))}
         </tbody>
       </Table>
-      <LoadMore hasMore={list.hasNextPage} loading={list.isFetchingNextPage} onClick={() => void list.fetchNextPage()} />
+      <LoadMore
+        hasMore={list.hasNextPage}
+        loading={list.isFetchingNextPage}
+        onClick={() => void list.fetchNextPage()}
+      />
+      <Dialog open={summaryFrom !== null} onOpenChange={(o) => !o && setSummaryFrom(null)}>
+        {summaryFrom && (
+          <StartSummaryDialog
+            visitId={summaryFrom.visit_id}
+            sessionId={summaryFrom.session?.id ?? null}
+          />
+        )}
+      </Dialog>
     </div>
   );
 }

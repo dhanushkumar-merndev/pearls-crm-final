@@ -3894,7 +3894,10 @@
     "consultation": "Consultation",
     "rxAndBills": "Prescriptions and bills",
     "openDoc": "Open {title}",
-    "billVisit": "Make a bill for the visit on {date}"
+    "billVisit": "Make a bill for the visit on {date}",
+    "summary": "Discharge summary",
+    "openSummary": "Open the discharge summary for the visit on {date}",
+    "newSummary": "Write a discharge summary for the visit on {date}"
   },
   "billFor": {
     "session": "{treatment} · Session {n}",

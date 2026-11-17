@@ -7,7 +7,9 @@ test.skip(!process.env.E2E_DB, "needs the Supabase backend (E2E_DB=1)");
 test.use({ storageState: STATE.reception });
 test.setTimeout(120_000);
 
-test("OP discharge summary: from the Bills tab, filled with the session, finalized and printed", async ({ page }) => {
+test("OP discharge summary: from the Bills tab, filled with the session, finalized and printed", async ({
+  page,
+}) => {
   const name = `E2E OP Summary ${Date.now()}`;
   await open(page, "/patients/new");
   await page.getByLabel("Full name").fill(name);
@@ -33,21 +35,39 @@ test("OP discharge summary: from the Bills tab, filled with the session, finaliz
   await page.getByRole("button", { name: "New discharge summary" }).click();
   let dialog = page.getByRole("dialog");
   await dialog.getByRole("button", { name: "Next" }).click();
-  await expect(dialog.getByRole("combobox", { name: "OP visit or IP stay" })).toHaveAttribute("aria-invalid", "true");
+  await expect(dialog.getByRole("combobox", { name: "OP visit or IP stay" })).toHaveAttribute(
+    "aria-invalid",
+    "true",
+  );
   await dialog.getByRole("combobox", { name: "OP visit or IP stay" }).click();
-  await page.getByRole("option", { name: /^OP · .*Laser hair reduction — 6 sessions, session 1/ }).click();
+  await page
+    .getByRole("option", { name: /^OP · .*Laser hair reduction — 6 sessions, session 1/ })
+    .click();
   await dialog.getByRole("button", { name: "Next" }).click();
   dialog = page.getByRole("dialog");
   await dialog.getByRole("button", { name: "Start" }).click();
 
   await expect(page).toHaveURL(/\/discharge\/[0-9a-f-]{36}$/);
-  await expect(page.getByTestId("summary-op")).toContainText("Laser hair reduction — 6 sessions, session 1");
-  await page.getByRole("textbox", { name: /^Text for/ }).first().fill("{{patient_name}} had {{procedure}} on {{procedure_on}}.");
-  await expect(page.getByText(`${name} had Laser hair reduction — 6 sessions on`).first()).toBeVisible();
+  await expect(page.getByTestId("summary-op")).toContainText(
+    "Laser hair reduction — 6 sessions, session 1",
+  );
+  await page
+    .getByRole("textbox", { name: /^Text for/ })
+    .first()
+    .fill("{{patient_name}} had {{procedure}} on {{procedure_on}}.");
+  await expect(
+    page.getByText(`${name} had Laser hair reduction — 6 sessions on`).first(),
+  ).toBeVisible();
   // IP-only names can't be filled for an OP visit.
-  await page.getByRole("textbox", { name: /^Text for/ }).first().fill("Room {{room}}");
+  await page
+    .getByRole("textbox", { name: /^Text for/ })
+    .first()
+    .fill("Room {{room}}");
   await expect(page.getByText(/Still to fill: room/)).toBeVisible();
-  await page.getByRole("textbox", { name: /^Text for/ }).first().fill("{{patient_name}} had {{procedure}} on {{procedure_on}}.");
+  await page
+    .getByRole("textbox", { name: /^Text for/ })
+    .first()
+    .fill("{{patient_name}} had {{procedure}} on {{procedure_on}}.");
 
   // The signing doctor (the treatment may have none): any doctor.
   await page.getByRole("combobox", { name: "Signed by" }).click();
@@ -66,5 +86,45 @@ test("OP discharge summary: from the Bills tab, filled with the session, finaliz
   await page.goBack();
   await page.getByRole("link", { name: `Back to ${name}` }).click();
   await expect(page).toHaveURL(/section=discharge/);
-  await expect(page.getByTestId("discharge-table").getByRole("row").filter({ hasText: "OP ·" })).toContainText("Finalized");
+  await expect(
+    page.getByTestId("discharge-table").getByRole("row").filter({ hasText: "OP ·" }),
+  ).toContainText("Finalized");
+});
+
+test("OP discharge summary from the Care tab: a walk-in visit gets one, and the row then opens it", async ({
+  page,
+}) => {
+  const name = `E2E OP Visit ${Date.now()}`;
+  await open(page, "/patients/new");
+  await page.getByLabel("Full name").fill(name);
+  await page.getByLabel("Mobile number").fill(uniquePhone());
+  await page.getByRole("button", { name: "Save patient" }).first().click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(name, { timeout: 30_000 });
+  const patientUrl = page.url().split("?")[0]!;
+
+  // A walk-in: the visit is made when the patient is added to today's queue.
+  await open(page, "/home");
+  await page.getByRole("button", { name: "Walk-in", exact: true }).click();
+  await page.getByRole("dialog").getByRole("combobox", { name: "Patient" }).click();
+  await page.getByPlaceholder("Name, phone or UHID…").fill(name);
+  await page.getByRole("option", { name: new RegExp(name) }).click();
+  await page.getByRole("button", { name: "Add walk-in" }).click();
+  await expect(
+    page.getByText(/Added to the queue — number \d+|Added to the current slot ✓/),
+  ).toBeVisible();
+
+  await page.goto(`${patientUrl}?tab=care`);
+  const write = page.getByRole("button", { name: /^Write a discharge summary for the visit on / });
+  await expect(write).toBeVisible();
+  await write.click();
+  await page.getByRole("dialog").getByRole("button", { name: "Start" }).click();
+  await expect(page).toHaveURL(/\/discharge\/[0-9a-f-]{36}$/);
+  await expect(page.getByTestId("summary-op")).toBeVisible();
+
+  // Back on the Care tab the same row now opens the summary, and comes back to Care.
+  await page.goto(`${patientUrl}?tab=care`);
+  await page.getByRole("link", { name: /^Open the discharge summary for the visit on / }).click();
+  await expect(page).toHaveURL(/\/discharge\/[0-9a-f-]{36}\?back=/);
+  await page.getByRole("link", { name: /^Back/ }).first().click();
+  await expect(page).toHaveURL(/[?&]tab=care/);
 });

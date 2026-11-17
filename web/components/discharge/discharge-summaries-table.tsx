@@ -45,7 +45,11 @@ interface Page {
   rows: Row[];
 }
 const LIMIT = 25;
-const startFilters = () => ({ from: istDateString(new Date(Date.now() - 30 * 86_400_000)), to: istDateString(new Date()), status: "" });
+const startFilters = () => ({
+  from: istDateString(new Date(Date.now() - 30 * 86_400_000)),
+  to: istDateString(new Date()),
+  status: "",
+});
 
 /** Discharge summaries, 4th billing section. With patientId: that patient's, all dates. */
 export function DischargeSummariesTable({ patientId }: { patientId?: string }) {
@@ -63,7 +67,10 @@ export function DischargeSummariesTable({ patientId }: { patientId?: string }) {
     placeholderData: keepPreviousData,
     queryFn: () =>
       rpc<Page>("discharge_summaries_table", {
-        p_filters: { ...(patientId ? { patient_id: patientId } : { from: filters.from, to: filters.to }), ...(filters.status ? { status: filters.status } : {}) },
+        p_filters: {
+          ...(patientId ? { patient_id: patientId } : { from: filters.from, to: filters.to }),
+          ...(filters.status ? { status: filters.status } : {}),
+        },
         p_offset: offset,
         p_limit: LIMIT,
       }),
@@ -86,7 +93,14 @@ export function DischargeSummariesTable({ patientId }: { patientId?: string }) {
         )}
         <Field label={ts("status")}>
           {(a) => (
-            <Select {...a} value={filters.status} onChange={(e) => (setFilters((f) => ({ ...f, status: e.target.value })), setOffset(0))}>
+            <Select
+              {...a}
+              value={filters.status}
+              onChange={(e) => (
+                setFilters((f) => ({ ...f, status: e.target.value })),
+                setOffset(0)
+              )}
+            >
               <option value="">{ts("all")}</option>
               {(["draft", "finalized", "cancelled"] as const).map((x) => (
                 <option key={x} value={x}>
@@ -117,30 +131,51 @@ export function DischargeSummariesTable({ patientId }: { patientId?: string }) {
           {list.data?.rows.map((r) => (
             <TR key={r.id}>
               <TD className="whitespace-nowrap">
-                <Link href={`/discharge/${r.id}`} className="font-medium text-link underline-offset-4 hover:underline">
+                <Link
+                  href={`/discharge/${r.id}`}
+                  className="font-medium text-link underline-offset-4 hover:underline"
+                >
                   {formatDate(new Date(r.finalized_at ?? r.created_at))}
                 </Link>
               </TD>
               {!patientId && (
                 <TD>
-                  <Link href={`/patients/${r.patient_id}?tab=bills&section=discharge`} className="text-link underline-offset-4 hover:underline">
+                  <Link
+                    href={`/patients/${r.patient_id}?tab=bills&section=discharge`}
+                    className="text-link underline-offset-4 hover:underline"
+                  >
                     {r.patient}
                   </Link>
                   <span className="block text-[0.9rem] text-text-secondary">{r.uhid}</span>
                 </TD>
               )}
               <TD className="text-[0.9rem]">
-                {r.kind === "ip" ? r.ip_number && t("ipStay", { ip: r.ip_number }) : t("opVisit", { date: r.visit_date ? formatDate(new Date(r.visit_date)) : "—" })}
-                {r.procedures?.length ? <span className="block text-text-secondary">{r.procedures.join(", ")}</span> : null}
+                {r.kind === "ip"
+                  ? r.ip_number && t("ipStay", { ip: r.ip_number })
+                  : t("opVisit", { date: r.visit_date ? formatDate(new Date(r.visit_date)) : "—" })}
+                {r.procedures?.length ? (
+                  <span className="block text-text-secondary">{r.procedures.join(", ")}</span>
+                ) : null}
               </TD>
               <TD>
-                <StatusBadge kind={r.status === "finalized" ? "good" : r.status === "draft" ? "warning" : "critical"} label={tb(`status.${r.status}`)} />
+                <StatusBadge
+                  kind={
+                    r.status === "finalized"
+                      ? "good"
+                      : r.status === "draft"
+                        ? "warning"
+                        : "critical"
+                  }
+                  label={tb(`status.${r.status}`)}
+                />
               </TD>
             </TR>
           ))}
         </tbody>
       </Table>
-      {list.data && <Pager offset={offset} limit={LIMIT} total={list.data.total} onOffset={setOffset} />}
+      {list.data && (
+        <Pager offset={offset} limit={LIMIT} total={list.data.total} onOffset={setOffset} />
+      )}
     </div>
   );
 }
@@ -171,18 +206,33 @@ export function NewSummaryDialog({ patientId, onDone }: { patientId: string; onD
   const checks = useZodForm(pickSummaryTargetSchema);
   const stays = useQuery({
     queryKey: ["admissions", "patient", patientId],
-    queryFn: () => rpc<{ rows: StayRow[] }>("admissions_table", { p_filters: { patient_id: patientId }, p_limit: 20 }),
+    queryFn: () =>
+      rpc<{ rows: StayRow[] }>("admissions_table", {
+        p_filters: { patient_id: patientId },
+        p_limit: 20,
+      }),
   });
   const summaries = useQuery({
     queryKey: ["discharge_summaries", patientId, "all-for-new"],
-    queryFn: () => rpc<Page>("discharge_summaries_table", { p_filters: { patient_id: patientId, kind: "ip" }, p_limit: 100 }),
+    queryFn: () =>
+      rpc<Page>("discharge_summaries_table", {
+        p_filters: { patient_id: patientId, kind: "ip" },
+        p_limit: 100,
+      }),
   });
   const visits = useQuery({
     queryKey: ["discharge_op_targets", patientId],
     queryFn: () => rpc<OpTarget[]>("discharge_op_targets", { p_patient_id: patientId }),
+    // Always fresh: the Care tab shares this list, and a session may have been marked done since.
+    staleTime: 0,
+    refetchOnMount: "always",
   });
   const open = (stays.data?.rows ?? []).filter((s) => s.status !== "cancelled");
-  const existing = new Map((summaries.data?.rows ?? []).filter((r) => r.status !== "cancelled" && r.admission_id).map((r) => [r.admission_id!, r.id]));
+  const existing = new Map(
+    (summaries.data?.rows ?? [])
+      .filter((r) => r.status !== "cancelled" && r.admission_id)
+      .map((r) => [r.admission_id!, r.id]),
+  );
   const ops = visits.data ?? [];
   const opKey = (o: OpTarget) => `op:${o.visit_id ?? ""}|${o.session_id ?? ""}`;
   const [target, setTarget] = useState("");
@@ -192,7 +242,8 @@ export function NewSummaryDialog({ patientId, onDone }: { patientId: string; onD
   const opLabel = (o: OpTarget) =>
     [
       t("opOption", { date: formatDate(new Date(o.date)) }),
-      o.treatment && (o.session_seq ? t("opSession", { name: o.treatment, n: o.session_seq }) : o.treatment),
+      o.treatment &&
+        (o.session_seq ? t("opSession", { name: o.treatment, n: o.session_seq }) : o.treatment),
       o.doctor,
       o.summary_id && t("opHasSummary"),
     ]
@@ -236,7 +287,11 @@ export function NewSummaryDialog({ patientId, onDone }: { patientId: string; onD
       ) : (
         <Field label={t("for")} error={checks.error("target")}>
           {(a) => (
-            <Select {...a} value={target} onChange={(e) => (setTarget(e.target.value), checks.clear("target"))}>
+            <Select
+              {...a}
+              value={target}
+              onChange={(e) => (setTarget(e.target.value), checks.clear("target"))}
+            >
               <option value="" disabled>
                 {loading ? t("loading") : t("choose")}
               </option>
@@ -247,7 +302,12 @@ export function NewSummaryDialog({ patientId, onDone }: { patientId: string; onD
               ))}
               {open.map((s) => (
                 <option key={s.id} value={`ip:${s.id}`}>
-                  {existing.has(s.id) ? t("hasSummary", { ip: s.ip_number }) : t("stayOption", { ip: s.ip_number, date: formatDate(new Date(s.admitted_at)) })}
+                  {existing.has(s.id)
+                    ? t("hasSummary", { ip: s.ip_number })
+                    : t("stayOption", {
+                        ip: s.ip_number,
+                        date: formatDate(new Date(s.admitted_at)),
+                      })}
                 </option>
               ))}
             </Select>
