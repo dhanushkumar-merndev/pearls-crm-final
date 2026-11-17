@@ -163,5 +163,6 @@ Read `CLAUDE.md` and `dev-docs/PLAN.md` first (PLAN.md section G lists every dec
 
 ## Phase 19 (owner 17/11/2026, from the 16/11 sales training) — plan ~/.claude/plans/jaunty-purring-badger.md
 - **19a DONE, commit 5adccfa (not pushed):** four billing sections (Surgery incl. IP final · Pharmacy · Breakdown for insurance · Discharge summaries) on the patient Bills tab and /bills (`?section=`); "Procedure receipt" shown as "Surgery bill"; breakdown bill (`/breakdown/[id]`, print `/print/breakdown/[id]`, own tables so dues never change); Breakdown / Discharge buttons on the bill page and the IP stay page. Tests: pgTAP 35 files / 1127 local, web Vitest + shared + Deno pass, e2e breakdown-bill + billing set + a11y + phone-layout 100/100 on the LOCAL backend.
-- **Migrations 20261120100000 + 20261120110000 are LOCAL ONLY: need the owner's OK, then `supabase db push`** (before the web goes live with this commit).
-- NEXT: 19b OP discharge summary (after the owner tries 19a), then 19c sales sheet web + phone, 19d doctors/services guide.
+- **19b DONE, commit 9b6984a (not pushed):** OP discharge summary (visit / treatment session), from Bills → Discharge summaries → New and from an OP bill. pgTAP 36 files / 1151 local, e2e 70/70 local. Not done: a link on the Care tab session rows.
+- **Migrations 20261120100000 + 20261120110000 + 20261120120000 are LOCAL ONLY: need the owner's OK, then `supabase db push`** (before the web goes live with these commits).
+- NEXT: 19c sales sheet web + phone, 19d doctors/services guide (after the owner tries 19a/19b).
