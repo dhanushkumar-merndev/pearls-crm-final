@@ -7,7 +7,7 @@ import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent } from "@/components/ui/dialog";
 
-export type PrintKind = "bill" | "discharge" | "breakdown";
+export type PrintKind = "bill" | "discharge" | "breakdown" | "quotation";
 
 /**
  * A peek at a paper exactly as it prints (owner, 20/11/2026: "preview button so I can peek and

@@ -18,5 +18,5 @@ export default defineConfig([
       ],
     },
   },
-  globalIgnores([".next/**", ".next-video/**", "playwright-report/**", "test-results/**", "next-env.d.ts"]),
+  globalIgnores([".next/**", ".next-video/**", "playwright-report/**", "test-results/**", "next-env.d.ts", "public/maplibre/**"]),
 ]);

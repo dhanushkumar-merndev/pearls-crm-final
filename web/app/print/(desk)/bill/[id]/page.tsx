@@ -5,8 +5,8 @@ import { amountInWords, formatDate, formatDateTime, formatINR } from "@pearl/sha
 import type { Bill, BillItem } from "@/components/bills/types";
 import { billBreakdown } from "@/lib/bill-breakdown";
 import { getSupabaseServer } from "@/lib/supabase/server";
-import { Letterhead, Watermark, type Clinic } from "../../letterhead";
-import { PrintToolbar } from "../../print-toolbar";
+import { Letterhead, Watermark, type Clinic } from "../../../letterhead";
+import { PrintToolbar } from "../../../print-toolbar";
 
 export const metadata: Metadata = { title: "Print bill" };
 export const dynamic = "force-dynamic";

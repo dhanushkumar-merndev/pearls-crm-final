@@ -6,6 +6,7 @@ import { billSchema, finalizeSchema, paymentSchema } from "./billing";
 import { admissionSchema, doctorHoursSchema, doctorLeaveSchema, editTreatmentSchema, followupSchema, startTreatmentSchema, stayChargesSchema } from "./clinical";
 import { backupSchema, purgeSchema, targetSchema } from "./ops";
 import { adjustStockSchema, purchaseSchema } from "./pharmacy";
+import { quotationSchema, quoteSubtotal } from "./sales";
 import { dripCampaignSchema, dripEnrollSchema, templateSchema, waTemplateSendSchema, waTextSchema } from "./whatsapp";
 
 const errs = (schema: z.ZodType, value: unknown) => {
@@ -227,4 +228,24 @@ describe("stayChargesSchema (Add charges on an IP stay)", () => {
   it("refuses a zero quantity", () => {
     expect(errs(schema, { date: "2026-11-01", lines: [{ ...line, qty: "0" }] })).toEqual({ "lines.0.qty": "min" });
   });
+});
+
+describe("sales", () => {
+  const today = () => "2026-11-20";
+  const line = { treatment: null, name: "PRP", qty: "2", price: 150_000 };
+  it("quotation: at least one line; each line named, 1–100, priced; the discount no more than the lines; not valid in the past", () => {
+    const schema = quotationSchema(today);
+    expect(schema.parse({ items: [line], discount: 50_000, validUntil: "2026-12-05", note: " EMI " })).toMatchObject({
+      items: [{ name: "PRP", qty: 2, price: 150_000 }], discount: 50_000, validUntil: "2026-12-05", note: "EMI",
+    });
+    expect(errs(schema, { items: [], discount: null, validUntil: "", note: "" })).toEqual({ items: "noRows" });
+    expect(errs(schema, { items: [{ treatment: null, name: " ", qty: "0", price: null }], discount: null, validUntil: "2026-11-19", note: "" })).toMatchObject({
+      "items.0.name": "required", "items.0.qty": expect.any(String), "items.0.price": "required", validUntil: "notPast",
+    });
+    expect(errs(schema, { items: [line], discount: 300_001, validUntil: "", note: "" })).toEqual({ discount: "leads.quote.discountTooBig" });
+    expect(errs(schema, { items: [line], discount: 300_000, validUntil: "2026-11-20", note: "" })).toEqual({});
+    expect(errs(schema, { items: Array(21).fill(line), discount: null, validUntil: "", note: "" })).toEqual({ items: "tooMany" });
+    expect(quoteSubtotal([{ qty: "2", price: 150_000 }, { qty: 1, price: null }, { qty: "x", price: 5 }])).toBe(300_000);
+  });
+
 });

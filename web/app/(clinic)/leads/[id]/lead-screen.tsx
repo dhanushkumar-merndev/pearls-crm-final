@@ -8,10 +8,12 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { z } from "zod";
 import { formatDate, formatDateTime, formatINR, fromIstDateTimeLocal, istDateTimeLocal, optionalFutureDateTime, requiredItem, requiredText } from "@pearl/shared";
+import { AppointmentActions } from "@/components/appointments/appointment-actions";
 import { ApptStatusBadge } from "@/components/appointments/status";
 import { BookDialog } from "@/components/appointments/book-dialog";
 import type { ApptStatus } from "@/components/appointments/status";
 import { AmountDialog, DeleteLeadDialog, EditLeadDialog, LogCallDialog } from "@/components/leads/lead-dialogs";
+import { QuotationsCard } from "@/components/leads/quotations";
 import { StageBadge } from "@/components/leads/stage-badge";
 import { StageDialog } from "@/components/leads/stage-dialog";
 import type { Lead } from "@/components/leads/types";
@@ -46,7 +48,17 @@ export interface LeadDetail extends Lead {
     agreed_price_paise: number | null;
   } | null;
   duplicates: { id: string; sl_no: number; name: string; stage: Lead["stage"]; lead_date: string; assigned_name: string | null; phone_e164: string }[];
-  appointments: { id: string; slot_start: string | null; status: ApptStatus; type: string; doctor: string | null }[];
+  appointments: {
+    id: string;
+    slot_start: string | null;
+    status: ApptStatus;
+    type: string;
+    doctor: string | null;
+    doctor_id: string | null;
+    version: number;
+    patient_id: string | null;
+    auto_cancelled: boolean;
+  }[];
   followups: { id: string; kind: string; due_date: string; due_at: string | null; reason: string | null }[];
   calls: { id: string; started_at: string; direction: string; duration_s: number; outcome: string | null; notes: string | null; staff_name: string | null }[];
 }
@@ -196,6 +208,28 @@ export function LeadScreen({ initial }: { initial: LeadDetail }) {
                       <span className="font-medium tabular-nums">{a.slot_start ? formatDateTime(new Date(a.slot_start)) : "—"}</span>
                       <span className="flex-1 text-text-secondary">{a.doctor ?? ""}</span>
                       <ApptStatusBadge status={a.status} />
+                      {/* Same Actions as the Appointments page: confirm, reschedule, cancel, restore, remind. */}
+                      <AppointmentActions
+                        appt={{
+                          id: a.id,
+                          status: a.status,
+                          slot_start: a.slot_start,
+                          doctor_id: a.doctor_id,
+                          doctor: a.doctor,
+                          patient_id: a.patient_id,
+                          patient: l.name,
+                          uhid: null,
+                          phone: l.phone_e164,
+                          version: a.version,
+                          is_walk_in: false,
+                          queue_no: null,
+                          lead_only: !a.patient_id,
+                          lead_id: l.id,
+                          lead_sl_no: l.sl_no,
+                          auto_cancelled: a.auto_cancelled,
+                        }}
+                        onChanged={refresh}
+                      />
                     </li>
                   ))}
                 </ul>
@@ -236,6 +270,7 @@ export function LeadScreen({ initial }: { initial: LeadDetail }) {
 
           <aside className="flex flex-col gap-5">
             <FollowupCard lead={l} onSaved={refresh} />
+            <QuotationsCard lead={l} onChanged={refresh} />
             <PatientCard lead={l} isAdmin={isAdmin} onLinked={refresh} />
             <div id="whatsapp" className="scroll-mt-16">
               <WhatsAppPanel leadId={l.id} canDrip={me?.role === "sales_manager" || isAdmin} />
@@ -491,6 +526,10 @@ function activityText(t: ReturnType<typeof useTranslations<"leads">>, a: Activit
       return t("act.call", { outcome: d.outcome ? t(`outcome.${String(d.outcome)}` as "outcome.connected") : "—" });
     case "amount":
       return t("act.amount", { amount: typeof d.to === "number" ? formatINR(d.to) : "—" });
+    case "quotation":
+      return d.event === "sent"
+        ? t("act.quotationSent", { n: Number(d.quote_no) })
+        : t("act.quotationCreated", { n: Number(d.quote_no), amount: typeof d.total_paise === "number" ? formatINR(d.total_paise) : "—" });
     case "created":
       return t("act.created", { via: t(`via.${String(d.via ?? "web")}` as "via.web") });
     default:

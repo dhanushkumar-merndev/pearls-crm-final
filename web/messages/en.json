@@ -1192,7 +1192,8 @@
     "title": {
       "bill": "Bill preview",
       "discharge": "Discharge summary preview",
-      "breakdown": "Breakdown bill preview"
+      "breakdown": "Breakdown bill preview",
+      "quotation": "Quotation preview"
     },
     "hint": "Exactly as it prints. Looking here doesn't count as a printed copy.",
     "frame": "Print preview",
@@ -2738,7 +2739,10 @@
       "enquired_again": "Enquired again (Meta ad)",
       "deleted": "Removed",
       "whatsapp": "WhatsApp sent",
-      "whatsapp_in": "WhatsApp reply"
+      "whatsapp_in": "WhatsApp reply",
+      "quotation": "Quotation",
+      "quotationCreated": "Quotation {n} made — {amount}",
+      "quotationSent": "Quotation {n} sent on WhatsApp"
     },
     "loading": "Loading…",
     "poolTitle": "Who gets new leads",
@@ -2797,6 +2801,40 @@
       "moreCalls": "+{n} more calls",
       "quoteTitle": "Quotation for {name}",
       "quoteHint": "The amount quoted first, then the amount the patient agreed (final)."
+    },
+    "quote": {
+      "title": "Quotations",
+      "new": "New quotation",
+      "none": "No quotation yet. Make one from the price list and send it on WhatsApp.",
+      "number": "Quotation {n}",
+      "validTill": "valid till {date}",
+      "sentTimes": "{n, plural, one {Sent once} other {Sent # times}} on WhatsApp",
+      "notSent": "Not sent yet",
+      "whatsapp": "WhatsApp",
+      "sendFor": "Send quotation {n} on WhatsApp",
+      "print": "Print / PDF",
+      "pdfHint": "WhatsApp opens your chat with the patient with the quotation typed in. To send it as a PDF, use Print / PDF → Save as PDF, then attach it. On the phone app, Share sends the PDF in one tap.",
+      "opened": "WhatsApp opened — press Send there.",
+      "newTitle": "New quotation for {name}",
+      "newHint": "Pick treatments from the price list (the price fills in; you can change it), add a discount if any, then save or send.",
+      "addTreatment": "Add a treatment",
+      "addTreatmentHint": "From the price list. Not listed? Use Add other line.",
+      "addOther": "Add other line",
+      "lines": "Quotation lines",
+      "name": "Treatment",
+      "qty": "Qty",
+      "price": "Price (each)",
+      "remove": "Remove {name}",
+      "discount": "Discount",
+      "discountTooBig": "The discount can't be more than the lines add up to.",
+      "validUntil": "Valid till",
+      "note": "Note for the patient",
+      "noteHint": "For example: EMI available, includes medicines.",
+      "total": "Total",
+      "saveOnly": "Save",
+      "saveSend": "Save & send on WhatsApp",
+      "saved": "Quotation saved ✓",
+      "savedOpened": "Quotation saved ✓ — WhatsApp opened, press Send there."
     }
   },
   "salesDash": {
@@ -4281,5 +4319,21 @@
     "blockedHelp": "Click the lock icon left of the web address → Notifications → Allow, then reload this page.",
     "unsupportedHelp": "Use Chrome, Edge or Firefox on a computer. A private window can't show pop-ups.",
     "bellItem": "Turn on pop-ups on this computer"
+  },
+  "printQuotation": {
+    "title": "Quotation",
+    "number": "Quotation no.",
+    "date": "Date",
+    "for": "Quotation for",
+    "validTill": "Valid till",
+    "preparedBy": "Prepared by",
+    "treatment": "Treatment",
+    "qty": "Qty",
+    "rate": "Price",
+    "amount": "Amount",
+    "subtotal": "Subtotal",
+    "discount": "Discount",
+    "total": "Total",
+    "footer": "This is a quotation, not a bill. Prices may change after the doctor's consultation."
   }
 }

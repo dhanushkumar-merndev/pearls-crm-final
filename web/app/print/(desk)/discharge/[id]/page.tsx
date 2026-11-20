@@ -3,8 +3,8 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { formatDate, formatDateTime } from "@pearl/shared";
 import { getSupabaseServer } from "@/lib/supabase/server";
-import { Letterhead, type Clinic } from "../../letterhead";
-import { PrintToolbar } from "../../print-toolbar";
+import { Letterhead, type Clinic } from "../../../letterhead";
+import { PrintToolbar } from "../../../print-toolbar";
 
 export const metadata: Metadata = { title: "Print discharge summary" };
 export const dynamic = "force-dynamic";
