@@ -35,7 +35,8 @@
     "bdm": "BDM",
     "dashboard": "Dashboard",
     "targets": "Targets",
-    "notifications": "Notifications"
+    "notifications": "Notifications",
+    "bookings": "Bookings"
   },
   "actions": {
     "newPatient": "New patient",
@@ -4335,5 +4336,28 @@
     "discount": "Discount",
     "total": "Total",
     "footer": "This is a quotation, not a bill. Prices may change after the doctor's consultation."
+  },
+  "bookings": {
+    "title": "Bookings",
+    "description": "Consultations booked for your leads. Confirm, move or cancel them here or on the lead page.",
+    "which": "Which bookings",
+    "scope": {
+      "upcoming": "Upcoming",
+      "confirm": "To confirm",
+      "past": "Past"
+    },
+    "none": {
+      "upcoming": "No bookings coming up. Book one from a lead page.",
+      "confirm": "Nothing to confirm. Every upcoming booking is confirmed.",
+      "past": "No bookings in the last 90 days."
+    },
+    "when": "When",
+    "lead": "Lead",
+    "doctor": "Doctor",
+    "status": "Status",
+    "today": "Today",
+    "tomorrow": "Tomorrow",
+    "call": "Call",
+    "callFor": "Call {name}"
   }
 }

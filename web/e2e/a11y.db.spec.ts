@@ -39,8 +39,8 @@ const PAGES = {
     "/home", "/patients", "/patients/new", "/patients/pending", "/patients/qr", "/appointments", "/sessions",
     "/followups", "/bills", "/admissions", "/pharmacy", "/whatsapp",
   ],
-  manager: ["/home", "/leads", "/leads/sheet", "/leads/dashboard", "/leads/pool", "/leads/import", "/targets"],
-  sales: ["/leads/sheet"],
+  manager: ["/home", "/leads", "/leads/sheet", "/leads/dashboard", "/leads/pool", "/leads/import", "/targets", "/bookings"],
+  sales: ["/leads/sheet", "/bookings"],
 } as const;
 
 for (const [role, paths] of Object.entries(PAGES) as [keyof typeof PAGES, readonly string[]][]) {

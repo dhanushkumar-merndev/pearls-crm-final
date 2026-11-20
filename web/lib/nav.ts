@@ -3,6 +3,7 @@ import {
   BedDouble,
   Bell,
   Car,
+  CalendarCheck,
   CalendarDays,
   Goal,
   House,
@@ -37,7 +38,7 @@ export interface NavItem {
 
 /** Menu items, in order. Each phase adds its pages here. */
 export const NAV_ITEMS: readonly NavItem[] = [
-  // A sales executive's menu is just Leads (their home, /home, opens the sales sheet).
+  // A sales executive's menu is Leads and Bookings (their home, /home, opens the sales sheet).
   {
     href: "/home",
     labelKey: "nav.home",
@@ -53,6 +54,8 @@ export const NAV_ITEMS: readonly NavItem[] = [
     badge: "leads",
     badgeLabelKey: "nav.leadsWithCount",
   },
+  // Owner 20/11/2026: sales see their leads' bookings in one list (reception has Appointments).
+  { href: "/bookings", labelKey: "nav.bookings", icon: CalendarCheck, roles: ["sales_executive", "sales_manager"] },
   { href: "/ads", labelKey: "nav.ads", icon: Megaphone, roles: ["sales_manager", "admin"] },
   {
     href: "/whatsapp",

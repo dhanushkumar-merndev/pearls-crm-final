@@ -7,10 +7,10 @@ import { isActive, navFor, PRIMARY_ACTIONS } from "./nav";
 import { isPublicPath } from "./supabase/proxy";
 
 describe("menus per role", () => {
-  it("every web role has Home (a sales executive: just Leads); BDMs have no web menu", () => {
+  it("every web role has Home (a sales executive: Leads and Bookings); BDMs have no web menu", () => {
     for (const role of WEB_ROLES)
       if (role !== "sales_executive") expect(navFor(role).map((i) => i.href)).toContain("/home");
-    expect(navFor("sales_executive").map((i) => i.href)).toEqual(["/leads", "/notifications"]);
+    expect(navFor("sales_executive").map((i) => i.href)).toEqual(["/leads", "/bookings", "/notifications"]);
     expect(PRIMARY_ACTIONS.sales_executive?.href).toBe("/leads/sheet?new=1");
     expect(navFor("bdm")).toEqual([]);
   });
