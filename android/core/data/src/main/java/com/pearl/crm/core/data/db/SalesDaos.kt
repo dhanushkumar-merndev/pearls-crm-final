@@ -108,6 +108,16 @@ interface FollowupDao {
     )
     fun observeOpenWithLead(staffId: String, lastDay: String, limit: Int = 100, offset: Int = 0): Flow<List<FollowupWithLead>>
 
+    /** One follow-up with its lead (opened from the lead page into the Follow-ups tab). */
+    @Query(
+        """
+        SELECT f.*, l.name AS lead_name, l.phone_e164 AS lead_phone FROM followups AS f
+        LEFT JOIN leads AS l ON l.id = f.lead_id
+        WHERE f.id = :id
+        """,
+    )
+    fun observeOneWithLead(id: String): Flow<FollowupWithLead?>
+
     @Query("SELECT * FROM followups WHERE lead_id = :leadId ORDER BY due_date DESC, id")
     fun observeForLead(leadId: String): Flow<List<FollowupEntity>>
 

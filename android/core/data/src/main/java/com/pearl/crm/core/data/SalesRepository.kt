@@ -137,6 +137,8 @@ class SalesRepository(
 
     fun observeLeadFollowups(leadId: String) = followups.observeForLead(leadId)
 
+    fun observeFollowup(id: String) = followups.observeOneWithLead(id)
+
     fun observeLeadAppointments(leadId: String) = appointments.observeForLead(leadId)
 
     suspend fun appointment(id: String): AppointmentEntity? = appointments.get(id)

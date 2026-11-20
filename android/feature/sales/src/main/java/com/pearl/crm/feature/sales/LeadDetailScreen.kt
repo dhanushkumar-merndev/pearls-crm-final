@@ -246,6 +246,8 @@ fun LeadDetailScreen(
     onReschedule: (String, String) -> Unit = { _, _ -> },
     /** New quotation for this lead. */
     onQuote: (String) -> Unit = {},
+    /** An open follow-up tapped: show it in the Follow-ups tab. */
+    onOpenFollowup: ((String) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val load by remember(leadId) { sales.observeLead(leadId).map { LeadLoad(it) } }.collectAsStateWithLifecycle(null)
@@ -381,10 +383,14 @@ fun LeadDetailScreen(
             History(stringResource(R.string.lead_tasks), tasks.isEmpty(), Icons.Outlined.EventRepeat) {
                 tasks.forEachIndexed { i, task ->
                     if (i > 0) HorizontalDivider()
+                    val open = task.status == "open" && onOpenFollowup != null
                     ListRow(
                         title = "${task.dueAt?.let(IstDates::formatDateTime) ?: task.dueDate} · ${task.reason}",
                         supporting = listOfNotNull(taskStatusLabel(task.status), task.outcome).joinToString(" · "),
                         icon = Icons.Outlined.EventRepeat,
+                        modifier = Modifier.testTag("lead-task-${task.id}"),
+                        onClick = if (open) ({ onOpenFollowup?.invoke(task.id) }) else null,
+                        chevron = open,
                     )
                 }
             }

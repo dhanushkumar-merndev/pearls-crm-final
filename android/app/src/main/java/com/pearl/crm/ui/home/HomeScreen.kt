@@ -100,6 +100,8 @@ fun HomeScreen(container: AppContainer, session: Session) {
     val isSales = role == StaffRole.SalesExecutive || role == StaffRole.SalesManager
     // Read once per sign-in: the tip shows on this visit to Leads, never after.
     val swipeHint = remember { !container.settings.swipeHintSeen }
+    // A follow-up tapped on a lead page, shown pinned in the Follow-ups tab (owner, 20/11/2026).
+    var focusTask by rememberSaveable { mutableStateOf<String?>(null) }
 
     val online by container.network.online.collectAsStateWithLifecycle()
     // Calls started from the app leave their notes sheet to the call watcher when it is on (one sheet, not two).
@@ -170,7 +172,15 @@ fun HomeScreen(container: AppContainer, session: Session) {
                                 swipeHint = swipeHint,
                                 onSwipeHintShown = { container.settings.swipeHintSeen = true },
                             )
-                            tab == HomeTab.Followups -> FollowupsScreen(session.staffId, container.sales, container.library, openLead, onRefresh = sync)
+                            tab == HomeTab.Followups -> FollowupsScreen(
+                                session.staffId,
+                                container.sales,
+                                container.library,
+                                openLead,
+                                onRefresh = sync,
+                                focusId = focusTask,
+                                onClearFocus = { focusTask = null },
+                            )
                             tab == HomeTab.Calls -> CallsScreen(container.sales, openLead, onRefresh = sync)
                             tab == HomeTab.Alerts -> com.pearl.crm.ui.alerts.AlertsScreen(container)
                             tab == HomeTab.Settings -> SettingsRoute(
@@ -204,6 +214,14 @@ fun HomeScreen(container: AppContainer, session: Session) {
                         onBook = { nav.navigate("book/$it") },
                         onReschedule = { lead, appt -> nav.navigate("reschedule/$lead/$appt") },
                         onQuote = { nav.navigate("quote/$it") },
+                        onOpenFollowup = if (HomeTab.Followups in tabs) ({ task ->
+                            focusTask = task
+                            nav.navigate(HomeTab.Followups.route) {
+                                popUpTo(nav.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }) else null,
                     )
                 }
                 composable(BOOK) { entry ->

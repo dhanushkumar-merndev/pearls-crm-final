@@ -1,5 +1,6 @@
 package com.pearl.crm.feature.sales
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -13,6 +14,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Call
 import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.PhoneDisabled
 import androidx.compose.material.icons.outlined.TaskAlt
 import androidx.compose.material3.Icon
@@ -89,9 +91,16 @@ fun FollowupsScreen(
     library: LibrarySource,
     onOpenLead: (String) -> Unit,
     onRefresh: suspend () -> Unit = {},
+    /** A follow-up tapped on the lead page: pinned at the top, highlighted, until closed. */
+    focusId: String? = null,
+    onClearFocus: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val today = remember { istToday() }
+    val focused by remember(focusId) { focusId?.let { sales.observeFollowup(it) } ?: kotlinx.coroutines.flow.flowOf(null) }
+        .collectAsStateWithLifecycle(null)
+    // Leaving the tab ends the focus; the list is back to normal next time.
+    androidx.compose.runtime.DisposableEffect(Unit) { onDispose { onClearFocus() } }
     var page by rememberSaveable(staffId) { mutableIntStateOf(0) }
     val listState = key(staffId, page) { rememberLazyListState() }
     val tasks by key(staffId, page) {
@@ -106,7 +115,9 @@ fun FollowupsScreen(
     val hidden = remember { mutableStateListOf<String>() }
     val doneText = stringResource(R.string.followups_done_snack)
     val undoText = stringResource(R.string.followups_undo)
-    val list = tasks?.take(ListPageSize)?.filter { it.task.id !in hidden }
+    val pinned = focused?.takeIf { it.task.status == "open" && it.task.id !in hidden }
+    val list = tasks?.take(ListPageSize)?.filter { it.task.id !in hidden && it.task.id != pinned?.task?.id }
+    LaunchedEffect(pinned?.task?.id) { if (pinned != null) listState.scrollToItem(0) }
     // "Change time" on a lead's follow-up (owner, 20/11/2026): no call needed.
     var moving by remember { mutableStateOf<FollowupWithLead?>(null) }
     val movedText = stringResource(R.string.next_call_saved)
@@ -136,8 +147,35 @@ fun FollowupsScreen(
                     verticalArrangement = Arrangement.spacedBy(Spacing.item),
                     state = if (list == null) rememberLazyListState() else listState,
                 ) { emptyModifier ->
+                    pinned?.let { row ->
+                        item(key = "pinned-head") {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    stringResource(R.string.followups_from_lead),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = Pearl.palette.textSecondary,
+                                    modifier = Modifier.weight(1f).semantics { heading() },
+                                )
+                                IconButton(onClick = onClearFocus, modifier = Modifier.testTag("pinned-close")) {
+                                    Icon(Icons.Outlined.Close, stringResource(R.string.followups_from_lead_close), tint = Pearl.palette.textSecondary)
+                                }
+                            }
+                        }
+                        item(key = "pinned-${row.task.id}") {
+                            TaskRow(
+                                row,
+                                overdue = row.task.dueDate < today.toString(),
+                                onOpen = { row.task.leadId?.let(onOpenLead) },
+                                onCall = row.leadPhone?.let { phone -> { row.task.leadId?.let { calls.call(it, phone) } } },
+                                onDone = { done(row.task.id) },
+                                onChangeTime = if (row.task.kind == "followup" && row.task.leadId != null) ({ moving = row }) else null,
+                                highlight = true,
+                            )
+                        }
+                    }
                     when {
                         list == null -> item(key = "loading") { LoadingBlock(rows = 4, rowHeight = 64.dp) }
+                        list.isEmpty() && pinned != null -> Unit
                         list.isEmpty() -> item(key = "empty") {
                             EmptyState(Icons.Outlined.TaskAlt, stringResource(R.string.followups_empty), emptyModifier, body = stringResource(R.string.followups_empty_body))
                         }
@@ -211,11 +249,14 @@ private fun TaskRow(
     onCall: (() -> Unit)?,
     onDone: () -> Unit,
     onChangeTime: (() -> Unit)? = null,
+    /** Opened from the lead page: a brighter outline so the eye finds it. */
+    highlight: Boolean = false,
 ) {
     val task = row.task
     PearlCard(
         onClick = onOpen,
-        modifier = Modifier.testTag("task-${task.id}"),
+        modifier = Modifier.testTag(if (highlight) "task-pinned-${task.id}" else "task-${task.id}")
+            .then(if (highlight) Modifier.border(2.dp, MaterialTheme.colorScheme.onSurfaceVariant, MaterialTheme.shapes.medium) else Modifier),
         contentPadding = PaddingValues(start = Spacing.l, top = Spacing.m, bottom = Spacing.m, end = Spacing.s),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.m)) {

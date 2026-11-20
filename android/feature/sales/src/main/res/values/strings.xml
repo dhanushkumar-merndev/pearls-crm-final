@@ -272,6 +272,8 @@
     <string name="sheet_offline">Connect to the internet to load the consultation and follow-ups.</string>
 
     <!-- Next call, booking actions (owner, 20/11/2026: same as the website) -->
+    <string name="followups_from_lead">Opened from the lead</string>
+    <string name="followups_from_lead_close">Close</string>
     <string name="next_call_change">Change time</string>
     <string name="next_call_title">Next call for %1$s</string>
     <string name="next_call_hint">Moves the open follow-up. No call is logged.</string>

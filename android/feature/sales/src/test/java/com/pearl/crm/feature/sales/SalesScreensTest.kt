@@ -378,6 +378,60 @@ class SalesScreensTest {
         "message":"Hello Asha","sent_count":0,"created_at":"2026-11-20T05:00:00+00:00","lead_name":"Asha",
         "lead_phone":"+919845000001","lead_sl_no":7,"created_by_name":"Priya","clinic":{"name":"Clinic"}}"""
 
+    private fun followup(id: String, status: String, dueDate: String) = com.pearl.crm.core.data.db.FollowupEntity(
+        id = id, kind = "followup", leadId = "L1", patientId = null, dueDate = dueDate, dueAt = null,
+        reason = "Call back $id", status = status, outcome = null, assignedTo = "me", updatedAt = "x",
+    )
+
+    @Test
+    fun anOpenFollowupOnTheLeadPageOpensTheFollowupsTab() {
+        var opened: String? = null
+        val database = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), AppDatabase::class.java)
+            .allowMainThreadQueries().build()
+        db = database
+        runBlocking {
+            database.leads().upsert(listOf(LeadEntity.fromRow(PearlJson.parseToJsonElement(
+                """{"id":"L1","sl_no":7,"name":"Asha","phone_e164":"+919845000001","stage":"interested","updated_at":"x"}""",
+            ).jsonObject)))
+            database.followups().upsert(listOf(followup("F1", "open", "2030-01-10"), followup("F2", "done", "2026-11-01")))
+        }
+        val sales = SalesRepository(RpcTransport { _, _ -> throw RpcFailure.Transient("offline") }, database, OutboxWriter(database.outbox()))
+        compose.setContent { PearlTheme { LeadDetailScreen("L1", sales, library, onBack = {}, onBook = {}, onOpenFollowup = { opened = it }) } }
+        compose.waitUntil(5_000) { exists(hasTestTag("lead-task-F2")) }
+        compose.onNodeWithTag("lead-task-F2").performScrollTo().performClick()
+        assertNull(opened) // a done one stays put
+        compose.onNodeWithTag("lead-task-F1").performScrollTo().performClick()
+        assertEquals("F1", opened)
+    }
+
+    @Test
+    fun theFollowupsTabPinsTheOneOpenedFromTheLeadEvenWhenItIsWeeksAway() {
+        var cleared = false
+        val database = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), AppDatabase::class.java)
+            .allowMainThreadQueries().build()
+        db = database
+        val far = istToday().plusDays(20).toString()
+        runBlocking {
+            database.leads().upsert(listOf(LeadEntity.fromRow(PearlJson.parseToJsonElement(
+                """{"id":"L1","sl_no":7,"name":"Asha","phone_e164":"+919845000001","stage":"interested","updated_at":"x"}""",
+            ).jsonObject)))
+            database.followups().upsert(listOf(followup("F1", "open", far)))
+        }
+        val sales = SalesRepository(RpcTransport { _, _ -> error("the list uses the phone database") }, database, OutboxWriter(database.outbox()))
+        val focus = mutableStateOf<String?>("F1")
+        compose.setContent {
+            PearlTheme { FollowupsScreen("me", sales, library, onOpenLead = {}, focusId = focus.value, onClearFocus = { cleared = true; focus.value = null }) }
+        }
+        compose.waitUntil(5_000) { exists(hasTestTag("task-pinned-F1")) }
+        compose.onNodeWithText(text(R.string.followups_from_lead)).assertIsDisplayed()
+        compose.onNodeWithText("Asha").assertIsDisplayed()
+        compose.onNodeWithTag("pinned-close").performClick()
+        compose.waitUntil(5_000) { !exists(hasTestTag("task-pinned-F1")) }
+        assertTrue(cleared)
+        // 20 days away is outside the usual 7-day list.
+        compose.onNodeWithText(text(R.string.followups_empty)).assertIsDisplayed()
+    }
+
     @Test
     fun theLeadPageListsQuotationsAndBookingsCanBeConfirmedMovedAndCancelled() {
         val database = showLead { fn, _ ->
