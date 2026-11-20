@@ -16,8 +16,10 @@
     <string name="change_add_lead_note">Note on a lead</string>
     <string name="change_set_lead_stage">Lead stage change</string>
     <string name="change_book_appointment">Booking</string>
-    <string name="change_set_appointment_status">Booking confirmation</string>
+    <string name="change_set_appointment_status">Booking confirmed or cancelled</string>
     <string name="change_complete_followup">Follow-up marked done</string>
+    <string name="change_set_lead_next_call">Next call time changed</string>
+    <string name="change_mark_quotation_sent">Quotation sent</string>
     <string name="change_bdm">Field day update</string>
     <string name="change_other">Other change</string>
     <string name="settings_failed_made">Couldn\'t be saved on the server. Made %1$s.</string>

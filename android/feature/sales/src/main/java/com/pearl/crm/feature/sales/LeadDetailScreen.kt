@@ -36,6 +36,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -52,7 +53,17 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pearl.crm.core.data.SalesRepository
+import com.pearl.crm.core.data.db.AppointmentEntity
 import com.pearl.crm.core.data.db.LeadEntity
+import com.pearl.crm.core.model.Money
+import com.pearl.crm.core.model.Quotation
+import com.pearl.crm.core.ui.components.failureMessage
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.EventBusy
+import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.RequestQuote
+import androidx.compose.material.icons.outlined.Share
+import androidx.compose.ui.res.pluralStringResource
 import com.pearl.crm.core.model.CallDirection
 import com.pearl.crm.core.model.IstDates
 import com.pearl.crm.core.model.LeadSheetRow
@@ -85,6 +96,118 @@ import com.pearl.crm.core.ui.theme.Spacing
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+
+/** Bookings that can still be confirmed, moved or cancelled. */
+private val OPEN_BOOKING = setOf("pending", "confirmed", AppointmentEntity.AUTO_CANCELLED)
+
+/** The quotations list; null = loading, [offline] = couldn't load. */
+private class QuotesLoad(val list: List<Quotation>?, val offline: Boolean)
+
+/**
+ * The lead's quotations (online): each one can be shared as a PDF in the salesperson's own
+ * WhatsApp, straight to this patient's chat (owner, 20/11/2026), or sent as text.
+ */
+@Composable
+private fun QuotationsSection(lead: LeadEntity, sales: SalesRepository, onNew: () -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var load by remember(lead.id) { mutableStateOf(QuotesLoad(null, offline = false)) }
+    var reload by remember { mutableIntStateOf(0) }
+    var sharing by remember { mutableStateOf<String?>(null) }
+    var failure by remember { mutableStateOf<Throwable?>(null) }
+    LaunchedEffect(lead.id, reload) {
+        load = try {
+            QuotesLoad(sales.quotations(lead.id), offline = false)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            QuotesLoad(null, offline = true)
+        }
+    }
+    fun sent(q: Quotation) {
+        load = QuotesLoad(load.list?.map { if (it.id == q.id) it.copy(sentCount = it.sentCount + 1) else it }, offline = false)
+    }
+    Section(
+        stringResource(R.string.quote_title),
+        action = {
+            if (!load.offline && lead.stage !in LeadStage.CLOSED) {
+                PearlButton(stringResource(R.string.quote_new), Icons.Outlined.Add, onNew, Modifier.testTag("quote-new"), kind = ButtonKind.Tonal, small = true)
+            }
+        },
+    ) {
+        val list = load.list
+        failure?.let { StatusLabel(failureMessage(it), StatusTone.Critical, Modifier.testTag("quote-share-failure")) }
+        when {
+            load.offline -> PearlCard(color = MaterialTheme.colorScheme.background) {
+                StatusLabel(stringResource(R.string.quote_offline), StatusTone.Info)
+                PearlButton(stringResource(R.string.myday_refresh), Icons.Outlined.Refresh, { reload++ }, kind = ButtonKind.Quiet, small = true)
+            }
+            list == null -> LoadingBlock(rows = 1, rowHeight = 48.dp)
+            list.isEmpty() -> PearlCard(color = MaterialTheme.colorScheme.background) {
+                InfoLine(Icons.Outlined.RequestQuote, stringResource(R.string.quote_none))
+            }
+            else -> PearlCard(Modifier.testTag("quotations"), contentPadding = PaddingValues(0.dp), verticalSpacing = 0.dp) {
+                list.forEachIndexed { i, q ->
+                    if (i > 0) HorizontalDivider()
+                    val created = runCatching { java.time.Instant.parse(normaliseIso(q.createdAt)).toEpochMilli() }.getOrNull()
+                    val sentText = if (q.sentCount > 0) pluralStringResource(R.plurals.quote_sent, q.sentCount, q.sentCount) else stringResource(R.string.quote_not_sent)
+                    val pdfFor = stringResource(R.string.quote_share_pdf_for, q.quoteNo)
+                    val textFor = stringResource(R.string.quote_send_text_for, q.quoteNo)
+                    ListRow(
+                        title = stringResource(R.string.quote_row, q.quoteNo, Money.formatInr(q.totalPaise)),
+                        supporting = listOfNotNull(
+                            created?.let(IstDates::formatDate),
+                            q.validUntil?.let { stringResource(R.string.quote_valid_till_row, it.split('-').reversed().joinToString("/")) },
+                            sentText,
+                        ).joinToString(" · "),
+                        icon = Icons.Outlined.RequestQuote,
+                        modifier = Modifier.testTag("quote-${q.quoteNo}"),
+                        below = {
+                            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {
+                                PearlButton(
+                                    stringResource(R.string.quote_share_pdf),
+                                    Icons.Outlined.Share,
+                                    {
+                                        sharing = q.id
+                                        failure = null
+                                        scope.launch {
+                                            try {
+                                                shareQuotation(context, sales, q)
+                                                sent(q)
+                                            } catch (e: CancellationException) {
+                                                throw e
+                                            } catch (e: Exception) {
+                                                failure = e
+                                            } finally {
+                                                sharing = null
+                                            }
+                                        }
+                                    },
+                                    Modifier.testTag("quote-share-${q.quoteNo}").semantics { contentDescription = pdfFor },
+                                    kind = ButtonKind.Tonal,
+                                    small = true,
+                                    busy = sharing == q.id,
+                                )
+                                PearlButton(
+                                    stringResource(R.string.quote_send_text),
+                                    Icons.Outlined.Chat,
+                                    {
+                                        sendQuotationText(context, q)
+                                        scope.launch { sales.markQuotationSent(q, "whatsapp") }
+                                        sent(q)
+                                    },
+                                    Modifier.testTag("quote-text-${q.quoteNo}").semantics { contentDescription = textFor },
+                                    kind = ButtonKind.Quiet,
+                                    small = true,
+                                )
+                            }
+                        },
+                    )
+                }
+            }
+        }
+    }
+}
 
 /** The sales-sheet card: [row] from the server, or null with [offline] when it couldn't be loaded. */
 private class SheetLoad(val row: LeadSheetRow?, val offline: Boolean)
@@ -119,6 +242,10 @@ fun LeadDetailScreen(
     library: LibrarySource,
     onBack: () -> Unit,
     onBook: (String) -> Unit,
+    /** Move a booking: (lead id, appointment id). */
+    onReschedule: (String, String) -> Unit = { _, _ -> },
+    /** New quotation for this lead. */
+    onQuote: (String) -> Unit = {},
 ) {
     val context = LocalContext.current
     val load by remember(leadId) { sales.observeLead(leadId).map { LeadLoad(it) } }.collectAsStateWithLifecycle(null)
@@ -129,10 +256,14 @@ fun LeadDetailScreen(
     var manualNotes by rememberSaveable { mutableStateOf(false) }
     var noting by rememberSaveable { mutableStateOf(false) }
     var staging by rememberSaveable { mutableStateOf(false) }
+    var changingTime by rememberSaveable { mutableStateOf(false) }
+    var cancelling by rememberSaveable { mutableStateOf<String?>(null) }
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val savedText = stringResource(R.string.saved_offline)
     val showSaved: (Boolean) -> Unit = { saved -> if (saved) scope.launch { snackbar.showSnackbar(savedText) } }
+    val say: (String) -> Unit = { text -> scope.launch { snackbar.showSnackbar(text) } }
+    val confirmedText = stringResource(R.string.booking_confirmed)
     val lead = load?.lead
     // The sheet's columns come from the server (bookings and calls); reloaded when the phone logs a call or a booking.
     var sheet by remember(leadId) { mutableStateOf<SheetLoad?>(null) }
@@ -230,10 +361,22 @@ fun LeadDetailScreen(
                         small = true,
                     )
                     PearlButton(stringResource(R.string.lead_change_stage), Icons.Outlined.SwapVert, { staging = true }, kind = ButtonKind.Tonal, small = true)
+                    if (current.stage !in LeadStage.CLOSED) {
+                        PearlButton(
+                            stringResource(R.string.next_call_change),
+                            Icons.Outlined.Schedule,
+                            { changingTime = true },
+                            Modifier.testTag("next-call-change"),
+                            kind = ButtonKind.Tonal,
+                            small = true,
+                        )
+                    }
                 }
             }
 
             SheetCard(current, sheet)
+
+            QuotationsSection(current, sales, onNew = { onQuote(current.id) })
 
             History(stringResource(R.string.lead_tasks), tasks.isEmpty(), Icons.Outlined.EventRepeat) {
                 tasks.forEachIndexed { i, task ->
@@ -248,10 +391,52 @@ fun LeadDetailScreen(
             History(stringResource(R.string.lead_bookings), bookings.isEmpty(), Icons.Outlined.Event) {
                 bookings.forEachIndexed { i, a ->
                     if (i > 0) HorizontalDivider()
+                    val open = a.status in OPEN_BOOKING
                     ListRow(
                         title = listOfNotNull(a.slotStart?.let(IstDates::formatDateTime) ?: a.apptDate, a.doctor).joinToString(" · "),
                         supporting = apptStatusLabel(a.status),
                         icon = Icons.Outlined.Event,
+                        modifier = Modifier.testTag("booking-${a.id}"),
+                        below = if (!open && !a.pending) null else ({
+                            if (a.pending) StatusLabel(stringResource(R.string.not_sent_yet), StatusTone.Info)
+                            if (open) {
+                                FlowRow(horizontalArrangement = Arrangement.spacedBy(Spacing.s), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
+                                    if (a.status != "confirmed") {
+                                        PearlButton(
+                                            stringResource(if (a.status == AppointmentEntity.AUTO_CANCELLED) R.string.myday_restore else R.string.booking_confirm),
+                                            Icons.Outlined.Check,
+                                            {
+                                                scope.launch {
+                                                    sales.confirmAppointment(a.id)
+                                                    say(confirmedText)
+                                                }
+                                            },
+                                            Modifier.testTag("booking-confirm-${a.id}"),
+                                            kind = ButtonKind.Tonal,
+                                            small = true,
+                                        )
+                                    }
+                                    if (a.doctorId != null) {
+                                        PearlButton(
+                                            stringResource(R.string.booking_reschedule),
+                                            Icons.Outlined.EventRepeat,
+                                            { onReschedule(current.id, a.id) },
+                                            Modifier.testTag("booking-reschedule-${a.id}"),
+                                            kind = ButtonKind.Tonal,
+                                            small = true,
+                                        )
+                                    }
+                                    PearlButton(
+                                        stringResource(R.string.booking_cancel),
+                                        Icons.Outlined.EventBusy,
+                                        { cancelling = a.id },
+                                        Modifier.testTag("booking-cancel-${a.id}"),
+                                        kind = ButtonKind.Quiet,
+                                        small = true,
+                                    )
+                                }
+                            }
+                        }),
                     )
                 }
             }
@@ -290,6 +475,26 @@ fun LeadDetailScreen(
                 scope.launch {
                     sales.addNote(current.id, text)
                     showSaved(true)
+                }
+            })
+        }
+        if (changingTime) {
+            val changed = stringResource(R.string.next_call_saved)
+            NextCallDialog(current.name, current.nextFollowupAt, onDismiss = { changingTime = false }, onSave = { at ->
+                changingTime = false
+                scope.launch {
+                    sales.setNextCall(current.id, at)
+                    say(changed)
+                }
+            })
+        }
+        cancelling?.let { id ->
+            val done = stringResource(R.string.booking_cancelled)
+            CancelBookingDialog(onDismiss = { cancelling = null }, onCancel = { reason ->
+                cancelling = null
+                scope.launch {
+                    sales.cancelAppointment(id, reason)
+                    say(done)
                 }
             })
         }

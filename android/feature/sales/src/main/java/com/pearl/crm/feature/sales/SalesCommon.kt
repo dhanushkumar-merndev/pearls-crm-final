@@ -90,10 +90,11 @@ fun dial(context: Context, phone: String): Boolean = try {
 }
 
 /** Opens a WhatsApp chat with [phone] (E.164). */
-fun openWhatsApp(context: Context, phone: String) {
+fun openWhatsApp(context: Context, phone: String, text: String? = null) {
+    val link = "https://wa.me/${phone.filter(Char::isDigit)}" + (text?.let { "?text=" + Uri.encode(it) } ?: "")
     try {
         context.startActivity(
-            Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/${phone.filter(Char::isDigit)}")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            Intent(Intent.ACTION_VIEW, Uri.parse(link)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
         )
     } catch (_: ActivityNotFoundException) {
         Toast.makeText(context, R.string.no_whatsapp, Toast.LENGTH_LONG).show()

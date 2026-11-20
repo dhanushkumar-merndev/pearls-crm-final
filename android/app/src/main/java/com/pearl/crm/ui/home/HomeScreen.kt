@@ -82,6 +82,8 @@ private const val LEAD = "lead/{id}"
 private const val CALL_SETUP = "call-setup"
 private const val PHONE_RECORDINGS = "phone-recordings"
 private const val BOOK = "book/{id}"
+private const val RESCHEDULE = "reschedule/{id}/{appt}"
+private const val QUOTE = "quote/{id}"
 
 @Composable
 fun HomeScreen(container: AppContainer, session: Session) {
@@ -194,11 +196,35 @@ fun HomeScreen(container: AppContainer, session: Session) {
                 }
                 composable(LEAD) { entry ->
                     val id = entry.arguments?.getString("id").orEmpty()
-                    LeadDetailScreen(id, container.sales, container.library, onBack = { nav.popBackStack() }, onBook = { nav.navigate("book/$it") })
+                    LeadDetailScreen(
+                        id,
+                        container.sales,
+                        container.library,
+                        onBack = { nav.popBackStack() },
+                        onBook = { nav.navigate("book/$it") },
+                        onReschedule = { lead, appt -> nav.navigate("reschedule/$lead/$appt") },
+                        onQuote = { nav.navigate("quote/$it") },
+                    )
                 }
                 composable(BOOK) { entry ->
                     val id = entry.arguments?.getString("id").orEmpty()
                     BookScreen(id, container.sales, container.library, onBack = { nav.popBackStack() }, onBooked = { text ->
+                        nav.popBackStack()
+                        scope.launch { snackbar.showSnackbar(text) }
+                    })
+                }
+                composable(RESCHEDULE) { entry ->
+                    val id = entry.arguments?.getString("id").orEmpty()
+                    val appt = entry.arguments?.getString("appt").orEmpty()
+                    BookScreen(id, container.sales, container.library, onBack = { nav.popBackStack() }, rescheduleId = appt, onBooked = { text ->
+                        nav.popBackStack()
+                        scope.launch { snackbar.showSnackbar(text) }
+                    })
+                }
+                composable(QUOTE) { entry ->
+                    val id = entry.arguments?.getString("id").orEmpty()
+                    val lead by remember(id) { container.sales.observeLead(id) }.collectAsStateWithLifecycle(null)
+                    com.pearl.crm.feature.sales.QuotationScreen(id, lead?.name.orEmpty(), container.sales, container.library, onBack = { nav.popBackStack() }, onSaved = { text ->
                         nav.popBackStack()
                         scope.launch { snackbar.showSnackbar(text) }
                     })

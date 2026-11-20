@@ -19,6 +19,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.annotation.StringRes
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.hasScrollToIndexAction
@@ -28,7 +29,9 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
+import kotlinx.serialization.json.jsonArray
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -347,7 +350,7 @@ class SalesScreensTest {
         compose.onNodeWithText(text(com.pearl.crm.core.ui.R.string.error_slot_full)).assertIsDisplayed()
     }
 
-    private fun showLead(transport: RpcTransport) {
+    private fun showLead(transport: RpcTransport): AppDatabase {
         val database = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), AppDatabase::class.java)
             .allowMainThreadQueries().build()
         db = database
@@ -358,12 +361,115 @@ class SalesScreensTest {
             ).jsonObject)))
         }
         val sales = SalesRepository(transport, database, OutboxWriter(database.outbox()))
-        compose.setContent { PearlTheme { LeadDetailScreen("L1", sales, library, onBack = {}, onBook = {}) } }
+        compose.setContent { PearlTheme { LeadDetailScreen("L1", sales, library, onBack = {}, onBook = {}, onReschedule = { _, a -> rescheduled = a }) } }
+        return database
+    }
+
+    private var rescheduled: String? = null
+
+    private fun queuedRpcs(database: AppDatabase): List<String> {
+        val out = mutableListOf<String>()
+        database.query("SELECT rpc FROM outbox ORDER BY seq", null).use { c -> while (c.moveToNext()) out += c.getString(0) }
+        return out
+    }
+
+    private val quoteJson = """{"id":"Q1","lead_id":"L1","quote_no":1,"items":[{"name":"PRP","qty":2,"price_paise":150000}],
+        "subtotal_paise":300000,"discount_paise":0,"total_paise":300000,"valid_until":"2030-01-01","note":null,
+        "message":"Hello Asha","sent_count":0,"created_at":"2026-11-20T05:00:00+00:00","lead_name":"Asha",
+        "lead_phone":"+919845000001","lead_sl_no":7,"created_by_name":"Priya","clinic":{"name":"Clinic"}}"""
+
+    @Test
+    fun theLeadPageListsQuotationsAndBookingsCanBeConfirmedMovedAndCancelled() {
+        val database = showLead { fn, _ ->
+            when (fn) {
+                "lead_quotations_list" -> PearlJson.parseToJsonElement("[$quoteJson]")
+                else -> throw RpcFailure.Transient("offline")
+            }
+        }
+        runBlocking {
+            database.appointments().upsert(listOf(com.pearl.crm.core.data.db.AppointmentEntity.fromRow(PearlJson.parseToJsonElement(
+                """{"id":"A1","lead_id":"L1","doctor_id":"D1","doctor":"Dr X","appt_date":"2030-01-16",
+                "slot_start":"2030-01-16T05:00:00+00:00","status":"pending","mode":"offline","version":1,"updated_at":"x"}""",
+            ).jsonObject)))
+        }
+        compose.waitUntil(5_000) { exists(hasTestTag("quote-1")) }
+        compose.onNodeWithText(text(R.string.quote_row, 1, "₹3,000.00")).performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("quote-share-1").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithTag("quote-text-1").assertIsDisplayed()
+
+        compose.waitUntil(5_000) { exists(hasTestTag("booking-reschedule-A1")) }
+        compose.onNodeWithTag("booking-reschedule-A1").performScrollTo().performClick()
+        assertEquals("A1", rescheduled)
+
+        // Cancel asks for a reason first.
+        compose.onNodeWithTag("booking-cancel-A1").performScrollTo().performClick()
+        compose.onNodeWithTag("cancel-booking-save").performClick()
+        compose.onNodeWithText(text(R.string.booking_cancel_reason_required)).assertIsDisplayed()
+        compose.onNodeWithTag("cancel-reason").performTextInput("Coming next month")
+        compose.onNodeWithTag("cancel-booking-save").performClick()
+        compose.waitUntil(5_000) { queuedRpcs(database).contains("set_appointment_status") }
+        compose.waitUntil(5_000) { !exists(hasTestTag("booking-cancel-A1")) }
+    }
+
+    @Test
+    fun changeTimeOnTheLeadPageQueuesTheNewNextCall() {
+        val database = showLead { fn, _ -> if (fn == "lead_quotations_list") PearlJson.parseToJsonElement("[]") else throw RpcFailure.Transient("offline") }
+        compose.onNodeWithTag("next-call-change").performScrollTo().performClick()
+        compose.onNodeWithTag("next-call-10:00").performScrollTo().performClick()
+        compose.onNodeWithTag("next-call-save").performClick()
+        compose.waitUntil(5_000) { queuedRpcs(database) == listOf("set_lead_next_call") }
+        assertTrue(runBlocking { database.leads().get("L1")!!.nextFollowupAt } != null)
+    }
+
+    @Test
+    fun aQuotationIsCheckedOnThePhoneThenSavedWithThePriceListPrice() {
+        val sent = mutableListOf<JsonObject>()
+        val database = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), AppDatabase::class.java)
+            .allowMainThreadQueries().build()
+        db = database
+        val sales = SalesRepository(RpcTransport { fn, args ->
+            assertEquals("save_lead_quotation", fn)
+            sent += args
+            PearlJson.parseToJsonElement(quoteJson)
+        }, database, OutboxWriter(database.outbox()))
+        val priced = object : LibrarySource {
+            override suspend fun search(kind: String, query: String, cursor: String?, limit: Int) = LibraryPage(
+                listOf(LibraryItem("T1", "PRP", defaults = PearlJson.parseToJsonElement("""{"price_paise":150000}""").jsonObject)),
+            )
+            override suspend fun create(kind: String, label: String, defaults: JsonObject) = LibraryItem("new", label)
+        }
+        var saved: String? = null
+        compose.setContent { PearlTheme { QuotationScreen("L1", "Asha", sales, priced, onBack = {}, onSaved = { saved = it }) } }
+
+        compose.onNodeWithTag("quote-save").performClick()
+        compose.onNodeWithTag("quote-no-lines").assertIsDisplayed()
+        assertTrue(sent.isEmpty())
+
+        compose.onNodeWithTag("quote-pick").performClick()
+        compose.onNodeWithText("PRP").performClick()
+        compose.onNodeWithTag("quote-price-0").assertIsDisplayed()
+        compose.onNodeWithTag("quote-total").assertTextEquals("₹1,500.00")
+        compose.onNodeWithTag("quote-discount").performScrollTo().performTextInput("99999")
+        compose.onNodeWithTag("quote-save").performClick()
+        compose.onNodeWithText(text(R.string.quote_discount_too_big)).assertExists()
+        assertTrue(sent.isEmpty())
+
+        compose.onNodeWithTag("quote-discount").performTextClearance()
+        compose.onNodeWithTag("quote-discount").performTextInput("100")
+        compose.onNodeWithTag("quote-save").performClick()
+        // (Checking the screen each time keeps it running while the save comes back.)
+        compose.waitUntil(5_000) { saved != null || exists(hasTestTag("quote-failure")) }
+        assertFalse(exists(hasTestTag("quote-failure")))
+        assertEquals(text(R.string.quote_saved), saved)
+        val quote = sent.single().getValue("p_quote").jsonObject
+        assertEquals("150000", quote.getValue("items").jsonArray.single().jsonObject.getValue("price_paise").toString())
+        assertEquals("10000", quote.getValue("discount_paise").toString())
     }
 
     @Test
     fun theLeadPageShowsTheSalesSheetColumnsFromTheServer() {
         showLead { fn, _ ->
+            if (fn == "lead_quotations_list") return@showLead PearlJson.parseToJsonElement("[]")
             assertEquals("lead_sheet_row", fn)
             PearlJson.parseToJsonElement(
                 """{"id":"L1","source_label":"Instagram","assigned_name":"Priya","doctor_name":"Dr Rao","amount_quoted_paise":6000000,

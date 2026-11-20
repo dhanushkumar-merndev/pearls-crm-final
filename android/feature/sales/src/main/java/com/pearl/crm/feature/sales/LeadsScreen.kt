@@ -1,6 +1,17 @@
 package com.pearl.crm.feature.sales
 
 import androidx.compose.foundation.background
+import androidx.compose.animation.core.animate
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.offset
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.IntOffset
+import kotlinx.coroutines.Job
+import kotlin.math.roundToInt
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -42,10 +53,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
-import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -282,35 +290,32 @@ private fun SwipeHint() {
     }
 }
 
-/** One lead in the list. Swipe right = call, left = WhatsApp; the buttons do the same. */
+/**
+ * One lead in the list. Swipe right = call, left = WhatsApp; the buttons do the same.
+ * A plain drag instead of Material's SwipeToDismissBox: that one saves the row's position,
+ * so coming back from the dialer / WhatsApp could restore it swiped to the far left and
+ * stuck there (owner, 20/11/2026). Here the offset is never saved and is zeroed before
+ * leaving and whenever the screen comes back.
+ */
 @Composable
 private fun SwipeLeadRow(lead: LeadEntity, onOpen: () -> Unit, onCall: () -> Unit, onWhatsApp: () -> Unit) {
-    val state = rememberSwipeToDismissBoxState()
     val call by rememberUpdatedState(onCall)
     val whatsApp by rememberUpdatedState(onWhatsApp)
-    // Belt and braces: if the app was stopped mid-swipe, come back with the row in place.
+    var dx by remember { mutableFloatStateOf(0f) }
+    var width by remember { mutableIntStateOf(0) }
     val scope = rememberCoroutineScope()
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
-        if (state.currentValue != SwipeToDismissBoxValue.Settled || state.targetValue != SwipeToDismissBoxValue.Settled) {
-            scope.launch { state.snapTo(SwipeToDismissBoxValue.Settled) }
-        }
+    var settle by remember { mutableStateOf<Job?>(null) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { settle?.cancel(); dx = 0f }
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { settle?.cancel(); dx = 0f }
+    val drag = rememberDraggableState { delta ->
+        val w = width.toFloat()
+        dx = (dx + delta).coerceIn(-w, w)
     }
-    SwipeToDismissBox(
-        state = state,
-        // Runs once the swipe has finished settling. Put the row back BEFORE leaving for the
-        // dialer / WhatsApp: an animated reset after leaving waits for frames that never come
-        // while the app is in the background, so the row stayed swiped off-screen on return
-        // (owner, 03/11/2026). Snapping during the settle animation is interrupted, hence here.
-        onDismiss = { swiped ->
-            scope.launch {
-                state.snapTo(SwipeToDismissBoxValue.Settled)
-                if (swiped == SwipeToDismissBoxValue.StartToEnd) call() else whatsApp()
-            }
-        },
-        backgroundContent = {
-            val toCall = state.dismissDirection == SwipeToDismissBoxValue.StartToEnd
+    Box(Modifier.fillMaxWidth().onSizeChanged { width = it.width }) {
+        if (dx != 0f) {
+            val toCall = dx > 0f
             Row(
-                Modifier.fillMaxSize().background(MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.shapes.medium).padding(horizontal = Spacing.xl),
+                Modifier.matchParentSize().background(MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.shapes.medium).padding(horizontal = Spacing.xl),
                 horizontalArrangement = if (toCall) Arrangement.Start else Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -318,9 +323,30 @@ private fun SwipeLeadRow(lead: LeadEntity, onOpen: () -> Unit, onCall: () -> Uni
                 Spacer(Modifier.width(Spacing.s))
                 Text(stringResource(if (toCall) R.string.call else R.string.whatsapp), style = MaterialTheme.typography.labelLarge)
             }
-        },
-    ) {
-        LeadRow(lead, onOpen, onCall, onWhatsApp)
+        }
+        Box(
+            Modifier
+                .offset { IntOffset(dx.roundToInt(), 0) }
+                .draggable(
+                    state = drag,
+                    orientation = Orientation.Horizontal,
+                    onDragStarted = { settle?.cancel() },
+                    onDragStopped = { velocity ->
+                        val w = width.toFloat()
+                        val far = w > 0f && kotlin.math.abs(dx) > w * 0.4f
+                        val flung = kotlin.math.abs(velocity) > 2000f && kotlin.math.sign(velocity) == kotlin.math.sign(dx) && dx != 0f
+                        if (far || flung) {
+                            val toCall = dx > 0f
+                            dx = 0f // back in place BEFORE leaving the app
+                            if (toCall) call() else whatsApp()
+                        } else {
+                            settle = scope.launch { animate(dx, 0f) { x, _ -> dx = x } }
+                        }
+                    },
+                ),
+        ) {
+            LeadRow(lead, onOpen, onCall, onWhatsApp)
+        }
     }
 }
 

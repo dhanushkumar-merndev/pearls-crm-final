@@ -14,6 +14,8 @@ import com.pearl.crm.core.model.FreeSlot
 import com.pearl.crm.core.model.LeadSheetRow
 import com.pearl.crm.core.model.LeadStage
 import com.pearl.crm.core.model.Phones
+import com.pearl.crm.core.model.QuoteLineDraft
+import com.pearl.crm.core.model.Quotation
 import com.pearl.crm.core.model.RpcFailure
 import com.pearl.crm.core.model.RpcTransport
 import com.pearl.crm.core.model.SalesDashboard
@@ -136,6 +138,8 @@ class SalesRepository(
     fun observeLeadFollowups(leadId: String) = followups.observeForLead(leadId)
 
     fun observeLeadAppointments(leadId: String) = appointments.observeForLead(leadId)
+
+    suspend fun appointment(id: String): AppointmentEntity? = appointments.get(id)
 
     fun observeLeadCalls(leadId: String) = calls.observeForLead(leadId)
 
@@ -343,6 +347,130 @@ class SalesRepository(
                 "appointment:$id",
             )
         }
+    }
+
+    /**
+     * "Change time" on the lead's next call without logging a call (owner, 20/11/2026). Saved on the
+     * phone and queued: the server is told when it was chosen, so a late upload isn't "in the past".
+     * [atMs] null = no next call. There is only ever one open follow-up per lead.
+     */
+    suspend fun setNextCall(leadId: String, atMs: Long?) {
+        val now = clock()
+        db.withTransaction {
+            leads.setNextFollowup(leadId, atMs, now)
+            if (atMs == null) {
+                followups.cancelOpenForLead(leadId)
+            } else {
+                val day = Instant.ofEpochMilli(atMs).atZone(IstDates.ZONE).toLocalDate().toString()
+                followups.moveOpenForLead(leadId, atMs, day)
+            }
+            outbox.enqueue(
+                "set_lead_next_call",
+                buildJsonObject {
+                    put("p_id", leadId)
+                    put("p_at", atMs?.let(::iso))
+                    put("p_chosen_at", iso(now))
+                },
+                "lead:$leadId",
+            )
+        }
+    }
+
+    /** Cancel a booking (with the reason the web asks for too). Queued; works with no signal. */
+    suspend fun cancelAppointment(id: String, reason: String) {
+        val text = reason.trim().take(300)
+        require(text.length >= 3) { "reason" }
+        db.withTransaction {
+            appointments.setStatus(id, "cancelled")
+            outbox.enqueue(
+                "set_appointment_status",
+                buildJsonObject {
+                    put("p_id", id)
+                    put("p_status", "cancelled")
+                    put("p_reason", text)
+                },
+                "appointment:$id",
+            )
+        }
+    }
+
+    /**
+     * Online only: move a booking to another free time (the server checks it). The old booking
+     * becomes "rescheduled" and the new one waits for the patient's confirmation.
+     */
+    suspend fun reschedule(clientId: String, appointmentId: String, doctorId: String, doctorName: String?, slot: FreeSlot): AppointmentEntity {
+        val result = rpc.call(
+            "reschedule_appointment",
+            buildJsonObject {
+                put("p_id", appointmentId)
+                put("p_new_start", slot.start)
+                put("p_doctor_id", doctorId)
+                put("p_reason", JsonNull)
+                put("p_client_id", clientId)
+            },
+        )
+        val row = AppointmentEntity.fromRow(result.jsonObject).copy(doctor = doctorName)
+        db.withTransaction {
+            appointments.setStatus(appointmentId, "rescheduled")
+            appointments.upsert(listOf(row.copy(pending = false)))
+        }
+        return row
+    }
+
+    /** Online only: the lead's quotations, newest first. */
+    suspend fun quotations(leadId: String): List<Quotation> =
+        PearlJson.decodeFromJsonElement(ListSerializer(Quotation.serializer()), rpc.call("lead_quotations_list", buildJsonObject { put("p_lead_id", leadId) }))
+
+    /**
+     * Online only: saves a quotation (the server words the WhatsApp text and sets the lead's Quoted
+     * amount). [clientId] stays the same while the person retries, so it is never saved twice.
+     */
+    suspend fun saveQuotation(clientId: String, leadId: String, lines: List<QuoteLineDraft>, discountPaise: Long?, validUntil: String?, note: String): Quotation {
+        val result = rpc.call(
+            "save_lead_quotation",
+            buildJsonObject {
+                put("p_lead_id", leadId)
+                put(
+                    "p_quote",
+                    buildJsonObject {
+                        put(
+                            "items",
+                            kotlinx.serialization.json.buildJsonArray {
+                                lines.forEach { l ->
+                                    add(
+                                        buildJsonObject {
+                                            put("treatment_id", l.treatmentId)
+                                            put("name", l.name.trim())
+                                            put("qty", l.qty.trim().toInt())
+                                            put("price_paise", l.pricePaise ?: 0)
+                                        },
+                                    )
+                                }
+                            },
+                        )
+                        put("discount_paise", discountPaise ?: 0)
+                        put("valid_until", validUntil)
+                        put("note", note.trim().takeIf { it.isNotEmpty() })
+                    },
+                )
+                put("p_client_id", clientId)
+            },
+        )
+        val q = PearlJson.decodeFromJsonElement(Quotation.serializer(), result)
+        leads.get(leadId)?.let { leads.upsert(listOf(it.copy(amountQuotedPaise = q.totalPaise))) }
+        return q
+    }
+
+    /** The quotation was shared (PDF or text) from the salesperson's own WhatsApp. Queued. */
+    suspend fun markQuotationSent(quotation: Quotation, via: String) {
+        outbox.enqueue(
+            "mark_quotation_sent",
+            buildJsonObject {
+                put("p_id", quotation.id)
+                put("p_via", via)
+            },
+            "lead:${quotation.leadId}",
+        )
     }
 
     /** Online only. */

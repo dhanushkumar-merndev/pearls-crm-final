@@ -86,9 +86,18 @@ fun BookScreen(
     library: LibrarySource,
     onBack: () -> Unit,
     onBooked: (String) -> Unit,
+    /** Set = move this booking (same doctor to start with) instead of making a new one. */
+    rescheduleId: String? = null,
 ) {
     val today = remember { istToday() }
     var doctor by remember { mutableStateOf<LibraryItem?>(null) }
+    // Moving a booking: start on its doctor.
+    LaunchedEffect(rescheduleId) {
+        val id = rescheduleId ?: return@LaunchedEffect
+        val a = sales.appointment(id) ?: return@LaunchedEffect
+        val doctorId = a.doctorId
+        if (doctor == null && doctorId != null) doctor = LibraryItem(doctorId, a.doctor.orEmpty())
+    }
     var dayOffset by rememberSaveable { mutableIntStateOf(0) }
     var slots by remember { mutableStateOf<List<FreeSlot>?>(null) }
     var slot by remember { mutableStateOf<FreeSlot?>(null) }
@@ -103,7 +112,9 @@ fun BookScreen(
     val clientId = rememberSaveable { newClientId() }
     val scope = rememberCoroutineScope()
     val day = today.plusDays(dayOffset.toLong())
-    val bookedText = slot?.let { stringResource(R.string.book_done, IstDates.formatDateTime(slotMs(it))) }
+    val bookedText = slot?.let {
+        stringResource(if (rescheduleId != null) R.string.reschedule_done else R.string.book_done, IstDates.formatDateTime(slotMs(it)))
+    }
 
     LaunchedEffect(doctor?.id, dayOffset, reload) {
         val id = doctor?.id ?: return@LaunchedEffect
@@ -131,7 +142,11 @@ fun BookScreen(
                 busy = true
                 scope.launch {
                     try {
-                        sales.book(clientId, leadId, d.id, d.label, s, online, confirmed)
+                        if (rescheduleId != null) {
+                            sales.reschedule(clientId, rescheduleId, d.id, d.label, s)
+                        } else {
+                            sales.book(clientId, leadId, d.id, d.label, s, online, confirmed)
+                        }
                         // Navigation must run on the main thread, whatever thread the call came back on.
                         withContext(Dispatchers.Main.immediate) { onBooked(bookedText.orEmpty()) }
                     } catch (e: CancellationException) {
@@ -150,7 +165,7 @@ fun BookScreen(
 
     Scaffold(
         contentWindowInsets = WindowInsets(0),
-        topBar = { PearlTopBar(stringResource(R.string.book_title), onBack = onBack) },
+        topBar = { PearlTopBar(stringResource(if (rescheduleId != null) R.string.reschedule_title else R.string.book_title), onBack = onBack) },
         // Book stays at the bottom, above the keyboard, however long the form is.
         bottomBar = {
             Column(Modifier.imePadding()) {
@@ -166,7 +181,7 @@ fun BookScreen(
                         }
                     }
                     PearlButton(
-                        stringResource(R.string.book_save),
+                        stringResource(if (rescheduleId != null) R.string.reschedule_save else R.string.book_save),
                         Icons.Outlined.Event,
                         busy = busy,
                         onClick = ::save,
@@ -233,8 +248,10 @@ fun BookScreen(
                 }
                 FieldError(fieldError, "book-error")
             }
-            CheckRow(stringResource(R.string.book_online), online) { online = it }
-            CheckRow(stringResource(R.string.book_confirmed), confirmed) { confirmed = it }
+            if (rescheduleId == null) {
+                CheckRow(stringResource(R.string.book_online), online) { online = it }
+                CheckRow(stringResource(R.string.book_confirmed), confirmed) { confirmed = it }
+            }
         }
     }
 }

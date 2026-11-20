@@ -212,6 +212,92 @@ class SalesRepositoryTest {
         assertTrue(calls.isEmpty())
     }
 
+    /** What the phone queued, oldest first: (rpc, args). */
+    private fun queued(): List<Pair<String, JsonObject>> {
+        val out = mutableListOf<Pair<String, JsonObject>>()
+        db.query("SELECT rpc, args FROM outbox ORDER BY seq", null).use { c ->
+            while (c.moveToNext()) out += c.getString(0) to PearlJson.parseToJsonElement(c.getString(1)).jsonObject
+        }
+        return out
+    }
+
+    @Test
+    fun changeTimeMovesTheOneOpenFollowupAndQueuesWhenItWasChosen() = runTest {
+        db.leads().upsert(listOf(lead("L1", next = now + 3_600_000)))
+        db.followups().upsert(listOf(task("T1", "L1", now + 3_600_000)))
+        val at = java.time.Instant.parse("2027-01-20T06:00:00Z").toEpochMilli()
+
+        repo.setNextCall("L1", at)
+
+        assertEquals(at, db.leads().get("L1")!!.nextFollowupAt)
+        val t = db.followups().get("T1")!!
+        assertEquals(at, t.dueAt)
+        assertEquals("2027-01-20", t.dueDate)
+        assertEquals("open", t.status)
+        val (rpc, args) = queued().single()
+        assertEquals("set_lead_next_call", rpc)
+        assertEquals("L1", args.getValue("p_id").jsonPrimitive.content)
+        assertEquals("2027-01-20T06:00:00Z", args.getValue("p_at").jsonPrimitive.content)
+        assertEquals(java.time.Instant.ofEpochMilli(now).toString(), args.getValue("p_chosen_at").jsonPrimitive.content)
+        assertTrue(calls.isEmpty())
+
+        // "No next call" closes it.
+        repo.setNextCall("L1", null)
+        assertNull(db.leads().get("L1")!!.nextFollowupAt)
+        assertEquals("cancelled", db.followups().get("T1")!!.status)
+        assertEquals(JsonNull, queued().last().second.getValue("p_at"))
+    }
+
+    @Test
+    fun cancellingABookingNeedsAReasonAndIsQueued() = runTest {
+        db.leads().upsert(listOf(lead("L1")))
+        val row = PearlJson.parseToJsonElement(
+            """{"id":"A1","lead_id":"L1","doctor_id":"D1","doctor":"Dr X","appt_date":"2027-01-16",
+               "slot_start":"2027-01-16T05:00:00+00:00","status":"pending","mode":"offline","version":1,"updated_at":"x"}""",
+        ).jsonObject
+        db.appointments().upsert(listOf(com.pearl.crm.core.data.db.AppointmentEntity.fromRow(row)))
+
+        try {
+            repo.cancelAppointment("A1", " x ")
+            fail("a reason is needed")
+        } catch (_: IllegalArgumentException) {
+        }
+        assertTrue(queued().isEmpty())
+
+        repo.cancelAppointment("A1", "  Patient will come next month ")
+        assertEquals("cancelled", repo.appointment("A1")!!.status)
+        val (rpc, args) = queued().single()
+        assertEquals("set_appointment_status", rpc)
+        assertEquals("cancelled", args.getValue("p_status").jsonPrimitive.content)
+        assertEquals("Patient will come next month", args.getValue("p_reason").jsonPrimitive.content)
+    }
+
+    @Test
+    fun rescheduleAsksTheServerAndMarksTheOldBookingMoved() = runTest {
+        db.leads().upsert(listOf(lead("L1")))
+        val old = PearlJson.parseToJsonElement(
+            """{"id":"A1","lead_id":"L1","doctor_id":"D1","doctor":"Dr X","appt_date":"2027-01-16",
+               "slot_start":"2027-01-16T05:00:00+00:00","status":"confirmed","mode":"offline","version":1,"updated_at":"x"}""",
+        ).jsonObject
+        db.appointments().upsert(listOf(com.pearl.crm.core.data.db.AppointmentEntity.fromRow(old)))
+        answer = { fn, _ ->
+            assertEquals("reschedule_appointment", fn)
+            PearlJson.parseToJsonElement(
+                """{"id":"A2","lead_id":"L1","doctor_id":"D1","appt_date":"2027-01-18",
+                   "slot_start":"2027-01-18T06:00:00+00:00","status":"pending","mode":"offline","version":1,"updated_at":"y"}""",
+            )
+        }
+
+        val moved = repo.reschedule("C1", "A1", "D1", "Dr X", FreeSlot(start = "2027-01-18T06:00:00+00:00", left = 1))
+
+        assertEquals("A2", moved.id)
+        assertEquals("rescheduled", repo.appointment("A1")!!.status)
+        assertEquals("Dr X", repo.appointment("A2")!!.doctor)
+        val args = calls.single().second
+        assertEquals("A1", args.getValue("p_id").jsonPrimitive.content)
+        assertEquals("C1", args.getValue("p_client_id").jsonPrimitive.content)
+    }
+
     @Test
     fun aCallLoggedOfflineIsOneLocalRowAndOneQueuedWriteWithTheSameId() = runTest {
         db.leads().upsert(listOf(lead("L1")))

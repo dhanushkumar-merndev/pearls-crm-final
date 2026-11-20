@@ -125,6 +125,19 @@ interface FollowupDao {
         """,
     )
     suspend fun closeDueForLead(leadId: String, outcome: String, now: Long)
+
+    /** "Change time": the lead's one open sales follow-up moves (the server replaces it the same way). */
+    @Query(
+        """
+        UPDATE followups SET due_at = :at, due_date = :day, pending = 1
+        WHERE lead_id = :leadId AND kind = 'followup' AND status = 'open'
+        """,
+    )
+    suspend fun moveOpenForLead(leadId: String, at: Long, day: String): Int
+
+    /** The next call was cleared: its open follow-up goes. */
+    @Query("UPDATE followups SET status = 'cancelled', outcome = 'replaced', pending = 1 WHERE lead_id = :leadId AND kind = 'followup' AND status = 'open'")
+    suspend fun cancelOpenForLead(leadId: String)
 }
 
 @Dao
@@ -134,6 +147,9 @@ interface AppointmentDao {
 
     @Query("DELETE FROM appointments WHERE id IN (:ids)")
     suspend fun deleteByIds(ids: List<String>)
+
+    @Query("SELECT * FROM appointments WHERE id = :id")
+    suspend fun get(id: String): AppointmentEntity?
 
     @Query("SELECT * FROM appointments WHERE lead_id = :leadId ORDER BY COALESCE(slot_start, 0) DESC")
     fun observeForLead(leadId: String): Flow<List<AppointmentEntity>>

@@ -345,6 +345,8 @@ private fun changeLabel(rpc: String): Int = when {
     rpc == "book_appointment" -> R.string.change_book_appointment
     rpc == "set_appointment_status" -> R.string.change_set_appointment_status
     rpc == "complete_followup" -> R.string.change_complete_followup
+    rpc == "set_lead_next_call" -> R.string.change_set_lead_next_call
+    rpc == "mark_quotation_sent" -> R.string.change_mark_quotation_sent
     rpc.startsWith("bdm_") -> R.string.change_bdm
     else -> R.string.change_other
 }

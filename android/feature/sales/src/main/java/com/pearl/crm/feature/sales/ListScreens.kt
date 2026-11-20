@@ -28,6 +28,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
@@ -105,6 +107,9 @@ fun FollowupsScreen(
     val doneText = stringResource(R.string.followups_done_snack)
     val undoText = stringResource(R.string.followups_undo)
     val list = tasks?.take(ListPageSize)?.filter { it.task.id !in hidden }
+    // "Change time" on a lead's follow-up (owner, 20/11/2026): no call needed.
+    var moving by remember { mutableStateOf<FollowupWithLead?>(null) }
+    val movedText = stringResource(R.string.next_call_saved)
 
     fun done(id: String) {
         hidden += id
@@ -159,6 +164,7 @@ fun FollowupsScreen(
                                         onOpen = { row.task.leadId?.let(onOpenLead) },
                                         onCall = row.leadPhone?.let { phone -> { row.task.leadId?.let { calls.call(it, phone) } } },
                                         onDone = { done(row.task.id) },
+                                        onChangeTime = if (row.task.kind == "followup" && row.task.leadId != null) ({ moving = row }) else null,
                                     )
                                 }
                             }
@@ -175,6 +181,16 @@ fun FollowupsScreen(
         val name = tasks?.firstOrNull { it.task.leadId == call.leadId }?.leadName ?: call.phone
         AfterCallNotes(sales, library, call, name, onDone = { calls.needsNotes = null }, awayMs = calls.awayMs)
     }
+    moving?.let { row ->
+        val leadId = row.task.leadId ?: return@let
+        NextCallDialog(row.leadName ?: row.task.reason, row.task.dueAt, onDismiss = { moving = null }, onSave = { at ->
+            moving = null
+            scope.launch {
+                sales.setNextCall(leadId, at)
+                snackbar.showSnackbar(movedText)
+            }
+        })
+    }
 }
 
 /** A tab's title, same place and size on every list screen. */
@@ -188,7 +204,14 @@ internal fun ScreenTitle(text: String) {
 }
 
 @Composable
-private fun TaskRow(row: FollowupWithLead, overdue: Boolean, onOpen: () -> Unit, onCall: (() -> Unit)?, onDone: () -> Unit) {
+private fun TaskRow(
+    row: FollowupWithLead,
+    overdue: Boolean,
+    onOpen: () -> Unit,
+    onCall: (() -> Unit)?,
+    onDone: () -> Unit,
+    onChangeTime: (() -> Unit)? = null,
+) {
     val task = row.task
     PearlCard(
         onClick = onOpen,
@@ -217,6 +240,11 @@ private fun TaskRow(row: FollowupWithLead, overdue: Boolean, onOpen: () -> Unit,
             }
             if (onCall != null) {
                 TintedIconButton(Icons.Outlined.Call, stringResource(R.string.call), accentColor(Accent.Teal), onCall)
+            }
+            if (onChangeTime != null) {
+                IconButton(onClick = onChangeTime, modifier = Modifier.testTag("task-time-${task.id}")) {
+                    Icon(Icons.Outlined.Schedule, contentDescription = stringResource(R.string.next_call_change), tint = Pearl.palette.textSecondary)
+                }
             }
             PearlButton(stringResource(R.string.followups_done), Icons.Outlined.Check, onDone, kind = ButtonKind.Tonal, small = true)
         }
