@@ -234,7 +234,14 @@ class SalesFlowTest {
         tab(R.string.tab_followups)
         // Tomorrow's call is under "Next 7 days", lower down the list.
         compose.waitUntil(20_000) { compose.exists(androidx.compose.ui.test.hasScrollAction()) }
-        compose.onAllNodes(androidx.compose.ui.test.hasScrollAction()).onFirst().performScrollToNode(hasText(name, substring = true))
+        // The test login holds many follow-ups on the live server: page on (50 a page) until it shows.
+        for (page in 0 until 20) {
+            val list = compose.onAllNodes(androidx.compose.ui.test.hasScrollAction()).onFirst()
+            if (runCatching { list.performScrollToNode(hasText(name, substring = true)) }.isSuccess) break
+            list.performScrollToNode(hasText(text(com.pearl.crm.core.ui.R.string.common_next_page)))
+            compose.onNode(hasText(text(com.pearl.crm.core.ui.R.string.common_next_page)) and hasClickAction()).performClick()
+            compose.waitForIdle()
+        }
         compose.waitForText(name, substring = true)
     }
 
