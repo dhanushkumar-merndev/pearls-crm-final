@@ -58,3 +58,13 @@ export const dripEnrollSchema = z.object({ campaign_id: requiredId() });
 
 /** The chat's ⋮ → Do not disturb → wa_dnd_set (per WhatsApp number). */
 export const waDndSchema = z.object({ bot: z.boolean(), auto: z.boolean() });
+
+/** Admin → WhatsApp → Template messages → Monthly budget (paise): ₹1 to ₹10 crore, or empty for no limit (wa_set_budget checks the same). */
+export const waBudgetSchema = z.object({
+  budget: z
+    .number({ error: "waAdmin.templatesSwitch.budgetMin" })
+    .int({ error: "waAdmin.templatesSwitch.budgetMin" })
+    .min(100, { error: "waAdmin.templatesSwitch.budgetMin" })
+    .max(10_000_000_000, { error: "waAdmin.templatesSwitch.budgetMin" })
+    .nullable(),
+});

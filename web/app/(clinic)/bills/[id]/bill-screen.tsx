@@ -15,6 +15,7 @@ import { FinalizeDialog } from "@/components/bills/finalize-dialog";
 import { PaymentDialog } from "@/components/bills/payment-dialog";
 import { payable, type Bill } from "@/components/bills/types";
 import { MoneyInput } from "@/components/forms/money-input";
+import { PrintPreviewDialog } from "@/components/print-preview";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -50,6 +51,8 @@ export function BillScreen({ initial }: { initial: Bill }) {
   const [amending, setAmending] = useState(false);
   const [dialog, setDialog] = useState<"pay" | "advance" | "cancel" | null>(null);
   const [finalizing, setFinalizing] = useState<Bill | null>(null);
+  // The draft's version when Preview was pressed (it is saved first): the pop-up shows that version.
+  const [previewing, setPreviewing] = useState<number | null>(null);
   const due = payable(b) - b.received_paise;
 
   const canPay = b.status === "finalized" && due > 0;
@@ -88,7 +91,7 @@ export function BillScreen({ initial }: { initial: Bill }) {
       />
 
       {b.status === "draft" ? (
-        <BillEditor key={b.version} bill={b} onFinalize={setFinalizing} />
+        <BillEditor key={b.version} bill={b} onFinalize={setFinalizing} onPreview={(x) => setPreviewing(x.version)} />
       ) : amending ? (
         <BillEditor bill={b} amend onAmended={() => (setAmending(false), void bill.refetch())} />
       ) : (
@@ -133,6 +136,9 @@ export function BillScreen({ initial }: { initial: Bill }) {
         )}
         {dialog === "advance" && <AdvanceDialog bill={b} due={due} onDone={() => (setDialog(null), void bill.refetch())} />}
         {dialog === "cancel" && <CancelDialog bill={b} onDone={() => (setDialog(null), router.refresh(), void bill.refetch())} />}
+      </Dialog>
+      <Dialog open={previewing !== null} onOpenChange={(o) => !o && setPreviewing(null)}>
+        {previewing !== null && <PrintPreviewDialog kind="bill" id={b.id} stamp={previewing} />}
       </Dialog>
       <Dialog open={finalizing !== null} onOpenChange={(o) => !o && setFinalizing(null)}>
         {finalizing && <FinalizeDialog bill={finalizing} onDone={() => (setFinalizing(null), router.refresh(), void bill.refetch())} />}

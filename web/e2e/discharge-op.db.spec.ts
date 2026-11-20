@@ -55,9 +55,18 @@ test("OP discharge summary: from the Bills tab, filled with the session, finaliz
     .getByRole("textbox", { name: /^Text for/ })
     .first()
     .fill("{{patient_name}} had {{procedure}} on {{procedure_on}}.");
+  // Preview: saved, then shown as it prints (a frame, not counted as a printed copy).
+  await page.getByRole("button", { name: "Preview", exact: true }).click();
+  const peek = page.getByRole("dialog");
+  await expect(peek.getByRole("heading", { name: "Discharge summary preview" })).toBeVisible();
   await expect(
-    page.getByText(`${name} had Laser hair reduction — 6 sessions on`).first(),
+    peek
+      .frameLocator('[data-testid="print-preview"]')
+      .getByText(`${name} had Laser hair reduction — 6 sessions on`)
+      .first(),
   ).toBeVisible();
+  await peek.getByRole("button", { name: "Keep editing" }).click();
+  await expect(peek).toHaveCount(0);
   // IP-only names can't be filled for an OP visit.
   await page
     .getByRole("textbox", { name: /^Text for/ })

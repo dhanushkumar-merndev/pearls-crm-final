@@ -225,6 +225,7 @@
     "not_backed_up": "Some of these files have no checked backup yet. Back them up first (Backup centre), then purge.",
     "not_purgeable": "Only recordings and visit photos can be removed from the cloud. Patient records are always kept.",
     "templates_off": "Template messages are switched off (Admin → WhatsApp → Template messages).",
+    "budget_reached": "This month's WhatsApp budget is used up, so template messages are paused (Admin → WhatsApp → Monthly budget).",
     "reminder_not_upcoming": "A reminder can only be sent before the visit.",
     "no_reminder_template": "No approved reminder message is set up. Admin → WhatsApp → Templates: give one the purpose “Booking reminder”."
   },
@@ -1185,6 +1186,20 @@
   "print": {
     "print": "Print",
     "close": "Close"
+  },
+  "printPreview": {
+    "button": "Preview",
+    "title": {
+      "bill": "Bill preview",
+      "discharge": "Discharge summary preview",
+      "breakdown": "Breakdown bill preview"
+    },
+    "hint": "Exactly as it prints. Looking here doesn't count as a printed copy.",
+    "frame": "Print preview",
+    "print": "Print",
+    "open": "Open",
+    "keepEditing": "Keep editing",
+    "col": "Preview"
   },
   "printRegistration": {
     "title": "Patient registration form",
@@ -2264,6 +2279,7 @@
     "preview": "Preview",
     "stillToFill": "Still to fill: {list}",
     "allFilled": "Every placeholder is filled ✓",
+    "keepEditing": "Keep editing",
     "placeholders": "Placeholders",
     "placeholdersHint": "Tap to insert at the cursor. They are filled from the stay or the OP visit (she/he/they follow the patient's gender). IP-only ones (IP no., room, diagnosis, anaesthesia) can't be used in an OP summary.",
     "ph": {
@@ -3211,7 +3227,19 @@
       "turnOn": "Turn on",
       "saving": "Saving…",
       "turnedOff": "Template messages are off. Nothing will be charged.",
-      "turnedOn": "Template messages are on again."
+      "turnedOn": "Template messages are on again.",
+      "budget": "Monthly budget",
+      "budgetHint": "Template messages stop when this month's estimated cost reaches it, and start again on the 1st. Leave empty for no limit. You get a bell alert at 80% and when it is reached.",
+      "saveBudget": "Save budget",
+      "budgetMin": "Type an amount of ₹1 or more, or leave it empty for no limit.",
+      "budgetSaved": "Monthly budget saved",
+      "budgetCleared": "No monthly limit now",
+      "noLimit": "No monthly limit. Estimated cost this month: {spent}.",
+      "used": "{spent} of {budget} used this month ({pct}%)",
+      "reached": "Budget reached",
+      "nearly": "80% used",
+      "reachedHint": "No template messages until the 1st, unless you raise the budget. Free replies within 24 hours still go.",
+      "meter": "Budget used this month"
     }
   },
   "drips": {

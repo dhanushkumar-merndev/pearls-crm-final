@@ -40,13 +40,22 @@ const money = (p: number) => formatINR(p, { symbol: false });
  * words and the GST inside the amounts. It is not a bill to pay (no payments, no balance). Header
  * frozen at finalize; white paper like every print page.
  */
-export default async function PrintBreakdownPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function PrintBreakdownPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ preview?: string }>;
+}) {
   const { id } = await params;
+  // ?preview=1: shown inside the app's Preview pop-up. Not a printed copy, so it isn't counted
+  // (the next real print stays the Original) and there is no Close / Print bar.
+  const preview = (await searchParams).preview === "1";
   if (!/^[0-9a-f-]{36}$/.test(id)) notFound();
   const t = await getTranslations("printBreakdown");
   const g = await getTranslations("patientForm.genders");
   const supabase = await getSupabaseServer();
-  const { data, error } = await supabase.rpc("breakdown_print_data", { p_id: id, p_count: true });
+  const { data, error } = await supabase.rpc("breakdown_print_data", { p_id: id, p_count: !preview });
   if (error || !data) notFound();
   const b = data as PrintBreakdown;
   const p = b.patient_strip;
@@ -81,7 +90,7 @@ export default async function PrintBreakdownPage({ params }: { params: Promise<{
 
   return (
     <>
-      <PrintToolbar />
+      {!preview && <PrintToolbar />}
       <div className="sheet bill">
         {(b.copy === "cancelled" || b.copy === "draft") && <div className="stamp">{t(`stamp.${b.copy}`)}</div>}
         <Watermark clinic={b.header} />

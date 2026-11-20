@@ -51,6 +51,7 @@
     <string name="error_not_configured">This connection isn\'t set up yet. The setup guide in dev-docs explains the keys to add.</string>
     <string name="error_whatsapp_api">WhatsApp (Meta) refused the request. Check the WhatsApp keys, then try again.</string>
     <string name="error_templates_off">Template messages are switched off (Admin → WhatsApp → Template messages).</string>
+    <string name="error_budget_reached">This month\'s WhatsApp budget is used up, so template messages are paused (Admin → WhatsApp → Monthly budget).</string>
     <string name="error_outside_office">You\'re not at the office. Ask the admin to let you start here, or start when you reach the office.</string>
     <string name="error_selfie_required">Take a selfie to start the day.</string>
     <string name="error_day_not_started">Start your day first.</string>

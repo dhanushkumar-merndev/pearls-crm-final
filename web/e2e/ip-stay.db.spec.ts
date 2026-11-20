@@ -96,7 +96,10 @@ test("IP stay: final bill without double counting, discharge summary with the ri
   await dialog.getByRole("button", { name: "Start" }).click();
   await expect(page).toHaveURL(/\/discharge\/[0-9a-f-]{36}$/);
   await expect(page.getByText("Every placeholder is filled ✓")).toBeVisible();
-  await expect(page.getByText(/She underwent Septoplasty under general anaesthesia/)).toBeVisible();
+  // Preview: as it prints (saved first), with the right pronouns.
+  await page.getByRole("button", { name: "Preview", exact: true }).click();
+  await expect(page.getByRole("dialog").frameLocator('[data-testid="print-preview"]').getByText(/She underwent Septoplasty under general anaesthesia/)).toBeVisible();
+  await page.getByRole("dialog").getByRole("button", { name: "Keep editing" }).click();
   await page.getByRole("button", { name: "Finalize", exact: true }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Finalize", exact: true }).click();
   await expect(page.getByText("Discharge summary finalized ✓")).toBeVisible();

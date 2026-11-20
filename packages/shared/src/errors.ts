@@ -57,6 +57,7 @@ export const ERROR_CODES = [
   "not_configured",
   "whatsapp_api",
   "templates_off",
+  "budget_reached",
   // Phase 13: BDM
   "outside_office",
   "selfie_required",

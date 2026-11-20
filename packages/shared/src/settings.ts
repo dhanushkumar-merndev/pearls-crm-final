@@ -95,6 +95,8 @@ export const SETTINGS_SCHEMAS = {
     /** Estimated cost per message, shown on the WhatsApp page (Meta bills the real amount). */
     cost_utility_paise: int(0, 100000).default(12),
     cost_marketing_paise: int(0, 100000).default(88),
+    /** Monthly limit on template messages' estimated cost (Admin → WhatsApp → Template messages). Null = no limit. */
+    monthly_budget_paise: int(100, 10_000_000_000).nullable().default(null),
     /** Sent once after someone writes STOP. Empty = the built-in text. */
     stop_reply: z.string().trim().max(1000, { error: "max" }).nullable().default(null),
   }),

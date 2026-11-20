@@ -10,6 +10,7 @@ import { formatDate, istDateString } from "@pearl/shared";
 import type { BillStatus } from "@/components/bills/types";
 import { Button } from "@/components/ui/button";
 import { ClearFilters } from "@/components/ui/filter-bar";
+import { PreviewButton } from "@/components/print-preview";
 import { DateRangePicker } from "@/components/ui/date-picker";
 import { DialogContent } from "@/components/ui/dialog";
 import { Field, Select } from "@/components/ui/form";
@@ -56,6 +57,7 @@ export function DischargeSummariesTable({ patientId }: { patientId?: string }) {
   const t = useTranslations("dischargeList");
   const tb = useTranslations("bill");
   const ts = useTranslations("bills");
+  const tp = useTranslations("printPreview");
   const dp = useTranslations("datePicker");
   const [filters, setFilters] = useState(startFilters);
   const start = startFilters();
@@ -75,7 +77,7 @@ export function DischargeSummariesTable({ patientId }: { patientId?: string }) {
         p_limit: LIMIT,
       }),
   });
-  const cols = patientId ? 3 : 4;
+  const cols = patientId ? 4 : 5;
   return (
     <div className="flex flex-col gap-3" data-testid="discharge-table">
       <div className="flex flex-wrap items-end gap-3">
@@ -123,6 +125,7 @@ export function DischargeSummariesTable({ patientId }: { patientId?: string }) {
             {!patientId && <TH>{t("patient")}</TH>}
             <TH>{t("for")}</TH>
             <TH>{t("status")}</TH>
+            <TH><span className="sr-only">{tp("col")}</span></TH>
           </tr>
         </THead>
         <tbody>
@@ -168,6 +171,9 @@ export function DischargeSummariesTable({ patientId }: { patientId?: string }) {
                   }
                   label={tb(`status.${r.status}`)}
                 />
+              </TD>
+              <TD className="text-right">
+                <PreviewButton kind="discharge" id={r.id} open={`/discharge/${r.id}`} />
               </TD>
             </TR>
           ))}

@@ -7,6 +7,7 @@ import { useState } from "react";
 import { formatDate, formatINR, istDateString } from "@pearl/shared";
 import type { BillStatus } from "@/components/bills/types";
 import { ClearFilters } from "@/components/ui/filter-bar";
+import { PreviewButton } from "@/components/print-preview";
 import { DateRangePicker } from "@/components/ui/date-picker";
 import { Field, Select } from "@/components/ui/form";
 import { Pager } from "@/components/ui/pager";
@@ -44,6 +45,7 @@ export function BreakdownTable({ patientId }: { patientId?: string }) {
   const t = useTranslations("breakdown");
   const tb = useTranslations("bill");
   const ts = useTranslations("bills");
+  const tp = useTranslations("printPreview");
   const dp = useTranslations("datePicker");
   const [filters, setFilters] = useState(startFilters);
   const start = startFilters();
@@ -60,7 +62,7 @@ export function BreakdownTable({ patientId }: { patientId?: string }) {
         p_limit: LIMIT,
       }),
   });
-  const cols = patientId ? 6 : 7;
+  const cols = patientId ? 7 : 8;
   return (
     <div className="flex flex-col gap-3" data-testid="breakdown-table">
       <div className="flex flex-wrap items-end gap-3">
@@ -105,6 +107,7 @@ export function BreakdownTable({ patientId }: { patientId?: string }) {
             <TH>{t("list.insurer")}</TH>
             <TH>{t("list.status")}</TH>
             <TH className="text-right">{t("list.total")}</TH>
+            <TH><span className="sr-only">{tp("col")}</span></TH>
           </tr>
         </THead>
         <tbody>
@@ -134,6 +137,9 @@ export function BreakdownTable({ patientId }: { patientId?: string }) {
                 <StatusBadge kind={r.status === "finalized" ? "good" : r.status === "draft" ? "warning" : "critical"} label={tb(`status.${r.status}`)} />
               </TD>
               <TD className="text-right tabular-nums">{formatINR(r.total_paise)}</TD>
+              <TD className="text-right">
+                <PreviewButton kind="breakdown" id={r.id} open={`/breakdown/${r.id}`} />
+              </TD>
             </TR>
           ))}
         </tbody>

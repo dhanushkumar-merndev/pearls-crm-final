@@ -1,13 +1,14 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowDown, ArrowUp, CheckCheck, CirclePlus, CircleX, Pencil, Printer, RefreshCw, Save, Split, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, CheckCheck, CirclePlus, CircleX, Eye, Pencil, Printer, RefreshCw, Save, Split, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Fragment, useMemo, useState } from "react";
 import { formatDate, formatDateTime, formatINR, istDateString } from "@pearl/shared";
 import { NewBreakdownDialog } from "@/components/breakdown/new-breakdown-dialog";
+import { PrintPreviewDialog } from "@/components/print-preview";
 import type { BreakdownBill } from "@/components/breakdown/types";
 import { GST_RATES_BP, MoneyInput } from "@/components/forms/money-input";
 import { LibraryCombobox, type LibraryItem } from "@/components/library-combobox";
@@ -58,6 +59,8 @@ export function BreakdownScreen({ initial }: { initial: BreakdownBill }) {
   const bb = query.data;
   const [amending, setAmending] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  // Saved first, then shown as it prints (the editor remounts on save, so the pop-up lives here).
+  const [previewing, setPreviewing] = useState<number | null>(null);
   const isAdmin = me?.role === "admin" && bb.status === "finalized";
   const put = (next: BreakdownBill) => {
     queryClient.setQueryData(["breakdown", bb.id], next);
@@ -87,7 +90,7 @@ export function BreakdownScreen({ initial }: { initial: BreakdownBill }) {
       <FilledFrom bb={bb} />
 
       {bb.status === "draft" ? (
-        <BreakdownEditor key={bb.version} bb={bb} onSaved={put} />
+        <BreakdownEditor key={bb.version} bb={bb} onSaved={put} onPreview={(next) => (put(next), setPreviewing(next.version))} />
       ) : amending ? (
         <BreakdownEditor bb={bb} amend onSaved={(next) => (setAmending(false), put(next))} onCancelAmend={() => setAmending(false)} />
       ) : (
@@ -118,6 +121,9 @@ export function BreakdownScreen({ initial }: { initial: BreakdownBill }) {
         </>
       )}
 
+      <Dialog open={previewing !== null} onOpenChange={(o) => !o && setPreviewing(null)}>
+        {previewing !== null && <PrintPreviewDialog kind="breakdown" id={bb.id} stamp={previewing} />}
+      </Dialog>
       <Dialog open={cancelling} onOpenChange={setCancelling}>
         {cancelling && <CancelDialog bb={bb} onDone={(next) => (setCancelling(false), next && put(next))} />}
       </Dialog>
@@ -171,14 +177,18 @@ function BreakdownEditor({
   amend = false,
   onSaved,
   onCancelAmend,
+  onPreview,
 }: {
   bb: BreakdownBill;
   amend?: boolean;
   onSaved: (next: BreakdownBill) => void;
+  /** Saves (no toast), then the parent shows the paper as it prints. */
+  onPreview?: (next: BreakdownBill) => void;
   onCancelAmend?: () => void;
 }) {
   const t = useTranslations("breakdown");
   const router = useRouter();
+  const tp = useTranslations("printPreview");
   const { saved, failed } = useFeedback();
   const [header, setHeader] = useState<Header>({
     bill_date: bb.bill_date ?? istDateString(new Date()),
@@ -268,6 +278,11 @@ function BreakdownEditor({
         onSaved(next);
       },
     });
+  };
+  const doPreview = () => {
+    finalChecks.clearAll();
+    if (!checks.validate(values())) return;
+    save.mutate(undefined, { onSuccess: (next) => onPreview?.(next) });
   };
   const askFinalize = () => {
     checks.clearAll();
@@ -426,6 +441,12 @@ function BreakdownEditor({
             <Save aria-hidden />
             {t("saveDraft")}
           </Button>
+          {onPreview && (
+            <Button variant="secondary" disabled={busy} onClick={doPreview}>
+              <Eye aria-hidden />
+              {tp("button")}
+            </Button>
+          )}
           <Button disabled={busy} onClick={askFinalize}>
             <CheckCheck aria-hidden />
             {t("finalize")}

@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { formatDate, formatINR, istDateString } from "@pearl/shared";
 import { ClearFilters } from "@/components/ui/filter-bar";
+import { PreviewButton } from "@/components/print-preview";
 import { StatTile } from "@/components/kpi/stat-tile";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
@@ -69,6 +70,7 @@ export function BillsTable({ patientId, types = ALL_TYPES }: { patientId?: strin
   const t = useTranslations("bills");
   const b = useTranslations("bill");
   const dp = useTranslations("datePicker");
+  const tp = useTranslations("printPreview");
   const forLabel = useBillForLabel();
   const { failed } = useFeedback();
   const [filters, setFilters] = useState(startFilters);
@@ -196,11 +198,12 @@ export function BillsTable({ patientId, types = ALL_TYPES }: { patientId?: strin
             <TH>{t("col.status")}</TH>
             <TH className="text-right">{t("col.total")}</TH>
             <TH className="text-right">{t("col.balance")}</TH>
+            <TH><span className="sr-only">{tp("col")}</span></TH>
           </tr>
         </THead>
         <tbody>
-          {list.isPending && <RowSkeletons asRow rows={3} cols={7} />}
-          {list.data?.rows.length === 0 && <EmptyRow colSpan={7}>{t("none")}</EmptyRow>}
+          {list.isPending && <RowSkeletons asRow rows={3} cols={8} />}
+          {list.data?.rows.length === 0 && <EmptyRow colSpan={8}>{t("none")}</EmptyRow>}
           {list.data?.rows.map((r) => (
             <TR key={r.id}>
               <TD>
@@ -224,6 +227,9 @@ export function BillsTable({ patientId, types = ALL_TYPES }: { patientId?: strin
               </TD>
               <TD className="text-right tabular-nums">{formatINR(r.total_paise)}</TD>
               <TD className="text-right tabular-nums">{r.status === "finalized" ? formatINR(r.total_paise - r.received_paise) : "—"}</TD>
+              <TD className="text-right">
+                <PreviewButton kind="bill" id={r.id} open={`/bills/${r.id}`} />
+              </TD>
             </TR>
           ))}
         </tbody>

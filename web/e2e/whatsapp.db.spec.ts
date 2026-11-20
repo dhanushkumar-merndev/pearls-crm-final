@@ -172,6 +172,35 @@ test.describe("admin", () => {
     await expect(price).toBeFocused();
   });
 
+  test("monthly budget: checked before saving, shown as used of the budget, cleared for no limit", async ({ page }) => {
+    await skipIfLive(page);
+    await open(page, "/admin/whatsapp");
+    const card = page.getByTestId("wa-budget");
+    const box = card.getByLabel("Monthly budget");
+    await box.fill("0.50");
+    await card.getByRole("button", { name: "Save budget" }).click();
+    await expect(card.getByText("Type an amount of ₹1 or more, or leave it empty for no limit.")).toBeVisible();
+    await expect(box).toBeFocused();
+
+    await box.fill("500");
+    await card.getByRole("button", { name: "Save budget" }).click();
+    await expect(page.getByText("Monthly budget saved")).toBeVisible();
+    await expect(card.getByText(/of ₹500\.00 used this month/)).toBeVisible();
+    await expect(card.getByRole("meter", { name: "Budget used this month" })).toBeVisible();
+
+    // The main settings form keeps the budget when it is saved.
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+    await expect(page.getByText("Saved ✓")).toBeVisible();
+    await page.reload();
+    await expect(page.getByTestId("wa-budget").getByText(/of ₹500\.00 used this month/)).toBeVisible();
+
+    // Leave no limit for the other tests.
+    await page.getByTestId("wa-budget").getByLabel("Monthly budget").fill("");
+    await page.getByTestId("wa-budget").getByRole("button", { name: "Save budget" }).click();
+    await expect(page.getByText("No monthly limit now")).toBeVisible();
+    await expect(page.getByTestId("wa-budget").getByText(/No monthly limit/)).toBeVisible();
+  });
+
   test("chat bot: treatments and brochure link are checked before saving; the form waits for Meta", async ({ page }) => {
     await skipIfLive(page);
     await open(page, "/admin/whatsapp");

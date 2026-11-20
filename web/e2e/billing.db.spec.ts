@@ -35,6 +35,14 @@ test("receipt: new service on the fly, split payment, original then duplicate pr
   await expect(page.getByLabel("Description", { exact: true }).nth(1)).toHaveValue("Consultation");
   await page.getByLabel("Rate", { exact: true }).nth(1).fill("500");
 
+  // Preview before finalizing: saved, then shown as it prints (owner, 20/11/2026).
+  await page.getByRole("button", { name: "Preview", exact: true }).click();
+  const peek = page.getByRole("dialog");
+  await expect(peek.getByRole("heading", { name: "Bill preview" })).toBeVisible();
+  await expect(peek.frameLocator('[data-testid="print-preview"]').getByText(service).first()).toBeVisible();
+  await peek.getByRole("button", { name: "Keep editing" }).click();
+  await expect(peek).toHaveCount(0);
+
   await page.getByRole("button", { name: "Finalize bill" }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByText("Bill total ₹1,500.00", { exact: false })).toBeVisible();
@@ -55,6 +63,14 @@ test("receipt: new service on the fly, split payment, original then duplicate pr
 
   const href = await page.getByRole("link", { name: "Print" }).getAttribute("href");
   expect(href).toMatch(/^\/print\/bill\//);
+
+  // A peek from the patient's bill list is not a printed copy: the first print is still the Original.
+  await page.getByRole("link", { name: `Back to ${name}` }).click();
+  await page.getByRole("button", { name: "Preview", exact: true }).first().click();
+  await expect(page.getByRole("dialog").frameLocator('[data-testid="print-preview"]').getByText("Original", { exact: true })).toBeVisible();
+  await expect(page.getByRole("dialog").getByRole("link", { name: "Open" })).toHaveAttribute("href", /^\/bills\//);
+  await page.keyboard.press("Escape");
+
   await page.goto(href!);
   await expect(page.getByText("Original", { exact: true })).toBeVisible();
   await expect(page.getByText(service).first()).toBeVisible();

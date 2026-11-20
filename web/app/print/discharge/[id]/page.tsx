@@ -58,13 +58,22 @@ interface PrintSummary {
 }
 
 /** A4 discharge summary: letterhead on every page, frozen text, signature block (PLAN.md A3). */
-export default async function PrintDischargePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function PrintDischargePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ preview?: string }>;
+}) {
   const { id } = await params;
+  // ?preview=1: shown inside the app's Preview pop-up. Not a printed copy, so it isn't counted
+  // (the next real print stays the Original) and there is no Close / Print bar.
+  const preview = (await searchParams).preview === "1";
   if (!/^[0-9a-f-]{36}$/.test(id)) notFound();
   const t = await getTranslations("printDischarge");
   const g = await getTranslations("patientForm.genders");
   const supabase = await getSupabaseServer();
-  const { data, error } = await supabase.rpc("discharge_print_data", { p_id: id, p_count: true });
+  const { data, error } = await supabase.rpc("discharge_print_data", { p_id: id, p_count: !preview });
   if (error || !data) notFound();
   const d = data as PrintSummary;
   // The signing doctor's signature image (uploaded on the doctor's page): a 5-minute link, or none.
@@ -87,7 +96,7 @@ export default async function PrintDischargePage({ params }: { params: Promise<{
   const op = (p.kind ?? d.kind) === "op";
   return (
     <>
-      <PrintToolbar />
+      {!preview && <PrintToolbar />}
       <div className="sheet">
         {d.copy === "draft" && <div className="stamp">{t("draft")}</div>}
         <table className="pages">

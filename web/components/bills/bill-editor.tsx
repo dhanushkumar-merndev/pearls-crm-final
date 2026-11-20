@@ -1,7 +1,7 @@
 "use client";
 
 import { useIsFetching, useIsMutating, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BadgePercent, CheckCheck, CirclePlus, Save, Trash2, X } from "lucide-react";
+import { BadgePercent, CheckCheck, CirclePlus, Eye, Save, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
@@ -127,12 +127,15 @@ export function BillEditor({
   amend = false,
   onAmended,
   onFinalize,
+  onPreview,
 }: {
   bill: Bill;
   amend?: boolean;
   onAmended?: () => void;
   /** Opens the finalize dialog. It lives in the parent: saving bumps the version, which remounts this editor. */
   onFinalize?: (saved: Bill) => void;
+  /** Saves, then shows the bill as it will print (the pop-up lives in the parent for the same reason). */
+  onPreview?: (saved: Bill) => void;
 }) {
   const t = useTranslations("bill");
   const router = useRouter();
@@ -185,6 +188,7 @@ export function BillEditor({
   const creating = useIsMutating({ mutationKey: ["library_create"] });
   const waiting = fetching + creating > 0;
   const c = useTranslations("common");
+  const tp = useTranslations("printPreview");
 
   /** Every line and header field checked before anything is sent. */
   const checkAll = () => checks.validate({ doctor, referred_by: referredBy, lines, reason }) !== null;
@@ -230,11 +234,11 @@ export function BillEditor({
     return b;
   }
 
-  async function saveThenFinalize() {
+  async function saveThen(next?: (b: Bill) => void) {
     if (!checkAll()) return;
     try {
       const b = await save.mutateAsync();
-      onFinalize?.(b);
+      next?.(b);
     } catch {
       // toast shown by onError
     }
@@ -481,7 +485,13 @@ export function BillEditor({
             <Save aria-hidden />
             {t("saveDraft")}
           </Button>
-          <Button disabled={save.isPending || waiting} onClick={() => void saveThenFinalize()}>
+          {onPreview && (
+            <Button variant="secondary" disabled={save.isPending || waiting} onClick={() => void saveThen(onPreview)}>
+              <Eye aria-hidden />
+              {tp("button")}
+            </Button>
+          )}
+          <Button disabled={save.isPending || waiting} onClick={() => void saveThen(onFinalize)}>
             <CheckCheck aria-hidden />
             {waiting ? c("loading") : t("finalize")}
           </Button>

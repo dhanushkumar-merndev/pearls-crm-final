@@ -3,6 +3,7 @@ package com.pearl.crm.e2e
 import android.Manifest
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -134,7 +135,9 @@ class SalesFlowTest {
         compose.waitForText(text(SalesR.string.notes_lost_reason_required))
         compose.onAllNodes(hasText(text(SalesR.string.stage_interested)) and hasClickAction()).onFirst().performClick()
         button(SalesR.string.lead_stage_save).performClick()
-        compose.waitForText(text(SalesR.string.lead_stage) + ": " + text(SalesR.string.stage_interested))
+        // The stage shows as a tag ("Interested"); "Stage: Interested" is what a screen reader says (since 1.2.11).
+        val stageSaid = text(SalesR.string.lead_stage) + ": " + text(SalesR.string.stage_interested)
+        compose.waitUntil(20_000) { compose.exists(hasContentDescription(stageSaid)) }
 
         button(SalesR.string.lead_add_note).performClick()
         button(SalesR.string.lead_note_save).performClick()

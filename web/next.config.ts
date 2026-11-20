@@ -4,7 +4,6 @@ import createNextIntlPlugin from "next-intl/plugin";
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
 const securityHeaders = [
-  { key: "X-Frame-Options", value: "DENY" },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   // Camera for prescription scanning (Phase 8); location for "Use my current location" on an office (Phase 18).
@@ -17,7 +16,13 @@ const config: NextConfig = {
   transpilePackages: ["@pearl/shared"],
   poweredByHeader: false,
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      // No page may be shown inside another site's frame. Print pages may be framed by the app
+      // itself: the Preview pop-up on bills and discharge summaries (owner, 20/11/2026).
+      { source: "/:path((?!print/).*)", headers: [{ key: "X-Frame-Options", value: "DENY" }] },
+      { source: "/print/:path*", headers: [{ key: "X-Frame-Options", value: "SAMEORIGIN" }] },
+    ];
   },
 };
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Copy, Pencil, PlugZap, Power, PowerOff, RefreshCw, Save } from "lucide-react";
+import { Copy, Pencil, PlugZap, Power, PowerOff, RefreshCw, Save, Wallet } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect, useState, type FormEvent } from "react";
@@ -18,7 +18,7 @@ import { RowSkeletons } from "@/components/ui/skeletons";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { EmptyRow, Table, TD, TH, THead, TR, wrapText } from "@/components/ui/table";
 import { asAppError, callFunction, rpc, unwrap } from "@/lib/rpc";
-import { templateSchema, WA_PURPOSES, WA_VARS } from "@/lib/schemas/whatsapp";
+import { templateSchema, waBudgetSchema, WA_PURPOSES, WA_VARS } from "@/lib/schemas/whatsapp";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
 import { useFeedback } from "@/lib/use-feedback";
 import { useZodForm } from "@/lib/use-zod-form";
@@ -214,7 +214,26 @@ function TemplatesSwitch() {
   const { saved, failed } = useFeedback();
   const queryClient = useQueryClient();
   const stored = useWaSettings();
-  const on = readSettings("whatsapp", stored.data?.value).templates_enabled;
+  const settings = readSettings("whatsapp", stored.data?.value);
+  const on = settings.templates_enabled;
+  const overview = useQuery({ queryKey: ["wa_overview"], queryFn: () => rpc<Overview>("wa_overview"), refetchInterval: 60_000 });
+  const spent = overview.data?.month.cost_paise ?? 0;
+  const limit = settings.monthly_budget_paise;
+  const pct = limit ? Math.min(100, Math.floor((spent * 100) / limit)) : 0;
+  const reached = limit !== null && spent >= limit;
+  // The box keeps what the admin typed; it starts from the saved budget (empty = no limit).
+  const [budget, setBudget] = useState<number | null | undefined>(undefined);
+  const shown = budget === undefined ? limit : budget;
+  const checks = useZodForm(waBudgetSchema);
+  const saveBudget = useMutation({
+    mutationFn: (paise: number | null) => rpc<number | null>("wa_set_budget", { p_budget_paise: paise }),
+    onSuccess: (paise) => {
+      saved(paise === null ? t("budgetCleared") : t("budgetSaved"));
+      setBudget(undefined);
+      void queryClient.invalidateQueries({ queryKey: ["app_settings"] });
+    },
+    onError: failed,
+  });
   const flip = useMutation({
     mutationFn: (next: boolean) => rpc<boolean>("wa_templates_switch", { p_on: next }),
     onSuccess: (next) => {
@@ -228,6 +247,8 @@ function TemplatesSwitch() {
     <Card className="flex flex-col gap-3" data-testid="wa-templates-switch">
       <div className="flex flex-wrap items-center gap-2">
         <CardTitle className="mr-auto">{t("title")}</CardTitle>
+        {stored.isSuccess && on && reached && <StatusBadge kind="critical" label={t("reached")} />}
+        {stored.isSuccess && on && !reached && pct >= 80 && <StatusBadge kind="warning" label={t("nearly")} />}
         {stored.isSuccess && <StatusBadge kind={on ? "good" : "serious"} label={on ? t("on") : t("off")} />}
       </div>
       <CardDescription>{on ? t("onHint") : t("offHint")}</CardDescription>
@@ -240,6 +261,49 @@ function TemplatesSwitch() {
         {on ? <PowerOff aria-hidden /> : <Power aria-hidden />}
         {flip.isPending ? t("saving") : on ? t("turnOff") : t("turnOn")}
       </Button>
+
+      <div className="flex flex-col gap-2 border-t border-border pt-3" data-testid="wa-budget">
+        {limit === null ? (
+          <p className="text-text-secondary">{t("noLimit", { spent: formatINR(spent) })}</p>
+        ) : (
+          <>
+            <p className={cn("tabular-nums", reached ? "text-bad-text" : pct >= 80 ? "text-status-warning" : "text-text-secondary")}>
+              {t("used", { spent: formatINR(spent), budget: formatINR(limit), pct })}
+            </p>
+            <div
+              role="meter"
+              aria-label={t("meter")}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={pct}
+              className="h-2 w-full max-w-md overflow-hidden rounded-full bg-secondary"
+            >
+              <div
+                className={cn("h-full rounded-full", reached ? "bg-status-critical" : pct >= 80 ? "bg-status-warning" : "bg-status-good")}
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+            {reached && <p className="text-[0.95rem] text-text-secondary">{t("reachedHint")}</p>}
+          </>
+        )}
+        <form
+          noValidate
+          className="flex flex-wrap items-end gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const d = checks.validate({ budget: shown ?? null });
+            if (d) saveBudget.mutate(d.budget);
+          }}
+        >
+          <Field label={t("budget")} hint={t("budgetHint")} error={checks.error("budget")} className="max-w-md flex-1">
+            {(a) => <MoneyInput {...a} value={shown ?? null} onChange={(p) => (setBudget(p), checks.clear("budget"))} />}
+          </Field>
+          <Button type="submit" variant="secondary" disabled={!stored.isSuccess || saveBudget.isPending}>
+            <Wallet aria-hidden />
+            {saveBudget.isPending ? t("saving") : t("saveBudget")}
+          </Button>
+        </form>
+      </div>
     </Card>
   );
 }
@@ -280,8 +344,14 @@ function SettingsForm() {
     e.preventDefault();
     // An emptied price box stays NaN so it is reported (undefined would quietly take the default).
     // The template switch has its own button: keep whatever is stored, never this form's old copy.
-    const latest = readSettings("whatsapp", stored.data?.value).templates_enabled;
-    const clean = checks.validate({ ...form, templates_enabled: latest, stop_reply: stopReply.trim() === "" ? null : stopReply });
+    // The budget too has its own Save: keep the stored one.
+    const latest = readSettings("whatsapp", stored.data?.value);
+    const clean = checks.validate({
+      ...form,
+      templates_enabled: latest.templates_enabled,
+      monthly_budget_paise: latest.monthly_budget_paise,
+      stop_reply: stopReply.trim() === "" ? null : stopReply,
+    });
     if (clean) save.mutate(clean);
   }
   const bool = (k: "enabled" | "send_booking_confirmation" | "send_reminders", hint?: string) => (

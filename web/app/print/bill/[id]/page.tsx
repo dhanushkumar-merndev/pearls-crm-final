@@ -28,13 +28,22 @@ const gstText = (bp: number) => `${bp / 100}%`;
  * Final bill (in-patient stay, for insurance). Header frozen at finalize. Empty columns are left
  * out; medicine details sit under the item name; GST is summarised by rate.
  */
-export default async function PrintBillPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function PrintBillPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ preview?: string }>;
+}) {
   const { id } = await params;
+  // ?preview=1: shown inside the app's Preview pop-up. Not a printed copy, so it isn't counted
+  // (the next real print stays the Original) and there is no Close / Print bar.
+  const preview = (await searchParams).preview === "1";
   if (!/^[0-9a-f-]{36}$/.test(id)) notFound();
   const t = await getTranslations("printBill");
   const g = await getTranslations("patientForm.genders");
   const supabase = await getSupabaseServer();
-  const { data, error } = await supabase.rpc("bill_print_data", { p_bill_id: id, p_count: true });
+  const { data, error } = await supabase.rpc("bill_print_data", { p_bill_id: id, p_count: !preview });
   if (error || !data) notFound();
   const b = data as PrintBill;
   const pharmacy = b.bill_type === "pharmacy_invoice";
@@ -56,7 +65,7 @@ export default async function PrintBillPage({ params }: { params: Promise<{ id: 
 
   return (
     <>
-      <PrintToolbar />
+      {!preview && <PrintToolbar />}
       <div className="sheet bill">
         {(b.copy === "cancelled" || b.copy === "draft") && <div className="stamp">{t(`stamp.${b.copy}`)}</div>}
         <Watermark clinic={b.header} />

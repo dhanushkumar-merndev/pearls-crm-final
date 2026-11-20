@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BookmarkPlus, CheckCheck, Pencil, Pill, Printer, Save, X } from "lucide-react";
+import { ArrowRight, BookmarkPlus, CheckCheck, Eye, Pencil, Pill, Printer, Save, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
@@ -11,11 +11,12 @@ import { MedicationsEditor, SectionsEditor, type Medication, type Section } from
 import { LibraryCombobox, type LibraryItem } from "@/components/library-combobox";
 import { Button } from "@/components/ui/button";
 import { Card, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogClose, DialogContent } from "@/components/ui/dialog";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Field, Select, Textarea } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { MoreMenu } from "@/components/ui/more-menu";
+import { PrintPreviewDialog } from "@/components/print-preview";
 import { DetailHeader, Page } from "@/components/ui/page";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { asAppError, newId, rpc } from "@/lib/rpc";
@@ -110,6 +111,9 @@ export function SummaryScreen({ initial }: { initial: Summary }) {
   const [amending, setAmending] = useState(false);
   const [reason, setReason] = useState("");
   const [dialog, setDialog] = useState<"finalize" | "template" | null>(null);
+  // Preview (owner, 20/11/2026: a button to peek, not a panel always open): the saved version as it
+  // prints, or "live" while an admin amends (the change isn't saved until "Save change").
+  const [peek, setPeek] = useState<number | "live" | null>(null);
   const version = useRef(initial.version);
   const [dirty, setDirty] = useState(false);
   const editable = s.status === "draft" || amending;
@@ -186,6 +190,22 @@ export function SummaryScreen({ initial }: { initial: Summary }) {
     onError: failed,
   });
 
+  const openPreview = () => {
+    if (amending) return setPeek("live");
+    if (s.status !== "draft") return setPeek(s.version);
+    save.mutate(content, { onSuccess: (next) => setPeek(next.version) });
+  };
+  const fillState =
+    preview.left.length > 0 ? (
+      <p role="status" className="text-status-warning">
+        {t("stillToFill", { list: preview.left.join(", ") })}
+      </p>
+    ) : (
+      <p role="status" className="text-good-text">
+        {t("allFilled")}
+      </p>
+    );
+
   const a = s.admission;
   const op = s.op;
   const frozen = s.rendered;
@@ -234,6 +254,10 @@ export function SummaryScreen({ initial }: { initial: Summary }) {
             {t("finalize")}
           </Button>
         )}
+        <Button variant="secondary" disabled={save.isPending} onClick={openPreview}>
+          <Eye aria-hidden />
+          {t("preview")}
+        </Button>
         <Button variant="secondary" asChild>
           {/* A plain link: a prefetch would count as a print. */}
           <a href={`/print/discharge/${s.id}`} target="_blank" rel="noopener">
@@ -268,7 +292,8 @@ export function SummaryScreen({ initial }: { initial: Summary }) {
       </div>
 
       {editable ? (
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,28rem)]">
+        <div className="flex flex-col gap-5">
+          {fillState}
           <div className="flex flex-col gap-5">
             <SectionsEditor sections={content.sections} onChange={(sections) => change({ sections })} errorOf={checks.error} onEdit={checks.clear} />
             {checks.error("sections") && (
@@ -333,30 +358,6 @@ export function SummaryScreen({ initial }: { initial: Summary }) {
               </Card>
             )}
           </div>
-          <aside className="flex flex-col gap-3 xl:sticky xl:top-4 xl:self-start">
-            <Card className="flex flex-col gap-3">
-              <CardTitle>{t("preview")}</CardTitle>
-              {preview.left.length > 0 ? (
-                <p role="status" className="text-status-warning">
-                  {t("stillToFill", { list: preview.left.join(", ") })}
-                </p>
-              ) : (
-                <p role="status" className="text-good-text">
-                  {t("allFilled")}
-                </p>
-              )}
-              {preview.sections.map((x) => (
-                <section key={x.key}>
-                  <h3 className="font-semibold">
-                    <Marked text={x.title} />
-                  </h3>
-                  <p className="whitespace-pre-wrap">
-                    <Marked text={x.body} />
-                  </p>
-                </section>
-              ))}
-            </Card>
-          </aside>
         </div>
       ) : (
         frozen && (
@@ -402,6 +403,47 @@ export function SummaryScreen({ initial }: { initial: Summary }) {
           </DialogContent>
         )}
         {dialog === "template" && <TemplateDialog summaryId={s.id} beforeSave={() => save.mutateAsync(content)} draft={s.status === "draft"} onDone={() => setDialog(null)} />}
+      </Dialog>
+      <Dialog open={peek !== null} onOpenChange={(o) => !o && setPeek(null)}>
+        {typeof peek === "number" && <PrintPreviewDialog kind="discharge" id={s.id} stamp={peek} note={editable ? <div className="mb-3">{fillState}</div> : undefined} />}
+        {peek === "live" && (
+          <DialogContent
+            wide
+            title={t("preview")}
+            footer={
+              <DialogClose asChild>
+                <Button>
+                  <ArrowRight aria-hidden />
+                  {t("keepEditing")}
+                </Button>
+              </DialogClose>
+            }
+          >
+            <div className="flex flex-col gap-3">
+              {fillState}
+              {preview.sections.map((x) => (
+                <section key={x.key}>
+                  <h3 className="font-semibold">
+                    <Marked text={x.title} />
+                  </h3>
+                  <p className="whitespace-pre-wrap">
+                    <Marked text={x.body} />
+                  </p>
+                </section>
+              ))}
+              {preview.meds.length > 0 && (
+                <section>
+                  <h3 className="font-semibold">{t("medications")}</h3>
+                  <ul className="list-disc pl-6">
+                    {preview.meds.map((m, i) => (
+                      <li key={i}>{[m.name, m.dose, m.frequency, m.duration, m.instructions].filter(Boolean).join(" — ")}</li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+            </div>
+          </DialogContent>
+        )}
       </Dialog>
     </Page>
   );
