@@ -18,6 +18,8 @@ import {
 } from "@pearl/shared";
 
 export const BILL_TYPES = ["procedure_receipt", "pharmacy_invoice", "final_bill"] as const;
+/** Papers with their own Terms & Conditions: each bill type and the quotation sent to leads. */
+export const TERM_KINDS = [...BILL_TYPES, "quotation"] as const;
 
 const digits = (v: string) => v.replace(/\D/g, "").length;
 
@@ -39,7 +41,7 @@ export const clinicProfileSchema = z
     letterhead_qr_url: optionalUrl(300),
     signatory_label: requiredText(60),
     logo_path: z.string().nullable(),
-    terms: z.object(Object.fromEntries(BILL_TYPES.map((b) => [b, lineList(30, 500)])) as Record<(typeof BILL_TYPES)[number], ReturnType<typeof lineList>>),
+    terms: z.object(Object.fromEntries(TERM_KINDS.map((b) => [b, lineList(30, 500)])) as Record<(typeof TERM_KINDS)[number], ReturnType<typeof lineList>>),
   })
   .transform(({ address, ...rest }) => ({ ...rest, address_lines: address }));
 

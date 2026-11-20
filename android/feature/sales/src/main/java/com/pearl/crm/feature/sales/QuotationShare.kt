@@ -4,7 +4,10 @@ import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Paint
+import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
 import androidx.core.content.FileProvider
@@ -34,97 +37,201 @@ data class QuotePdfText(
     val discount: String,
     val total: String,
     val footer: String,
+    val terms: String = "Terms & Conditions",
+    val gstin: String = "GSTIN",
+    val llpin: String = "LLPIN",
+    val phone: String = "Ph",
+    val signFor: String = "For",
 )
+
+/** Draws on A4 pages, starting a new page when the next block will not fit. */
+private class PdfPages(private val doc: PdfDocument, val w: Int, val h: Int, val margin: Float, private val logo: Bitmap?) {
+    private val pages = mutableListOf<PdfDocument.Page>()
+    lateinit var page: PdfDocument.Page
+    val c: Canvas get() = page.canvas
+    var y = 0f
+
+    fun next() {
+        if (pages.isNotEmpty()) doc.finishPage(page)
+        page = doc.startPage(PdfDocument.PageInfo.Builder(w, h, pages.size + 1).create())
+        pages += page
+        y = margin + 10
+        // The clinic logo, faint behind the page (like the printed bills).
+        logo?.let { bmp ->
+            val bw = w * 0.55f
+            val bh = bw * bmp.height / bmp.width.coerceAtLeast(1)
+            val left = (w - bw) / 2
+            val top = (h - bh) / 2
+            c.drawBitmap(bmp, null, RectF(left, top, left + bw, top + bh), Paint(Paint.FILTER_BITMAP_FLAG).apply { alpha = 18 })
+        }
+    }
+
+    /** Room for [space] more points on this page, or a new page. */
+    fun need(space: Float) {
+        if (y + space > h - margin - 16) next()
+    }
+
+    fun finish() = doc.finishPage(page)
+}
 
 /**
  * Draws the quotation as an A4 PDF in the app's cache (white paper, black text, like the web's
- * print page): clinic header from the clinic profile, the lead, the lines, the totals, the note.
+ * print page): the clinic letterhead (logo, name, address, contacts, GSTIN / LLPIN) from the clinic
+ * profile, the lead, the lines, the totals, the note, the clinic's quotation Terms & Conditions and
+ * the signatory. Long quotations carry on to a second page.
  */
-fun buildQuotationPdf(context: Context, q: Quotation, text: QuotePdfText): File {
+fun buildQuotationPdf(context: Context, q: Quotation, text: QuotePdfText, logo: Bitmap? = null): File {
     val doc = PdfDocument()
-    val w = 595
-    val h = 842
-    val margin = 40f
-    val page = doc.startPage(PdfDocument.PageInfo.Builder(w, h, 1).create())
-    val c = page.canvas
+    val p = PdfPages(doc, 595, 842, 40f, logo)
+    val w = p.w
+    val margin = p.margin
     val regular = Paint(Paint.ANTI_ALIAS_FLAG).apply { textSize = 10f; color = android.graphics.Color.BLACK }
     val soft = Paint(regular).apply { color = android.graphics.Color.DKGRAY; textSize = 9f }
+    val softRight = Paint(soft).apply { textAlign = Paint.Align.RIGHT }
+    val small = Paint(regular).apply { textSize = 8.5f }
     val bold = Paint(regular).apply { typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD) }
-    val big = Paint(bold).apply { textSize = 16f }
+    val big = Paint(bold).apply { textSize = 15f }
     val right = Paint(regular).apply { textAlign = Paint.Align.RIGHT }
     val rightBold = Paint(bold).apply { textAlign = Paint.Align.RIGHT }
     val line = Paint().apply { color = android.graphics.Color.LTGRAY; strokeWidth = 0.7f }
-    var y = margin + 10
+    val clinic = q.clinic
+    p.next()
+    val c = { p.c }
 
-    // Clinic header.
-    c.drawText(q.clinic.name, margin, y, big)
-    y += 16
-    val address = (q.clinic.addressLines + listOfNotNull(listOfNotNull(q.clinic.city, q.clinic.state, q.clinic.pincode).joinToString(", ").ifEmpty { null }))
-    address.forEach { c.drawText(it, margin, y, soft); y += 12 }
-    listOfNotNull(q.clinic.phones.joinToString(" · ").ifEmpty { null }, q.clinic.email, q.clinic.website).forEach { c.drawText(it, margin, y, soft); y += 12 }
-    y += 6
-    c.drawLine(margin, y, w - margin, y, line)
-    y += 24
+    // Letterhead: logo, name, legal name, address on the left; contacts on the right.
+    val top = p.y - 10
+    var textLeft = margin
+    logo?.let { bmp ->
+        val lh = 48f
+        val lw = lh * bmp.width / bmp.height.coerceAtLeast(1)
+        c().drawBitmap(bmp, null, RectF(margin, top, margin + lw, top + lh), Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG))
+        textLeft = margin + lw + 10
+    }
+    var ly = top + 14
+    c().drawText(clinic.name, textLeft, ly, big)
+    ly += 13
+    clinic.legalName?.takeIf { it != clinic.name && it.isNotBlank() }?.let { c().drawText(it, textLeft, ly, soft); ly += 11 }
+    val place = listOfNotNull(clinic.city, clinic.state).joinToString(", ")
+    val address = listOfNotNull(
+        clinic.addressLines.joinToString(", ").ifEmpty { null },
+        listOf(place, clinic.pincode.orEmpty()).filter { it.isNotEmpty() }.joinToString(" - ").ifEmpty { null },
+    )
+    val leftWidth = w - margin - textLeft - 170
+    address.flatMap { wrap(it, soft, leftWidth) }.forEach { c().drawText(it, textLeft, ly, soft); ly += 11 }
+    var ry = top + 14
+    listOfNotNull(
+        clinic.phones.joinToString(" · ").ifEmpty { null }?.let { "${text.phone}: $it" },
+        clinic.email,
+        clinic.website,
+    ).forEach { c().drawText(it, w - margin, ry, softRight); ry += 11 }
+    p.y = maxOf(ly, ry, top + 48f) + 6
+    val ids = listOfNotNull(
+        clinic.gstin?.let { "${text.gstin}: $it" },
+        clinic.llpin?.takeIf { it.isNotBlank() }?.let { "${text.llpin}: $it" },
+    )
+    if (ids.isNotEmpty()) {
+        c().drawLine(margin, p.y, w - margin, p.y, line)
+        p.y += 12
+        c().drawText(ids.joinToString("   ·   "), margin, p.y, soft)
+        p.y += 6
+    }
+    c().drawLine(margin, p.y, w - margin, p.y, line)
+    p.y += 24
 
     // Title and reference.
-    c.drawText(text.title, margin, y, big)
-    c.drawText("${text.number}: ${q.reference}", w - margin, y - 8, right)
+    c().drawText(text.title, margin, p.y, big)
+    c().drawText("${text.number}: ${q.reference}", w - margin, p.y - 8, right)
     val created = Instant.parse(normaliseIso(q.createdAt)).toEpochMilli()
-    c.drawText("${text.date}: ${IstDates.formatDate(created)}", w - margin, y + 6, right)
-    y += 26
-    c.drawText(text.forLabel, margin, y, soft)
-    y += 14
-    c.drawText(q.leadName, margin, y, bold)
-    y += 13
-    c.drawText(q.leadPhone, margin, y, regular)
-    q.validUntil?.let { c.drawText("${text.validTill}: ${formatDay(it)}", w - margin, y - 13, right) }
-    q.createdByName?.let { c.drawText("${text.preparedBy}: $it", w - margin, y, right) }
-    y += 24
+    c().drawText("${text.date}: ${IstDates.formatDate(created)}", w - margin, p.y + 6, right)
+    p.y += 26
+    c().drawText(text.forLabel, margin, p.y, soft)
+    p.y += 14
+    c().drawText(q.leadName, margin, p.y, bold)
+    p.y += 13
+    c().drawText(q.leadPhone, margin, p.y, regular)
+    q.validUntil?.let { c().drawText("${text.validTill}: ${formatDay(it)}", w - margin, p.y - 13, right) }
+    q.createdByName?.let { c().drawText("${text.preparedBy}: $it", w - margin, p.y, right) }
+    p.y += 24
 
     // Lines.
     val colQty = w - margin - 200
     val colPrice = w - margin - 100
-    c.drawText("#", margin, y, bold)
-    c.drawText(text.treatment, margin + 22, y, bold)
-    c.drawText(text.qty, colQty, y, rightBold)
-    c.drawText(text.price, colPrice, y, rightBold)
-    c.drawText(text.amount, w - margin, y, rightBold)
-    y += 6
-    c.drawLine(margin, y, w - margin, y, line)
-    y += 16
+    fun heads() {
+        c().drawText("#", margin, p.y, bold)
+        c().drawText(text.treatment, margin + 22, p.y, bold)
+        c().drawText(text.qty, colQty, p.y, rightBold)
+        c().drawText(text.price, colPrice, p.y, rightBold)
+        c().drawText(text.amount, w - margin, p.y, rightBold)
+        p.y += 6
+        c().drawLine(margin, p.y, w - margin, p.y, line)
+        p.y += 16
+    }
+    heads()
     q.items.forEachIndexed { i, item ->
-        c.drawText("${i + 1}", margin, y, regular)
-        wrap(item.name, regular, colQty - margin - 60).forEachIndexed { n, part ->
-            c.drawText(part, margin + 22, y + n * 12, regular)
+        val parts = wrap(item.name, regular, colQty - margin - 60)
+        val rowHeight = 12f * parts.size + 6
+        if (p.y + rowHeight > p.h - margin - 16) {
+            p.next()
+            heads()
         }
-        c.drawText(item.qty.toString(), colQty, y, right)
-        c.drawText(Money.formatInr(item.pricePaise).removePrefix("₹"), colPrice, y, right)
-        c.drawText(Money.formatInr(item.amountPaise).removePrefix("₹"), w - margin, y, right)
-        y += 12 * wrap(item.name, regular, colQty - margin - 60).size + 6
+        c().drawText("${i + 1}", margin, p.y, regular)
+        parts.forEachIndexed { n, part -> c().drawText(part, margin + 22, p.y + n * 12, regular) }
+        c().drawText(item.qty.toString(), colQty, p.y, right)
+        c().drawText(Money.formatInr(item.pricePaise).removePrefix("₹"), colPrice, p.y, right)
+        c().drawText(Money.formatInr(item.amountPaise).removePrefix("₹"), w - margin, p.y, right)
+        p.y += rowHeight
     }
-    c.drawLine(margin, y, w - margin, y, line)
-    y += 18
+    c().drawLine(margin, p.y, w - margin, p.y, line)
+    p.y += 18
 
-    // Totals.
-    c.drawText(text.subtotal, colPrice, y, right)
-    c.drawText(Money.formatInr(q.subtotalPaise), w - margin, y, right)
+    // Totals (kept together).
+    p.need(if (q.discountPaise > 0) 60f else 46f)
+    c().drawText(text.subtotal, colPrice, p.y, right)
+    c().drawText(Money.formatInr(q.subtotalPaise), w - margin, p.y, right)
     if (q.discountPaise > 0) {
-        y += 14
-        c.drawText(text.discount, colPrice, y, right)
-        c.drawText("−" + Money.formatInr(q.discountPaise), w - margin, y, right)
+        p.y += 14
+        c().drawText(text.discount, colPrice, p.y, right)
+        c().drawText("−" + Money.formatInr(q.discountPaise), w - margin, p.y, right)
     }
-    y += 18
-    c.drawText(text.total, colPrice, y, rightBold.apply { textSize = 12f })
-    c.drawText(Money.formatInr(q.totalPaise), w - margin, y, rightBold)
-    y += 28
+    p.y += 18
+    c().drawText(text.total, colPrice, p.y, Paint(rightBold).apply { textSize = 12f })
+    c().drawText(Money.formatInr(q.totalPaise), w - margin, p.y, Paint(rightBold).apply { textSize = 12f })
+    p.y += 28
 
     q.note?.let { note ->
-        note.lines().flatMap { wrap(it, regular, w - 2 * margin) }.forEach { c.drawText(it, margin, y, regular); y += 13 }
-        y += 10
+        note.lines().flatMap { wrap(it, regular, w - 2 * margin) }.forEach { p.need(13f); c().drawText(it, margin, p.y, regular); p.y += 13 }
+        p.y += 10
     }
-    wrap(text.footer, soft, w - 2 * margin).forEach { c.drawText(it, margin, y, soft); y += 11 }
+    wrap(text.footer, soft, w - 2 * margin).forEach { p.need(11f); c().drawText(it, margin, p.y, soft); p.y += 11 }
+    p.y += 14
 
-    doc.finishPage(page)
+    // Terms & Conditions (Admin → Clinic profile → Terms → Quotation), numbered like the bills.
+    if (clinic.terms.isNotEmpty()) {
+        p.need(40f)
+        c().drawText(text.terms, margin, p.y, bold)
+        p.y += 14
+        clinic.terms.forEachIndexed { i, term ->
+            val num = "${i + 1}."
+            val parts = wrap(term, small, w - 2 * margin - 16)
+            p.need(11f * parts.size)
+            c().drawText(num, margin, p.y, small)
+            parts.forEach { c().drawText(it, margin + 16, p.y, small); p.y += 11 }
+            p.y += 2
+        }
+        p.y += 10
+    }
+
+    // Signatory, bottom right.
+    clinic.signatoryLabel?.takeIf { it.isNotBlank() }?.let { label ->
+        p.need(56f)
+        c().drawText("${text.signFor} ${clinic.name}", w - margin, p.y, right)
+        p.y += 30
+        c().drawLine(w - margin - 150, p.y, w - margin, p.y, Paint(line).apply { color = android.graphics.Color.GRAY })
+        p.y += 12
+        c().drawText(label, w - margin, p.y, rightBold)
+    }
+
+    p.finish()
     val dir = File(context.cacheDir, "quotes").apply { mkdirs() }
     // Old ones go: only the one being shared is kept.
     dir.listFiles()?.forEach { it.delete() }

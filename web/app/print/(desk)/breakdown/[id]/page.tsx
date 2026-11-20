@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 
 interface PrintBreakdown extends BreakdownBill {
   copy: "original" | "duplicate" | "draft" | "cancelled";
-  header: Clinic;
+  header: Clinic & { terms?: string[] };
   patient_strip: {
     full_name: string;
     uhid: string;
@@ -211,7 +211,18 @@ export default async function PrintBreakdownPage({
         )}
 
         <div className="bill-foot">
-          <div />
+          {(b.header?.terms?.length ?? 0) > 0 ? (
+            <section className="terms-box">
+              <h2 className="terms-title">{t("terms")}</h2>
+              <ol className="terms">
+                {b.header.terms!.map((term, i) => (
+                  <li key={i}>{term}</li>
+                ))}
+              </ol>
+            </section>
+          ) : (
+            <div />
+          )}
           <div className="signatory">
             <div>
               {t("for")} {b.header?.name}

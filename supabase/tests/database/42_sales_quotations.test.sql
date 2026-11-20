@@ -4,7 +4,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(28);
+select plan(31);
 
 create function pg_temp.login(p_id uuid)
 returns void
@@ -67,6 +67,10 @@ select throws_ok($$ select public.save_lead_quotation('42424242-5555-4000-a000-0
                                                       '42424242-6666-4000-a000-000000000009') $$,
   'P0001', 'not_allowed', 'another salesperson cannot quote someone else''s lead');
 
+-- The quotation's own terms (Admin → Clinic profile → Terms → Quotation).
+reset role;
+update public.clinic_settings set terms = terms || '{"quotation": ["Q term one", "Q term two"]}'::jsonb;
+
 select pg_temp.login('42424242-0000-4000-a000-0000000000c1');
 create temp table q1 on commit drop as
   select public.save_lead_quotation('42424242-5555-4000-a000-000000000001', pg_temp.quote(), '42424242-6666-4000-a000-000000000001') as j;
@@ -81,6 +85,10 @@ select ok(((select j from q1) ->> 'message') like '%Valid till %', 'valid till d
 select is((select j from q1) -> 'clinic' ->> 'name', (select name from public.clinic_settings order by branch_code = 'main' desc, created_at limit 1),
   'clinic details come from the settings');
 select is((select j from q1) ->> 'lead_phone', '+919811442001', 'the lead''s number for WhatsApp');
+select is((select j from q1) -> 'clinic' -> 'terms', '["Q term one", "Q term two"]'::jsonb, 'the quotation''s terms, in order');
+select is((select j from q1) -> 'clinic' ->> 'gstin',
+  (select gstin from public.clinic_settings order by branch_code = 'main' desc, created_at limit 1), 'GSTIN for the header');
+select ok((select j from q1) -> 'clinic' ? 'signatory_label', 'the signatory line');
 
 select is((public.save_lead_quotation('42424242-5555-4000-a000-000000000001', pg_temp.quote(), '42424242-6666-4000-a000-000000000001')
            ->> 'quote_no')::int, 1, 'the same client id again is the same quotation (no duplicate)');

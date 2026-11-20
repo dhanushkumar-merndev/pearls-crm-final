@@ -28,6 +28,7 @@ import com.pearl.crm.core.data.auth.SessionStore
 import com.pearl.crm.core.data.auth.SignOutReason
 import com.pearl.crm.core.data.db.AppDatabase
 import com.pearl.crm.core.data.net.RpcClient
+import com.pearl.crm.core.data.net.PublicAssets
 import com.pearl.crm.core.data.net.SupabaseConfig
 import com.pearl.crm.core.data.net.defaultHttpClient
 import com.pearl.crm.core.data.security.KeystoreSecretBox
@@ -79,9 +80,10 @@ class AppContainer(private val context: Context) {
     val outbox = OutboxWriter(db.outbox())
     val library: LibrarySource = LibraryRepository(rpc, db.lookupValues())
     val account = AccountRepository(rpc, sessions, outbox)
+    private val publicAssets = PublicAssets(config, http)
     val sales = SalesRepository(rpc, db, outbox, cacheOwner = {
         sessions.session.value?.let { "${it.staffId}:${it.staffRole}" }
-    })
+    }, assets = publicAssets::bytes)
     private val edge = EdgeClient(config, http, sessions)
     val callLogSource = ContentCallLogSource(context)
     private val callLogImporter = CallLogImporter(callLogSource, db, outbox, settings, { sessions.session.value?.staffId })

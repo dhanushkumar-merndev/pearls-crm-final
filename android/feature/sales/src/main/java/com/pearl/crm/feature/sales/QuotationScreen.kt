@@ -85,11 +85,22 @@ fun quotePdfText(context: Context) = QuotePdfText(
     discount = context.getString(R.string.quote_discount),
     total = context.getString(R.string.quote_total),
     footer = context.getString(R.string.quote_pdf_footer),
+    terms = context.getString(R.string.quote_pdf_terms),
+    gstin = context.getString(R.string.quote_pdf_gstin),
+    llpin = context.getString(R.string.quote_pdf_llpin),
+    phone = context.getString(R.string.quote_pdf_phone),
+    signFor = context.getString(R.string.quote_pdf_sign_for),
 )
 
 /** Makes the PDF, opens WhatsApp on the lead's chat with it attached, and records it as sent. */
 suspend fun shareQuotation(context: Context, sales: SalesRepository, q: Quotation) {
-    val pdf = withContext(Dispatchers.IO) { buildQuotationPdf(context, q, quotePdfText(context)) }
+    val pdf = withContext(Dispatchers.IO) {
+        // The clinic logo (Admin → Clinic profile); without the internet the PDF goes without it.
+        val logo = q.clinic.logoPath?.let { sales.clinicAsset(it) }?.let { bytes ->
+            android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+        }
+        buildQuotationPdf(context, q, quotePdfText(context), logo)
+    }
     val viaWhatsApp = withContext(Dispatchers.Main.immediate) { shareQuotationPdf(context, q, pdf, context.getString(R.string.quote_share_with)) }
     sales.markQuotationSent(q, if (viaWhatsApp) "whatsapp_pdf" else "share")
 }

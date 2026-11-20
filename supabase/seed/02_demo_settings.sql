@@ -12,7 +12,8 @@ insert into public.clinic_settings (
   jsonb_build_object(
     'procedure_receipt', jsonb_build_array('Demo term 1.', 'Demo term 2.'),
     'pharmacy_invoice', jsonb_build_array('Demo term 1.'),
-    'final_bill', jsonb_build_array('Demo term 1.')
+    'final_bill', jsonb_build_array('Demo term 1.'),
+    'quotation', jsonb_build_array('Demo quotation term 1.', 'Demo quotation term 2.')
   )
 )
 on conflict do nothing;

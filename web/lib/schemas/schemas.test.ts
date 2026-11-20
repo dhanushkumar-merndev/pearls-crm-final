@@ -20,7 +20,7 @@ describe("admin", () => {
     const good = {
       name: "Clinic", legal_name: "", gstin: "29abcde1234f1z5", llpin: "", address: "1 Road\n\nTown", city: "", state: "", state_code: "29",
       pincode: "560001", phones: "080 4123 4567", email: "", website: "", letterhead_qr_url: "", signatory_label: "Authorized Signatory",
-      logo_path: null, terms: { procedure_receipt: "a\nb", pharmacy_invoice: "", final_bill: "" },
+      logo_path: null, terms: { procedure_receipt: "a\nb", pharmacy_invoice: "", final_bill: "", quotation: "Valid 30 days" },
     };
     expect(clinicProfileSchema.parse(good)).toMatchObject({ gstin: "29ABCDE1234F1Z5", address_lines: ["1 Road", "Town"], phones: ["080 4123 4567"] });
     expect(errs(clinicProfileSchema, { ...good, name: "", gstin: "bad", state_code: "2", pincode: "1", phones: "12", website: "x" })).toEqual({

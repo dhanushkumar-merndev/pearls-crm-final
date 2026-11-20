@@ -6,7 +6,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(45);
+select plan(46);
 
 create function pg_temp.login(p_id uuid)
 returns void
@@ -177,6 +177,9 @@ select is((select r ->> 'copy' from (select public.breakdown_print_data('3535353
   'first print is the original');
 select is((select r ->> 'copy' from (select public.breakdown_print_data('35353535-7777-4000-a000-000000000001') as r) x), 'duplicate',
   'then a duplicate copy');
+select is((select r -> 'header' -> 'terms' from (select public.breakdown_print_data('35353535-7777-4000-a000-000000000001', false) as r) x),
+  coalesce((select terms -> 'final_bill' from public.clinic_settings order by branch_code = 'main' desc, created_at limit 1), '[]'::jsonb),
+  'the "Final bill" terms print on it');
 
 ------------------------------------------------------------------------------
 -- Lists, paperwork, filters

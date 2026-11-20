@@ -63,6 +63,8 @@ test("breakdown bill: from a surgery bill, split a line, finalize, print; dues u
   await expect(page.getByText("Original", { exact: true })).toBeVisible();
   await expect(page.getByText("OT charges")).toBeVisible();
   await expect(page.getByText("E2E Insurance Co")).toBeVisible();
+  // The clinic's "Final bill" terms print on it too (owner, 20/11/2026).
+  await expect(page.getByRole("heading", { name: "Terms & Conditions" })).toBeVisible();
 
   // The bill now links to its breakdown; what the patient owes is unchanged (₹1,000).
   await page.goto(billUrl);

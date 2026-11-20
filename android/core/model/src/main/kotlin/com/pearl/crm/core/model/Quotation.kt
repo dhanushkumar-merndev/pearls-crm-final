@@ -27,6 +27,12 @@ data class QuoteClinic(
     val phones: List<String> = emptyList(),
     val email: String? = null,
     val website: String? = null,
+    val llpin: String? = null,
+    @SerialName("state_code") val stateCode: String? = null,
+    @SerialName("logo_path") val logoPath: String? = null,
+    @SerialName("signatory_label") val signatoryLabel: String? = null,
+    /** Admin → Clinic profile → Terms → Quotation: printed at the bottom, numbered. */
+    val terms: List<String> = emptyList(),
 )
 
 /** `save_lead_quotation` / `lead_quotations_list` (owner, 20/11/2026: quotation sent from own WhatsApp). */

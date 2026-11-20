@@ -4,7 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { amountInWords, formatDate, formatINR } from "@pearl/shared";
 import type { Quotation } from "@/components/leads/quotations";
 import { getSupabaseServer } from "@/lib/supabase/server";
-import { getClinic, Letterhead } from "../../../letterhead";
+import { getClinic, Letterhead, Watermark } from "../../../letterhead";
 import { PrintToolbar } from "../../../print-toolbar";
 
 export const metadata: Metadata = { title: "Quotation" };
@@ -30,12 +30,14 @@ export default async function PrintQuotationPage({
   if (error || !data) notFound();
   const q = data as Quotation;
   const clinic = await getClinic();
+  const terms = Array.isArray(clinic?.terms?.quotation) ? clinic.terms.quotation : [];
 
   return (
     <>
       {!preview && <PrintToolbar />}
       <div className="sheet bill">
-        <Letterhead clinic={clinic} />
+        <Watermark clinic={clinic} />
+        <Letterhead clinic={clinic} ids />
         <div className="bill-head">
           <div className="doc-title">{t("title")}</div>
           <dl className="bill-ref">
@@ -118,6 +120,26 @@ export default async function PrintQuotationPage({
           </div>
         </div>
         <p className="soft">{t("footer")}</p>
+
+        <div className="bill-foot">
+          {terms.length > 0 && (
+            <section className="terms-box">
+              <h2 className="terms-title">{t("terms")}</h2>
+              <ol className="terms" data-testid="quote-terms">
+                {terms.map((term, i) => (
+                  <li key={i}>{term}</li>
+                ))}
+              </ol>
+            </section>
+          )}
+          <div className="signatory">
+            <div>
+              {t("signFor")} {clinic?.name}
+            </div>
+            <div className="sign-line" />
+            <strong>{clinic?.signatory_label}</strong>
+          </div>
+        </div>
       </div>
     </>
   );

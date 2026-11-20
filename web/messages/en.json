@@ -621,11 +621,12 @@
     "email": "Email",
     "website": "Website",
     "terms": "Terms and conditions",
-    "termsHint": "Printed at the bottom of each bill type.",
+    "termsHint": "Printed at the bottom of each paper (bills and quotations). One list per paper.",
     "billType": {
       "procedure_receipt": "Bill cum Receipt",
       "pharmacy_invoice": "Pharmacy tax invoice",
-      "final_bill": "Final bill (itemised)"
+      "final_bill": "Final bill (itemised) and insurance breakdown bill",
+      "quotation": "Quotation (sent to leads)"
     },
     "onePointPerLine": "One point per line.",
     "badGstin": "A GSTIN has 15 characters, e.g. 29ABCDE1234F1Z5.",
@@ -4194,7 +4195,8 @@
     "stamp": {
       "draft": "Draft — not final",
       "cancelled": "Cancelled"
-    }
+    },
+    "terms": "Terms & Conditions"
   },
   "dischargeList": {
     "none": "No discharge summaries yet.",
@@ -4335,7 +4337,9 @@
     "subtotal": "Subtotal",
     "discount": "Discount",
     "total": "Total",
-    "footer": "This is a quotation, not a bill. Prices may change after the doctor's consultation."
+    "footer": "This is a quotation, not a bill. Prices may change after the doctor's consultation.",
+    "terms": "Terms & Conditions",
+    "signFor": "For"
   },
   "bookings": {
     "title": "Bookings",

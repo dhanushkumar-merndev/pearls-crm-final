@@ -79,6 +79,9 @@ test("quotation: checked before saving, priced from the list, sent on WhatsApp, 
   await expect(peek.getByRole("heading", { name: "Quotation preview" })).toBeVisible();
   await expect(peek.frameLocator('[data-testid="print-preview"]').getByText("PRP")).toBeVisible();
   await expect(peek.frameLocator('[data-testid="print-preview"]').getByText(name)).toBeVisible();
+  // The clinic's quotation terms and GSTIN, like the bills (Admin → Clinic profile).
+  await expect(peek.frameLocator('[data-testid="print-preview"]').getByTestId("quote-terms").getByRole("listitem")).toHaveCount(2);
+  await expect(peek.frameLocator('[data-testid="print-preview"]').getByText(/GSTIN: \w{15}/)).toBeVisible();
   await page.keyboard.press("Escape");
 
   // Sending again from the list counts again; both show in the history.

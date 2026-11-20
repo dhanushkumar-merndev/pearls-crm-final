@@ -357,5 +357,10 @@
     <string name="quote_pdf_price">Price</string>
     <string name="quote_pdf_amount">Amount</string>
     <string name="quote_pdf_subtotal">Subtotal</string>
+    <string name="quote_pdf_terms">Terms &amp; Conditions</string>
+    <string name="quote_pdf_gstin">GSTIN</string>
+    <string name="quote_pdf_llpin">LLPIN</string>
+    <string name="quote_pdf_phone">Ph</string>
+    <string name="quote_pdf_sign_for">For</string>
     <string name="quote_pdf_footer">This is a quotation, not a bill. Prices may change after the doctor\'s consultation.</string>
 </resources>

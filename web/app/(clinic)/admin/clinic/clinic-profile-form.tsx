@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { PageHeader, useAdminBack } from "@/components/ui/page";
 import { newId, rpc } from "@/lib/rpc";
 import { getSupabaseBrowser } from "@/lib/supabase/client";
-import { BILL_TYPES, clinicProfileSchema } from "@/lib/schemas/admin";
+import { TERM_KINDS, clinicProfileSchema } from "@/lib/schemas/admin";
 import { useFeedback } from "@/lib/use-feedback";
 import { useZodForm } from "@/lib/use-zod-form";
 
@@ -60,7 +60,7 @@ export function ClinicProfileForm({ initial }: { initial: ClinicProfile | null }
     letterhead_qr_url: initial?.letterhead_qr_url ?? "",
     signatory_label: initial?.signatory_label ?? "Authorized Signatory",
     logo_path: initial?.logo_path ?? null,
-    terms: Object.fromEntries(BILL_TYPES.map((b) => [b, (initial?.terms?.[b] ?? []).join("\n")])) as Record<string, string>,
+    terms: Object.fromEntries(TERM_KINDS.map((b) => [b, (initial?.terms?.[b] ?? []).join("\n")])) as Record<string, string>,
   });
   const checks = useZodForm(clinicProfileSchema);
   const set = (key: string, value: string) => {
@@ -176,7 +176,7 @@ export function ClinicProfileForm({ initial }: { initial: ClinicProfile | null }
       <Card className="flex flex-col gap-4">
         <CardTitle>{t("terms")}</CardTitle>
         <CardDescription>{t("termsHint")}</CardDescription>
-        {BILL_TYPES.map((b) => (
+        {TERM_KINDS.map((b) => (
           <Field key={b} label={t(`billType.${b}`)} hint={t("onePointPerLine")} error={checks.error(`terms.${b}`)}>
             {(a) => (
               <Textarea

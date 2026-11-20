@@ -83,8 +83,16 @@ class SalesRepository(
     private val db: AppDatabase,
     private val outbox: OutboxWriter,
     private val cacheOwner: () -> String? = { null },
+    /** Public files by path (the clinic logo for the quotation PDF); null when unavailable. */
+    private val assets: suspend (String) -> ByteArray? = { null },
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
+    private val assetCache = java.util.concurrent.ConcurrentHashMap<String, ByteArray>()
+
+    /** The clinic logo (or another public file), kept in memory once loaded. Null offline. */
+    suspend fun clinicAsset(path: String): ByteArray? =
+        assetCache[path] ?: assets(path)?.also { assetCache[path] = it }
+
     private val leads = db.leads()
     private val followups = db.followups()
     private val appointments = db.appointments()
