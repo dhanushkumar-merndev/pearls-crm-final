@@ -92,6 +92,7 @@
     <string name="tab_leads">Leads</string>
     <string name="tab_followups">Follow-ups</string>
     <string name="tab_calls">Calls</string>
+    <string name="tab_bookings">Bookings</string>
     <string name="tab_visits">Visits</string>
     <string name="tab_settings">Settings</string>
     <string name="tab_alerts">Alerts</string>

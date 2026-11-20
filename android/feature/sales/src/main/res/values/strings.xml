@@ -272,6 +272,16 @@
     <string name="sheet_offline">Connect to the internet to load the consultation and follow-ups.</string>
 
     <!-- Next call, booking actions (owner, 20/11/2026: same as the website) -->
+    <!-- Bookings tab (owner, 20/11/2026) -->
+    <string name="bookings_title">Bookings</string>
+    <string name="bookings_upcoming">Upcoming</string>
+    <string name="bookings_confirm">To confirm</string>
+    <string name="bookings_past">Past</string>
+    <string name="bookings_none_upcoming">No bookings coming up. Book one from a lead.</string>
+    <string name="bookings_none_confirm">Nothing to confirm. Every upcoming booking is confirmed.</string>
+    <string name="bookings_none_past">No past bookings on this phone.</string>
+    <string name="bookings_yesterday">Yesterday</string>
+    <string name="bookings_actions_for">Actions for %1$s</string>
     <string name="followups_from_lead">Opened from the lead</string>
     <string name="followups_from_lead_close">Close</string>
     <string name="next_call_change">Change time</string>

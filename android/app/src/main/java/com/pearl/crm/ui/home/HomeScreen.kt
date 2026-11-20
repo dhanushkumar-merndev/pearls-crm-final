@@ -135,7 +135,15 @@ fun HomeScreen(container: AppContainer, session: Session) {
                                     }
                                 },
                                 icon = { Icon(tab.icon, contentDescription = null) },
-                                label = { Text(stringResource(tab.label)) },
+                                // Six tabs for sales: one line each, a size smaller, so "Follow-ups" never breaks.
+                                label = {
+                                    Text(
+                                        stringResource(tab.label),
+                                        style = if (tabs.size > 5) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                    )
+                                },
                                 // White when chosen (ChatGPT look, owner 03/11/2026), not Material's blue.
                                 colors = NavigationBarItemDefaults.colors(
                                     selectedIconColor = MaterialTheme.colorScheme.onSurface,
@@ -180,6 +188,13 @@ fun HomeScreen(container: AppContainer, session: Session) {
                                 onRefresh = sync,
                                 focusId = focusTask,
                                 onClearFocus = { focusTask = null },
+                            )
+                            tab == HomeTab.Bookings -> com.pearl.crm.feature.sales.BookingsScreen(
+                                container.sales,
+                                container.library,
+                                openLead,
+                                onReschedule = { lead, appt -> nav.navigate("reschedule/$lead/$appt") },
+                                onRefresh = sync,
                             )
                             tab == HomeTab.Calls -> CallsScreen(container.sales, openLead, onRefresh = sync)
                             tab == HomeTab.Alerts -> com.pearl.crm.ui.alerts.AlertsScreen(container)

@@ -249,11 +249,35 @@ class SalesRepositoryTest {
     }
 
     @Test
+    fun theBookingsTabListsUpcomingToConfirmAndPastLikeTheWebsite() = runTest {
+        db.leads().upsert(listOf(lead("L1")))
+        fun appt(id: String, day: String, status: String, auto: Boolean = false) = com.pearl.crm.core.data.db.AppointmentEntity.fromRow(PearlJson.parseToJsonElement(
+            """{"id":"$id","lead_id":"L1","doctor_id":"D1","doctor":"Dr X","appt_date":"$day","slot_start":"${day}T05:00:00+00:00",
+               "status":"$status"${if (auto) ""","auto_cancelled_at":"2027-01-14T00:00:00Z"""" else ""},"mode":"offline","version":1,"updated_at":"x"}""",
+        ).jsonObject)
+        db.appointments().upsert(listOf(
+            appt("A1", "2027-01-16", "confirmed"),
+            appt("A2", "2027-01-15", "pending_confirmation"),
+            appt("A3", "2027-01-17", "cancelled", auto = true),
+            appt("A4", "2027-01-18", "cancelled"),
+            appt("A5", "2027-01-19", "rescheduled"),
+            appt("A6", "2027-01-10", "done"),
+            appt("A7", "2027-01-12", "no_show"),
+        ))
+        val today = "2027-01-15"
+        assertEquals(listOf("A2", "A1", "A3"), repo.observeBookings("upcoming", today).first().map { it.appointment.id })
+        assertEquals(listOf("A2", "A3"), repo.observeBookings("confirm", today).first().map { it.appointment.id })
+        assertEquals(listOf("A7", "A6"), repo.observeBookings("past", today).first().map { it.appointment.id })
+        assertEquals("Lead L1", repo.observeBookings("upcoming", today).first().first().leadName)
+        assertEquals(listOf("A1"), repo.observeBookings("upcoming", today, limit = 1, offset = 1).first().map { it.appointment.id })
+    }
+
+    @Test
     fun cancellingABookingNeedsAReasonAndIsQueued() = runTest {
         db.leads().upsert(listOf(lead("L1")))
         val row = PearlJson.parseToJsonElement(
             """{"id":"A1","lead_id":"L1","doctor_id":"D1","doctor":"Dr X","appt_date":"2027-01-16",
-               "slot_start":"2027-01-16T05:00:00+00:00","status":"pending","mode":"offline","version":1,"updated_at":"x"}""",
+               "slot_start":"2027-01-16T05:00:00+00:00","status":"pending_confirmation","mode":"offline","version":1,"updated_at":"x"}""",
         ).jsonObject
         db.appointments().upsert(listOf(com.pearl.crm.core.data.db.AppointmentEntity.fromRow(row)))
 
@@ -284,7 +308,7 @@ class SalesRepositoryTest {
             assertEquals("reschedule_appointment", fn)
             PearlJson.parseToJsonElement(
                 """{"id":"A2","lead_id":"L1","doctor_id":"D1","appt_date":"2027-01-18",
-                   "slot_start":"2027-01-18T06:00:00+00:00","status":"pending","mode":"offline","version":1,"updated_at":"y"}""",
+                   "slot_start":"2027-01-18T06:00:00+00:00","status":"pending_confirmation","mode":"offline","version":1,"updated_at":"y"}""",
             )
         }
 

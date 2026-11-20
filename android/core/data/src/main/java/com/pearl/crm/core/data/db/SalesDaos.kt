@@ -184,6 +184,44 @@ interface AppointmentDao {
     )
     fun observeNeedsConfirmationWithLead(now: Long): Flow<List<AppointmentWithLead>>
 
+    /*
+     * The Bookings tab (owner, 20/11/2026), same three lists as the website's /bookings:
+     * upcoming = from today, still on (auto-cancelled ones kept: they need a call); to confirm =
+     * from today, waiting or auto-cancelled; past = before today, newest first. Moved ones never show.
+     */
+    @Query(
+        """
+        SELECT a.*, l.name AS lead_name, l.phone_e164 AS lead_phone FROM appointments AS a
+        JOIN leads AS l ON l.id = a.lead_id
+        WHERE a.appt_date >= :today AND a.status NOT IN ('rescheduled', 'cancelled')
+        ORDER BY COALESCE(a.slot_start, 0), a.id
+        LIMIT :limit OFFSET :offset
+        """,
+    )
+    fun observeUpcomingWithLead(today: String, limit: Int, offset: Int): Flow<List<AppointmentWithLead>>
+
+    @Query(
+        """
+        SELECT a.*, l.name AS lead_name, l.phone_e164 AS lead_phone FROM appointments AS a
+        JOIN leads AS l ON l.id = a.lead_id
+        WHERE a.appt_date >= :today AND a.status IN ('pending_confirmation', 'auto_cancelled')
+        ORDER BY COALESCE(a.slot_start, 0), a.id
+        LIMIT :limit OFFSET :offset
+        """,
+    )
+    fun observeToConfirmWithLead(today: String, limit: Int, offset: Int): Flow<List<AppointmentWithLead>>
+
+    @Query(
+        """
+        SELECT a.*, l.name AS lead_name, l.phone_e164 AS lead_phone FROM appointments AS a
+        JOIN leads AS l ON l.id = a.lead_id
+        WHERE a.appt_date < :today AND a.status <> 'rescheduled'
+        ORDER BY COALESCE(a.slot_start, 0) DESC, a.id DESC
+        LIMIT :limit OFFSET :offset
+        """,
+    )
+    fun observePastWithLead(today: String, limit: Int, offset: Int): Flow<List<AppointmentWithLead>>
+
     @Query("UPDATE appointments SET status = :status, pending = 1 WHERE id = :id")
     suspend fun setStatus(id: String, status: String)
 }

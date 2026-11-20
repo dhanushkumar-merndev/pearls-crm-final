@@ -98,7 +98,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 /** Bookings that can still be confirmed, moved or cancelled. */
-private val OPEN_BOOKING = setOf("pending", "confirmed", AppointmentEntity.AUTO_CANCELLED)
+private val OPEN_BOOKING = setOf("pending_confirmation", "confirmed", AppointmentEntity.AUTO_CANCELLED)
 
 /** The quotations list; null = loading, [offline] = couldn't load. */
 private class QuotesLoad(val list: List<Quotation>?, val offline: Boolean)

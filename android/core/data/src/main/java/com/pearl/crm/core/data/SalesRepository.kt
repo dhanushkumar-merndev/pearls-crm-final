@@ -139,6 +139,17 @@ class SalesRepository(
 
     fun observeFollowup(id: String) = followups.observeOneWithLead(id)
 
+    /** The Bookings tab: [scope] is "upcoming", "confirm" or "past"; pages of at most 100. */
+    fun observeBookings(scope: String, today: String, limit: Int = 50, offset: Int = 0): kotlinx.coroutines.flow.Flow<List<com.pearl.crm.core.data.db.AppointmentWithLead>> {
+        val n = limit.coerceIn(1, 100)
+        val from = offset.coerceAtLeast(0)
+        return when (scope) {
+            "confirm" -> appointments.observeToConfirmWithLead(today, n, from)
+            "past" -> appointments.observePastWithLead(today, n, from)
+            else -> appointments.observeUpcomingWithLead(today, n, from)
+        }
+    }
+
     fun observeLeadAppointments(leadId: String) = appointments.observeForLead(leadId)
 
     suspend fun appointment(id: String): AppointmentEntity? = appointments.get(id)

@@ -3,6 +3,7 @@ package com.pearl.crm.ui.home
 import androidx.annotation.StringRes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Call
+import androidx.compose.material.icons.outlined.EventAvailable
 import androidx.compose.material.icons.outlined.EventRepeat
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.People
@@ -18,6 +19,7 @@ enum class HomeTab(val route: String, @param:StringRes val label: Int, val icon:
     MyDay("my-day", R.string.tab_my_day, Icons.Outlined.Today),
     Leads("leads", R.string.tab_leads, Icons.Outlined.People),
     Followups("followups", R.string.tab_followups, Icons.Outlined.EventRepeat),
+    Bookings("bookings", R.string.tab_bookings, Icons.Outlined.EventAvailable),
     Calls("calls", R.string.tab_calls, Icons.Outlined.Call),
     Visits("visits", R.string.tab_visits, Icons.Outlined.Place),
     Alerts("alerts", R.string.tab_alerts, Icons.Outlined.Notifications),
@@ -25,7 +27,7 @@ enum class HomeTab(val route: String, @param:StringRes val label: Int, val icon:
 
     companion object {
         fun forRole(role: StaffRole): List<HomeTab> = when (role) {
-            StaffRole.SalesExecutive, StaffRole.SalesManager -> listOf(MyDay, Leads, Followups, Calls, Settings)
+            StaffRole.SalesExecutive, StaffRole.SalesManager -> listOf(MyDay, Leads, Followups, Bookings, Calls, Settings)
             StaffRole.Bdm -> listOf(MyDay, Visits, Leads, Settings)
             // Their work is on the web; the phone rings for alerts and lists them.
             StaffRole.Receptionist, StaffRole.Admin -> listOf(Alerts, Settings)

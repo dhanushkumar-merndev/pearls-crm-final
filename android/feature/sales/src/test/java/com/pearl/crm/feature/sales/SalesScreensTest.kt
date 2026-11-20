@@ -384,6 +384,52 @@ class SalesScreensTest {
     )
 
     @Test
+    fun theBookingsTabShowsMyLeadsBookingsByDayWithTheirActions() {
+        var moved: Pair<String, String>? = null
+        val database = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), AppDatabase::class.java)
+            .allowMainThreadQueries().build()
+        db = database
+        val tomorrow = istToday().plusDays(1).toString()
+        runBlocking {
+            database.leads().upsert(listOf(LeadEntity.fromRow(PearlJson.parseToJsonElement(
+                """{"id":"L1","sl_no":7,"name":"Asha","phone_e164":"+919845000001","stage":"interested","updated_at":"x"}""",
+            ).jsonObject)))
+            database.appointments().upsert(listOf(com.pearl.crm.core.data.db.AppointmentEntity.fromRow(PearlJson.parseToJsonElement(
+                """{"id":"A1","lead_id":"L1","doctor_id":"D1","doctor":"Dr X","appt_date":"$tomorrow",
+                "slot_start":"${tomorrow}T05:00:00+00:00","status":"pending_confirmation","mode":"offline","version":1,"updated_at":"x"}""",
+            ).jsonObject)))
+        }
+        val sales = SalesRepository(RpcTransport { _, _ -> throw RpcFailure.Transient("offline") }, database, OutboxWriter(database.outbox()))
+        compose.setContent { PearlTheme { BookingsScreen(sales, library, onOpenLead = {}, onReschedule = { l, a -> moved = l to a }) } }
+
+        compose.waitUntil(5_000) { exists(hasTestTag("booking-A1")) }
+        compose.onNodeWithText(text(R.string.book_tomorrow)).assertIsDisplayed()
+        compose.onNodeWithText("Asha").assertIsDisplayed()
+        compose.onNodeWithText("10:30 AM · Dr X").assertIsDisplayed()
+
+        compose.onNodeWithTag("booking-menu-A1").performClick()
+        compose.onNodeWithTag("booking-menu-reschedule").performClick()
+        assertEquals("L1" to "A1", moved)
+
+        // Confirm: queued, and it leaves "To confirm".
+        compose.onNodeWithTag("booking-menu-A1").performClick()
+        compose.onNodeWithTag("booking-menu-confirm").performClick()
+        compose.waitUntil(5_000) { queuedRpcs(database) == listOf("set_appointment_status") }
+        compose.onNodeWithTag("bookings-confirm").performClick()
+        compose.waitUntil(5_000) { exists(hasText(text(R.string.bookings_none_confirm))) }
+
+        // Cancel asks for a reason; then it leaves Upcoming.
+        compose.onNodeWithTag("bookings-upcoming").performClick()
+        compose.waitUntil(5_000) { exists(hasTestTag("booking-menu-A1")) }
+        compose.onNodeWithTag("booking-menu-A1").performClick()
+        compose.onNodeWithTag("booking-menu-cancel").performClick()
+        compose.onNodeWithTag("cancel-reason").performTextInput("Patient is travelling")
+        compose.onNodeWithTag("cancel-booking-save").performClick()
+        compose.waitUntil(5_000) { exists(hasText(text(R.string.bookings_none_upcoming))) }
+        assertEquals(2, queuedRpcs(database).size)
+    }
+
+    @Test
     fun anOpenFollowupOnTheLeadPageOpensTheFollowupsTab() {
         var opened: String? = null
         val database = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), AppDatabase::class.java)
@@ -443,7 +489,7 @@ class SalesScreensTest {
         runBlocking {
             database.appointments().upsert(listOf(com.pearl.crm.core.data.db.AppointmentEntity.fromRow(PearlJson.parseToJsonElement(
                 """{"id":"A1","lead_id":"L1","doctor_id":"D1","doctor":"Dr X","appt_date":"2030-01-16",
-                "slot_start":"2030-01-16T05:00:00+00:00","status":"pending","mode":"offline","version":1,"updated_at":"x"}""",
+                "slot_start":"2030-01-16T05:00:00+00:00","status":"pending_confirmation","mode":"offline","version":1,"updated_at":"x"}""",
             ).jsonObject)))
         }
         compose.waitUntil(5_000) { exists(hasTestTag("quote-1")) }
@@ -452,6 +498,8 @@ class SalesScreensTest {
         compose.onNodeWithTag("quote-text-1").assertIsDisplayed()
 
         compose.waitUntil(5_000) { exists(hasTestTag("booking-reschedule-A1")) }
+        // Waiting for the patient: all three actions (the server's word is pending_confirmation).
+        compose.onNodeWithTag("booking-confirm-A1").performScrollTo().assertIsDisplayed()
         compose.onNodeWithTag("booking-reschedule-A1").performScrollTo().performClick()
         assertEquals("A1", rescheduled)
 
