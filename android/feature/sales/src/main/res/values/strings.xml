@@ -282,6 +282,7 @@
     <string name="bookings_none_past">No past bookings on this phone.</string>
     <string name="bookings_yesterday">Yesterday</string>
     <string name="bookings_actions_for">Actions for %1$s</string>
+    <string name="bookings_from_lead">Opened from the lead</string>
     <string name="followups_from_lead">Opened from the lead</string>
     <string name="followups_from_lead_close">Close</string>
     <string name="next_call_change">Change time</string>

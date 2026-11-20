@@ -248,6 +248,8 @@ fun LeadDetailScreen(
     onQuote: (String) -> Unit = {},
     /** An open follow-up tapped: show it in the Follow-ups tab. */
     onOpenFollowup: ((String) -> Unit)? = null,
+    /** A booking tapped: show it in the Bookings tab. */
+    onOpenBooking: ((String) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val load by remember(leadId) { sales.observeLead(leadId).map { LeadLoad(it) } }.collectAsStateWithLifecycle(null)
@@ -403,6 +405,8 @@ fun LeadDetailScreen(
                         supporting = apptStatusLabel(a.status),
                         icon = Icons.Outlined.Event,
                         modifier = Modifier.testTag("booking-${a.id}"),
+                        onClick = if (onOpenBooking != null && a.status != "rescheduled") ({ onOpenBooking(a.id) }) else null,
+                        chevron = onOpenBooking != null && a.status != "rescheduled",
                         below = if (!open && !a.pending) null else ({
                             if (a.pending) StatusLabel(stringResource(R.string.not_sent_yet), StatusTone.Info)
                             if (open) {

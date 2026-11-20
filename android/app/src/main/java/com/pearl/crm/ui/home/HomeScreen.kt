@@ -102,6 +102,7 @@ fun HomeScreen(container: AppContainer, session: Session) {
     val swipeHint = remember { !container.settings.swipeHintSeen }
     // A follow-up tapped on a lead page, shown pinned in the Follow-ups tab (owner, 20/11/2026).
     var focusTask by rememberSaveable { mutableStateOf<String?>(null) }
+    var focusBooking by rememberSaveable { mutableStateOf<String?>(null) }
 
     val online by container.network.online.collectAsStateWithLifecycle()
     // Calls started from the app leave their notes sheet to the call watcher when it is on (one sheet, not two).
@@ -195,6 +196,8 @@ fun HomeScreen(container: AppContainer, session: Session) {
                                 openLead,
                                 onReschedule = { lead, appt -> nav.navigate("reschedule/$lead/$appt") },
                                 onRefresh = sync,
+                                focusId = focusBooking,
+                                onClearFocus = { focusBooking = null },
                             )
                             tab == HomeTab.Calls -> CallsScreen(container.sales, openLead, onRefresh = sync)
                             tab == HomeTab.Alerts -> com.pearl.crm.ui.alerts.AlertsScreen(container)
@@ -232,6 +235,14 @@ fun HomeScreen(container: AppContainer, session: Session) {
                         onOpenFollowup = if (HomeTab.Followups in tabs) ({ task ->
                             focusTask = task
                             nav.navigate(HomeTab.Followups.route) {
+                                popUpTo(nav.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }) else null,
+                        onOpenBooking = if (HomeTab.Bookings in tabs) ({ appt ->
+                            focusBooking = appt
+                            nav.navigate(HomeTab.Bookings.route) {
                                 popUpTo(nav.graph.findStartDestination().id) { saveState = true }
                                 launchSingleTop = true
                                 restoreState = true

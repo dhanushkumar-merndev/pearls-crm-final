@@ -1,5 +1,6 @@
 package com.pearl.crm.feature.sales
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,6 +16,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Call
 import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.EventAvailable
 import androidx.compose.material.icons.outlined.EventBusy
 import androidx.compose.material.icons.outlined.EventRepeat
@@ -95,9 +97,16 @@ fun BookingsScreen(
     onOpenLead: (String) -> Unit,
     onReschedule: (String, String) -> Unit,
     onRefresh: suspend () -> Unit = {},
+    /** A booking tapped on the lead page: pinned at the top, outlined, until closed. */
+    focusId: String? = null,
+    onClearFocus: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val today = remember { istToday() }
+    val focused by remember(focusId) { focusId?.let { sales.observeBooking(it) } ?: kotlinx.coroutines.flow.flowOf(null) }
+        .collectAsStateWithLifecycle(null)
+    // Leaving the tab ends the focus.
+    androidx.compose.runtime.DisposableEffect(Unit) { onDispose { onClearFocus() } }
     var scope by rememberSaveable { mutableStateOf("upcoming") }
     var page by rememberSaveable(scope) { mutableIntStateOf(0) }
     val listState = key(scope, page) { rememberLazyListState() }
@@ -112,7 +121,9 @@ fun BookingsScreen(
     var cancelling by rememberSaveable { mutableStateOf<String?>(null) }
     val confirmedText = stringResource(R.string.booking_confirmed)
     val cancelledText = stringResource(R.string.booking_cancelled)
-    val list = rows?.take(ListPageSize)
+    val pinned = focused?.takeIf { it.appointment.status != "rescheduled" }
+    val list = rows?.take(ListPageSize)?.filter { it.appointment.id != pinned?.appointment?.id }
+    LaunchedEffect(pinned?.appointment?.id) { if (pinned != null) listState.scrollToItem(0) }
 
     Scaffold(contentWindowInsets = WindowInsets(0), snackbarHost = { SnackbarHost(snackbar) }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
@@ -132,8 +143,44 @@ fun BookingsScreen(
                     verticalArrangement = Arrangement.spacedBy(Spacing.item),
                     state = if (list == null) rememberLazyListState() else listState,
                 ) { emptyModifier ->
+                    pinned?.let { row ->
+                        item(key = "pinned-head") {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    stringResource(R.string.bookings_from_lead),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = Pearl.palette.textSecondary,
+                                    modifier = Modifier.weight(1f).semantics { heading() },
+                                )
+                                IconButton(onClick = onClearFocus, modifier = Modifier.testTag("pinned-booking-close")) {
+                                    Icon(Icons.Outlined.Close, stringResource(R.string.followups_from_lead_close), tint = Pearl.palette.textSecondary)
+                                }
+                            }
+                        }
+                        item(key = "pinned-${row.appointment.id}") {
+                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(dayHeading(row.appointment.apptDate, today), style = MaterialTheme.typography.bodySmall, color = Pearl.palette.textSecondary)
+                                BookingRow(
+                                    row,
+                                    past = row.appointment.apptDate < today.toString(),
+                                    onOpen = { row.appointment.leadId?.let(onOpenLead) },
+                                    onCall = row.leadPhone?.let { phone -> { row.appointment.leadId?.let { calls.call(it, phone) } } },
+                                    onConfirm = {
+                                        scope2.launch {
+                                            sales.confirmAppointment(row.appointment.id)
+                                            snackbar.showSnackbar(confirmedText)
+                                        }
+                                    },
+                                    onReschedule = { row.appointment.leadId?.let { onReschedule(it, row.appointment.id) } },
+                                    onCancel = { cancelling = row.appointment.id },
+                                    highlight = true,
+                                )
+                            }
+                        }
+                    }
                     when {
                         list == null -> item(key = "loading") { LoadingBlock(rows = 4, rowHeight = 64.dp) }
+                        list.isEmpty() && pinned != null -> Unit
                         list.isEmpty() -> item(key = "empty") {
                             EmptyState(
                                 Icons.Outlined.EventAvailable,
@@ -217,13 +264,16 @@ private fun BookingRow(
     onConfirm: () -> Unit,
     onReschedule: () -> Unit,
     onCancel: () -> Unit,
+    /** Opened from the lead page: a brighter outline so the eye finds it. */
+    highlight: Boolean = false,
 ) {
     val a = row.appointment
     var menu by remember { mutableStateOf(false) }
     val open = !past && a.status in OPEN
     PearlCard(
         onClick = onOpen,
-        modifier = Modifier.testTag("booking-${a.id}"),
+        modifier = Modifier.testTag(if (highlight) "booking-pinned-${a.id}" else "booking-${a.id}")
+            .then(if (highlight) Modifier.border(2.dp, MaterialTheme.colorScheme.onSurfaceVariant, MaterialTheme.shapes.medium) else Modifier),
         contentPadding = PaddingValues(start = Spacing.l, top = Spacing.m, bottom = Spacing.m, end = Spacing.xs),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.s)) {

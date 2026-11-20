@@ -478,6 +478,64 @@ class SalesScreensTest {
         compose.onNodeWithText(text(R.string.followups_empty)).assertIsDisplayed()
     }
 
+    private fun booking(id: String, date: String, status: String) = com.pearl.crm.core.data.db.AppointmentEntity.fromRow(PearlJson.parseToJsonElement(
+        """{"id":"$id","lead_id":"L1","doctor_id":"D1","doctor":"Dr X","appt_date":"$date",
+        "slot_start":"${date}T05:00:00+00:00","status":"$status","mode":"offline","version":1,"updated_at":"x"}""",
+    ).jsonObject)
+
+    @Test
+    fun aBookingOnTheLeadPageOpensTheBookingsTab() {
+        var opened: String? = null
+        val database = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), AppDatabase::class.java)
+            .allowMainThreadQueries().build()
+        db = database
+        val tomorrow = istToday().plusDays(1).toString()
+        runBlocking {
+            database.leads().upsert(listOf(LeadEntity.fromRow(PearlJson.parseToJsonElement(
+                """{"id":"L1","sl_no":7,"name":"Asha","phone_e164":"+919845000001","stage":"interested","updated_at":"x"}""",
+            ).jsonObject)))
+            database.appointments().upsert(listOf(booking("A1", tomorrow, "confirmed")))
+        }
+        val sales = SalesRepository(RpcTransport { _, _ -> throw RpcFailure.Transient("offline") }, database, OutboxWriter(database.outbox()))
+        compose.setContent { PearlTheme { LeadDetailScreen("L1", sales, library, onBack = {}, onBook = {}, onOpenBooking = { opened = it }) } }
+        compose.waitUntil(5_000) { exists(hasTestTag("booking-A1")) }
+        compose.onNodeWithTag("booking-A1").performScrollTo().performClick()
+        assertEquals("A1", opened)
+    }
+
+    @Test
+    fun theBookingsTabPinsTheOneOpenedFromTheLeadEvenAPastOne() {
+        var cleared = false
+        val database = Room.inMemoryDatabaseBuilder(ApplicationProvider.getApplicationContext(), AppDatabase::class.java)
+            .allowMainThreadQueries().build()
+        db = database
+        val lastWeek = istToday().minusDays(7).toString()
+        runBlocking {
+            database.leads().upsert(listOf(LeadEntity.fromRow(PearlJson.parseToJsonElement(
+                """{"id":"L1","sl_no":7,"name":"Asha","phone_e164":"+919845000001","stage":"interested","updated_at":"x"}""",
+            ).jsonObject)))
+            database.appointments().upsert(listOf(booking("A9", lastWeek, "done")))
+        }
+        val sales = SalesRepository(RpcTransport { _, _ -> error("the list uses the phone database") }, database, OutboxWriter(database.outbox()))
+        val focus = mutableStateOf<String?>("A9")
+        compose.setContent {
+            PearlTheme {
+                BookingsScreen(sales, library, onOpenLead = {}, onReschedule = { _, _ -> }, focusId = focus.value,
+                    onClearFocus = { cleared = true; focus.value = null })
+            }
+        }
+        compose.waitUntil(5_000) { exists(hasTestTag("booking-pinned-A9")) }
+        compose.onNodeWithText(text(R.string.bookings_from_lead)).assertIsDisplayed()
+        compose.onNodeWithText("Asha").assertIsDisplayed()
+        // A past one has no actions.
+        assertFalse(exists(hasTestTag("booking-menu-A9")))
+        compose.onNodeWithTag("pinned-booking-close").performClick()
+        compose.waitUntil(5_000) { !exists(hasTestTag("booking-pinned-A9")) }
+        assertTrue(cleared)
+        // Last week is not in Upcoming.
+        compose.onNodeWithText(text(R.string.bookings_none_upcoming)).assertIsDisplayed()
+    }
+
     @Test
     fun theLeadPageListsQuotationsAndBookingsCanBeConfirmedMovedAndCancelled() {
         val database = showLead { fn, _ ->

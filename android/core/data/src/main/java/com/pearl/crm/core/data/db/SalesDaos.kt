@@ -200,6 +200,16 @@ interface AppointmentDao {
     )
     fun observeUpcomingWithLead(today: String, limit: Int, offset: Int): Flow<List<AppointmentWithLead>>
 
+    /** One booking with its lead (opened from the lead page into the Bookings tab). */
+    @Query(
+        """
+        SELECT a.*, l.name AS lead_name, l.phone_e164 AS lead_phone FROM appointments AS a
+        LEFT JOIN leads AS l ON l.id = a.lead_id
+        WHERE a.id = :id
+        """,
+    )
+    fun observeOneWithLead(id: String): Flow<AppointmentWithLead?>
+
     @Query(
         """
         SELECT a.*, l.name AS lead_name, l.phone_e164 AS lead_phone FROM appointments AS a
