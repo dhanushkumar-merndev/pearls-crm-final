@@ -22,7 +22,7 @@ test.describe("as admin", () => {
     await expect(page.getByText("Saved ✓")).toBeVisible();
 
     // A new doctor goes straight to their page: details, signature, then hours.
-    await expect(page).toHaveURL(/\/admin\/doctors\/[0-9a-f-]{36}\?new=1$/);
+    await expect(page).toHaveURL(/\/doctors\/[0-9a-f-]{36}\?new=1$/);
     await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
     await expect(page.getByText("Doctor saved. Now set the working hours.")).toBeVisible();
     await expect(page.getByText("₹600.00")).toBeVisible();
@@ -62,7 +62,7 @@ test.describe("as admin", () => {
       await expect(page.getByRole("heading", { level: 2, name: section })).toBeVisible();
     }
     await page.getByRole("link", { name: "Open Doctors" }).click();
-    await expect(page).toHaveURL(/\/admin\/libraries\/doctors$/);
+    await expect(page).toHaveURL(/\/doctors$/);
   });
 
   test("admin adds a service and finds it in the change history", async ({ page }) => {
@@ -81,6 +81,35 @@ test.describe("as admin", () => {
 
 test.describe("as receptionist", () => {
   test.use({ storageState: STATE.reception });
+
+  test("reception adds a doctor with hours, and a service with its price, from the menu", async ({ page }) => {
+    const name = `Dr E2E Rec ${Date.now()}`;
+    await open(page, "/home");
+    const menu = page.getByRole("navigation", { name: "Main menu" });
+    await menu.getByRole("link", { name: "Doctors" }).click();
+    await expect(page).toHaveURL(/\/doctors$/);
+    await page.getByRole("button", { name: "Add doctor" }).click();
+    await page.getByLabel("Doctor's full name").fill(name);
+    await page.getByLabel("Consultation fee").fill("500");
+    await page.getByRole("button", { name: "Save" }).click();
+    await expect(page).toHaveURL(/\/doctors\/[0-9a-f-]{36}\?new=1$/);
+    await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
+    await choose(page, page.getByLabel("Day", { exact: true }), "Tuesday");
+    await pickTime(page, page.getByLabel("From").first(), "10:00");
+    await pickTime(page, page.getByLabel("To").first(), "13:00");
+    await page.getByRole("button", { name: "Add hours" }).click();
+    await expect(page.getByRole("cell", { name: "Tuesday" })).toBeVisible();
+
+    const service = `E2E Rec Service ${Date.now()}`;
+    await menu.getByRole("link", { name: "Services" }).click();
+    await page.getByRole("button", { name: "Add service" }).click();
+    await page.getByLabel("Name").fill(service);
+    await page.getByLabel("Price").fill("1200");
+    await page.getByRole("button", { name: "Save" }).click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await page.getByLabel("Search Services").fill(service);
+    await expect(page.getByRole("row", { name: new RegExp(service) })).toContainText("₹1,200.00");
+  });
 
   test("a receptionist can't open admin pages", async ({ page }) => {
     await open(page, "/home");

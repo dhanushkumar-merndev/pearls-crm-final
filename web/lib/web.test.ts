@@ -14,6 +14,11 @@ describe("menus per role", () => {
     expect(PRIMARY_ACTIONS.sales_executive?.href).toBe("/leads/sheet?new=1");
     expect(navFor("bdm")).toEqual([]);
   });
+  it("reception has Doctors and Services in the menu (owner 25/11/2026); the admin reaches them from Admin", () => {
+    expect(navFor("receptionist").map((i) => i.href)).toEqual(expect.arrayContaining(["/doctors", "/services"]));
+    expect(navFor("admin").map((i) => i.href)).not.toContain("/doctors");
+    expect(navFor("sales_manager").map((i) => i.href)).not.toContain("/services");
+  });
 
   it("only admins see the design preview", () => {
     for (const role of STAFF_ROLES) {

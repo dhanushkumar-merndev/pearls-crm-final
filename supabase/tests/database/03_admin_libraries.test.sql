@@ -72,8 +72,8 @@ select throws_ok($$
 select pg_temp.login('44444444-0000-4000-a000-0000000000b1');
 select ok((select count(*) from public.doctors where id = '44444444-1111-4000-a000-000000000001') = 1,
   'receptionist reads doctors');
-select throws_ok($$ insert into public.doctors (full_name) values ('Dr Sneaky') $$,
-  '42501', null, 'receptionist cannot add doctors directly');
+select lives_ok($$ insert into public.doctors (full_name) values ('Dr Reception Added') $$,
+  'receptionist adds doctors (owner 25/11/2026; see 44_reception_doctors_services)');
 select throws_ok($$ select public.update_settings('appointments', '{"capacity_per_slot": 99}', 1) $$,
   'P0001', 'not_allowed', 'receptionist cannot change settings (direct API call)');
 select throws_ok($$ update public.app_settings set value = '{}' where section = 'appointments' $$,

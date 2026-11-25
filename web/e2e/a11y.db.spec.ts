@@ -31,13 +31,13 @@ const PAGES = {
   admin: [
     "/home", "/dashboard", "/targets", "/admin", "/admin/users", "/admin/settings", "/admin/clinic", "/admin/audit",
     "/admin/backup", "/admin/notifications", "/admin/import", "/admin/review", "/admin/whatsapp", "/admin/drips",
-    "/admin/meta-leads", "/admin/discharge-templates", "/admin/libraries/doctors", "/admin/libraries/holidays",
-    "/admin/libraries/offices", "/admin/libraries/services", "/admin/libraries/treatments", "/admin/libraries/rooms",
+    "/admin/meta-leads", "/admin/discharge-templates", "/doctors", "/admin/libraries/holidays",
+    "/admin/libraries/offices", "/services", "/admin/libraries/treatments", "/admin/libraries/rooms",
     "/admin/libraries/medicines", "/admin/libraries/lists", "/admin/guide", "/bdm", "/recordings", "/account/password",
   ],
   reception: [
     "/home", "/patients", "/patients/new", "/patients/pending", "/patients/qr", "/appointments", "/sessions",
-    "/followups", "/bills", "/admissions", "/pharmacy", "/whatsapp",
+    "/followups", "/bills", "/admissions", "/pharmacy", "/whatsapp", "/doctors", "/services",
   ],
   manager: ["/home", "/leads", "/leads/sheet", "/leads/dashboard", "/leads/pool", "/leads/import", "/targets", "/bookings"],
   sales: ["/leads/sheet", "/bookings"],

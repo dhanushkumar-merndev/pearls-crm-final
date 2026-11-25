@@ -77,7 +77,7 @@ export function DoctorDetails({ doctor }: { doctor: DoctorProfile }) {
           <CardDescription>{t("detailsHint")}</CardDescription>
         </div>
         <Button asChild variant="secondary">
-          <Link href="/admin/libraries/doctors">
+          <Link href="/doctors">
             <Pencil aria-hidden />
             {t("edit")}
           </Link>
@@ -95,7 +95,7 @@ export function DoctorDetails({ doctor }: { doctor: DoctorProfile }) {
   );
 }
 
-/** The signature image printed on discharge summaries (admin uploads; PNG or WebP, ≤ 300 KB). */
+/** The signature image printed on discharge summaries (reception or admin uploads; PNG or WebP, ≤ 300 KB). */
 export function DoctorSignature({ doctor }: { doctor: DoctorProfile }) {
   const t = useTranslations("doctorPage");
   const tv = useTranslations("validation");

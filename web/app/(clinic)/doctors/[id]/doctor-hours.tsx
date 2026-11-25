@@ -215,7 +215,7 @@ export function DoctorHours({
   return (
     <Page>
       <PageHeader
-        back={{ href: "/admin/libraries/doctors", label: t("back") }}
+        back={{ href: "/doctors", label: t("back") }}
         title={t("title", { name: doctorName })}
         description={t("description")}
       />

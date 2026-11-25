@@ -19,13 +19,13 @@ const SECTIONS: { key: string; icon: LucideIcon; links: { href: string; key: str
   {
     key: "doctor",
     icon: Stethoscope,
-    links: [{ href: "/admin/libraries/doctors", key: "doctors" }],
+    links: [{ href: "/doctors", key: "doctors" }],
   },
   {
     key: "service",
     icon: Syringe,
     links: [
-      { href: "/admin/libraries/services", key: "services" },
+      { href: "/services", key: "services" },
       { href: "/admin/libraries/treatments", key: "treatments" },
       { href: "/admin/libraries/medicines", key: "medicines" },
       { href: "/admin/libraries/rooms", key: "rooms" },

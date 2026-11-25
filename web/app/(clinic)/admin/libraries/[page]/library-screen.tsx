@@ -7,6 +7,9 @@ import { LOOKUP_KINDS, useLibraryConfig, type LibraryPage, type LookupKind } fro
 import { Field, PageHeader, Select } from "@/components/ui/form";
 import { Page, useAdminBack } from "@/components/ui/page";
 
+/** Doctors and services sit in the main menu (no "Back to Admin"); the other lists are Admin pages. */
+const OWN_PAGES: readonly LibraryPage[] = ["doctors", "services"];
+
 export function LibraryScreen({ page }: { page: LibraryPage }) {
   const adminBack = useAdminBack();
   const t = useTranslations("library");
@@ -14,7 +17,7 @@ export function LibraryScreen({ page }: { page: LibraryPage }) {
   const config = useLibraryConfig(page, kind);
   return (
     <Page>
-      <PageHeader back={adminBack} title={t(`pages.${page}.title`)} description={t(`pages.${page}.description`)} />
+      <PageHeader back={OWN_PAGES.includes(page) ? undefined : adminBack} title={t(`pages.${page}.title`)} description={t(`pages.${page}.description`)} />
       {page === "lists" && (
         <Field label={t("whichList")} className="max-w-sm">
           {(a) => (

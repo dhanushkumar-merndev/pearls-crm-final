@@ -330,10 +330,10 @@ export function useLibraryConfig(
         ],
         defaults: { consultation_fee_paise: 0, colour_slot: 0, sort: 100 },
         // A new doctor goes straight to their page: working hours, leave and signature (19d).
-        afterCreate: (id: string) => `/admin/doctors/${id}?new=1`,
+        afterCreate: (id: string) => `/doctors/${id}?new=1`,
         rowActions: (row: Row) => (
           <Button asChild variant="ghost">
-            <Link href={`/admin/doctors/${row.id}`}>
+            <Link href={`/doctors/${row.id}`}>
               <CalendarClock aria-hidden />
               {t("hoursAndLeave")}
             </Link>

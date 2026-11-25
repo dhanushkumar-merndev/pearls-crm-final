@@ -36,7 +36,9 @@
     "dashboard": "Dashboard",
     "targets": "Targets",
     "notifications": "Notifications",
-    "bookings": "Bookings"
+    "bookings": "Bookings",
+    "doctors": "Doctors",
+    "services": "Services"
   },
   "actions": {
     "newPatient": "New patient",
@@ -1483,7 +1485,7 @@
     "day": "Day",
     "today": "Today",
     "holiday": "Clinic closed: {name}",
-    "noDoctors": "No active doctors. Add them in Admin → Doctors.",
+    "noDoctors": "No active doctors. Add them under Doctors in the menu.",
     "onLeave": "On leave",
     "noHoursToday": "Not working on this day",
     "bookAt": "Book {time} with {doctor}",
@@ -4261,7 +4263,7 @@
       "title": "Add a doctor",
       "intro": "A doctor needs weekly hours before patients can be booked with them.",
       "steps": [
-        "Admin → Doctors and services → Doctors → Add doctor.",
+        "Doctors (in the menu; for the admin also under Admin) → Add doctor.",
         "Type the full name as it prints (for example Dr. Priya Rao), the qualification, registration number and consultation fee. Pick a colour for the appointment board. Save.",
         "The doctor's page opens. Under Weekly hours pick the day, the From and To time, and press Add hours. Repeat for each day. Leave the slot and patients-per-slot boxes empty to use the clinic's default.",
         "Under Leave add the days the doctor is away; booking is blocked on those days.",
@@ -4273,7 +4275,7 @@
       "title": "Add a service and its price",
       "intro": "Four lists hold what can go on a bill. Pick the one that matches what you sell.",
       "steps": [
-        "Services: anything charged once on a bill, such as a consultation, a scan, a dressing or a doctor's charge. Admin → Services → Add service, type the name and price, choose the category and GST rate, Save.",
+        "Services: anything charged once on a bill, such as a consultation, a scan, a dressing or a doctor's charge. Services (in the menu; for the admin also under Admin) → Add service, type the name and price, choose the category and GST rate, Save.",
         "Treatments: a plan with sessions and a package price, such as Laser hair reduction with 6 sessions. Starting a treatment for a patient creates its sessions.",
         "Medicines: pharmacy items with their batches, stock and selling price. They go on pharmacy bills.",
         "Room types: the in-patient rooms and their daily rate, used on the IP final bill.",

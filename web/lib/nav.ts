@@ -16,6 +16,8 @@ import {
   Plus,
   ReceiptIndianRupee,
   Settings,
+  Stethoscope,
+  Syringe,
   Target,
   Users,
   type LucideIcon,
@@ -105,6 +107,9 @@ export const NAV_ITEMS: readonly NavItem[] = [
     icon: ListTodo,
     roles: ["receptionist", "admin"],
   },
+  // Owner 25/11/2026: reception adds doctors and services like the admin (admin opens them from Admin).
+  { href: "/doctors", labelKey: "nav.doctors", icon: Stethoscope, roles: ["receptionist"] },
+  { href: "/services", labelKey: "nav.services", icon: Syringe, roles: ["receptionist"] },
   { href: "/admin", labelKey: "nav.admin", icon: Settings, roles: ["admin"] },
   // Opened from the bell ("See all notifications") and Ctrl+K; not in the sidebar.
   {
