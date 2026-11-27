@@ -105,10 +105,12 @@ test.describe("as receptionist", () => {
     await page.getByRole("button", { name: "Add service" }).click();
     await page.getByLabel("Name").fill(service);
     await page.getByLabel("Price").fill("1200");
+    await choose(page, page.getByLabel("GST", { exact: true }), "2.5%"); // owner 27/11/2026
     await page.getByRole("button", { name: "Save" }).click();
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await page.getByLabel("Search Services").fill(service);
     await expect(page.getByRole("row", { name: new RegExp(service) })).toContainText("₹1,200.00");
+    await expect(page.getByRole("row", { name: new RegExp(service) })).toContainText("2.5%");
 
     // Treatments too (owner 27/11/2026): sessions and a package price, as sales quote them.
     const plan = `E2E Rec Plan ${Date.now()}`;

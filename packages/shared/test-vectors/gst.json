@@ -45,6 +45,16 @@
       "name": "inclusive 18% with 10% discount",
       "input": { "ratePaise": 118000, "qtyMilli": 1000, "discountType": "percent", "discountValue": 1000, "gstRateBp": 1800, "taxInclusive": true },
       "expect": { "grossPaise": 118000, "discountPaise": 11800, "taxablePaise": 90000, "taxPaise": 16200, "cgstPaise": 8100, "sgstPaise": 8100, "totalPaise": 106200 }
+    },
+    {
+      "name": "exclusive 2.5% (owner 27/11/2026), ₹999 × 1 → tax ₹24.975 rounds half-up to ₹24.98, CGST/SGST 1.25% each",
+      "input": { "ratePaise": 99900, "qtyMilli": 1000, "discountType": "amount", "discountValue": 0, "gstRateBp": 250, "taxInclusive": false },
+      "expect": { "grossPaise": 99900, "discountPaise": 0, "taxablePaise": 99900, "taxPaise": 2498, "cgstPaise": 1249, "sgstPaise": 1249, "totalPaise": 102398 }
+    },
+    {
+      "name": "inclusive 2.5%, ₹1,025 × 2 → ₹2,000 taxable + ₹50 tax",
+      "input": { "ratePaise": 102500, "qtyMilli": 2000, "discountType": "amount", "discountValue": 0, "gstRateBp": 250, "taxInclusive": true },
+      "expect": { "grossPaise": 205000, "discountPaise": 0, "taxablePaise": 200000, "taxPaise": 5000, "cgstPaise": 2500, "sgstPaise": 2500, "totalPaise": 205000 }
     }
   ],
   "errors": [

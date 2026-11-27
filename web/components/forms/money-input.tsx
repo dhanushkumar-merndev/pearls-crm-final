@@ -80,4 +80,4 @@ export function MoneyInput({
 }
 
 /** GST rate picker in basis points (the unit packages/shared/src/gst.ts uses). */
-export const GST_RATES_BP = [0, 500, 1200, 1800, 2800] as const;
+export const GST_RATES_BP = [0, 250, 500, 1200, 1800, 2800] as const;

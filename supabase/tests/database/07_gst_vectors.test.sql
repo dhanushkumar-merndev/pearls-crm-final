@@ -4,7 +4,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(12);
+select plan(14);
 
 select is((select row(gross, discount, taxable, tax, cgst, sgst, total)::text from private.compute_line(10000, 1, 'amount'::public.discount_type, 0, 1800, false)),
   '(10000,0,10000,1800,900,900,11800)', 'exclusive 18%, ₹100 × 1');
@@ -24,6 +24,10 @@ select is((select row(gross, discount, taxable, tax, cgst, sgst, total)::text fr
   '(22400,0,20000,2400,1200,1200,22400)', 'inclusive 12%, ₹112 × 2');
 select is((select row(gross, discount, taxable, tax, cgst, sgst, total)::text from private.compute_line(118000, 1, 'percent'::public.discount_type, 1000, 1800, true)),
   '(118000,11800,90000,16200,8100,8100,106200)', 'inclusive 18% with 10% discount');
+select is((select row(gross, discount, taxable, tax, cgst, sgst, total)::text from private.compute_line(99900, 1, 'amount'::public.discount_type, 0, 250, false)),
+  '(99900,0,99900,2498,1249,1249,102398)', 'exclusive 2.5% (owner 27/11/2026), ₹999 × 1 → tax ₹24.975 rounds half-up to ₹24.98, CGST/SGST 1.25% each');
+select is((select row(gross, discount, taxable, tax, cgst, sgst, total)::text from private.compute_line(102500, 2, 'amount'::public.discount_type, 0, 250, true)),
+  '(205000,0,200000,5000,2500,2500,205000)', 'inclusive 2.5%, ₹1,025 × 2 → ₹2,000 taxable + ₹50 tax');
 select throws_ok('select * from private.compute_line(10000, 1, ''amount''::public.discount_type, 10001, 0, true)', 'P0001', 'discount_exceeds_gross', 'amount discount bigger than gross');
 select throws_ok('select * from private.compute_line(10000, 1, ''percent''::public.discount_type, 10001, 0, true)', 'P0001', 'discount_exceeds_gross', 'percent discount over 100%');
 select throws_ok('select * from private.compute_line(10000, 0, ''amount''::public.discount_type, 0, 0, true)', 'P0001', 'invalid_quantity', 'zero quantity');
