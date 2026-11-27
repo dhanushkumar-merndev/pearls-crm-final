@@ -38,7 +38,8 @@
     "notifications": "Notifications",
     "bookings": "Bookings",
     "doctors": "Doctors",
-    "services": "Services"
+    "services": "Services",
+    "treatments": "Treatments"
   },
   "actions": {
     "newPatient": "New patient",

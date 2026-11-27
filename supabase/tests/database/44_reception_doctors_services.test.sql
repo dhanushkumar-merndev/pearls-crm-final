@@ -1,9 +1,10 @@
--- Reception manages doctors and services like the admin (owner, 25/11/2026); nobody else new does.
+-- Reception manages doctors, services and treatments like the admin (owner, 25/11 and 27/11/2026);
+-- nobody else new does.
 begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(16);
+select plan(22);
 
 create function pg_temp.login(p_id uuid)
 returns void
@@ -68,6 +69,21 @@ select lives_ok($$ update public.doctors set signature_file_id = '44444444-7777-
 select throws_ok($$ update public.doctors set signature_file_id = '44444444-7777-4000-b000-000000000002'
                     where id = '44444444-1111-4000-b000-000000000001' $$, 'P0001', 'invalid_input', 'any other file is refused');
 
+-- Treatments (sales quote from these) and the services inside a treatment.
+select lives_ok($$ insert into public.treatment_templates (id, name, category, default_sessions, gap_days, pricing, default_price_paise)
+                   values ('44444444-5555-4000-b000-000000000001', 'RD Hair plan', 'procedure', 6, '{0,30}', 'package', 6000000) $$,
+  'reception adds a treatment');
+select lives_ok($$ update public.treatment_templates set default_price_paise = 5500000, default_sessions = 8
+                   where id = '44444444-5555-4000-b000-000000000001' $$, 'reception changes its sessions and price');
+select is((select default_price_paise from public.treatment_templates where id = '44444444-5555-4000-b000-000000000001'),
+  5500000::bigint, 'new treatment price saved');
+select lives_ok($$ insert into public.treatment_template_services (id, template_id, service_id, qty)
+                   values ('44444444-6666-4000-b000-000000000001', '44444444-5555-4000-b000-000000000001',
+                           '44444444-4444-4000-b000-000000000001', 1) $$, 'reception puts a service in the treatment');
+delete from public.treatment_template_services where id = '44444444-6666-4000-b000-000000000001';
+select is((select count(*)::int from public.treatment_template_services where template_id = '44444444-5555-4000-b000-000000000001'), 0,
+  'and takes it out again');
+
 -- Still admin-only for reception: rooms and settings.
 select throws_ok($$ insert into public.room_types (name, daily_rate_paise) values ('RD Room', 100) $$, '42501', null,
   'rooms stay admin-only');
@@ -78,6 +94,8 @@ select throws_ok($$ insert into public.room_types (name, daily_rate_paise) value
 select pg_temp.login('44444444-0000-4000-b000-0000000000c1');
 select throws_ok($$ insert into public.doctors (full_name) values ('Dr Sales') $$, '42501', null, 'sales cannot add doctors');
 select throws_ok($$ insert into public.services (name, default_price_paise) values ('Sales svc', 1) $$, '42501', null, 'sales cannot add services');
+select throws_ok($$ insert into public.treatment_templates (name, default_price_paise) values ('Sales plan', 1) $$, '42501', null,
+  'sales cannot add treatments');
 select pg_temp.login('44444444-0000-4000-b000-0000000000a1');
 update public.services set default_price_paise = 1 where id = '44444444-4444-4000-b000-000000000001';
 reset role;

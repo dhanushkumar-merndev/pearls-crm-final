@@ -51,7 +51,7 @@ const GROUPS: { key: string; links: AdminLink[] }[] = [
     links: [
       { href: "/doctors", key: "doctors", icon: Stethoscope },
       { href: "/services", key: "services", icon: Syringe },
-      { href: "/admin/libraries/treatments", key: "treatments", icon: ClipboardList },
+      { href: "/treatments", key: "treatments", icon: ClipboardList },
       { href: "/admin/libraries/rooms", key: "rooms", icon: BedDouble },
       { href: "/admin/libraries/medicines", key: "medicines", icon: Pill },
     ],

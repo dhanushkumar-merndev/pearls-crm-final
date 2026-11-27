@@ -52,7 +52,7 @@ const ROUTES: Record<string, WebRole[]> = {
   "/admin/libraries/holidays": ADMIN,
   "/admin/libraries/offices": ADMIN,
   "/services": DESK,
-  "/admin/libraries/treatments": ADMIN,
+  "/treatments": DESK,
   "/admin/libraries/rooms": ADMIN,
   "/admin/libraries/medicines": ADMIN,
   "/admin/libraries/lists": ADMIN,

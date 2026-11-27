@@ -26,7 +26,7 @@ const SECTIONS: { key: string; icon: LucideIcon; links: { href: string; key: str
     icon: Syringe,
     links: [
       { href: "/services", key: "services" },
-      { href: "/admin/libraries/treatments", key: "treatments" },
+      { href: "/treatments", key: "treatments" },
       { href: "/admin/libraries/medicines", key: "medicines" },
       { href: "/admin/libraries/rooms", key: "rooms" },
     ],

@@ -7,8 +7,8 @@ import { LOOKUP_KINDS, useLibraryConfig, type LibraryPage, type LookupKind } fro
 import { Field, PageHeader, Select } from "@/components/ui/form";
 import { Page, useAdminBack } from "@/components/ui/page";
 
-/** Doctors and services sit in the main menu (no "Back to Admin"); the other lists are Admin pages. */
-const OWN_PAGES: readonly LibraryPage[] = ["doctors", "services"];
+/** Doctors, services and treatments sit in the main menu (no "Back to Admin"); the other lists are Admin pages. */
+const OWN_PAGES: readonly LibraryPage[] = ["doctors", "services", "treatments"];
 
 export function LibraryScreen({ page }: { page: LibraryPage }) {
   const adminBack = useAdminBack();

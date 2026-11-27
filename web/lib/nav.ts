@@ -5,6 +5,7 @@ import {
   Car,
   CalendarCheck,
   CalendarDays,
+  ClipboardList,
   Goal,
   House,
   LayoutDashboard,
@@ -107,9 +108,10 @@ export const NAV_ITEMS: readonly NavItem[] = [
     icon: ListTodo,
     roles: ["receptionist", "admin"],
   },
-  // Owner 25/11/2026: reception adds doctors and services like the admin (admin opens them from Admin).
+  // Owner 25/11 + 27/11/2026: reception adds doctors, services and treatments like the admin (admin opens them from Admin).
   { href: "/doctors", labelKey: "nav.doctors", icon: Stethoscope, roles: ["receptionist"] },
   { href: "/services", labelKey: "nav.services", icon: Syringe, roles: ["receptionist"] },
+  { href: "/treatments", labelKey: "nav.treatments", icon: ClipboardList, roles: ["receptionist"] },
   { href: "/admin", labelKey: "nav.admin", icon: Settings, roles: ["admin"] },
   // Opened from the bell ("See all notifications") and Ctrl+K; not in the sidebar.
   {

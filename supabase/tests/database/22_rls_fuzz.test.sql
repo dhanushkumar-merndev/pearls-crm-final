@@ -88,12 +88,14 @@ select is_empty($$ select tbl from findings where who = 'nostaff' $$,
   'a signed-in account with no staff row sees, changes and deletes nothing');
 select results_eq($$ select tbl || ':' || op || ':' || n from findings where who = 'gone' $$, $$ values ('staff:select:1') $$,
   'a deactivated person sees only their own staff row');
--- Reception manages doctors (hours, leave) and services like the admin (owner 25/11/2026, 44_reception_doctors_services).
+-- Reception manages doctors (hours, leave), services and treatments like the admin (owner 25/11 + 27/11/2026,
+-- 44_reception_doctors_services).
 select is_empty($$ select who || ' ' || tbl from findings where op = 'delete'
-                   and not (who = 'receptionist' and tbl in ('doctor_schedules', 'doctor_leaves')) $$,
-  'no role can delete rows directly from any table (except reception: doctor hours and leave)');
+                   and not (who = 'receptionist' and tbl in ('doctor_schedules', 'doctor_leaves', 'treatment_template_services')) $$,
+  'no role can delete rows directly from any table (except reception: doctor hours, leave, services in a treatment)');
 select results_eq($$ select who || ' ' || tbl from findings where op = 'update'
-                     and not (who = 'receptionist' and tbl in ('doctors', 'doctor_schedules', 'doctor_leaves', 'services')) order by 1 $$,
+                     and not (who = 'receptionist' and tbl in ('doctors', 'doctor_schedules', 'doctor_leaves', 'services',
+                                                               'treatment_templates', 'treatment_template_services')) order by 1 $$,
   $$ values ('receptionist suppliers') $$,
   'the only other direct update outside admin is reception editing suppliers');
 select is_empty($$ select who || ' ' || tbl from findings

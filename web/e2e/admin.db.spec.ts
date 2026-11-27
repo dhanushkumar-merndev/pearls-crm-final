@@ -82,7 +82,7 @@ test.describe("as admin", () => {
 test.describe("as receptionist", () => {
   test.use({ storageState: STATE.reception });
 
-  test("reception adds a doctor with hours, and a service with its price, from the menu", async ({ page }) => {
+  test("reception adds a doctor with hours, a service and a treatment with their prices, from the menu", async ({ page }) => {
     const name = `Dr E2E Rec ${Date.now()}`;
     await open(page, "/home");
     const menu = page.getByRole("navigation", { name: "Main menu" });
@@ -109,6 +109,21 @@ test.describe("as receptionist", () => {
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await page.getByLabel("Search Services").fill(service);
     await expect(page.getByRole("row", { name: new RegExp(service) })).toContainText("₹1,200.00");
+
+    // Treatments too (owner 27/11/2026): sessions and a package price, as sales quote them.
+    const plan = `E2E Rec Plan ${Date.now()}`;
+    await menu.getByRole("link", { name: "Treatments" }).click();
+    await expect(page).toHaveURL(/\/treatments$/);
+    await page.getByRole("button", { name: "Add treatment" }).click();
+    await page.getByLabel("Name").fill(plan);
+    await page.getByLabel("Sessions").fill("6");
+    await page.getByLabel("Price").fill("45000");
+    await page.getByRole("button", { name: "Save" }).click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await page.getByLabel("Search Treatments").fill(plan);
+    const row = page.getByRole("row", { name: new RegExp(plan) });
+    await expect(row).toContainText("₹45,000.00");
+    await expect(row).toContainText("6");
   });
 
   test("a receptionist can't open admin pages", async ({ page }) => {

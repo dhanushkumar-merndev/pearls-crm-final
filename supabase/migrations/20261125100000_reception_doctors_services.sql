@@ -1,7 +1,9 @@
--- Reception manages doctors and services like the admin (owner, 25/11/2026: "same admin feature,
--- only for doctor and service, I need for reception"):
+-- Reception manages doctors, services and treatments like the admin (owner, 25/11/2026: "same admin
+-- feature, only for doctor and service, I need for reception"; 27/11: "treatment also"):
 --   * doctors, their weekly hours (doctor_schedules) and leave (doctor_leaves): add / change / remove
 --   * services (the bill price list): add / change
+--   * treatments (plans with sessions, gaps and package prices; sales quote from them) and the
+--     services inside a treatment: add / change / remove a service from a treatment
 --   * the doctor's signature image (prints on discharge summaries): upload
 -- Everything else in Admin stays admin-only. Table grants are unchanged (02_rls_matrix): only who
 -- passes the row checks changes.
@@ -10,14 +12,15 @@ do $$
 declare
   t text;
 begin
-  foreach t in array array['doctors', 'doctor_schedules', 'doctor_leaves', 'services'] loop
+  foreach t in array array['doctors', 'doctor_schedules', 'doctor_leaves', 'services',
+                           'treatment_templates', 'treatment_template_services'] loop
     execute format($p$create policy %I on public.%I for insert to authenticated
                       with check ((select private.has_role('receptionist')))$p$, t || '_reception_insert', t);
     execute format($p$create policy %I on public.%I for update to authenticated
                       using ((select private.has_role('receptionist'))) with check ((select private.has_role('receptionist')))$p$,
                    t || '_reception_update', t);
   end loop;
-  foreach t in array array['doctor_schedules', 'doctor_leaves'] loop
+  foreach t in array array['doctor_schedules', 'doctor_leaves', 'treatment_template_services'] loop
     execute format($p$create policy %I on public.%I for delete to authenticated
                       using ((select private.has_role('receptionist')))$p$, t || '_reception_delete', t);
   end loop;
