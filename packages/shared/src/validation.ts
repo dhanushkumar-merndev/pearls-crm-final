@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { rupeesToPaise } from "./money";
-import { fromIstDateTimeLocal } from "./dates";
+import { fromIstDateTimeLocal, istDateString } from "./dates";
 import { normalizePhone } from "./phone";
 
 /**
@@ -110,6 +110,13 @@ export const requiredDate = () =>
   z
     .preprocess(asText, z.string({ error: "required" }).trim().min(1, { error: "required", abort: true }))
     .refine(isIsoDate, { error: "date" });
+
+/** A required date no more than `days` before or after today (IST), e.g. a bill's date (owner 27/11/2026). */
+export const dateNearToday = (days = 366, now = () => new Date()) =>
+  requiredDate().refine(
+    (v) => Math.abs(Date.parse(`${v}T00:00:00Z`) - Date.parse(`${istDateString(now())}T00:00:00Z`)) <= days * 86_400_000,
+    { error: "withinYear" },
+  );
 
 export const optionalDate = () =>
   z
@@ -300,4 +307,5 @@ export const VALIDATION_MESSAGES = [
   "decimals", "min", "max", "amount", "amountPositive", "amountTooLarge", "choose", "intList", "wordList",
   "dateOrder", "timeOrder", "notFuture", "notPast", "passwordShort", "passwordMismatch", "username", "age",
   "tooMany", "duplicateValue", "gst", "hsn", "gstin", "noRows", "server", "summary", "time", "reasonShort", "pickSlot", "rangeTooLong",
+  "withinYear",
 ] as const;

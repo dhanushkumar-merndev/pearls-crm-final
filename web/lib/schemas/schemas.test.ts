@@ -2,12 +2,15 @@ import { describe, expect, it } from "vitest";
 import type { z } from "zod";
 import { clinicProfileSchema, createStaffSchema, numberSeriesSchema } from "./admin";
 import { bookSchema, cancelSchema } from "./appointments";
+import { istDateString } from "@pearl/shared";
 import { billSchema, finalizeSchema, paymentSchema } from "./billing";
 import { admissionSchema, doctorHoursSchema, doctorLeaveSchema, editTreatmentSchema, followupSchema, startTreatmentSchema, stayChargesSchema } from "./clinical";
 import { backupSchema, purgeSchema, targetSchema } from "./ops";
 import { adjustStockSchema, purchaseSchema } from "./pharmacy";
 import { quotationSchema, quoteSubtotal } from "./sales";
 import { dripCampaignSchema, dripEnrollSchema, templateSchema, waTemplateSendSchema, waTextSchema } from "./whatsapp";
+
+const TODAY = istDateString(new Date());
 
 const errs = (schema: z.ZodType, value: unknown) => {
   const r = schema.safeParse(value);
@@ -85,21 +88,21 @@ describe("billing", () => {
   const line = { kind: "service", description: "Consultation", hsn_sac: "", rate_paise: 50000, qty: "1", discount_type: "amount", discount_amount: 0, discount_percent: "", gst_rate_bp: 0 };
   it("each line: description, rate, quantity; discount within the line amount", () => {
     const schema = billSchema({ taxInclusive: true, amend: false });
-    expect(errs(schema, { doctor: null, referred_by: "", lines: [line], reason: "" })).toEqual({});
-    expect(errs(schema, { doctor: null, referred_by: "", lines: [{ ...line, description: "", rate_paise: null, qty: "0" }], reason: "" })).toEqual({
+    expect(errs(schema, { doctor: null, referred_by: "", bill_date: TODAY, lines: [line], reason: "" })).toEqual({});
+    expect(errs(schema, { doctor: null, referred_by: "", bill_date: TODAY, lines: [{ ...line, description: "", rate_paise: null, qty: "0" }], reason: "" })).toEqual({
       "lines.0.description": "required", "lines.0.rate_paise": "required", "lines.0.qty": "min",
     });
-    expect(errs(schema, { doctor: null, referred_by: "", lines: [{ ...line, discount_amount: 60000 }], reason: "" })).toEqual({
+    expect(errs(schema, { doctor: null, referred_by: "", bill_date: TODAY, lines: [{ ...line, discount_amount: 60000 }], reason: "" })).toEqual({
       "lines.0.discount_amount": "bill.discountTooBig",
     });
-    expect(errs(schema, { doctor: null, referred_by: "", lines: [{ ...line, kind: "pharmacy", medicine: item(), batch_id: null }], reason: "" })).toEqual({
+    expect(errs(schema, { doctor: null, referred_by: "", bill_date: TODAY, lines: [{ ...line, kind: "pharmacy", medicine: item(), batch_id: null }], reason: "" })).toEqual({
       "lines.0.batch_id": "errors.batch_required",
     });
-    expect(errs(schema, { doctor: null, referred_by: "", lines: [], reason: "" })).toEqual({ lines: "noRows" });
+    expect(errs(schema, { doctor: null, referred_by: "", bill_date: TODAY, lines: [], reason: "" })).toEqual({ lines: "noRows" });
   });
   it("reception's discount limit: 20% of ₹500 is ₹100; more is refused before saving (an admin has none)", () => {
     const reception = billSchema({ taxInclusive: true, amend: false, maxDiscountBp: 2000 });
-    const bill = (l: object) => ({ doctor: null, referred_by: "", lines: [{ ...line, ...l }], reason: "" });
+    const bill = (l: object) => ({ doctor: null, referred_by: "", bill_date: TODAY, lines: [{ ...line, ...l }], reason: "" });
     expect(errs(reception, bill({ discount_amount: 10000 }))).toEqual({});
     expect(errs(reception, bill({ discount_amount: 10001 }))).toEqual({ "lines.0.discount_amount": "bill.discountOverLimit" });
     expect(errs(reception, bill({ discount_type: "percent", discount_amount: null, discount_percent: "25" }))).toEqual({
@@ -107,8 +110,13 @@ describe("billing", () => {
     });
     expect(errs(billSchema({ taxInclusive: true, amend: false, maxDiscountBp: null }), bill({ discount_amount: 40000 }))).toEqual({});
   });
+  it("the bill's date: needed, within a year of today (owner 27/11/2026)", () => {
+    const schema = billSchema({ taxInclusive: true, amend: false });
+    expect(errs(schema, { doctor: null, referred_by: "", bill_date: "", lines: [line], reason: "" })).toEqual({ bill_date: "required" });
+    expect(errs(schema, { doctor: null, referred_by: "", bill_date: "2001-01-01", lines: [line], reason: "" })).toEqual({ bill_date: "withinYear" });
+  });
   it("an amendment needs a reason", () => {
-    expect(errs(billSchema({ taxInclusive: true, amend: true }), { doctor: null, referred_by: "", lines: [line], reason: "" })).toEqual({ reason: "required" });
+    expect(errs(billSchema({ taxInclusive: true, amend: true }), { doctor: null, referred_by: "", bill_date: TODAY, lines: [line], reason: "" })).toEqual({ reason: "required" });
   });
   it("finalize: no more than due, each amount has a mode, advance within credit", () => {
     const schema = finalizeSchema({ due: 100000, credit: 20000, needsReason: false });

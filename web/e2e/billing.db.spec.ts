@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { open, STATE, uniquePhone, newBill } from "./helpers";
+import { open, pickDate, STATE, uniquePhone, newBill } from "./helpers";
 
 // Phase 5: a receipt from blank to printed. Needs a backend (E2E_DB=1).
 test.skip(!process.env.E2E_DB, "needs the Supabase backend (E2E_DB=1)");
@@ -76,4 +76,42 @@ test("receipt: new service on the fly, split payment, original then duplicate pr
   await expect(page.getByText(service).first()).toBeVisible();
   await page.goto(href!);
   await expect(page.getByText("Duplicate", { exact: true })).toBeVisible();
+});
+
+test("bill date: today when made, kept on reopening, changeable to another day, kept by Finalize (owner 27/11/2026)", async ({ page }) => {
+  const iso = (d: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(d);
+  const today = iso(new Date());
+  const yesterday = iso(new Date(Date.parse(`${today}T12:00:00+05:30`) - 86_400_000));
+  const shown = yesterday.split("-").reverse().join("/");
+  const name = `E2E Bill Date ${Date.now()}`;
+  await open(page, "/patients/new");
+  await page.getByLabel("Full name").fill(name);
+  await page.getByLabel("Mobile number").fill(uniquePhone());
+  await page.getByRole("button", { name: "Save patient" }).first().click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(name);
+  await page.getByRole("tab", { name: "Bills", exact: true }).click();
+  await newBill(page, "New surgery bill");
+  await expect(page).toHaveURL(/\/bills\/[0-9a-f-]{36}$/);
+
+  const date = page.getByLabel("Bill date");
+  await expect(date).toHaveAttribute("data-value", today);
+  await page.getByRole("combobox", { name: "Service or item" }).first().click();
+  await page.getByPlaceholder("Type to search…").fill("Consultation");
+  await page.getByRole("option", { name: /^Consultation/ }).first().click();
+  await page.getByLabel("Rate", { exact: true }).first().fill("500");
+  await pickDate(page, date, yesterday);
+  await page.getByRole("button", { name: "Save draft" }).click();
+  await expect(page.getByText("Draft saved").first()).toBeVisible();
+
+  // Opened again later: the chosen day, not today.
+  await page.reload();
+  await expect(page.getByLabel("Bill date")).toHaveAttribute("data-value", yesterday);
+
+  await page.getByRole("button", { name: "Finalize bill" }).click();
+  const pay = page.getByRole("dialog");
+  await pay.getByRole("combobox", { name: "Mode" }).first().click();
+  await page.getByRole("option", { name: "Cash", exact: true }).click();
+  await pay.getByRole("button", { name: "Fully paid" }).click();
+  await expect(page.getByText("Finalized", { exact: true })).toBeVisible();
+  await expect(page.getByText(new RegExp(`${name} · .* · ${shown}`))).toBeVisible();
 });

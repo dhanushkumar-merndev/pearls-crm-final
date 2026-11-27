@@ -36,8 +36,9 @@ insert into public.bills (id, bill_type, bill_no, status, patient_id, bill_at, t
   ('33333333-2222-4000-a000-000000000002', 'procedure_receipt', 'BB-R2', 'finalized', '33333333-1111-4000-a000-000000000001', '2031-03-03 07:00+00', 500000, null),
   ('33333333-2222-4000-a000-000000000003', 'pharmacy_invoice', 'BB-P1', 'finalized', '33333333-1111-4000-a000-000000000001', '2031-03-03 08:00+00', 120000, null),
   ('33333333-2222-4000-a000-000000000005', 'procedure_receipt', 'BB-R3', 'cancelled', '33333333-1111-4000-a000-000000000001', '2031-03-03 09:00+00', 999900, 'wrong patient');
-insert into public.bills (id, bill_type, status, patient_id, created_at, total_paise) values
-  ('33333333-2222-4000-a000-000000000004', 'pharmacy_invoice', 'draft', '33333333-1111-4000-a000-000000000001', '2031-03-03 10:00+00', 77700);
+-- A draft has its date from the start (owner 27/11/2026).
+insert into public.bills (id, bill_type, status, patient_id, created_at, bill_at, total_paise) values
+  ('33333333-2222-4000-a000-000000000004', 'pharmacy_invoice', 'draft', '33333333-1111-4000-a000-000000000001', '2031-03-03 10:00+00', '2031-03-03 10:00+00', 77700);
 
 -- Payments: cash 6,000 + UPI 2,000 on R1; card 1,200 on P1; a cancelled cash 5,000 on R2 (not counted).
 insert into public.payments (id, patient_id, mode_id, amount_paise, received_at, cancelled_at) values

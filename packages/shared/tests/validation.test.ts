@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import {
+  dateNearToday,
   intList,
   isIsoDate,
   issuesByPath,
@@ -99,6 +100,15 @@ describe("dates and choices", () => {
     expect(msg(optionalDate(), "2026-13-01")).toBe("date");
     expect(requiredDateTime().parse("2026-10-24T10:30")).toBe("2026-10-24T10:30");
     expect(msg(requiredDateTime(), "2026-10-24")).toBe("dateTime");
+  });
+  it("a bill's date: within a year of today (IST), either way (owner 27/11/2026)", () => {
+    const now = () => new Date("2026-11-27T20:00:00Z"); // 28/11 01:30 in India
+    expect(dateNearToday(366, now).parse("2026-11-28")).toBe("2026-11-28");
+    expect(dateNearToday(366, now).parse("2025-11-27")).toBe("2025-11-27");
+    expect(dateNearToday(366, now).parse("2027-11-29")).toBe("2027-11-29");
+    expect(msg(dateNearToday(366, now), "2027-11-30")).toBe("withinYear");
+    expect(msg(dateNearToday(366, now), "2025-11-26")).toBe("withinYear");
+    expect(msg(dateNearToday(366, now), "")).toBe("required");
   });
   it("a dropdown left on 'Choose…' or an empty picker asks to choose", () => {
     expect(msg(requiredChoice(["a", "b"] as const), "")).toBe("choose");

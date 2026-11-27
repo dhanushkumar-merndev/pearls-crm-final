@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   computeLine,
+  dateNearToday,
   HSN_SAC_PATTERN,
   LineError,
   optionalCode,
@@ -65,6 +66,8 @@ export const billSchema = ({ taxInclusive, amend, maxDiscountBp = null }: { taxI
   z.object({
     doctor: optionalItem(),
     referred_by: optionalText(120),
+    // The bill's date: today when made; any day within a year either way (owner 27/11/2026). Amend keeps it.
+    bill_date: amend ? z.unknown() : dateNearToday(),
     lines: z.array(lineSchema(taxInclusive, maxDiscountBp)).min(1, { error: "noRows" }).max(200, { error: "tooMany" }),
     reason: amend ? requiredReason(300) : z.unknown(),
   });

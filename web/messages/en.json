@@ -315,7 +315,8 @@
     "rangeTooLong": "Choose at most one year.",
     "rangeTooLongAds": "Choose at most 24 months.",
     "botNeedsProducts": "Add at least one treatment before switching the bot on.",
-    "signatureType": "Please choose a picture (PNG, WebP or JPEG) under 300 KB."
+    "signatureType": "Please choose a picture (PNG, WebP or JPEG) under 300 KB.",
+    "withinYear": "Pick a day within one year of today."
   },
   "picker": {
     "choose": "Choose…",
@@ -1806,7 +1807,9 @@
     "gstRate": "GST rate",
     "subtotal": "Subtotal",
     "otherCategory": "Other",
-    "noTax": "No GST on this bill."
+    "noTax": "No GST on this bill.",
+    "billDate": "Bill date",
+    "billDateHint": "The day the bill was made. Change it for a past or future day."
   },
   "payment": {
     "title": "Advance or refund",

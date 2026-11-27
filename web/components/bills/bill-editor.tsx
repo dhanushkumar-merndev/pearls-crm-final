@@ -5,11 +5,12 @@ import { BadgePercent, CheckCheck, CirclePlus, Eye, Save, Trash2, X } from "luci
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
-import { computeBillTotals, computeLine, formatINR, LineError, readSettings, type DiscountType, type LineResult } from "@pearl/shared";
+import { computeBillTotals, computeLine, formatINR, istDateString, LineError, readSettings, type DiscountType, type LineResult } from "@pearl/shared";
 import { MoneyInput, GST_RATES_BP } from "@/components/forms/money-input";
 import { LibraryCombobox, type LibraryItem } from "@/components/library-combobox";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { DatePicker } from "@/components/ui/date-picker";
 import { Checkbox, Field, Select } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { StickyActions } from "@/components/ui/page";
@@ -150,6 +151,8 @@ export function BillEditor({
   const [doctor, setDoctor] = useState<LibraryItem | null>(item(bill.doctor_id, bill.doctor));
   const [referredBy, setReferredBy] = useState(bill.referred_by_text ?? "");
   const [taxInclusive, setTaxInclusive] = useState(bill.tax_inclusive);
+  // The bill's date: the day it was made, kept until someone changes it (owner 27/11/2026).
+  const [billDate, setBillDate] = useState(() => istDateString(new Date(bill.bill_at ?? bill.created_at)));
   const [reason, setReason] = useState("");
   // A patch can be a function of the line as it is now: pickers answer after a round trip,
   // and must not overwrite what was typed meanwhile.
@@ -191,7 +194,7 @@ export function BillEditor({
   const tp = useTranslations("printPreview");
 
   /** Every line and header field checked before anything is sent. */
-  const checkAll = () => checks.validate({ doctor, referred_by: referredBy, lines, reason }) !== null;
+  const checkAll = () => checks.validate({ doctor, referred_by: referredBy, bill_date: billDate, lines, reason }) !== null;
 
   const save = useMutation({
     mutationFn: async () => {
@@ -199,7 +202,7 @@ export function BillEditor({
       if (amend) return rpc<Bill>("amend_bill", { p_bill_id: bill.id, p_items: items, p_reason: reason });
       return rpc<Bill>("save_bill", {
         p_bill_id: bill.id,
-        p_header: { doctor_id: doctor?.id ?? null, referred_by_text: referredBy, tax_inclusive: taxInclusive },
+        p_header: { doctor_id: doctor?.id ?? null, referred_by_text: referredBy, tax_inclusive: taxInclusive, bill_date: billDate },
         p_items: items,
         p_version: bill.version,
       });
@@ -225,7 +228,7 @@ export function BillEditor({
     const typed = lines.filter((l) => l.description.trim() || l.rate_paise !== null).map(toPayloadLine);
     const b = await rpc<Bill>("save_bill", {
       p_bill_id: bill.id,
-      p_header: { doctor_id: doctor?.id ?? null, referred_by_text: referredBy, tax_inclusive: taxInclusive },
+      p_header: { doctor_id: doctor?.id ?? null, referred_by_text: referredBy, tax_inclusive: taxInclusive, bill_date: billDate },
       p_items: [...typed, ...extra],
       p_version: bill.version,
     });
@@ -256,7 +259,10 @@ export function BillEditor({
   return (
     <div className="flex flex-col gap-4">
       {!amend && (
-        <Card className="grid gap-4 sm:grid-cols-3">
+        <Card className="grid gap-4 sm:grid-cols-4">
+          <Field label={t("billDate")} hint={t("billDateHint")} error={checks.error("bill_date")}>
+            {(a) => <DatePicker {...a} value={billDate} clearTo={billDate} onChange={(v) => (setBillDate(v), checks.clear("bill_date"))} />}
+          </Field>
           <Field label={t("doctor")} error={checks.error("doctor")}>{(a) => <LibraryCombobox {...a} kind="doctor" value={doctor} onChange={setDoctor} />}</Field>
           <Field label={t("referredBy")} error={checks.error("referred_by")}>
             {(a) => <Input {...a} maxLength={120} value={referredBy} onChange={(e) => (setReferredBy(e.target.value), checks.clear("referred_by"))} />}
