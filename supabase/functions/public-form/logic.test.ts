@@ -53,6 +53,16 @@ Deno.test("submit: fields a patient may not set are dropped", async () => {
   assertEquals(calls[0]!.includes("uhid"), false);
 });
 
+Deno.test("submit: transgender is accepted as a gender (owner 27/11/2026); an unknown word is not", async () => {
+  const ok = fakeDeps({ rpc: { public_form_submit: {} } });
+  const res = await publicForm({ action: "submit", token: TOKEN, turnstile_token: "x", payload: { ...payload, gender: "transgender" } }, null, ok.deps);
+  assertEquals(res.status, 200);
+  assertEquals(ok.calls[0]!.includes("transgender"), true);
+  const bad = fakeDeps();
+  const refused = await publicForm({ action: "submit", token: TOKEN, turnstile_token: "x", payload: { ...payload, gender: "trans" } }, null, bad.deps);
+  assertEquals(refused.status, 400);
+});
+
 Deno.test("submit: a bad phone or missing name is refused", async () => {
   const { deps, calls } = fakeDeps();
   const bad = await publicForm({ action: "submit", token: TOKEN, turnstile_token: "x", payload: { full_name: "A", phone_e164: "98450" } }, null, deps);

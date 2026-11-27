@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(48);
+select plan(51);
 
 create function pg_temp.login(p_id uuid)
 returns void
@@ -195,6 +195,14 @@ select is(
   '{"ok":1,"dry_run":true}'::jsonb, 'dry run: one good row, two problems found');
 select is(
   (select count(*)::int from public.patients where full_name = 'Imp One'), 0, 'a dry run saves nothing');
+
+-- Transgender is a gender choice (owner 27/11/2026). Last, so the UHID checks above stay as they are.
+select pg_temp.login('55555555-0000-4000-a000-0000000000b1');
+select lives_ok($$ select public.register_patient('{"full_name":"Kiran TG","gender":"transgender"}', 'new',
+                   p_client_id => '55555555-1111-4000-a000-0000000000a9') $$, 'a transgender patient is registered');
+select is((select gender::text from public.patients where full_name = 'Kiran TG'), 'transgender', 'and kept as transgender');
+select throws_ok($$ select public.register_patient('{"full_name":"Bad Gender","gender":"trans"}', 'new') $$, null, null,
+  'an unknown gender word is refused');
 
 select * from finish();
 rollback;

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { open, STATE, uniquePhone } from "./helpers";
+import { choose, open, STATE, uniquePhone } from "./helpers";
 
 // Phase 2: the three registration paths and search. Needs a backend (E2E_DB=1).
 test.skip(!process.env.E2E_DB, "needs the Supabase backend (E2E_DB=1)");
@@ -17,6 +17,18 @@ test("desk registration: a new patient gets a UHID and a patient file", async ({
   await registerNew(page, name, uniquePhone());
   await expect(page.getByText(/Registered ✓ — UHID/)).toBeVisible();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(name);
+});
+
+test("transgender is a gender choice and shows on the patient file (owner 27/11/2026)", async ({ page }) => {
+  const name = `E2E TG ${Date.now()}`;
+  await open(page, "/patients/new");
+  await page.getByLabel("Full name").fill(name);
+  await page.getByLabel("Mobile number").fill(uniquePhone());
+  await choose(page, page.getByLabel("Gender"), "Transgender");
+  await page.getByRole("button", { name: "Save patient" }).first().click();
+  await expect(page.getByText(/Registered ✓ — UHID/)).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(name);
+  await expect(page.getByText("Transgender").first()).toBeVisible();
 });
 
 test("same phone again: update only the ticked details, or add a family member", async ({ page }) => {

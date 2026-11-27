@@ -930,6 +930,7 @@
     "genders": {
       "female": "Female",
       "male": "Male",
+      "transgender": "Transgender",
       "other": "Other",
       "unknown": "Not said"
     },

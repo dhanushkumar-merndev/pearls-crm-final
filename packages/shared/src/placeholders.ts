@@ -26,7 +26,8 @@ export function leftoverPlaceholders(text: string): string[] {
  * order the editor offers them. OP summaries fill visit_on / procedure_on / procedure / doctor, and
  * admitted_on / discharged_on / surgery_on / surgeon with the visit day and doctor; IP-only names
  * (ip_number, room, diagnosis, anaesthesia, times) stay unfilled there and block finalize.
- * Pronouns follow the patient's gender: female → she/her, male → he/him/his, other → they/them/their.
+ * Pronouns follow the patient's gender: female → she/her, male → he/him/his, anything else (transgender,
+ * other, not said) → they/them/their.
  */
 export const PLACEHOLDER_NAMES = [
   "patient_name", "first_name", "age", "he_she", "He_She", "him_her", "Him_Her", "his_her", "His_Her",

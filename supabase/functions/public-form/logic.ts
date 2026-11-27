@@ -10,7 +10,7 @@ const text = (max: number) => z.string().trim().max(max).optional();
 export const payloadSchema = z.object({
   title: z.enum(["Mr", "Mrs", "Ms", "Miss", "Master", "Baby", "Dr"]).optional(),
   full_name: z.string().trim().min(1).max(120),
-  gender: z.enum(["female", "male", "other", "unknown"]).optional(),
+  gender: z.enum(["female", "male", "transgender", "other", "unknown"]).optional(),
   dob: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   age_years: z.number().int().min(0).max(120).optional(),
   phone_e164: phone,

@@ -93,7 +93,15 @@ export function mapPatientRow(cells: string[], columns: Record<string, number | 
     else bad("phone_e164", "phone");
   }
   const gender = get("gender").toLowerCase();
-  row.gender = /^(f|female|woman)$/.test(gender) ? "female" : /^(m|male|man)$/.test(gender) ? "male" : gender ? "other" : "unknown";
+  row.gender = /^(f|female|woman)$/.test(gender)
+    ? "female"
+    : /^(m|male|man)$/.test(gender)
+      ? "male"
+      : /^(t|tg|trans|transgender)$/.test(gender)
+        ? "transgender"
+        : gender
+          ? "other"
+          : "unknown";
   const dob = get("dob");
   if (dob) {
     const iso = parseDate(dob);

@@ -14,7 +14,7 @@ import {
 } from "./validation";
 
 export const PATIENT_TITLES = ["Mr", "Mrs", "Ms", "Miss", "Master", "Baby", "Dr"] as const;
-export const GENDERS = ["female", "male", "other", "unknown"] as const;
+export const GENDERS = ["female", "male", "transgender", "other", "unknown"] as const;
 export const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"] as const;
 
 const blankOr = <T extends readonly [string, ...string[]]>(values: T) =>

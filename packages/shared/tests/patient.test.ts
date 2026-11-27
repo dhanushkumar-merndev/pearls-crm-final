@@ -25,6 +25,10 @@ describe("desk patient form", () => {
     });
     expect(p).not.toHaveProperty("dob");
   });
+  it("transgender is a gender choice on both forms (owner 27/11/2026)", () => {
+    expect(patientDraftSchema.parse({ ...draft, gender: "transgender" }).gender).toBe("transgender");
+    expect(errs(patientDraftSchema, { ...draft, gender: "trans" })).toEqual({ gender: "choose" });
+  });
   it("only the name is required; bad values are reported at the form's field names", () => {
     expect(errs(patientDraftSchema, { ...draft, full_name: " ", phone: "123", whatsapp_same: false, whatsapp: "x", pincode: "0123", email: "a@" })).toEqual({
       full_name: "required", phone: "phone", whatsapp: "phone", pincode: "pincode", email: "email",

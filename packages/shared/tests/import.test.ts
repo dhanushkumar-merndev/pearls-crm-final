@@ -32,6 +32,10 @@ describe("patient import mapping", () => {
       reasons: {},
     });
   });
+  it("reads the gender column, transgender included (owner 27/11/2026)", () => {
+    const g = (v: string) => mapPatientRow(["Kiran", "9845012345", v, "", "", ""], cols).row.gender;
+    expect([g("F"), g("male"), g("TG"), g("Transgender"), g("x"), g("")]).toEqual(["female", "male", "transgender", "transgender", "other", "unknown"]);
+  });
   it("reports bad cells instead of guessing", () => {
     const r = mapPatientRow(["", "123", "M", "31/02/1990", "", "012345"], cols);
     expect(r.problems).toEqual(["full_name", "phone_e164", "dob", "pincode"]);
